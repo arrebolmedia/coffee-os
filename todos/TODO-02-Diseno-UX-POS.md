@@ -2,7 +2,7 @@
 
 **Período**: Semana 1-2  
 **Owner**: UX Designer + Frontend Lead  
-**Prioridad**: 🔴 CRÍTICA  
+**Prioridad**: 🔴 CRÍTICA
 
 ## 📋 Objetivos
 
@@ -13,6 +13,7 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
 ### 1. Wireframes de Pantallas POS Core
 
 #### 🏠 Dashboard Principal - Catálogo de Productos
+
 - [ ] **Grid responsive de productos** (4x4 tablet, 6x6 desktop)
   - Cards con foto, nombre, precio
   - Indicadores de stock bajo
@@ -21,7 +22,7 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
 
 - [ ] **Carrito lateral fijo** (30% del ancho)
   - Lista de productos añadidos
-  - Modificadores aplicados por ítem  
+  - Modificadores aplicados por ítem
   - Subtotal actualizado en tiempo real
   - Botones: Limpiar, Descuento, Checkout
 
@@ -36,7 +37,7 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
 │ ☕ CoffeeOS | Juan Pérez | Caja 1 | 14:32  │
 ├─────────────────────────┬───────────────────┤
 │ Espresso  Filter  Cold  │   CARRITO (3)     │
-│ ┌─────┐ ┌─────┐ ┌─────┐ │ • Americano $45   │  
+│ ┌─────┐ ┌─────┐ ┌─────┐ │ • Americano $45   │
 │ │Amer │ │V60  │ │Cold │ │   + Leche Oat     │
 │ │$45  │ │$65  │ │$55  │ │ • Capuccino $55   │
 │ └─────┘ └─────┘ └─────┘ │ • Croissant $35   │
@@ -48,9 +49,10 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
 ```
 
 #### 🔧 Modal de Modificadores
+
 - [ ] **Overlay contextual** por categoría de producto
   - Leches: Regular, Deslactosada, Oat, Soy, Almendra
-  - Tamaños: 8oz (+$0), 12oz (+$10), 16oz (+$15)  
+  - Tamaños: 8oz (+$0), 12oz (+$10), 16oz (+$15)
   - Extras: Shot extra (+$15), Sirope (+$10), Crema (+$5)
   - Descafeinado: Sí/No toggle
 
@@ -66,7 +68,7 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
 ├─────────────────────────────────────┤
 │ LECHE                               │
 │ ○ Regular  ● Oat (+$5)  ○ Soy (+$3)│
-│                                     │ 
+│                                     │
 │ TAMAÑO                              │
 │ ○ 8oz  ● 12oz (+$10)  ○ 16oz (+$15)│
 │                                     │
@@ -78,6 +80,7 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
 ```
 
 #### 💳 Pantalla de Checkout y Pagos
+
 - [ ] **Resumen de orden detallado**
   - Lista expandida con modificadores
   - Subtotal, impuestos, propina sugerida
@@ -101,7 +104,7 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
 │              CHECKOUT - Ticket #147         │
 ├─────────────────────────────────────────────┤
 │ • Americano 12oz + Oat + Sirope      $70   │
-│ • Capuccino 8oz                      $55   │  
+│ • Capuccino 8oz                      $55   │
 │ • Croissant Jamón                    $35   │
 │                                             │
 │ Subtotal:                           $160   │
@@ -111,7 +114,7 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
 │ TOTAL:                              $201.6 │
 │                                             │
 │ PAGO: [Efectivo] [Tarjeta] [Transfer]      │
-│ ☐ Requiere factura (RFC: __________)       │  
+│ ☐ Requiere factura (RFC: __________)       │
 │                                             │
 │ [PROCESAR PAGO]        [← MODIFICAR]       │
 └─────────────────────────────────────────────┘
@@ -120,13 +123,15 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
 ### 2. Flujo de Pagos Múltiples
 
 #### 💵 Pago Efectivo
+
 - [ ] **Calculadora de cambio inteligente**
   - Denominaciones comunes ($20, $50, $100, $200, $500)
   - Cálculo automático de cambio
   - Sugerencia de billetes para dar cambio
   - Validación de caja suficiente
 
-#### 💳 Pago con Tarjeta  
+#### 💳 Pago con Tarjeta
+
 - [ ] **Integración con terminales locales**
   - Clip: SDK JavaScript + webhook confirmación
   - MercadoPago: Point integration + QR dinámico
@@ -134,6 +139,7 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
   - Status en tiempo real: procesando → aprobado/rechazado
 
 #### 📱 Pago Combinado
+
 - [ ] **Split payment workflow**
   - $100 efectivo + $101.6 tarjeta = ejemplo
   - Tracking de pagos parciales aplicados
@@ -143,43 +149,45 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
 ### 3. Interfaz de Impresión y Recibos
 
 #### 🖨️ Impresión Térmica (80mm)
+
 - [ ] **Template de recibo optimizado**
+
 ```
      ☕ COFFEE HOUSE ROMA ☕
      Sucursal Centro - Caja 1
      RFC: ABC123456789
      ─────────────────────────
-     
+
      Ticket: #147
      Fecha: 15/10/2025 14:32
      Cajero: Juan Pérez
-     
+
      • Americano 12oz         $45.00
        + Leche Oat            $5.00
        + Sirope Vainilla      $10.00
      • Capuccino 8oz          $55.00
      • Croissant Jamón        $35.00
-     
+
      ─────────────────────────
      Subtotal:               $160.00
      IVA (16%):              $25.60
      Propina:                $16.00
      ─────────────────────────
      TOTAL:                  $201.60
-     
+
      PAGO EFECTIVO:          $100.00
      PAGO TARJETA:           $101.60
-     
+
      ¡Gracias por tu visita!
-     
+
      ☕ Síguenos @coffeeroma
      📱 WhatsApp: 55-1234-5678
      ⭐ ¿Cómo estuvo tu experiencia?
-     
+
      ─────────────────────────
 ```
 
-- [ ] **Print queue management**  
+- [ ] **Print queue management**
   - Cola de impresión con retry automático
   - Fallback a PDF si impresora falla
   - Preview antes de imprimir
@@ -188,13 +196,14 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
 ### 4. Estados de Error y Edge Cases
 
 #### ⚠️ Manejo de Errores Críticos
+
 - [ ] **Sin conexión a internet**
   - Modo offline completo activado
   - Queue de transacciones pendientes
   - Indicador visual de estado offline
   - Sincronización automática al reconectar
 
-- [ ] **Impresora desconectada** 
+- [ ] **Impresora desconectada**
   - Alerta visual + sonora
   - Opción de continuar sin imprimir
   - Envío de recibo por WhatsApp/Email
@@ -207,8 +216,9 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
   - Reintento automático cada 5 min
 
 #### 🔄 Loading States y Feedback
+
 - [ ] **Micro-interactions fluidas**
-  - Loading spinners contextuales  
+  - Loading spinners contextuales
   - Success animations (checkmark, confetti)
   - Error states con acción clara
   - Progress indicators para procesos largos
@@ -216,11 +226,13 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
 ## 📱 Responsive Design Considerations
 
 ### 📏 Breakpoints Definidos
+
 - **Tablet POS (768px - 1024px)**: Layout principal optimizado
 - **Desktop manager (>1024px)**: Sidebar adicional con analytics
 - **Móvil emergency (320px - 768px)**: Solo funciones críticas
 
 ### 👆 Touch Optimization
+
 - [ ] **Targets de toque mínimo 44px**
 - [ ] **Gestos intuitivos**: swipe para eliminar, tap & hold para modificar
 - [ ] **Feedback háptico** en dispositivos compatibles
@@ -229,18 +241,21 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
 ## 🎯 Criterios de Aceptación
 
 ### Performance UX
+
 - [ ] ✅ Transición entre pantallas < 200ms
-- [ ] ✅ Respuesta a toque < 100ms  
+- [ ] ✅ Respuesta a toque < 100ms
 - [ ] ✅ Carga inicial del catálogo < 2 segundos
 - [ ] ✅ Flujo completo venta → recibo < 60 segundos
 
 ### Usability Testing Results
+
 - [ ] ✅ Usuario nuevo completa venta en < 3 minutos sin ayuda
 - [ ] ✅ Barista experimentado promedia < 45 segundos por orden
 - [ ] ✅ 0 errores críticos en 50 transacciones de prueba
 - [ ] ✅ 90%+ satisfaction rating en testing con usuarios reales
 
-### Accessibility Compliance  
+### Accessibility Compliance
+
 - [ ] ✅ WCAG 2.1 AA compliance verificado
 - [ ] ✅ Navigation completamente por teclado
 - [ ] ✅ Screen reader compatibility tested
@@ -249,12 +264,14 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
 ## 🛠️ Herramientas y Assets
 
 ### Design Tools
+
 - **Figma**: Wireframes, prototypes, design system
-- **Principle/Framer**: Micro-interactions y animations  
+- **Principle/Framer**: Micro-interactions y animations
 - **Zeplin**: Specs para developers con assets exportados
 - **Stark**: Accessibility testing plugin para Figma
 
 ### Asset Requirements
+
 - [ ] **Iconografía custom**: 50+ íconos coffee-themed
 - [ ] **Ilustraciones de productos**: 20+ bebidas + 10+ food items
 - [ ] **Fotografías de ambiente**: cafetería real, equipo, baristas
@@ -263,18 +280,19 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
 ## 🚀 Entregables Finales
 
 ### 1. Design System Documentation
+
 ```figma-specs
 # CoffeeOS Design System v1.0
 
 ## Color Palette
 - Primary: #8B4513 (Coffee Brown)
-- Secondary: #F4E4BC (Cream)  
+- Secondary: #F4E4BC (Cream)
 - Success: #22C55E
 - Warning: #F59E0B
 - Error: #EF4444
 - Neutral: #64748B scale
 
-## Typography  
+## Typography
 - Headers: Inter Bold 24/32/40px
 - Body: Inter Regular 14/16/18px
 - Captions: Inter Medium 12/14px
@@ -290,12 +308,14 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
 ```
 
 ### 2. Interactive Prototypes
+
 - [ ] 📱 **POS Flow completo**: navegable en Figma/Principle
 - [ ] 💳 **Payment scenarios**: efectivo, tarjeta, combinado, error
 - [ ] 📊 **Manager dashboard**: KPIs, reportes, configuración
 - [ ] ✅ **Mobile checklists**: captura, evidencia, firma
 
 ### 3. Technical Handoff Package
+
 - [ ] **React component architecture**: props, states, composition
 - [ ] **API integration points**: endpoints necesarios por pantalla
 - [ ] **Performance requirements**: loading, animations, transitions
@@ -303,13 +323,15 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
 
 ## 🔗 Dependencies & Handoffs
 
-### ⬅️ Inputs Needed  
+### ⬅️ Inputs Needed
+
 - [ ] ✅ **User research results** de TODO 01
 - [ ] ✅ **Technical constraints** del Tech Lead
 - [ ] ✅ **Brand guidelines** y assets existentes
 - [ ] ✅ **Hardware specs** de tablets POS a usar
 
 ### ➡️ Outputs for Next Phase
+
 - [ ] ✅ **Component specifications** → TODO 03 (Componentes UI Base)
 - [ ] ✅ **API requirements** → TODO 04 (API Core - Autenticación)
 - [ ] ✅ **Responsive breakpoints** → TODO 07 (Interfaz POS Web)
@@ -319,6 +341,6 @@ Diseñar la interfaz de usuario del sistema POS que sea intuitiva, eficiente y o
 
 **⏰ Deadline**: Jueves Semana 2  
 **👥 Stakeholders**: UX Designer, Frontend Lead, Product Manager  
-**📧 Review with**: Gerentes de cafeterías (3) + Baristas (2)  
+**📧 Review with**: Gerentes de cafeterías (3) + Baristas (2)
 
-*Great design is invisible - it just works! 🎨✨*
+_Great design is invisible - it just works! 🎨✨_

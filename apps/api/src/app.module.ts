@@ -21,6 +21,7 @@ import { InventoryItemsModule } from './modules/inventory-items/inventory-items.
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { RecipesModule } from './modules/recipes/recipes.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 import { QualityModule } from './modules/quality/quality.module';
 import { CrmModule } from './modules/crm/crm.module';
 import { FinanceModule } from './modules/finance/finance.module';
@@ -76,6 +77,7 @@ import { RedisModule } from './modules/redis/redis.module';
     InventoryModule,
     RecipesModule,
     TransactionsModule,
+    PaymentsModule,
     QualityModule,
     CrmModule,
     FinanceModule,

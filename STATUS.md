@@ -11,10 +11,11 @@
 ### Opciones para Liberar Espacio:
 
 1. **Eliminar archivos temporales**:
+
    ```powershell
    # Limpiar caché de npm
    npm cache clean --force
-   
+
    # Limpiar archivos temporales de Windows
    cleanmgr
    ```
@@ -32,6 +33,7 @@
 ## ✅ Progreso Completado
 
 ### 1. Estructura del Proyecto ✅
+
 - [x] Monorepo configurado con Turbo
 - [x] Apps: pos-web, api, mobile, admin-web
 - [x] Packages: database, shared, ui-components
@@ -39,6 +41,7 @@
 - [x] Scripts de desarrollo creados
 
 ### 2. Infraestructura Docker ✅
+
 - [x] PostgreSQL (puerto 5434)
 - [x] Redis (puerto 6379)
 - [x] Baserow (puerto 8000) - ✅ **CORRIENDO**
@@ -47,6 +50,7 @@
 - [x] Metabase analytics (puerto 3001)
 
 ### 3. Base de Datos ✅
+
 - [x] Schema Prisma completo (40+ tablas)
 - [x] Multi-tenant con organizationId
 - [x] RBAC system (7 roles)
@@ -54,6 +58,7 @@
 - [x] Índices y relaciones configuradas
 
 ### 4. Documentación ✅
+
 - [x] Guía de configuración de Baserow
 - [x] Documentación de arquitectura
 - [x] Contributing guidelines
@@ -61,6 +66,7 @@
 - [x] Integrations docs
 
 ### 5. Scripts de Setup ✅
+
 - [x] setup-baserow.ps1 (PowerShell - No requiere npm)
 - [x] setup-baserow.js (Node.js - Requiere espacio)
 - [x] BASEROW_SETUP.md (Guía manual paso a paso)
@@ -70,6 +76,7 @@
 ## 🚀 Próximos Pasos (Una vez resuelto el problema de espacio)
 
 ### Fase 1: Instalación de Dependencias
+
 ```powershell
 # 1. Limpiar node_modules existente
 Remove-Item E:\CoffeeOS\node_modules -Recurse -Force -ErrorAction SilentlyContinue
@@ -84,6 +91,7 @@ npm run build
 ### Fase 2: Configuración de Baserow
 
 #### Opción A: Script Automático (PowerShell)
+
 ```powershell
 # 1. Genera tu API token en Baserow: http://localhost:8000
 # Settings → API tokens → Create token
@@ -93,11 +101,13 @@ npm run build
 ```
 
 #### Opción B: Configuración Manual
+
 Sigue la guía completa en: `docs/setup/BASEROW_SETUP.md`
 
 ### Fase 3: Implementación de Módulos (TODOs Restantes)
 
 #### TODO 2: Autenticación y RBAC ⏳
+
 ```bash
 # Ubicación: apps/api/src/auth/
 - Implementar JWT strategy
@@ -107,6 +117,7 @@ Sigue la guía completa en: `docs/setup/BASEROW_SETUP.md`
 ```
 
 #### TODO 3: Módulo de Productos y Recetas ⏳
+
 ```bash
 # Ubicación: apps/api/src/products/
 - CRUD de productos
@@ -116,6 +127,7 @@ Sigue la guía completa en: `docs/setup/BASEROW_SETUP.md`
 ```
 
 #### TODO 4: POS System ⏳
+
 ```bash
 # Ubicación: apps/pos-web/
 - Interfaz de caja
@@ -125,6 +137,7 @@ Sigue la guía completa en: `docs/setup/BASEROW_SETUP.md`
 ```
 
 #### TODO 5: Inventario ⏳
+
 ```bash
 # Ubicación: apps/api/src/inventory/
 - Movimientos de inventario
@@ -134,6 +147,7 @@ Sigue la guía completa en: `docs/setup/BASEROW_SETUP.md`
 ```
 
 #### TODO 6: CRM y Lealtad ⏳
+
 ```bash
 # Ubicación: apps/api/src/crm/
 - Programa 9+1
@@ -143,6 +157,7 @@ Sigue la guía completa en: `docs/setup/BASEROW_SETUP.md`
 ```
 
 #### TODO 7: Calidad NOM-251 ⏳
+
 ```bash
 # Ubicación: apps/api/src/quality/
 - Checklists dinámicos
@@ -152,6 +167,7 @@ Sigue la guía completa en: `docs/setup/BASEROW_SETUP.md`
 ```
 
 #### TODO 8: Finanzas y CFDI ⏳
+
 ```bash
 # Ubicación: apps/api/src/finance/
 - Integración con PAC
@@ -165,13 +181,14 @@ Sigue la guía completa en: `docs/setup/BASEROW_SETUP.md`
 ## 📊 Estado de los Servicios
 
 ### Servicios Operativos ✅
+
 ```bash
 # Verificar estado
 docker-compose ps
 
 # Deberías ver:
 ✅ PostgreSQL    - puerto 5434 - healthy
-✅ Redis         - puerto 6379 - healthy  
+✅ Redis         - puerto 6379 - healthy
 ✅ Baserow       - puerto 8000 - healthy
 ✅ n8n           - puerto 5678 - healthy
 ✅ MinIO         - puerto 9000 - healthy
@@ -180,19 +197,20 @@ docker-compose ps
 
 ### Acceso a Servicios
 
-| Servicio | URL | Usuario | Contraseña |
-|----------|-----|---------|------------|
-| Baserow | http://localhost:8000 | (crear cuenta) | - |
-| n8n | http://localhost:5678 | admin@coffeeos.mx | changeme |
-| MinIO | http://localhost:9000 | minioadmin | minioadmin |
-| Metabase | http://localhost:3001 | (configurar) | - |
-| PostgreSQL | localhost:5434 | postgres | postgres123 |
+| Servicio   | URL                   | Usuario           | Contraseña  |
+| ---------- | --------------------- | ----------------- | ----------- |
+| Baserow    | http://localhost:8000 | (crear cuenta)    | -           |
+| n8n        | http://localhost:5678 | admin@coffeeos.mx | changeme    |
+| MinIO      | http://localhost:9000 | minioadmin        | minioadmin  |
+| Metabase   | http://localhost:3001 | (configurar)      | -           |
+| PostgreSQL | localhost:5434        | postgres          | postgres123 |
 
 ---
 
 ## 🔧 Comandos Útiles
 
 ### Docker
+
 ```powershell
 # Iniciar todos los servicios
 docker-compose up -d
@@ -211,6 +229,7 @@ docker-compose down -v
 ```
 
 ### Desarrollo
+
 ```powershell
 # Instalar dependencias
 npm install
@@ -232,6 +251,7 @@ npm run lint
 ```
 
 ### Prisma
+
 ```powershell
 # Generar cliente Prisma
 npx prisma generate
@@ -271,7 +291,7 @@ Transformar el Plan Maestro completo de CoffeeOS en software operativo incluyend
 ⏳ Finanzas y CFDI  
 ⏳ Analytics y reportes  
 ⏳ Mobile app  
-⏳ Admin dashboard  
+⏳ Admin dashboard
 
 ---
 

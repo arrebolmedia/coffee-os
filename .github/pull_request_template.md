@@ -2,8 +2,6 @@
 
 <!-- Provide a brief description of the changes -->
 
-
-
 ## 🔗 Related Issue
 
 <!-- Link to the issue this PR addresses -->
@@ -29,12 +27,14 @@ Closes #
 <!-- Describe the tests you ran and how to reproduce them -->
 
 ### Test Coverage
+
 - [ ] Unit tests added/updated
 - [ ] Integration tests added/updated
 - [ ] E2E tests added/updated
 - [ ] All tests passing locally
 
 ### Manual Testing
+
 - [ ] Tested on Chrome
 - [ ] Tested on Firefox
 - [ ] Tested on Safari
@@ -46,6 +46,7 @@ Closes #
 <!-- Ensure all items are completed before requesting review -->
 
 ### Code Quality
+
 - [ ] My code follows the project's style guidelines
 - [ ] I have performed a self-review of my code
 - [ ] I have commented my code, particularly in hard-to-understand areas
@@ -54,18 +55,21 @@ Closes #
 - [ ] Code is properly typed (TypeScript)
 
 ### Documentation
+
 - [ ] I have updated the documentation accordingly
 - [ ] I have added JSDoc comments to new functions/classes
 - [ ] I have updated the README if needed
 - [ ] I have added inline comments for complex logic
 
 ### Git Hygiene
+
 - [ ] My commits follow [Conventional Commits](https://www.conventionalcommits.org/)
 - [ ] Each commit is focused and atomic (<200 LOC when possible)
 - [ ] Commit messages are clear and descriptive
 - [ ] I have rebased on the latest main/develop branch
 
 ### Security & Performance
+
 - [ ] No sensitive data (passwords, tokens, keys) in code
 - [ ] No SQL injection vulnerabilities
 - [ ] Proper input validation implemented
@@ -73,12 +77,14 @@ Closes #
 - [ ] Database queries are optimized (if applicable)
 
 ### Dependencies
+
 - [ ] No unnecessary dependencies added
 - [ ] All new dependencies are justified and documented
 - [ ] Package-lock.json / pnpm-lock.yaml updated
 - [ ] No known vulnerabilities in dependencies
 
 ### Multi-tenancy & RBAC
+
 - [ ] Changes respect multi-tenant isolation
 - [ ] RBAC permissions properly implemented
 - [ ] OrganizationId properly used in queries (if applicable)
@@ -87,8 +93,6 @@ Closes #
 ## 📸 Screenshots/Videos
 
 <!-- If applicable, add screenshots or videos of the changes -->
-
-
 
 ## 🌍 Mexican Market Compliance
 
@@ -104,13 +108,9 @@ Closes #
 
 <!-- Any special deployment steps, migrations, or environment variables needed? -->
 
-
-
 ## 🔍 Breaking Changes
 
 <!-- If this PR includes breaking changes, describe them and migration steps -->
-
-
 
 ## 📊 Performance Impact
 
@@ -131,6 +131,7 @@ Closes #
 ---
 
 **Reviewer Guidelines:**
+
 - Verify all checklist items are completed
 - Check for security vulnerabilities
 - Ensure tests adequately cover changes

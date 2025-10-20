@@ -7,15 +7,18 @@
 ## ⚡ ACCIÓN INMEDIATA (Siguiente: 5 minutos)
 
 ### ✅ Paso 1: Reiniciar VS Code
+
 **Por qué:** La variable de entorno solo se aplica en nuevas sesiones
 
 **Cómo:**
+
 1. **Guardar** todos los archivos abiertos
 2. **Cerrar** todas las ventanas de VS Code
 3. **Abrir** VS Code nuevamente
 4. **Abrir** la carpeta `C:\Projects\CoffeeOS`
 
 **Verificar:**
+
 ```powershell
 # En nueva terminal dentro de VS Code
 $env:OPENAI_API_KEY
@@ -25,6 +28,7 @@ $env:OPENAI_API_KEY
 ---
 
 ### ✅ Paso 2: Instalar Continue Extension
+
 **Mientras VS Code reinicia, si aún no lo hiciste:**
 
 1. `Ctrl+Shift+X` para abrir Extensions
@@ -33,12 +37,14 @@ $env:OPENAI_API_KEY
 4. Esperar instalación (~30 segundos)
 
 **Verificar:**
+
 - Debe aparecer icono de Continue en la barra lateral
 - O presiona `Ctrl+L` para abrir el chat
 
 ---
 
 ### ✅ Paso 3: Probar Continue
+
 **Primera prueba:**
 
 1. Presionar `Ctrl+L`
@@ -52,6 +58,7 @@ $env:OPENAI_API_KEY
 ✅ Continue está operativo
 
 **Si no funciona:**
+
 - Verificar `$env:OPENAI_API_KEY` en terminal
 - Revisar `C:\Projects\CoffeeOS\.continue\config.json`
 - Reiniciar VS Code de nuevo
@@ -61,16 +68,19 @@ $env:OPENAI_API_KEY
 ### ✅ Paso 4: Revisar Estado del PR
 
 **Abrir en navegador:**
+
 ```
 https://github.com/arrebolmedia/coffee-os/pulls
 ```
 
 **Verificar:**
+
 - ✅ PR aparece en la lista
 - ✅ Workflows ejecutándose (amarillo) o completados (verde)
 - ✅ Sin conflictos
 
 **Si hay checks fallidos:**
+
 1. Click en "Details"
 2. Revisar logs del job que falló
 3. Es normal que algunos fallen inicialmente (falta configuración completa)
@@ -84,33 +94,39 @@ https://github.com/arrebolmedia/coffee-os/pulls
 **Comandos personalizados disponibles:**
 
 #### `/test` - Generar Tests
+
 ```
 Seleccionar código en apps/api/src/app.module.ts
 Ctrl+L → /test
 ```
 
 #### `/nestjs` - Ayuda NestJS
+
 ```
 Ctrl+L → /nestjs ¿Cómo crear un módulo de autenticación?
 ```
 
 #### `/nextjs` - Ayuda Next.js
+
 ```
 Ctrl+L → /nextjs ¿Cómo crear un componente de servidor?
 ```
 
 #### `/prisma` - Ayuda Prisma
+
 ```
 Ctrl+L → /prisma ¿Cómo definir una relación many-to-many?
 ```
 
 #### `/edit` - Editar Código
+
 ```
 Seleccionar código
 Ctrl+L → /edit Agregar validación de email
 ```
 
 #### `/commit` - Generar Mensaje de Commit
+
 ```
 Hacer cambios
 Ctrl+L → /commit
@@ -123,6 +139,7 @@ Ctrl+L → /commit
 ### 🎯 Tarea 2: Revisar Workflows de GitHub
 
 **Ir a Actions:**
+
 ```
 https://github.com/arrebolmedia/coffee-os/actions
 ```
@@ -145,16 +162,19 @@ https://github.com/arrebolmedia/coffee-os/actions
 **Qué hacer si fallan:**
 
 #### Fallo: "OPENAI_API_KEY not found"
+
 - ✅ Ya configuraste el secret
 - Esperar ~1 minuto
 - Re-run el workflow
 
 #### Fallo: "npm install failed"
+
 - Normal en primera ejecución
 - Re-run el workflow
 - Si persiste, revisar package.json
 
 #### Fallo: "Tests failed"
+
 - Revisar logs específicos
 - Puede requerir ajustes menores
 - No bloqueante para continuar
@@ -172,6 +192,7 @@ https://github.com/arrebolmedia/coffee-os/actions
 5. Opcional: **"Delete branch"** (feat/auto-dev-bootstrap)
 
 **Después del merge:**
+
 ```powershell
 # En VS Code terminal
 git checkout main
@@ -185,12 +206,14 @@ git pull origin main
 ### 🚀 Día 1-2: Familiarización
 
 #### Explorar la Documentación
+
 - [ ] Leer `SETUP-COMPLETO.md`
 - [ ] Leer `docs/auto-dev-quickstart.md`
 - [ ] Revisar `.github/workflows/`
 - [ ] Entender `packages/database/prisma/schema.prisma`
 
 #### Practicar con Continue
+
 - [ ] Generar tests para health.controller.ts
 - [ ] Pedir explicación de módulos existentes
 - [ ] Probar editar código con /edit
@@ -201,6 +224,7 @@ git pull origin main
 ### 🛠️ Día 3-4: Configuración Adicional
 
 #### Branch Protection Rules
+
 ```
 GitHub → Settings → Branches → Add rule
 Branch name pattern: main
@@ -209,6 +233,7 @@ Branch name pattern: main
 ```
 
 #### Probar aider CLI
+
 ```powershell
 # Instalar aider
 pip install aider-chat
@@ -220,6 +245,7 @@ aider apps/api/src/app.module.ts
 ```
 
 #### Configurar Ollama (Opcional - LLM Local)
+
 ```powershell
 # Descargar Ollama
 # https://ollama.ai/download
@@ -238,6 +264,7 @@ ollama pull codestral
 #### Módulo POS - Primera Feature
 
 **Crear Issue en GitHub:**
+
 ```
 Title: feat(pos): implementar carrito de compras básico
 Labels: feature, pos, priority-high
@@ -251,8 +278,9 @@ Implementar funcionalidad básica de carrito de compras:
 ```
 
 **Usar Continue para Desarrollar:**
+
 ```
-Ctrl+L → /nestjs 
+Ctrl+L → /nestjs
 "Cómo implementar un servicio de carrito de compras con:
 - DTO para agregar producto
 - Guard para autenticación
@@ -261,6 +289,7 @@ Ctrl+L → /nestjs
 ```
 
 **Usar aider para Commits:**
+
 ```powershell
 aider apps/api/src/modules/pos/cart.service.ts
 
@@ -275,17 +304,20 @@ aider apps/api/src/modules/pos/cart.service.ts
 ### OpenHands (Autonomous Agent)
 
 **Iniciar OpenHands:**
+
 ```powershell
 cd C:\Projects\CoffeeOS
 docker-compose -f docker-compose.openhands.yml up -d
 ```
 
 **Abrir en navegador:**
+
 ```
 http://localhost:3000
 ```
 
 **Uso:**
+
 1. Crear issue en GitHub con label `agent`
 2. Comentar: `/agent propose`
 3. OpenHands generará PR automáticamente
@@ -295,6 +327,7 @@ http://localhost:3000
 ### Semgrep (Security Scanning Local)
 
 **Ejecutar manualmente:**
+
 ```powershell
 # Instalar semgrep
 pip install semgrep
@@ -308,6 +341,7 @@ semgrep --config .semgrep.yml apps/
 ### Gitleaks (Secret Detection Local)
 
 **Ejecutar manualmente:**
+
 ```powershell
 # Instalar gitleaks (Windows)
 # https://github.com/gitleaks/gitleaks/releases
@@ -321,18 +355,21 @@ gitleaks detect --config .gitleaks.toml
 ## 📊 Métricas de Éxito
 
 ### Semana 1
+
 - [ ] Continue funcionando y usado diariamente
 - [ ] PR mergeado a main
 - [ ] Al menos 3 comandos de Continue dominados
 - [ ] 1 feature pequeña implementada
 
 ### Semana 2
+
 - [ ] aider usado para auto-commits
 - [ ] Coverage de tests >80%
 - [ ] 2-3 features implementadas
 - [ ] Branch protection configurado
 
 ### Semana 3
+
 - [ ] OpenHands probado
 - [ ] Primer PR generado por agent
 - [ ] Workflow de desarrollo establecido
@@ -343,6 +380,7 @@ gitleaks detect --config .gitleaks.toml
 ## 🆘 Troubleshooting Común
 
 ### Continue no responde
+
 ```powershell
 # Verificar API key
 $env:OPENAI_API_KEY
@@ -354,6 +392,7 @@ Get-Content .continue\config.json | Select-String "apiKey"
 ```
 
 ### CI/CD falla constantemente
+
 ```
 1. Revisar GitHub Secrets
 2. Verificar package.json dependencies
@@ -362,6 +401,7 @@ Get-Content .continue\config.json | Select-String "apiKey"
 ```
 
 ### Git conflicts
+
 ```powershell
 # Actualizar desde main
 git checkout main
@@ -379,17 +419,20 @@ git merge main
 ## 📞 Recursos de Ayuda
 
 ### Documentación del Proyecto
+
 - `SETUP-COMPLETO.md` - Guía completa
 - `docs/auto-dev-quickstart.md` - Quick start
 - `GITHUB-SETUP.md` - Configuración GitHub
 - `.continue/README.md` - Continue setup
 
 ### Archivos Locales (Gitignored)
+
 - `TOKENS-Y-SECRETS.md` - Tokens
 - `ACCION-INMEDIATA.md` - Guía rápida
 - `PROGRESO-CONFIGURACION.md` - Tracking
 
 ### Online
+
 - Continue: https://continue.dev/docs
 - aider: https://aider.chat
 - OpenHands: https://docs.all-hands.dev
@@ -399,6 +442,7 @@ git merge main
 ## ✅ Checklist Rápido
 
 **Antes de Empezar Desarrollo:**
+
 - [ ] VS Code reiniciado
 - [ ] Continue instalado y funcionando
 - [ ] Variable de entorno verificada
@@ -406,6 +450,7 @@ git merge main
 - [ ] Documentación leída
 
 **Setup Completo:**
+
 - [ ] Branch protection configurado
 - [ ] aider instalado y probado
 - [ ] Ollama instalado (opcional)
@@ -428,6 +473,7 @@ git merge main
 ## 🚀 Siguiente Acción
 
 **AHORA MISMO:**
+
 1. **Reiniciar VS Code** (cerrar y abrir)
 2. **Verificar** `$env:OPENAI_API_KEY`
 3. **Probar** `Ctrl+L` → "Hola"

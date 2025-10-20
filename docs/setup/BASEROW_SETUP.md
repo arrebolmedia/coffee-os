@@ -21,6 +21,7 @@ El proyecto requiere liberar al menos **5-10 GB** en la unidad E: para instalar 
 ## 🗂️ Paso 3: Crear Tablas Principales
 
 ### Tabla 1: Organizations
+
 1. Click en "+ Create table"
 2. Nombre: **Organizations**
 3. Agregar campos:
@@ -31,6 +32,7 @@ El proyecto requiere liberar al menos **5-10 GB** en la unidad E: para instalar 
    - `active` (Boolean) - Default: true
 
 ### Tabla 2: Locations
+
 1. Crear nueva tabla: **Locations**
 2. Agregar campos:
    - `name` (Text) - **Primary field**
@@ -47,6 +49,7 @@ El proyecto requiere liberar al menos **5-10 GB** en la unidad E: para instalar 
    - `active` (Boolean) - Default: true
 
 ### Tabla 3: Roles
+
 1. Crear nueva tabla: **Roles**
 2. Agregar campos:
    - `name` (Single select) - **Primary field**
@@ -56,6 +59,7 @@ El proyecto requiere liberar al menos **5-10 GB** en la unidad E: para instalar 
    - `active` (Boolean) - Default: true
 
 ### Tabla 4: Users
+
 1. Crear nueva tabla: **Users**
 2. Agregar campos:
    - `email` (Email) - **Primary field**
@@ -72,6 +76,7 @@ El proyecto requiere liberar al menos **5-10 GB** en la unidad E: para instalar 
    - `active` (Boolean) - Default: true
 
 ### Tabla 5: Categories
+
 1. Crear nueva tabla: **Categories**
 2. Agregar campos:
    - `name` (Text) - **Primary field**
@@ -82,6 +87,7 @@ El proyecto requiere liberar al menos **5-10 GB** en la unidad E: para instalar 
    - `active` (Boolean)
 
 ### Tabla 6: Products
+
 1. Crear nueva tabla: **Products**
 2. Agregar campos:
    - `name` (Text) - **Primary field**
@@ -97,6 +103,7 @@ El proyecto requiere liberar al menos **5-10 GB** en la unidad E: para instalar 
    - `active` (Boolean)
 
 ### Tabla 7: Modifiers
+
 1. Crear nueva tabla: **Modifiers**
 2. Agregar campos:
    - `name` (Text) - **Primary field**
@@ -105,6 +112,7 @@ El proyecto requiere liberar al menos **5-10 GB** en la unidad E: para instalar 
    - `active` (Boolean)
 
 ### Tabla 8: Suppliers
+
 1. Crear nueva tabla: **Suppliers**
 2. Agregar campos:
    - `name` (Text) - **Primary field**
@@ -117,6 +125,7 @@ El proyecto requiere liberar al menos **5-10 GB** en la unidad E: para instalar 
    - `active` (Boolean)
 
 ### Tabla 9: InventoryItems
+
 1. Crear nueva tabla: **InventoryItems**
 2. Agregar campos:
    - `name` (Text) - **Primary field**
@@ -131,6 +140,7 @@ El proyecto requiere liberar al menos **5-10 GB** en la unidad E: para instalar 
    - `active` (Boolean)
 
 ### Tabla 10: Recipes
+
 1. Crear nueva tabla: **Recipes**
 2. Agregar campos:
    - `name` (Text) - **Primary field**
@@ -146,6 +156,7 @@ El proyecto requiere liberar al menos **5-10 GB** en la unidad E: para instalar 
    - `active` (Boolean)
 
 ### Tabla 11: Customers
+
 1. Crear nueva tabla: **Customers**
 2. Agregar campos:
    - `email` (Email) - **Primary field**
@@ -159,6 +170,7 @@ El proyecto requiere liberar al menos **5-10 GB** en la unidad E: para instalar 
    - `active` (Boolean)
 
 ### Tabla 12: Tickets
+
 1. Crear nueva tabla: **Tickets**
 2. Agregar campos:
    - `ticket_number` (Text) - **Primary field**
@@ -192,57 +204,62 @@ BASEROW_TOKEN=tu_token_aqui
 ## 📊 Paso 5: Importar Datos Iniciales
 
 ### Roles Iniciales
+
 Ve a la tabla **Roles** y agrega:
 
-| name | description | scopes | active |
-|------|-------------|---------|--------|
-| Propietario | Acceso completo al sistema | ["*"] | true |
-| Gerente | Gestión completa de ubicación | ["pos","inventory","reports","users","quality"] | true |
-| Líder de barra | Supervisión de operaciones | ["pos","inventory.read","quality","recipes"] | true |
-| Barista | Operaciones de barra | ["pos","recipes.read"] | true |
-| Caja | Punto de venta y cobro | ["pos"] | true |
-| Auditor | Solo lectura para auditorías | ["*.read"] | true |
-| Contador | Acceso financiero | ["reports","finance"] | true |
+| name           | description                   | scopes                                          | active |
+| -------------- | ----------------------------- | ----------------------------------------------- | ------ |
+| Propietario    | Acceso completo al sistema    | ["*"]                                           | true   |
+| Gerente        | Gestión completa de ubicación | ["pos","inventory","reports","users","quality"] | true   |
+| Líder de barra | Supervisión de operaciones    | ["pos","inventory.read","quality","recipes"]    | true   |
+| Barista        | Operaciones de barra          | ["pos","recipes.read"]                          | true   |
+| Caja           | Punto de venta y cobro        | ["pos"]                                         | true   |
+| Auditor        | Solo lectura para auditorías  | ["*.read"]                                      | true   |
+| Contador       | Acceso financiero             | ["reports","finance"]                           | true   |
 
 ### Categorías Iniciales
+
 Ve a la tabla **Categories** y agrega:
 
-| name | description | color | icon | sort_order | active |
-|------|-------------|-------|------|------------|--------|
-| Cafés Calientes | Bebidas de café caliente | #8B4513 | ☕ | 1 | true |
-| Cafés Fríos | Bebidas de café frío | #4169E1 | 🧊 | 2 | true |
-| Bebidas sin Café | Chocolate, té, etc. | #FF69B4 | 🍵 | 3 | true |
-| Pasteles | Productos de panadería | #FFD700 | 🧁 | 4 | true |
-| Snacks | Galletas, barras | #FFA500 | 🍪 | 5 | true |
+| name             | description              | color   | icon | sort_order | active |
+| ---------------- | ------------------------ | ------- | ---- | ---------- | ------ |
+| Cafés Calientes  | Bebidas de café caliente | #8B4513 | ☕   | 1          | true   |
+| Cafés Fríos      | Bebidas de café frío     | #4169E1 | 🧊   | 2          | true   |
+| Bebidas sin Café | Chocolate, té, etc.      | #FF69B4 | 🍵   | 3          | true   |
+| Pasteles         | Productos de panadería   | #FFD700 | 🧁   | 4          | true   |
+| Snacks           | Galletas, barras         | #FFA500 | 🍪   | 5          | true   |
 
 ### Productos de Ejemplo
+
 Ve a la tabla **Products** y agrega:
 
-| name | category | sku | price | cost | active |
-|------|----------|-----|-------|------|--------|
-| Café Americano | Cafés Calientes | CAFE-001 | 35.00 | 8.50 | true |
-| Cappuccino | Cafés Calientes | CAFE-002 | 45.00 | 12.00 | true |
-| Latte | Cafés Calientes | CAFE-003 | 48.00 | 13.50 | true |
-| Café Frappé | Cafés Fríos | CAFE-FRIO-001 | 55.00 | 15.00 | true |
-| Cold Brew | Cafés Fríos | CAFE-FRIO-002 | 52.00 | 14.00 | true |
+| name           | category        | sku           | price | cost  | active |
+| -------------- | --------------- | ------------- | ----- | ----- | ------ |
+| Café Americano | Cafés Calientes | CAFE-001      | 35.00 | 8.50  | true   |
+| Cappuccino     | Cafés Calientes | CAFE-002      | 45.00 | 12.00 | true   |
+| Latte          | Cafés Calientes | CAFE-003      | 48.00 | 13.50 | true   |
+| Café Frappé    | Cafés Fríos     | CAFE-FRIO-001 | 55.00 | 15.00 | true   |
+| Cold Brew      | Cafés Fríos     | CAFE-FRIO-002 | 52.00 | 14.00 | true   |
 
 ### Modificadores de Ejemplo
+
 Ve a la tabla **Modifiers** y agrega:
 
-| name | type | price_delta | active |
-|------|------|-------------|--------|
-| Grande | SIZE | 10.00 | true |
-| Extra Grande | SIZE | 15.00 | true |
-| Leche de Almendras | MILK | 8.00 | true |
-| Leche de Soja | MILK | 8.00 | true |
-| Shot Extra | EXTRA | 12.00 | true |
-| Vainilla | SYRUP | 8.00 | true |
-| Caramelo | SYRUP | 8.00 | true |
-| Descafeinado | DECAF | 0.00 | true |
+| name               | type  | price_delta | active |
+| ------------------ | ----- | ----------- | ------ |
+| Grande             | SIZE  | 10.00       | true   |
+| Extra Grande       | SIZE  | 15.00       | true   |
+| Leche de Almendras | MILK  | 8.00        | true   |
+| Leche de Soja      | MILK  | 8.00        | true   |
+| Shot Extra         | EXTRA | 12.00       | true   |
+| Vainilla           | SYRUP | 8.00        | true   |
+| Caramelo           | SYRUP | 8.00        | true   |
+| Descafeinado       | DECAF | 0.00        | true   |
 
 ## 🎨 Paso 6: Crear Vistas Personalizadas
 
 ### Vista "Productos Activos"
+
 1. En la tabla **Products**, click en "Create view"
 2. Tipo: Grid
 3. Nombre: **Productos Activos**
@@ -250,12 +267,14 @@ Ve a la tabla **Modifiers** y agrega:
 5. Ordenar por: `name` (ascendente)
 
 ### Vista "Stock Bajo"
+
 1. En la tabla **InventoryItems**, crear vista Grid
 2. Nombre: **Stock Bajo**
 3. Agregar filtro: `current_stock < reorder_point`
 4. Color: Rojo para alertas
 
 ### Vista "Ventas del Día"
+
 1. En la tabla **Tickets**, crear vista Calendar
 2. Nombre: **Ventas del Día**
 3. Campo de fecha: `opened_at`

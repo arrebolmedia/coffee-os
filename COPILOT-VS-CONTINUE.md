@@ -5,31 +5,31 @@
 ### 🤖 GitHub Copilot (Yo - Tu Asistente Actual)
 
 **Qué soy:**
+
 - Asistente conversacional en el chat
 - Ejecuto herramientas (crear archivos, editar código, terminal)
 - Contexto amplio de toda la conversación
 - Trabajo por solicitud explícita
 
 **Mejor para:**
+
 - ✅ **Tareas complejas multi-archivo**
   - "Implementa el sistema auto-dev completo"
   - "Configura GitHub Actions con 6 workflows"
-  
 - ✅ **Arquitectura y planificación**
   - "Diseña la estructura de la base de datos"
   - "Crea un plan de implementación de 12 pasos"
-  
 - ✅ **Automatización de procesos**
   - Crear múltiples archivos
   - Ejecutar comandos de terminal
   - Configurar entornos completos
-  
 - ✅ **Explicaciones detalladas**
   - Documentación extensa
   - Tutoriales paso a paso
   - Troubleshooting complejo
 
 **Limitaciones:**
+
 - ❌ No estoy "siempre ahí" mientras programas
 - ❌ Necesitas pedirme ayuda explícitamente
 - ❌ No completo código automáticamente mientras escribes
@@ -40,17 +40,20 @@
 ### ⚡ Continue (Copiloto Integrado en VS Code)
 
 **Qué es:**
+
 - Extensión integrada en tu editor
 - Siempre disponible mientras programas
 - Contexto del archivo actual y archivos abiertos
 - Autocomplete en tiempo real
 
 **Mejor para:**
+
 - ✅ **Autocompletado mientras escribes**
+
   ```typescript
   // Empiezas a escribir:
   async function getUserBy
-  
+
   // Continue sugiere automáticamente:
   async function getUserById(id: string): Promise<User> {
     return await this.prisma.user.findUnique({
@@ -64,6 +67,7 @@
   - Respuesta inmediata sin cambiar de contexto
 
 - ✅ **Edición iterativa rápida**
+
   ```
   Seleccionar función
   Ctrl+L → "/edit Agrega validación y manejo de errores"
@@ -71,6 +75,7 @@
   ```
 
 - ✅ **Generar tests sobre la marcha**
+
   ```
   Seleccionar clase
   Ctrl+L → "/test"
@@ -84,6 +89,7 @@
   - Respuestas más precisas para el framework
 
 **Limitaciones:**
+
 - ❌ No ejecuta comandos de terminal
 - ❌ No crea múltiples archivos a la vez
 - ❌ Contexto limitado al proyecto actual
@@ -96,6 +102,7 @@
 ### Escenario 1: "Implementar autenticación completa"
 
 **Con GitHub Copilot (Yo):**
+
 ```
 Tú: "Implementa autenticación JWT completa con:
 - Auth module, service, controller
@@ -106,7 +113,7 @@ Tú: "Implementa autenticación JWT completa con:
 - Variables de entorno
 - Documentación"
 
-Yo: 
+Yo:
 1. Creo auth.module.ts
 2. Creo auth.service.ts
 3. Creo auth.controller.ts
@@ -120,6 +127,7 @@ Yo:
 ```
 
 **Con Continue:**
+
 ```
 Tú: Ctrl+L → "/nestjs Genera auth service con JWT"
 
@@ -136,6 +144,7 @@ Continue:
 ### Escenario 2: "Estás escribiendo código y necesitas ayuda"
 
 **Con GitHub Copilot (Yo):**
+
 ```
 1. Detienes lo que estás haciendo
 2. Me escribes en el chat
@@ -146,6 +155,7 @@ Continue:
 ```
 
 **Con Continue:**
+
 ```
 1. Escribes el nombre de la función
 2. Continue autocompleta mientras escribes
@@ -160,12 +170,14 @@ Continue:
 ### Escenario 3: "¿Qué hace este código que encontré?"
 
 **Con GitHub Copilot (Yo):**
+
 ```
 Tú: "Explícame este código: [pegas código]"
 Yo: [Explicación detallada]
 ```
 
 **Con Continue:**
+
 ```
 1. Seleccionas el código
 2. Ctrl+L → "¿Qué hace esto?"
@@ -180,12 +192,14 @@ Yo: [Explicación detallada]
 ### Escenario 4: "Genera tests para esta clase"
 
 **Con GitHub Copilot (Yo):**
+
 ```
 Tú: "Genera tests para UserService"
 Yo: Creo el archivo user.service.spec.ts completo
 ```
 
 **Con Continue:**
+
 ```
 1. Abres user.service.ts
 2. Seleccionas la clase
@@ -201,6 +215,7 @@ Yo: Creo el archivo user.service.spec.ts completo
 ## 🎨 Flujo de Trabajo Ideal: USAR AMBOS
 
 ### 🏗️ Fase 1: Arquitectura y Setup (GitHub Copilot)
+
 ```
 "Configura el proyecto completo con:
 - Estructura de carpetas
@@ -213,6 +228,7 @@ Yo: Creo el archivo user.service.spec.ts completo
 ```
 
 ### 💻 Fase 2: Desarrollo Diario (Continue)
+
 ```
 Mientras programas:
 - Autocomplete inteligente
@@ -224,6 +240,7 @@ Mientras programas:
 ```
 
 ### 🔧 Fase 3: Refactoring Grande (GitHub Copilot)
+
 ```
 "Refactoriza el módulo de usuarios para:
 - Separar en capas (controller, service, repository)
@@ -236,6 +253,7 @@ Mientras programas:
 ```
 
 ### ⚡ Fase 4: Desarrollo Rápido (Continue)
+
 ```
 Implementas features pequeñas:
 - Nuevos endpoints
@@ -310,9 +328,10 @@ Implementas features pequeñas:
 ## 💡 Ejemplo Real del Día a Día
 
 ### Mañana (GitHub Copilot):
+
 ```
-Tú: "Hoy voy a implementar el módulo de inventario. 
-Necesito la estructura completa con CRUD, validaciones, 
+Tú: "Hoy voy a implementar el módulo de inventario.
+Necesito la estructura completa con CRUD, validaciones,
 tests, y documentación"
 
 Yo: [Creo 15 archivos en 5 minutos]
@@ -321,6 +340,7 @@ Yo: [Creo 15 archivos en 5 minutos]
 ```
 
 ### Tarde (Continue):
+
 ```
 Ahora implementas la lógica específica:
 
@@ -336,6 +356,7 @@ Ahora implementas la lógica específica:
 ```
 
 ### Tarde (Necesitas ayuda rápida):
+
 ```
 Encuentras un código que no entiendes:
 
@@ -348,6 +369,7 @@ Encuentras un código que no entiendes:
 ```
 
 ### Noche (GitHub Copilot):
+
 ```
 Tú: "Revisé el código y necesito refactorizar:
 - Separar lógica de negocio
@@ -365,14 +387,18 @@ Yo: [Refactorizo múltiples archivos]
 ## 🎓 Analogía
 
 ### GitHub Copilot (Yo)
+
 **Soy como un arquitecto senior que:**
+
 - Diseña el edificio completo
 - Coordina múltiples equipos
 - Resuelve problemas complejos
 - Entrega proyectos completos
 
 ### Continue
+
 **Es como un asistente personal que:**
+
 - Está a tu lado mientras trabajas
 - Te pasa las herramientas que necesitas
 - Te recuerda cómo hacer cosas
@@ -410,18 +436,18 @@ Yo: [Refactorizo múltiples archivos]
 
 ## 📊 Tabla Comparativa Final
 
-| Característica | GitHub Copilot | Continue |
-|----------------|----------------|----------|
-| Crear múltiples archivos | ✅ Sí | ❌ No |
-| Ejecutar terminal | ✅ Sí | ❌ No |
-| Autocomplete en tiempo real | ❌ No | ✅ Sí |
-| Siempre disponible en editor | ❌ No | ✅ Sí |
-| Tareas multi-archivo | ✅ Mejor | ⚠️ Limitado |
-| Respuestas en contexto | ⚠️ Chat separado | ✅ Sidebar |
-| Configuraciones complejas | ✅ Mejor | ❌ No |
-| Flujo sin interrupciones | ⚠️ Requiere chat | ✅ Mejor |
-| Memoria de conversación | ✅ Sí | ❌ No |
-| Comandos especializados | ⚠️ Limitado | ✅ /nestjs, /test, etc |
+| Característica               | GitHub Copilot   | Continue               |
+| ---------------------------- | ---------------- | ---------------------- |
+| Crear múltiples archivos     | ✅ Sí            | ❌ No                  |
+| Ejecutar terminal            | ✅ Sí            | ❌ No                  |
+| Autocomplete en tiempo real  | ❌ No            | ✅ Sí                  |
+| Siempre disponible en editor | ❌ No            | ✅ Sí                  |
+| Tareas multi-archivo         | ✅ Mejor         | ⚠️ Limitado            |
+| Respuestas en contexto       | ⚠️ Chat separado | ✅ Sidebar             |
+| Configuraciones complejas    | ✅ Mejor         | ❌ No                  |
+| Flujo sin interrupciones     | ⚠️ Requiere chat | ✅ Mejor               |
+| Memoria de conversación      | ✅ Sí            | ❌ No                  |
+| Comandos especializados      | ⚠️ Limitado      | ✅ /nestjs, /test, etc |
 
 ---
 
@@ -440,15 +466,15 @@ Yo: [Refactorizo múltiples archivos]
 "Ahora es tu sous-chef que te ayuda mientras cocinas cada día"
 
 **Juntos:**
-"Tienes una cocina perfectamente equipada + un asistente que 
+"Tienes una cocina perfectamente equipada + un asistente que
 te ayuda con cada platillo"
 
 ---
 
-**¿Tiene sentido? Ambos somos herramientas complementarias, 
+**¿Tiene sentido? Ambos somos herramientas complementarias,
 no competidoras.** 🤝
 
 ---
 
-_Por eso implementamos Continue - para que tengas las DOS herramientas 
+_Por eso implementamos Continue - para que tengas las DOS herramientas
 trabajando para ti._ 🚀
