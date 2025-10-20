@@ -57,9 +57,7 @@ describe('InventoryItemsController', () => {
       ],
     }).compile();
 
-    controller = module.get<InventoryItemsController>(
-      InventoryItemsController,
-    );
+    controller = module.get<InventoryItemsController>(InventoryItemsController);
     service = module.get<InventoryItemsService>(InventoryItemsService);
   });
 
@@ -168,9 +166,7 @@ describe('InventoryItemsController', () => {
 
   describe('findByCode', () => {
     it('should return an inventory item by code', async () => {
-      mockInventoryItemsService.findByCode.mockResolvedValue(
-        mockInventoryItem,
-      );
+      mockInventoryItemsService.findByCode.mockResolvedValue(mockInventoryItem);
 
       const result = await controller.findByCode('MILK-WHOLE-001');
 

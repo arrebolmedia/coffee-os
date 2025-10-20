@@ -17,9 +17,7 @@ import { QueryInventoryItemsDto } from './dto/query-inventory-items.dto';
 
 @Controller('inventory-items')
 export class InventoryItemsController {
-  constructor(
-    private readonly inventoryItemsService: InventoryItemsService,
-  ) {}
+  constructor(private readonly inventoryItemsService: InventoryItemsService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)

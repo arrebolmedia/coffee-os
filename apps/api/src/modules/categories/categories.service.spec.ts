@@ -1,10 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CategoriesService } from './categories.service';
 import { PrismaService } from '../database/prisma.service';
-import {
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 
@@ -208,9 +205,7 @@ describe('CategoriesService', () => {
     it('should return products for a category', async () => {
       const categoryWithProducts = {
         ...mockCategory,
-        products: [
-          { id: 'product-1', name: 'Espresso', active: true },
-        ],
+        products: [{ id: 'product-1', name: 'Espresso', active: true }],
       };
 
       mockPrismaService.category.findUnique.mockResolvedValue(
@@ -225,9 +220,9 @@ describe('CategoriesService', () => {
     it('should throw NotFoundException if category not found', async () => {
       mockPrismaService.category.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.findCategoryProducts('invalid-id'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.findCategoryProducts('invalid-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -260,9 +255,7 @@ describe('CategoriesService', () => {
       const existingCategory = { ...mockCategory, id: 'other-id' };
 
       mockPrismaService.category.findUnique.mockResolvedValue(mockCategory);
-      mockPrismaService.category.findFirst.mockResolvedValue(
-        existingCategory,
-      );
+      mockPrismaService.category.findFirst.mockResolvedValue(existingCategory);
 
       await expect(service.update('category-1', updateDto)).rejects.toThrow(
         BadRequestException,

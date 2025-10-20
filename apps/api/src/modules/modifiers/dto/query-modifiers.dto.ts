@@ -1,4 +1,11 @@
-import { IsOptional, IsString, IsBoolean, IsNumber, IsEnum, Min } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsBoolean,
+  IsNumber,
+  IsEnum,
+  Min,
+} from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ModifierType } from './create-modifier.dto';
 

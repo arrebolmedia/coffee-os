@@ -225,9 +225,7 @@ export class InventoryItemsService {
     });
 
     if (!item) {
-      throw new NotFoundException(
-        `Inventory item with code ${code} not found`,
-      );
+      throw new NotFoundException(`Inventory item with code ${code} not found`);
     }
 
     return item;
@@ -244,7 +242,10 @@ export class InventoryItemsService {
     }
 
     // If updating code, check for conflicts
-    if (updateInventoryItemDto.code && updateInventoryItemDto.code !== item.code) {
+    if (
+      updateInventoryItemDto.code &&
+      updateInventoryItemDto.code !== item.code
+    ) {
       const existingItem = await this.prisma.inventoryItem.findUnique({
         where: { code: updateInventoryItemDto.code },
       });

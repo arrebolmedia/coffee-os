@@ -448,9 +448,9 @@ describe('InventoryItemsService', () => {
         .mockResolvedValueOnce(mockInventoryItem) // First call for existence check
         .mockResolvedValueOnce({ id: 'other-item' }); // Second call for code uniqueness check
 
-      await expect(
-        service.update('item-1', updateWithCode),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.update('item-1', updateWithCode)).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('should throw BadRequestException if new supplier does not exist', async () => {

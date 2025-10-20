@@ -35,7 +35,8 @@ export class CategoriesService {
       select: { sortOrder: true },
     });
 
-    const sortOrder = createCategoryDto.sortOrder ?? (lastCategory?.sortOrder ?? 0) + 1;
+    const sortOrder =
+      createCategoryDto.sortOrder ?? (lastCategory?.sortOrder ?? 0) + 1;
 
     return this.prisma.category.create({
       data: {

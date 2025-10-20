@@ -131,7 +131,9 @@ describe('CategoriesController', () => {
         },
       ];
 
-      mockCategoriesService.findCategoryProducts.mockResolvedValue(mockProducts);
+      mockCategoriesService.findCategoryProducts.mockResolvedValue(
+        mockProducts,
+      );
 
       const result = await controller.findProducts('category-1');
 
