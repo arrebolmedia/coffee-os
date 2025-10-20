@@ -12,47 +12,42 @@ assignees: ''
 
 <!-- A clear and concise description of the bug -->
 
-
-
 ### 🔍 Steps to Reproduce
 
-1. 
-2. 
-3. 
-4. 
+1.
+2.
+3.
+4.
 
 ### ✅ Expected Behavior
 
 <!-- What should happen? -->
 
-
-
 ### ❌ Actual Behavior
 
 <!-- What actually happens? -->
-
-
 
 ### 📸 Screenshots/Videos
 
 <!-- If applicable, add screenshots or videos to help explain the problem -->
 
-
-
 ### 🖥️ Environment
 
 **Application:**
+
 - [ ] POS Web
 - [ ] Admin Web
 - [ ] Mobile App (iOS/Android)
 - [ ] Backend API
 
 **Browser/Device:**
+
 - Browser: <!-- e.g., Chrome 120, Safari 17 -->
 - OS: <!-- e.g., Windows 11, macOS 14, iOS 17 -->
 - Device: <!-- e.g., Desktop, iPhone 14, Pixel 7 -->
 
 **Version:**
+
 - CoffeeOS Version: <!-- e.g., v1.0.0 -->
 - Commit/Branch: <!-- if known -->
 
@@ -69,17 +64,17 @@ assignees: ''
 
 <!-- Optional: Suggest a fix or workaround if you have one -->
 
-
-
 ### 📊 Impact
 
 **Severity:**
+
 - [ ] Critical - System is unusable
 - [ ] High - Major feature is broken
 - [ ] Medium - Feature partially works
 - [ ] Low - Minor inconvenience
 
 **Users Affected:**
+
 - [ ] All users
 - [ ] Specific tenant(s)
 - [ ] Specific role(s): <!-- e.g., cashiers, managers -->
@@ -100,8 +95,6 @@ Relates to #
 ### 📚 Additional Context
 
 <!-- Add any other context about the problem -->
-
-
 
 ---
 

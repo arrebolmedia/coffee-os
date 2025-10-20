@@ -41,7 +41,7 @@ describe('HealthController', () => {
   describe('check', () => {
     it('should return health check status', async () => {
       const result = await controller.check();
-      
+
       expect(result).toBeDefined();
       expect(result.status).toBe('ok');
       expect(healthCheckService.check).toHaveBeenCalled();
@@ -51,7 +51,7 @@ describe('HealthController', () => {
   describe('ready', () => {
     it('should return readiness status', () => {
       const result = controller.ready();
-      
+
       expect(result).toBeDefined();
       expect(result.status).toBe('ready');
       expect(result.timestamp).toBeDefined();
@@ -60,7 +60,7 @@ describe('HealthController', () => {
     it('should return valid ISO timestamp', () => {
       const result = controller.ready();
       const date = new Date(result.timestamp);
-      
+
       expect(date).toBeInstanceOf(Date);
       expect(date.toISOString()).toBe(result.timestamp);
     });
@@ -69,7 +69,7 @@ describe('HealthController', () => {
   describe('live', () => {
     it('should return liveness status', () => {
       const result = controller.live();
-      
+
       expect(result).toBeDefined();
       expect(result.status).toBe('alive');
       expect(result.timestamp).toBeDefined();
@@ -79,7 +79,7 @@ describe('HealthController', () => {
       const before = Date.now();
       const result = controller.live();
       const after = Date.now();
-      
+
       const timestamp = new Date(result.timestamp).getTime();
       expect(timestamp).toBeGreaterThanOrEqual(before);
       expect(timestamp).toBeLessThanOrEqual(after);

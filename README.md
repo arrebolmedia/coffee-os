@@ -41,7 +41,7 @@ CoffeeOS es una **plataforma integral multi-tenant** que traduce todo el Plan Ma
 CoffeeOS/
 ├── 📂 apps/
 │   ├── 📱 pos-web/           # Next.js PWA - POS Web App
-│   ├── 📱 admin-web/         # Next.js - Admin Dashboard  
+│   ├── 📱 admin-web/         # Next.js - Admin Dashboard
 │   ├── 📱 mobile/            # React Native + Expo - Mobile App
 │   └── 🖥️ api/               # NestJS - Backend API
 ├── 📂 packages/
@@ -60,37 +60,43 @@ CoffeeOS/
 ## 🎯 Módulos Principales
 
 ### 1. 🏪 **POS & Operaciones**
+
 - POS rápido (modificadores, combos, propinas)
 - Recetas/Fichas técnicas con parámetros
 - Costeo automático y márgenes por producto
 - Inventario por receta y par levels
 - Tiempos de servicio p50/p90
 
-### 2. ✅ **Calidad & Cumplimiento** 
+### 2. ✅ **Calidad & Cumplimiento**
+
 - Checklists apertura/cierre/NOM-251
 - Bitácoras de temperaturas 1-4°C
 - Control de PPM, TDS, limpieza
 - Seguridad y protección civil
 
 ### 3. 👥 **RRHH & Capacitación**
+
 - Onboarding y malla 30/60/90
 - Evaluaciones teórico-prácticas
 - Certificaciones internas
 - Gestión de turnos y desempeño
 
 ### 4. 💰 **Finanzas & Legal**
+
 - P&L por tienda
 - Gestión de permisos y renovaciones
 - Integración CFDI 4.0 vía PAC
 - Punto de equilibrio y márgenes
 
 ### 5. 🎯 **CRM & Lealtad**
+
 - Programa 9+1 digital
 - Campañas de cumpleaños
 - Segmentación RFM
 - NPS y reseñas Google
 
 ### 6. 📊 **Analytics**
+
 - Tableros diario/semanal/mensual
 - KPIs operativos y financieros
 - Reportes de sostenibilidad
@@ -99,6 +105,7 @@ CoffeeOS/
 ## 🛠️ Stack Tecnológico
 
 ### Backend
+
 - **Framework**: NestJS + TypeScript
 - **ORM**: Prisma
 - **Base de datos**: PostgreSQL + Redis
@@ -106,6 +113,7 @@ CoffeeOS/
 - **API**: GraphQL + REST
 
 ### Frontend
+
 - **Web**: Next.js 13+ App Router + React + TypeScript
 - **Móvil**: React Native + Expo
 - **Styling**: Tailwind CSS
@@ -113,6 +121,7 @@ CoffeeOS/
 - **PWA**: Service Workers + IndexedDB
 
 ### Integraciones
+
 - **Baserow**: Base de datos no-code principal
 - **n8n**: Automatización de workflows
 - **Twilio**: WhatsApp Business + SMS + Voice
@@ -121,6 +130,7 @@ CoffeeOS/
 - **Pagos MX**: Clip, Mercado Pago, BBVA
 
 ### Infraestructura
+
 - **Contenedores**: Docker + Docker Compose
 - **CI/CD**: GitHub Actions
 - **IaC**: Terraform
@@ -129,26 +139,27 @@ CoffeeOS/
 
 ## 🚦 Roles y Permisos (RBAC)
 
-| Rol | Permisos |
-|-----|----------|
-| 👑 **Propietario** | Acceso completo + multi-sede |
-| 👔 **Gerente** | POS, inventarios, RRHH, reportes, permisos |
-| ☕ **Líder de barra** | Recetas, QC, checklists, capacitación |
-| 🎯 **Barista** | POS limitado, tareas, capacitación |
-| 💳 **Caja** | Cobro, CFDI, arqueos |
-| 🔍 **Auditor** | Solo lectura + firmas digitales |
-| 📊 **Contador** | P&L, CFDI, exportaciones |
+| Rol                   | Permisos                                   |
+| --------------------- | ------------------------------------------ |
+| 👑 **Propietario**    | Acceso completo + multi-sede               |
+| 👔 **Gerente**        | POS, inventarios, RRHH, reportes, permisos |
+| ☕ **Líder de barra** | Recetas, QC, checklists, capacitación      |
+| 🎯 **Barista**        | POS limitado, tareas, capacitación         |
+| 💳 **Caja**           | Cobro, CFDI, arqueos                       |
+| 🔍 **Auditor**        | Solo lectura + firmas digitales            |
+| 📊 **Contador**       | P&L, CFDI, exportaciones                   |
 
 ## 🌮 Cumplimiento México
 
 - ✅ **CFDI 4.0**: Timbrado automático vía PAC
-- ✅ **NOM-251**: Checklists de seguridad alimentaria  
+- ✅ **NOM-251**: Checklists de seguridad alimentaria
 - ✅ **LFPDPPP**: Gestión de consentimientos y privacidad
 - ✅ **Pagos locales**: Clip, Mercado Pago, BBVA Terminal
 
 ## 🚀 Instalación Rápida
 
 ### Prerrequisitos
+
 - Node.js 18+
 - Docker & Docker Compose
 - PostgreSQL 14+
@@ -157,6 +168,7 @@ CoffeeOS/
 ### Configuración Local
 
 #### Opción 1: Script Automático (Recomendado)
+
 ```bash
 # Clonar repositorio
 git clone https://github.com/tu-org/coffeeos.git
@@ -169,6 +181,7 @@ cd coffeeos
 ```
 
 #### Opción 2: Manual
+
 ```bash
 # Instalar dependencias
 npm install
@@ -197,14 +210,16 @@ npm run dev
 ```
 
 ### URLs Locales
+
 - 🏪 **POS Web**: http://localhost:3000
-- 👔 **Admin Panel**: http://localhost:3001  
+- 👔 **Admin Panel**: http://localhost:3001
 - 🔌 **API**: http://localhost:4000
 - 📊 **Docs API**: http://localhost:4000/docs
 
 ## 📱 Aplicaciones
 
 ### POS Web (PWA)
+
 ```bash
 cd apps/pos-web
 npm run dev
@@ -212,13 +227,15 @@ npm run dev
 ```
 
 ### Admin Dashboard
+
 ```bash
-cd apps/admin-web  
+cd apps/admin-web
 npm run dev
 # http://localhost:3001
 ```
 
 ### API Backend
+
 ```bash
 cd apps/api
 npm run dev
@@ -226,6 +243,7 @@ npm run dev
 ```
 
 ### Mobile App
+
 ```bash
 cd apps/mobile
 npx expo start
@@ -238,7 +256,7 @@ npx expo start
 # Tests unitarios
 npm run test
 
-# Tests de integración  
+# Tests de integración
 npm run test:e2e
 
 # Tests de carga
@@ -278,6 +296,7 @@ npm run validate
 ### 📋 Workflows
 
 **Desarrollo con Continue:**
+
 - `Ctrl+L` - Chat con AI
 - `Ctrl+I` - Edición inline
 - `/test` - Generar tests
@@ -285,6 +304,7 @@ npm run validate
 - `/nextjs` - Ayuda Next.js
 
 **Auto-commits con aider:**
+
 ```powershell
 # Editar archivo con auto-commits
 aider apps/api/src/modules/pos/pos.service.ts
@@ -294,6 +314,7 @@ aider --message "Add validation to DTO" file.ts
 ```
 
 **Auto-PR con OpenHands:**
+
 1. Crear issue con template "Auto-Fix"
 2. Comentar: `/agent propose`
 3. El agente crea PR automático
@@ -301,6 +322,7 @@ aider --message "Add validation to DTO" file.ts
 ### 🔒 Quality Gates
 
 Todos los PRs deben pasar:
+
 - ✅ Lint & Format Check
 - ✅ Type Check (TypeScript strict)
 - ✅ Unit Tests (coverage ≥90%)
@@ -313,15 +335,16 @@ Todos los PRs deben pasar:
 - **Setup:** [docs/auto-dev-quickstart.md](./docs/auto-dev-quickstart.md)
 - **Plan técnico:** [docs/plan-auto-dev.md](./docs/plan-auto-dev.md)
 
-
 ## 📦 Deployment
 
 ### Staging
+
 ```bash
 npm run deploy:staging
 ```
 
-### Producción  
+### Producción
+
 ```bash
 npm run deploy:prod
 ```
@@ -329,30 +352,36 @@ npm run deploy:prod
 ## 📊 MVP - 12 Semanas
 
 ### ✅ Semanas 1-2: Descubrimiento + UX
+
 - [x] Entrevistas con usuarios finales
 - [x] Diseño de flujos críticos
 - [x] Wireframes y prototipos
 
-### 🔄 Semanas 3-6: Construcción Núcleo  
+### 🔄 Semanas 3-6: Construcción Núcleo
+
 - [ ] POS (catálogo, modificadores, pagos)
 - [ ] Recetas + inventario por receta
 - [ ] Checklists y control de calidad
 - [ ] Tablero diario básico
 
 ### 🔄 Semanas 7-8: CRM + Costeo
+
 - [ ] Programa 9+1 y cumpleaños
 - [ ] Costeo por receta y alertas
 - [ ] NPS post-visita
 
 ### 🔄 Semanas 9: Piloto en Sitio
+
 - [ ] Pruebas de pico: 30 tickets/20min
 - [ ] Ajustes UX y estabilidad offline
 
 ### 🔄 Semanas 10-11: CFDI + Permisos
+
 - [ ] Timbrado básico PAC
 - [ ] Módulo de permisos con RRULE
 
 ### 🔄 Semana 12: Go-Live
+
 - [ ] Capacitación final
 - [ ] Métricas base establecidas
 - [ ] Plan de soporte activo
@@ -360,16 +389,19 @@ npm run deploy:prod
 ## 🎯 Métricas de Éxito
 
 ### Operación
+
 - ⚡ p90 barra < 3 min
 - 📦 Reposiciones ≤ 1%
 - ✅ Cumplimiento checklists ≥ 95%
 
-### Finanzas  
+### Finanzas
+
 - 💰 Margen bruto ≥ 65%
 - 👥 Labor ≤ 25%
 - 📈 PE ≤ 80 tickets/día base
 
 ### Crecimiento
+
 - ⭐ Rating Maps ≥ 4.6
 - 🔄 Recompra 30/90 días ↑
 - 🎁 Canje 9+1 = 12-18%

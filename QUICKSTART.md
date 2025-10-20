@@ -71,6 +71,7 @@ Start-Process "http://localhost:8000"
 ## 🎯 Siguientes TODOs
 
 ### TODO 2: Autenticación y RBAC
+
 ```powershell
 # Ubicación: apps/api/src/auth/
 # Implementar:
@@ -81,6 +82,7 @@ Start-Process "http://localhost:8000"
 ```
 
 ### TODO 3: Módulo de Productos
+
 ```powershell
 # Ubicación: apps/api/src/products/
 # Implementar:
@@ -94,12 +96,12 @@ Start-Process "http://localhost:8000"
 
 ## 📚 Documentación Útil
 
-| Documento | Para qué sirve |
-|-----------|----------------|
-| `STATUS.md` | Estado general del proyecto |
-| `SESION_RESUMEN.md` | Resumen detallado de esta sesión |
-| `docs/setup/BASEROW_SETUP.md` | Guía manual de Baserow |
-| `docs/integrations/baserow.md` | Documentación técnica completa |
+| Documento                      | Para qué sirve                   |
+| ------------------------------ | -------------------------------- |
+| `STATUS.md`                    | Estado general del proyecto      |
+| `SESION_RESUMEN.md`            | Resumen detallado de esta sesión |
+| `docs/setup/BASEROW_SETUP.md`  | Guía manual de Baserow           |
+| `docs/integrations/baserow.md` | Documentación técnica completa   |
 
 ---
 
@@ -116,12 +118,14 @@ Start-Process "http://localhost:8000"
 ## 🆘 Problemas Comunes
 
 ### Docker no inicia
+
 ```powershell
 # Asegúrate de que Docker Desktop esté corriendo
 # Verifica en la bandeja del sistema
 ```
 
 ### Puerto ocupado
+
 ```powershell
 # Ver qué proceso usa el puerto
 netstat -ano | findstr :8000
@@ -131,6 +135,7 @@ docker-compose stop baserow
 ```
 
 ### Script de Baserow falla
+
 ```powershell
 # Verifica que Baserow esté accesible
 Invoke-WebRequest http://localhost:8000 -UseBasicParsing

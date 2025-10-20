@@ -9,7 +9,9 @@
 ### 1. Documentación Completa de Baserow ✅
 
 #### a) `docs/integrations/baserow.md` (5,800+ líneas)
+
 Documento maestro que incluye:
+
 - **Arquitectura completa** de datos para CoffeeOS
 - **12 tablas principales** con todos sus campos detallados
 - **Esquema completo** de Organizations, Locations, Users, Roles, Products, Inventory, etc.
@@ -19,7 +21,9 @@ Documento maestro que incluye:
 - **Personalización UI** (colores, iconos por módulo)
 
 #### b) `docs/setup/BASEROW_SETUP.md` (900+ líneas)
+
 Guía práctica paso a paso que incluye:
+
 - Instrucciones detalladas para **configuración manual**
 - **12 tablas** con todos los campos especificados
 - **Datos iniciales** para importar (roles, categorías, productos, modificadores)
@@ -30,6 +34,7 @@ Guía práctica paso a paso que incluye:
 ### 2. Scripts de Automatización ✅
 
 #### a) `scripts/setup-baserow.ps1` (PowerShell)
+
 - Script **nativo de PowerShell** que **NO requiere Node.js**
 - Usa `Invoke-RestMethod` nativo de Windows
 - **Crea automáticamente**:
@@ -41,6 +46,7 @@ Guía práctica paso a paso que incluye:
 - Manejo completo de errores
 
 #### b) `scripts/setup-baserow.js` (Node.js)
+
 - Script alternativo en JavaScript
 - 600+ líneas de código
 - Cliente axios para API de Baserow
@@ -51,7 +57,9 @@ Guía práctica paso a paso que incluye:
 ### 3. Archivos de Configuración ✅
 
 #### `config/baserow.json`
+
 Archivo de configuración generado automáticamente que almacena:
+
 - `database_id`: ID de la base de datos
 - `tables`: Mapa de IDs de todas las tablas
 - `api_url`: URL del API de Baserow
@@ -60,7 +68,9 @@ Archivo de configuración generado automáticamente que almacena:
 ### 4. Documentación de Estado ✅
 
 #### `STATUS.md`
+
 Documento completo que incluye:
+
 - **Estado actual** del proyecto
 - **Bloqueador crítico** identificado (espacio en disco)
 - **Progreso completado** (estructura, Docker, BD, docs)
@@ -78,6 +88,7 @@ Documento completo que incluye:
 **Error**: `ENOSPC: no space left on device`
 
 **Impacto**:
+
 - ❌ No se pueden instalar dependencias de Node.js
 - ❌ npm install falla constantemente
 - ❌ node_modules corrupto o incompleto
@@ -86,6 +97,7 @@ Documento completo que incluye:
 Liberar **mínimo 5-10 GB** en la unidad E:
 
 **Acciones Sugeridas**:
+
 1. Eliminar archivos temporales grandes
 2. Limpiar caché de npm: `npm cache clean --force`
 3. Eliminar node_modules corruptos: `Remove-Item E:\CoffeeOS\node_modules -Recurse -Force`
@@ -96,6 +108,7 @@ Liberar **mínimo 5-10 GB** en la unidad E:
 ## 🎯 Qué Se Ha Logrado
 
 ### Infraestructura ✅
+
 - [x] Monorepo con Turbo configurado
 - [x] Docker Compose con 6 servicios
 - [x] Baserow corriendo en localhost:8000
@@ -103,12 +116,14 @@ Liberar **mínimo 5-10 GB** en la unidad E:
 - [x] Redis, n8n, MinIO, Metabase configurados
 
 ### Base de Datos ✅
+
 - [x] Prisma schema completo (40+ tablas)
 - [x] Multi-tenant architecture
 - [x] RBAC con 7 roles
 - [x] Índices y relaciones
 
 ### Baserow Integration ✅
+
 - [x] Esquema completo documentado
 - [x] 12 tablas principales definidas
 - [x] Campos con tipos específicos
@@ -118,6 +133,7 @@ Liberar **mínimo 5-10 GB** en la unidad E:
 - [x] Scripts de automatización (PS1 y JS)
 
 ### Documentación ✅
+
 - [x] Guía de setup manual (BASEROW_SETUP.md)
 - [x] Documentación técnica (baserow.md)
 - [x] Estado del proyecto (STATUS.md)
@@ -128,6 +144,7 @@ Liberar **mínimo 5-10 GB** en la unidad E:
 ## 🚀 Próximos Pasos (Orden de Ejecución)
 
 ### Paso 1: Resolver Bloqueador de Espacio 🚨
+
 ```powershell
 # Liberar espacio en disco E:
 1. Limpiar caché npm
@@ -137,12 +154,14 @@ Liberar **mínimo 5-10 GB** en la unidad E:
 ```
 
 ### Paso 2: Instalar Dependencias
+
 ```powershell
 npm install
 npm run build
 ```
 
 ### Paso 3: Iniciar Docker Desktop
+
 ```powershell
 # Asegurarse que Docker Desktop esté corriendo
 docker-compose up -d
@@ -152,6 +171,7 @@ docker-compose ps
 ### Paso 4: Configurar Baserow
 
 **Opción A: Script Automático (Recomendado)**
+
 ```powershell
 # 1. Acceder a Baserow: http://localhost:8000
 # 2. Crear cuenta y generar API token
@@ -160,11 +180,13 @@ docker-compose ps
 ```
 
 **Opción B: Manual**
+
 ```
 Seguir guía en: docs/setup/BASEROW_SETUP.md
 ```
 
 ### Paso 5: Implementar Módulos (TODOs 2-27)
+
 ```
 Ver lista completa en STATUS.md
 ```
@@ -184,30 +206,34 @@ Ver lista completa en STATUS.md
 
 ## 🔗 Archivos Relevantes Creados
 
-| Archivo | Propósito | Líneas |
-|---------|-----------|--------|
-| `docs/integrations/baserow.md` | Documentación técnica completa | ~5,800 |
-| `docs/setup/BASEROW_SETUP.md` | Guía de configuración manual | ~900 |
-| `scripts/setup-baserow.ps1` | Script PowerShell automatización | ~250 |
-| `scripts/setup-baserow.js` | Script Node.js automatización | ~600 |
-| `config/baserow.json` | Configuración de IDs y referencias | ~20 |
-| `STATUS.md` | Estado actual del proyecto | ~400 |
-| `SESION_RESUMEN.md` | Este documento | ~200 |
+| Archivo                        | Propósito                          | Líneas |
+| ------------------------------ | ---------------------------------- | ------ |
+| `docs/integrations/baserow.md` | Documentación técnica completa     | ~5,800 |
+| `docs/setup/BASEROW_SETUP.md`  | Guía de configuración manual       | ~900   |
+| `scripts/setup-baserow.ps1`    | Script PowerShell automatización   | ~250   |
+| `scripts/setup-baserow.js`     | Script Node.js automatización      | ~600   |
+| `config/baserow.json`          | Configuración de IDs y referencias | ~20    |
+| `STATUS.md`                    | Estado actual del proyecto         | ~400   |
+| `SESION_RESUMEN.md`            | Este documento                     | ~200   |
 
 ---
 
 ## 💡 Decisiones Técnicas Importantes
 
 ### 1. Baserow como Base de Datos Principal
+
 **Razón**: Permite a usuarios no técnicos gestionar datos críticos del negocio mediante interfaz no-code, mientras mantiene integridad y relaciones.
 
 ### 2. Script PowerShell Nativo
+
 **Razón**: Evita dependencia de Node.js y funciona incluso con problemas de espacio en disco.
 
 ### 3. Documentación Exhaustiva
+
 **Razón**: Facilita implementación manual si la automatización falla, y sirve como referencia técnica completa.
 
 ### 4. Multi-Tenant desde el Diseño
+
 **Razón**: Permite escalar a múltiples organizaciones y locaciones sin refactorización posterior.
 
 ---

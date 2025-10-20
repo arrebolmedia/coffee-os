@@ -12,25 +12,20 @@ assignees: ''
 
 <!-- A clear and concise description of the feature -->
 
-
-
 ### 🎯 Problem Statement
 
 <!-- What problem does this feature solve? Who benefits from it? -->
 
-
-
 ### 💡 Proposed Solution
 
 <!-- How should this feature work? Describe the user experience -->
-
-
 
 ### 🔧 Technical Approach
 
 <!-- Optional: Suggest technical implementation details -->
 
 **Affected Areas:**
+
 - [ ] Backend API (NestJS)
 - [ ] POS Web (Next.js)
 - [ ] Admin Web
@@ -39,13 +34,12 @@ assignees: ''
 - [ ] Infrastructure
 
 **Dependencies:**
+
 <!-- Any new packages or services needed? -->
 
 ### 📊 Mockups/Examples
 
 <!-- Add mockups, wireframes, or examples if applicable -->
-
-
 
 ### 🧪 Testing Strategy
 
@@ -60,14 +54,12 @@ assignees: ''
 
 <!-- How do we measure if this feature is successful? -->
 
-- 
-- 
+-
+-
 
 ### ⚠️ Risks and Considerations
 
 <!-- Potential challenges, breaking changes, or security concerns -->
-
-
 
 ### 🌍 Mexican Market Requirements
 

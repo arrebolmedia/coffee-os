@@ -284,9 +284,9 @@ describe('ProductsService', () => {
         .mockResolvedValueOnce(mockProduct)
         .mockResolvedValueOnce(existingProduct);
 
-      await expect(
-        service.update('test-id', updateWithSku),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.update('test-id', updateWithSku)).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('should throw BadRequestException if new category does not exist', async () => {

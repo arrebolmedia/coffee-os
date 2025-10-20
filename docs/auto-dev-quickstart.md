@@ -38,12 +38,12 @@ git --version
 
 ### API Keys Necesarias
 
-| Servicio | Variable de Entorno | Obligatorio | Propósito |
-|----------|---------------------|-------------|-----------|
-| OpenAI | `OPENAI_API_KEY` | ✅ Sí | Continue + aider + OpenHands |
-| Anthropic | `ANTHROPIC_API_KEY` | ❌ No | Claude (alternativa) |
-| GitHub | `GITHUB_TOKEN` | ❌ No | OpenHands PRs automáticos |
-| Semgrep | `SEMGREP_APP_TOKEN` | ❌ No | Semgrep Cloud (opcional) |
+| Servicio  | Variable de Entorno | Obligatorio | Propósito                    |
+| --------- | ------------------- | ----------- | ---------------------------- |
+| OpenAI    | `OPENAI_API_KEY`    | ✅ Sí       | Continue + aider + OpenHands |
+| Anthropic | `ANTHROPIC_API_KEY` | ❌ No       | Claude (alternativa)         |
+| GitHub    | `GITHUB_TOKEN`      | ❌ No       | OpenHands PRs automáticos    |
+| Semgrep   | `SEMGREP_APP_TOKEN` | ❌ No       | Semgrep Cloud (opcional)     |
 
 ---
 
@@ -110,16 +110,19 @@ npm run prepare
 ### 1. Continue - Copiloto en VS Code
 
 **Instalación:**
+
 1. Abrir VS Code
 2. Ir a Extensions (Ctrl+Shift+X)
 3. Buscar "Continue"
 4. Instalar
 
 **Configuración:**
+
 - El archivo `.continue/config.json` ya está configurado
 - Añadir tu `OPENAI_API_KEY` en el archivo
 
 **Uso:**
+
 ```
 Ctrl+L  - Abrir chat
 Ctrl+I  - Inline edit
@@ -128,6 +131,7 @@ Ctrl+I  - Inline edit
 ```
 
 **Comandos Custom:**
+
 - `/nestjs` - Ayuda con código NestJS
 - `/nextjs` - Ayuda con código Next.js
 - `/prisma` - Ayuda con Prisma queries
@@ -152,6 +156,7 @@ aider --message "Add validation to CreateUserDTO" apps/api/src/modules/users/dto
 
 **Configuración:**
 El archivo `.aider.conf.yml` ya está configurado con:
+
 - Auto-commits habilitados
 - Conventional commits
 - Modelo: GPT-4o
@@ -181,6 +186,7 @@ docker compose -f docker-compose.openhands.yml down
 ```
 
 **Uso desde GitHub Issues:**
+
 1. Crear issue con template "Auto-Fix"
 2. Comentar: `/agent propose`
 3. El agente analizará y creará un PR automático
@@ -238,6 +244,7 @@ npm run validate
 Formato: `type(scope): description`
 
 **Types:**
+
 - `feat`: Nueva funcionalidad
 - `fix`: Corrección de bug
 - `docs`: Cambios en documentación
@@ -247,6 +254,7 @@ Formato: `type(scope): description`
 - `chore`: Tareas de mantenimiento
 
 **Ejemplos:**
+
 ```bash
 feat(pos): add credit card payment support
 fix(auth): resolve JWT expiration issue
@@ -266,6 +274,7 @@ refactor(crm): extract customer service logic
 **Trigger:** Push a cualquier branch, PRs
 
 **Jobs:**
+
 1. ✅ Lint & Format Check
 2. ✅ Type Check
 3. ✅ Unit Tests (coverage ≥90%)
@@ -280,6 +289,7 @@ refactor(crm): extract customer service logic
 **Trigger:** Comentario `/agent propose` en issue
 
 **Proceso:**
+
 1. Valida permisos del usuario
 2. Extrae descripción del issue
 3. Ejecuta OpenHands agent
@@ -291,6 +301,7 @@ refactor(crm): extract customer service logic
 **Trigger:** Cron (Domingos 00:00 UTC)
 
 **Proceso:**
+
 1. Ejecuta subset SWE-bench
 2. Calcula success rate
 3. Genera reporte
@@ -299,6 +310,7 @@ refactor(crm): extract customer service logic
 ### Quality Gates
 
 Para que un PR sea aprobado:
+
 - ✅ Todos los tests pasando
 - ✅ Coverage ≥90%
 - ✅ No errores de lint/format
@@ -314,6 +326,7 @@ Para que un PR sea aprobado:
 ### Semgrep - SAST
 
 **Ejecución local:**
+
 ```powershell
 # Instalar
 pip install semgrep
@@ -323,6 +336,7 @@ semgrep --config .semgrep.yml apps/ packages/
 ```
 
 **Reglas incluidas:**
+
 - OWASP Top 10
 - SQL Injection (Prisma)
 - Hard-coded secrets
@@ -333,6 +347,7 @@ semgrep --config .semgrep.yml apps/ packages/
 ### Gitleaks - Secret Scanning
 
 **Ejecución local:**
+
 ```powershell
 # Instalar
 choco install gitleaks
@@ -342,6 +357,7 @@ gitleaks detect --config .gitleaks.toml --verbose
 ```
 
 **Detecta:**
+
 - API keys (OpenAI, GitHub, AWS)
 - Database URLs
 - JWT tokens
@@ -366,15 +382,15 @@ Start-Process "coverage/lcov-report/index.html"
 
 ### Build Times
 
-| Job | Target | Actual |
-|-----|--------|--------|
-| Lint & Format | <2 min | TBD |
-| Type Check | <2 min | TBD |
-| Unit Tests | <5 min | TBD |
-| E2E Tests | <10 min | TBD |
-| Security Scan | <3 min | TBD |
-| Build | <5 min | TBD |
-| **Total** | **<15 min** | TBD |
+| Job           | Target      | Actual |
+| ------------- | ----------- | ------ |
+| Lint & Format | <2 min      | TBD    |
+| Type Check    | <2 min      | TBD    |
+| Unit Tests    | <5 min      | TBD    |
+| E2E Tests     | <10 min     | TBD    |
+| Security Scan | <3 min      | TBD    |
+| Build         | <5 min      | TBD    |
+| **Total**     | **<15 min** | TBD    |
 
 ---
 
@@ -385,6 +401,7 @@ Start-Process "coverage/lcov-report/index.html"
 **Problema:** Continue no puede acceder a OpenAI
 
 **Solución:**
+
 1. Verificar API key en `.continue/config.json`
 2. Revisar conexión a internet
 3. Ver logs: `View → Output → Continue`
@@ -394,6 +411,7 @@ Start-Process "coverage/lcov-report/index.html"
 **Problema:** `git commit` falla con aider
 
 **Solución:**
+
 ```powershell
 # Verificar configuración de Git
 git config user.name
@@ -409,6 +427,7 @@ git config --global user.email "tu@email.com"
 **Problema:** Diferencias entre entorno local y CI
 
 **Solución:**
+
 1. Verificar versión de Node: `.nvmrc`
 2. Limpiar caché: `npm run clean && npm install`
 3. Verificar variables de entorno
@@ -419,6 +438,7 @@ git config --global user.email "tu@email.com"
 **Problema:** Docker Compose falla al iniciar
 
 **Solución:**
+
 ```powershell
 # Verificar Docker
 docker ps
@@ -438,6 +458,7 @@ docker compose -f docker-compose.openhands.yml pull
 **Problema:** Coverage gate falla en CI
 
 **Solución:**
+
 ```powershell
 # Ver qué falta cubrir
 npm run test:coverage
@@ -455,6 +476,7 @@ npm run test:coverage
 **Problema:** Semgrep marca código seguro como vulnerable
 
 **Solución:**
+
 1. Revisar el hallazgo
 2. Si es falso positivo, añadir a `.semgrep.yml`:
    ```yaml
@@ -462,7 +484,7 @@ npm run test:coverage
      - id: mi-regla
        paths:
          exclude:
-           - "path/to/false/positive.ts"
+           - 'path/to/false/positive.ts'
    ```
 
 ---
@@ -470,6 +492,7 @@ npm run test:coverage
 ## 📚 Recursos Adicionales
 
 ### Documentación
+
 - [Continue Docs](https://docs.continue.dev/)
 - [aider Docs](https://aider.chat/docs/)
 - [OpenHands Docs](https://docs.all-hands.dev/)
@@ -477,9 +500,11 @@ npm run test:coverage
 - [Playwright Docs](https://playwright.dev/)
 
 ### Plan Completo
+
 - Ver `docs/plan-auto-dev.md` para detalles técnicos completos
 
 ### Soporte
+
 - Crear issue en GitHub
 - Revisar logs de CI
 - Consultar con el equipo

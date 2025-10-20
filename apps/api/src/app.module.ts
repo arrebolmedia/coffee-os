@@ -15,8 +15,13 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 // Business modules
 import { PosModule } from './modules/pos/pos.module';
 import { ProductsModule } from './modules/products/products.module';
+import { CategoriesModule } from './modules/categories/categories.module';
+import { ModifiersModule } from './modules/modifiers/modifiers.module';
+import { InventoryItemsModule } from './modules/inventory-items/inventory-items.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { RecipesModule } from './modules/recipes/recipes.module';
+import { TransactionsModule } from './modules/transactions/transactions.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 import { QualityModule } from './modules/quality/quality.module';
 import { CrmModule } from './modules/crm/crm.module';
 import { FinanceModule } from './modules/finance/finance.module';
@@ -54,7 +59,7 @@ import { RedisModule } from './modules/redis/redis.module';
     // Infrastructure
     DatabaseModule,
     RedisModule,
-    
+
     // Health check
     HealthModule,
 
@@ -66,8 +71,13 @@ import { RedisModule } from './modules/redis/redis.module';
     // Business modules
     PosModule,
     ProductsModule,
+    CategoriesModule,
+    ModifiersModule,
+    InventoryItemsModule,
     InventoryModule,
     RecipesModule,
+    TransactionsModule,
+    PaymentsModule,
     QualityModule,
     CrmModule,
     FinanceModule,

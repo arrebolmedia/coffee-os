@@ -35,6 +35,7 @@ npm install
 ## 📦 ¿Qué incluye el entorno de desarrollo?
 
 ### Backend Services (Docker)
+
 - **PostgreSQL** `:5432` - Base de datos principal
 - **Redis** `:6379` - Cache y sesiones
 - **Baserow** `:8000` - Base de datos no-code
@@ -45,6 +46,7 @@ npm install
 - **Grafana** `:3001` - Dashboards
 
 ### Frontend Apps (Node)
+
 - **POS Web** `:3000` - Punto de venta (Next.js)
 - **Admin Web** `:3001` - Panel administrativo (Next.js)
 - **API** `:4000` - Backend REST + GraphQL (NestJS)
@@ -54,6 +56,7 @@ npm install
 ## 🛠️ Comandos Útiles
 
 ### Gestión del Proyecto
+
 ```powershell
 # Iniciar todo el entorno
 .\scripts\start-dev.ps1
@@ -72,6 +75,7 @@ npm run build
 ```
 
 ### Base de Datos
+
 ```powershell
 # Generar cliente de Prisma
 npm run db:generate
@@ -90,6 +94,7 @@ npm run db:reset
 ```
 
 ### Docker
+
 ```powershell
 # Iniciar servicios
 npm run docker:up
@@ -134,10 +139,10 @@ CoffeeOS/
 
 Una vez que ejecutes el seed (`npm run db:seed`), tendrás estos usuarios:
 
-| Email | Password | Rol | Permisos |
-|-------|----------|-----|----------|
-| `owner@coffeedemo.mx` | `password123` | OWNER | Acceso total |
-| `manager@coffeedemo.mx` | `password123` | MANAGER | Operativo |
+| Email                   | Password      | Rol     | Permisos      |
+| ----------------------- | ------------- | ------- | ------------- |
+| `owner@coffeedemo.mx`   | `password123` | OWNER   | Acceso total  |
+| `manager@coffeedemo.mx` | `password123` | MANAGER | Operativo     |
 | `barista@coffeedemo.mx` | `password123` | BARISTA | POS + Recetas |
 
 ---
@@ -147,27 +152,33 @@ Una vez que ejecutes el seed (`npm run db:seed`), tendrás estos usuarios:
 El seed incluye:
 
 ### ☕ Espresso
+
 - Espresso ($35)
 - Americano ($45)
 - Capuccino ($55)
 - Latte ($55)
 
 ### 🍃 Filter Coffee
+
 - Chemex ($65)
 - V60 ($65)
 
 ### 🧊 Cold Brew
+
 - Cold Brew ($55)
 - Iced Latte ($60)
 
 ### 🥐 Pastries
+
 - Croissant ($35)
 - Pan de Chocolate ($40)
 
 ### 🥪 Sandwiches
+
 - Sandwich de Jamón ($65)
 
 ### 🔧 Modificadores
+
 - **Leches**: Regular, Deslactosada (+$5), Almendra (+$10), Avena (+$10), Soya (+$8)
 - **Tamaños**: 8oz, 12oz (+$10), 16oz (+$15)
 - **Extras**: Shot Extra (+$15), Vainilla (+$10), Caramelo (+$10), Crema (+$8)
@@ -177,6 +188,7 @@ El seed incluye:
 ## 🔍 Verificación del Entorno
 
 ### Verificar servicios Docker
+
 ```powershell
 docker ps
 ```
@@ -184,11 +196,13 @@ docker ps
 Deberías ver ~8 contenedores corriendo.
 
 ### Verificar API
+
 ```powershell
 curl http://localhost:4000/health
 ```
 
 Respuesta esperada:
+
 ```json
 {
   "status": "ok",
@@ -198,6 +212,7 @@ Respuesta esperada:
 ```
 
 ### Verificar Base de Datos
+
 ```powershell
 npm run db:studio
 ```
@@ -209,6 +224,7 @@ Se abrirá Prisma Studio en http://localhost:5555
 ## 🐛 Troubleshooting
 
 ### Error: "Cannot connect to database"
+
 ```powershell
 # Verificar que PostgreSQL esté corriendo
 docker-compose ps postgres
@@ -221,6 +237,7 @@ docker-compose restart postgres
 ```
 
 ### Error: "Port already in use"
+
 ```powershell
 # Ver qué proceso está usando el puerto
 netstat -ano | findstr :3000
@@ -230,11 +247,13 @@ taskkill /PID <PID> /F
 ```
 
 ### Error: "Prisma client not generated"
+
 ```powershell
 npm run db:generate
 ```
 
 ### Docker no inicia
+
 ```powershell
 # Verificar Docker Desktop está corriendo
 docker --version
@@ -251,27 +270,32 @@ docker-compose up -d
 ## 📚 Próximos Pasos
 
 ### 1. Familiarízate con el POS
+
 - Abre http://localhost:3000
 - Login con `barista@coffeedemo.mx` / `password123`
 - Crea tu primera orden
 - Prueba los modificadores
 
 ### 2. Explora el Admin Panel
+
 - Abre http://localhost:3001
 - Login con `owner@coffeedemo.mx` / `password123`
 - Navega por productos, usuarios, reportes
 
 ### 3. Prueba la API
+
 - Abre http://localhost:4000/api-docs (Swagger)
 - Prueba endpoints con Postman/Insomnia
 - Revisa el GraphQL Playground en /graphql
 
 ### 4. Revisa el Código
+
 - Comienza con `apps/api/src/main.ts`
 - Luego `apps/pos-web/src/app/page.tsx`
 - Explora `packages/database/prisma/schema.prisma`
 
 ### 5. Ejecuta Tests
+
 ```powershell
 npm run test
 ```
@@ -283,23 +307,28 @@ npm run test
 Según **TODO-01-Research-User-Journey.md**:
 
 ### Lunes 22 Oct
+
 - ✅ Kick-off meeting
 - ✅ Asignación de TODOs 1-3
 - ✅ Setup entorno de desarrollo
 
 ### Martes 23 Oct
+
 - [ ] User interviews (2 cajeros/baristas + 1 gerente)
 - [ ] Documentar pain points actuales
 
 ### Miércoles 24 Oct
+
 - [ ] Crear journey maps
 - [ ] Identificar momentos críticos
 
 ### Jueves 25 Oct
+
 - [ ] Compilar insights
 - [ ] Crear documento de hallazgos
 
 ### Viernes 26 Oct
+
 - [ ] Presentación a stakeholders
 - [ ] Feedback y ajustes
 
@@ -308,12 +337,14 @@ Según **TODO-01-Research-User-Journey.md**:
 ## 📞 Soporte
 
 ### Documentación
+
 - **Plan Completo**: `PLAN-COMPLETO.md`
 - **Plan Implementación**: `PLAN-IMPLEMENTACION.md`
 - **Status Report**: `STATUS-REPORT.md`
 - **TODOs**: Carpeta `todos/`
 
 ### Comandos de Ayuda
+
 ```powershell
 # Ver todos los scripts disponibles
 npm run
@@ -326,6 +357,7 @@ npm run dev
 ```
 
 ### Recursos Externos
+
 - [NestJS Docs](https://docs.nestjs.com)
 - [Next.js Docs](https://nextjs.org/docs)
 - [Prisma Docs](https://www.prisma.io/docs)

@@ -33,6 +33,7 @@ git push -u origin feat/auto-dev-bootstrap
 Los secrets son necesarios para que los workflows de CI/CD funcionen correctamente.
 
 #### Ir a configuración de Secrets:
+
 1. En GitHub, ir al repositorio CoffeeOS
 2. Click en **Settings** (arriba a la derecha)
 3. En el menú izquierdo, ir a **Secrets and variables** → **Actions**
@@ -40,14 +41,14 @@ Los secrets son necesarios para que los workflows de CI/CD funcionen correctamen
 
 #### Secrets requeridos:
 
-| Secret Name | Valor | Requerido | Uso |
-|-------------|-------|-----------|-----|
-| `OPENAI_API_KEY` | Tu API key de OpenAI | ✅ Sí | CI/CD workflows, Continue, aider, OpenHands |
-| `GITHUB_TOKEN` | Auto-generado | ❌ No* | Ya existe automáticamente |
-| `CODECOV_TOKEN` | Token de Codecov | ❌ No | Coverage reporting (opcional) |
-| `SEMGREP_APP_TOKEN` | Token de Semgrep | ❌ No | Semgrep Cloud (opcional) |
+| Secret Name         | Valor                | Requerido | Uso                                         |
+| ------------------- | -------------------- | --------- | ------------------------------------------- |
+| `OPENAI_API_KEY`    | Tu API key de OpenAI | ✅ Sí     | CI/CD workflows, Continue, aider, OpenHands |
+| `GITHUB_TOKEN`      | Auto-generado        | ❌ No\*   | Ya existe automáticamente                   |
+| `CODECOV_TOKEN`     | Token de Codecov     | ❌ No     | Coverage reporting (opcional)               |
+| `SEMGREP_APP_TOKEN` | Token de Semgrep     | ❌ No     | Semgrep Cloud (opcional)                    |
 
-*GITHUB_TOKEN: GitHub lo proporciona automáticamente para workflows.
+\*GITHUB_TOKEN: GitHub lo proporciona automáticamente para workflows.
 
 #### Agregar OPENAI_API_KEY:
 
@@ -112,35 +113,42 @@ Este PR implementa el sistema completo de desarrollo asistido por AI para Coffee
 ### 📦 Lo que incluye:
 
 #### 🛠️ IDE Copilotos
+
 - ✅ Continue extension configurada (GPT-4o + Ollama)
 - ✅ aider CLI para auto-commits
 - ✅ Comandos custom: `/nestjs`, `/nextjs`, `/prisma`, `/test`
 
 #### 🔒 Seguridad Automatizada
+
 - ✅ Semgrep con 8 reglas custom + OWASP Top 10
 - ✅ Gitleaks para detectar 11 tipos de secretos
 - ✅ npm audit integration
 
 #### 🚀 CI/CD Pipeline
+
 - ✅ `agent-verify.yml` - 6 jobs paralelos con quality gates
 - ✅ `agent-proposal.yml` - Auto-PRs con `/agent propose`
 - ✅ `evals.yml` - Evaluaciones semanales SWE-bench
 
 #### 📝 Templates & Workflows
+
 - ✅ Issue templates: Auto-Fix, Feature Request, Bug Report
 - ✅ PR template con checklist exhaustivo
 
 #### 🪝 Pre-commit Hooks
+
 - ✅ Husky configurado
 - ✅ lint-staged para validación automática
 - ✅ commitlint para Conventional Commits
 
 #### 🧪 Testing Foundation
+
 - ✅ Health check endpoints con tests
 - ✅ Unit tests (100% coverage en módulo health)
 - ✅ E2E tests con Playwright
 
 ### 📊 Métricas:
+
 - **Archivos creados:** 27 (configuración auto-dev)
 - **Total archivos:** 121
 - **Líneas de código:** ~2,100 (auto-dev)
@@ -155,11 +163,13 @@ Este PR implementa el sistema completo de desarrollo asistido por AI para Coffee
 4. Los pre-commit hooks validarán automáticamente
 
 ### 📚 Documentación:
+
 - `RESUMEN-AUTO-DEV.md` - Resumen ejecutivo
 - `docs/auto-dev-quickstart.md` - Guía de uso
 - `INSTALACION-EXITOSA.txt` - Instrucciones completas
 
 ### ✅ Checklist:
+
 - [x] Configuración completa de Continue
 - [x] aider CLI configurado
 - [x] Semgrep + Gitleaks configurados
@@ -170,6 +180,7 @@ Este PR implementa el sistema completo de desarrollo asistido por AI para Coffee
 - [x] Documentación completa
 
 ### ⚠️ Breaking Changes:
+
 - Requiere Node.js 20+
 - Requiere configurar `OPENAI_API_KEY` en GitHub Secrets
 
@@ -204,6 +215,7 @@ Después del merge, verificar que los workflows funcionen:
    - ✅ Evals
 
 Si hay errores, revisar:
+
 - ✅ Secrets configurados correctamente
 - ✅ OPENAI_API_KEY es válido
 - ✅ Workflows tienen permisos correctos
@@ -211,17 +223,21 @@ Si hay errores, revisar:
 ## 🆘 Troubleshooting
 
 ### Error: "OPENAI_API_KEY not found"
+
 **Solución:** Verificar que el secret esté configurado en Settings → Secrets
 
 ### Error: "Permission denied"
+
 **Solución:** Verificar permisos en Settings → Actions → General → Workflow permissions
 
 ### Error: "Branch protection requires status checks"
+
 **Solución:** Esperar a que al menos un workflow se ejecute antes de configurar branch protection
 
 ## 📞 Soporte
 
 Si encuentras problemas:
+
 1. Revisar logs en Actions
 2. Consultar `docs/auto-dev-quickstart.md`
 3. Buscar en la sección Troubleshooting de la documentación
