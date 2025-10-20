@@ -5,6 +5,7 @@
 ### ✅ Paso 1.1: Verificar y Mergear PR
 
 **Ya abrí las páginas en el navegador:**
+
 - GitHub Actions (workflows)
 - Pull Requests
 
@@ -21,6 +22,7 @@
 3. **Decidir:**
 
    **Si TODO está verde ✅:**
+
    ```
    → Click "Merge pull request"
    → Click "Confirm merge"
@@ -28,6 +30,7 @@
    ```
 
    **Si algunos checks están en progreso 🟡:**
+
    ```
    → Esperar 2-3 minutos
    → Refresh la página
@@ -35,6 +38,7 @@
    ```
 
    **Si hay checks rojos ❌:**
+
    ```
    → Click "Details" en el check fallido
    → Revisar logs
@@ -63,6 +67,7 @@ git log --oneline -3
 ```
 
 **Deberías ver:**
+
 - Commit de merge del PR
 - Commit "feat(infra): bootstrap auto-dev system"
 
@@ -86,6 +91,7 @@ git branch
 ### 📋 Paso 2.1: Crear Issue en GitHub
 
 **En navegador, ir a:**
+
 ```
 https://github.com/arrebolmedia/coffee-os/issues/new
 ```
@@ -93,18 +99,22 @@ https://github.com/arrebolmedia/coffee-os/issues/new
 **Llenar formulario:**
 
 **Title:**
+
 ```
 feat(pos): implementar módulo de productos con CRUD completo
 ```
 
 **Description:**
-```markdown
+
+````markdown
 ## 🎯 Objetivo
+
 Implementar el módulo de productos como base para el sistema POS de CoffeeOS.
 
 ## 📝 Funcionalidades
 
 ### Backend (NestJS + Prisma)
+
 - [ ] Modelo Product en Prisma schema
 - [ ] ProductsModule con estructura completa
 - [ ] ProductsController con endpoints RESTful
@@ -130,12 +140,13 @@ model Product {
   organization   Organization @relation(fields: [organizationId], references: [id])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  
+
   @@index([organizationId])
   @@index([category])
   @@index([isActive])
 }
 ```
+````
 
 ## 🔌 Endpoints
 
@@ -161,8 +172,10 @@ GET    /api/products/category/:category - Filtrar por categoría
 - [ ] CI/CD pasando
 
 ## 🏷️ Labels
+
 `feature`, `pos`, `backend`, `priority-high`
-```
+
+````
 
 **Click:** "Submit new issue"
 
@@ -181,7 +194,7 @@ git checkout -b feat/pos-products-module
 # Verificar
 git branch
 # Debería mostrar: * feat/pos-products-module
-```
+````
 
 ---
 
@@ -398,6 +411,7 @@ npm run test:cov
 ### 📋 Paso 2.9: Commit y Push
 
 **Con Continue:**
+
 ```
 Ctrl+L → "/commit"
 
@@ -455,11 +469,13 @@ git push origin feat/pos-products-module
 Al final de hoy deberías tener:
 
 ### ✅ Fase 1 Completa:
+
 - [x] PR de auto-dev mergeado a main
 - [x] Repositorio local actualizado
 - [x] Branch limpio
 
 ### ✅ Fase 2 Completa:
+
 - [ ] Issue de productos creado
 - [ ] Modelo Product en Prisma
 - [ ] Migración aplicada
@@ -476,18 +492,21 @@ Al final de hoy deberías tener:
 ## 💡 TIPS
 
 ### Usa Continue para:
+
 - Generar código boilerplate
 - Crear tests
 - Explicar código que no entiendas
 - Generar mensajes de commit
 
 ### Pídeme ayuda para:
+
 - Decisiones de arquitectura
 - Problemas complejos multi-archivo
 - Troubleshooting de CI/CD
 - Code review antes del PR
 
 ### Combina Ambos:
+
 - Continue genera código → Tú revisas → Yo optimizo si necesario
 - Yo genero estructura → Continue llena detalles → Tú ajustas
 
@@ -496,6 +515,7 @@ Al final de hoy deberías tener:
 ## 🆘 TROUBLESHOOTING
 
 ### Error en migración de Prisma
+
 ```powershell
 # Reset database (CUIDADO: borra datos)
 npx prisma migrate reset
@@ -505,6 +525,7 @@ npx prisma migrate dev
 ```
 
 ### Tests fallan
+
 ```
 1. Verificar que servicios estén corriendo (PostgreSQL)
 2. Revisar imports y paths
@@ -512,6 +533,7 @@ npx prisma migrate dev
 ```
 
 ### Continue no responde
+
 ```
 1. Verificar $env:OPENAI_API_KEY
 2. Revisar Output → Continue
@@ -523,6 +545,7 @@ npx prisma migrate dev
 ## 📞 CUANDO TERMINES
 
 Avísame y:
+
 1. Revisamos el código juntos
 2. Optimizamos si es necesario
 3. Verificamos el PR
@@ -533,6 +556,7 @@ Avísame y:
 **¡Empecemos! 🚀**
 
 **ACCIÓN INMEDIATA:**
+
 1. Ve a GitHub en el navegador
 2. Verifica workflows
 3. Mergea el PR

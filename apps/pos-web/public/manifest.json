@@ -107,7 +107,7 @@
       "label": "POS Desktop View"
     },
     {
-      "src": "/screenshots/pos-mobile.png", 
+      "src": "/screenshots/pos-mobile.png",
       "sizes": "750x1334",
       "type": "image/png",
       "form_factor": "narrow",

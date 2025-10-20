@@ -7,6 +7,7 @@ Este checklist asegura que todo está configurado correctamente antes de comenza
 ## 🎯 Fase 1: Verificación de Sistema
 
 ### Sistema Operativo & Herramientas
+
 - [x] ✅ Windows con PowerShell
 - [x] ✅ Node.js v22.17.0 instalado
 - [x] ✅ npm 10.9.2 instalado
@@ -14,6 +15,7 @@ Este checklist asegura que todo está configurado correctamente antes de comenza
 - [ ] ⏳ Git configurado
 
 **Comando de verificación**:
+
 ```powershell
 node --version
 npm --version
@@ -26,6 +28,7 @@ git --version
 ## 🎯 Fase 2: Instalación de Dependencias
 
 ### Node Modules
+
 - [ ] ⏳ `npm install` completado sin errores
 - [ ] Todos los workspaces instalados:
   - [ ] `apps/api`
@@ -38,6 +41,7 @@ git --version
   - [ ] `packages/ui`
 
 **Verificar instalación**:
+
 ```powershell
 # Debe existir el directorio
 Test-Path node_modules
@@ -52,6 +56,7 @@ Get-ChildItem node_modules -Recurse | Measure-Object -Property Length -Sum
 ## 🎯 Fase 3: Servicios Docker
 
 ### Contenedores Requeridos
+
 - [ ] PostgreSQL 15 (puerto 5432)
 - [ ] Redis 7 (puerto 6379)
 - [ ] Baserow (puerto 8000)
@@ -62,6 +67,7 @@ Get-ChildItem node_modules -Recurse | Measure-Object -Property Length -Sum
 - [ ] Grafana (puerto 3001)
 
 **Iniciar servicios**:
+
 ```powershell
 .\scripts\start-dev.ps1
 # O manualmente:
@@ -69,6 +75,7 @@ docker-compose up -d
 ```
 
 **Verificar servicios**:
+
 ```powershell
 docker ps
 # Deberías ver 8 contenedores con estado "Up"
@@ -82,22 +89,26 @@ docker-compose logs -f postgres
 ## 🎯 Fase 4: Base de Datos
 
 ### PostgreSQL
+
 - [ ] PostgreSQL está aceptando conexiones
 - [ ] Base de datos `coffeeos_dev` creada
 - [ ] Usuario `coffeeos` configurado
 
 **Verificar conexión**:
+
 ```powershell
 # Desde PowerShell
 docker exec -it coffeeos-postgres-1 psql -U coffeeos -d coffeeos_dev -c "\dt"
 ```
 
 ### Prisma
+
 - [ ] Prisma Client generado
 - [ ] Migraciones aplicadas
 - [ ] Seed ejecutado
 
 **Comandos**:
+
 ```powershell
 # Generar cliente
 npm run db:generate
@@ -113,6 +124,7 @@ npm run db:studio
 ```
 
 **Verificar en Prisma Studio** (http://localhost:5555):
+
 - [ ] Tabla `Organization` tiene 1 registro ("Coffee Demo")
 - [ ] Tabla `Location` tiene 1 registro ("Sucursal Centro")
 - [ ] Tabla `User` tiene 3 registros (Owner, Manager, Barista)
@@ -127,6 +139,7 @@ npm run db:studio
 ## 🎯 Fase 5: Variables de Entorno
 
 ### Archivo .env.local
+
 - [x] ✅ `.env.local` existe
 - [ ] DATABASE_URL apunta a PostgreSQL local
 - [ ] REDIS_URL apunta a Redis local
@@ -135,6 +148,7 @@ npm run db:studio
 - [ ] NODE_ENV=development
 
 **Verificar**:
+
 ```powershell
 cat .env.local | Select-String "DATABASE_URL"
 cat .env.local | Select-String "REDIS_URL"
@@ -145,18 +159,21 @@ cat .env.local | Select-String "REDIS_URL"
 ## 🎯 Fase 6: Aplicaciones de Desarrollo
 
 ### API (NestJS)
+
 - [ ] API inicia sin errores
 - [ ] Conecta a PostgreSQL
 - [ ] Conecta a Redis
 - [ ] Health endpoint responde
 
 **Iniciar API**:
+
 ```powershell
 cd apps/api
 npm run dev
 ```
 
 **Verificar**:
+
 ```powershell
 curl http://localhost:4000/health
 # Esperado: {"status":"ok","database":"connected","redis":"connected"}
@@ -166,45 +183,53 @@ Start-Process "http://localhost:4000/api-docs"
 ```
 
 ### POS Web (Next.js)
+
 - [ ] Aplicación POS inicia sin errores
 - [ ] Se puede acceder en navegador
 - [ ] Login funciona
 - [ ] Muestra productos
 
 **Iniciar POS**:
+
 ```powershell
 cd apps/pos-web
 npm run dev
 ```
 
 **Verificar**:
+
 ```powershell
 Start-Process "http://localhost:3000"
 # Login con: barista@coffeedemo.mx / password123
 ```
 
 ### Admin Web (Next.js)
+
 - [ ] Aplicación Admin inicia sin errores
 - [ ] Se puede acceder en navegador
 - [ ] Login funciona
 - [ ] Dashboard muestra datos
 
 **Iniciar Admin**:
+
 ```powershell
 cd apps/admin-web
 npm run dev
 ```
 
 **Verificar**:
+
 ```powershell
 Start-Process "http://localhost:3001"
 # Login con: owner@coffeedemo.mx / password123
 ```
 
 ### Todo en Paralelo (Turborepo)
+
 - [ ] `npm run dev` inicia todas las apps
 
 **Iniciar todo**:
+
 ```powershell
 npm run dev
 ```
@@ -214,11 +239,13 @@ npm run dev
 ## 🎯 Fase 7: Integraciones Externas
 
 ### Baserow
+
 - [ ] Baserow UI accesible
 - [ ] Usuario admin creado
 - [ ] Token API generado
 
 **Acceso**:
+
 ```
 URL: http://localhost:8000
 Usuario: admin@coffeeos.local
@@ -226,17 +253,20 @@ Password: coffeeos123
 ```
 
 **Generar token**:
+
 1. Login en Baserow
 2. Settings → API tokens
 3. Create new token
 4. Copiar a `.env.local` como `BASEROW_TOKEN`
 
 ### n8n
+
 - [ ] n8n UI accesible
 - [ ] Usuario creado
 - [ ] Workflows importados
 
 **Acceso**:
+
 ```
 URL: http://localhost:5678
 Usuario: admin@coffeeos.local
@@ -244,11 +274,13 @@ Password: coffeeos123
 ```
 
 ### MinIO
+
 - [ ] MinIO Console accesible
 - [ ] Bucket `coffeeos` creado
 - [ ] Access/Secret keys configurados
 
 **Acceso**:
+
 ```
 Console: http://localhost:9001
 Usuario: minioadmin
@@ -256,6 +288,7 @@ Password: minioadmin
 ```
 
 **Crear bucket**:
+
 1. Login en MinIO Console
 2. Buckets → Create Bucket
 3. Nombre: `coffeeos`
@@ -266,28 +299,34 @@ Password: minioadmin
 ## 🎯 Fase 8: Tests & Linting
 
 ### Linting
+
 - [ ] ESLint configurado
 - [ ] Sin errores de linting
 
 **Ejecutar**:
+
 ```powershell
 npm run lint
 ```
 
 ### Tests Unitarios
+
 - [ ] Jest configurado
 - [ ] Tests pasan
 
 **Ejecutar**:
+
 ```powershell
 npm run test
 ```
 
 ### Tests E2E (Opcional para setup inicial)
+
 - [ ] Playwright configurado
 - [ ] Tests básicos pasan
 
 **Ejecutar**:
+
 ```powershell
 npm run test:e2e
 ```
@@ -297,6 +336,7 @@ npm run test:e2e
 ## 🎯 Fase 9: Documentación
 
 ### Archivos Clave
+
 - [x] ✅ `README.md` - Descripción general
 - [x] ✅ `QUICK-START.md` - Guía de inicio
 - [x] ✅ `STATUS-ACTUAL.md` - Estado actual
@@ -307,6 +347,7 @@ npm run test:e2e
 - [x] ✅ `TODO-01.md` a `TODO-06.md` - Especificaciones
 
 **Verificar**:
+
 ```powershell
 Get-ChildItem -Filter "*.md" | Select-Object Name, Length
 ```
@@ -316,12 +357,14 @@ Get-ChildItem -Filter "*.md" | Select-Object Name, Length
 ## 🎯 Fase 10: Git & Control de Versiones
 
 ### Repositorio
+
 - [ ] Git inicializado
 - [ ] `.gitignore` configurado
 - [ ] Commit inicial creado
 - [ ] Remoto configurado (GitHub/GitLab)
 
 **Comandos**:
+
 ```powershell
 git init
 git add .
@@ -387,17 +430,20 @@ Start-Process "http://localhost:5555"  # Prisma Studio
 ### Si algo falla:
 
 1. **Verificar logs**:
+
 ```powershell
 docker-compose logs -f <servicio>
 npm run dev  # Ver logs de apps
 ```
 
 2. **Reiniciar servicios**:
+
 ```powershell
 docker-compose restart
 ```
 
 3. **Limpiar y reinstalar**:
+
 ```powershell
 docker-compose down -v
 Remove-Item -Recurse -Force node_modules
@@ -406,6 +452,7 @@ npm install
 ```
 
 4. **Verificar puertos**:
+
 ```powershell
 netstat -ano | findstr :3000
 netstat -ano | findstr :4000

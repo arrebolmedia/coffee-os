@@ -13,7 +13,8 @@ const nextConfig = {
     appDir: true,
   },
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
+    NEXT_PUBLIC_API_URL:
+      process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
     NEXT_PUBLIC_APP_NAME: 'CoffeeOS POS',
     NEXT_PUBLIC_APP_VERSION: require('./package.json').version,
   },

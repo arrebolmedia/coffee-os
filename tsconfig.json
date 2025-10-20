@@ -22,14 +22,6 @@
       "@coffeeos/integrations/*": ["./packages/integrations/src/*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx"
-  ],
-  "exclude": [
-    "node_modules",
-    "**/dist",
-    "**/build",
-    "**/.next"
-  ]
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules", "**/dist", "**/build", "**/.next"]
 }

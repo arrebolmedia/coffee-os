@@ -13,13 +13,15 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 ## 🏢 Tablas Core
 
 ### **Organizations** (Organizaciones)
+
 - `name` (text) - Nombre de la organización
-- `slug` (text) - Identificador único URL-friendly  
+- `slug` (text) - Identificador único URL-friendly
 - `description` (long text) - Descripción
 - `timezone` (single select) - Zona horaria (America/Mexico_City, etc.)
 - `active` (boolean) - Estado activo
 
 ### **Locations** (Ubicaciones/Tiendas)
+
 - `organization` (link → Organizations)
 - `name` (text) - Nombre de la tienda
 - `address` (long text) - Dirección completa
@@ -34,6 +36,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 - `active` (boolean) - Estado activo
 
 ### **Users** (Usuarios)
+
 - `organization` (link → Organizations)
 - `role` (link → Roles)
 - `locations` (link → Locations multi) - Ubicaciones asignadas
@@ -48,6 +51,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 - `active` (boolean) - Estado activo
 
 ### **Roles** (Roles del Sistema)
+
 - `name` (single select) - Propietario, Gerente, Líder de barra, Barista, Caja, Auditor, Contador
 - `description` (long text) - Descripción del rol
 - `scopes` (long text) - Permisos JSON (pos, inventory, reports, etc.)
@@ -56,6 +60,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 ## 🛍️ Catálogo de Productos
 
 ### **Categories** (Categorías)
+
 - `name` (text) - Nombre de la categoría
 - `description` (long text) - Descripción
 - `color` (text) - Color hex para UI
@@ -64,6 +69,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 - `active` (boolean) - Estado activo
 
 ### **Products** (Productos)
+
 - `category` (link → Categories)
 - `sku` (text) - Código único de producto
 - `name` (text) - Nombre del producto
@@ -77,18 +83,21 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 - `active` (boolean) - Estado activo
 
 ### **Modifiers** (Modificadores)
+
 - `name` (text) - Nombre del modificador
 - `type` (single select) - SIZE, MILK, EXTRA, SYRUP, DECAF
 - `price_delta` (number) - Diferencia de precio (+/-)
 - `active` (boolean) - Estado activo
 
 ### **ProductModifiers** (Relación Productos-Modificadores)
+
 - `product` (link → Products)
 - `modifier` (link → Modifiers)
 
 ## ☕ Recetas y Costeo
 
 ### **Recipes** (Recetas)
+
 - `product` (link → Products)
 - `name` (text) - Nombre de la receta
 - `description` (long text) - Descripción detallada
@@ -103,6 +112,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 - `cost_calculated` (formula) - Costo total automático
 
 ### **InventoryItems** (Artículos de Inventario)
+
 - `code` (text) - Código único
 - `name` (text) - Nombre del artículo
 - `description` (long text) - Descripción
@@ -115,6 +125,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 - `active` (boolean) - Estado activo
 
 ### **RecipeIngredients** (Ingredientes por Receta)
+
 - `recipe` (link → Recipes)
 - `inventory_item` (link → InventoryItems)
 - `quantity` (number) - Cantidad necesaria
@@ -125,6 +136,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 ## 📦 Gestión de Inventario
 
 ### **Suppliers** (Proveedores)
+
 - `name` (text) - Nombre del proveedor
 - `contact_name` (text) - Nombre de contacto
 - `email` (email) - Email de contacto
@@ -135,6 +147,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 - `active` (boolean) - Estado activo
 
 ### **PurchaseOrders** (Órdenes de Compra)
+
 - `location` (link → Locations)
 - `supplier` (link → Suppliers)
 - `po_number` (text) - Número de OC
@@ -148,11 +161,13 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 - `notes` (long text) - Notas adicionales
 
 ### **Lots** (Lotes)
+
 - `code` (text) - Código de lote
 - `expiration_date` (date) - Fecha de vencimiento
 - `documents` (file multiple) - Documentos adjuntos
 
 ### **InventoryMovements** (Movimientos de Inventario)
+
 - `location` (link → Locations)
 - `inventory_item` (link → InventoryItems)
 - `type` (single select) - IN, OUT, ADJUSTMENT, TRANSFER
@@ -167,6 +182,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 ## 🏪 Punto de Venta
 
 ### **Tickets** (Ventas)
+
 - `location` (link → Locations)
 - `user` (link → Users) - Cajero
 - `customer` (link → Customers)
@@ -182,6 +198,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 - `notes` (text) - Notas
 
 ### **TicketLines** (Líneas de Venta)
+
 - `ticket` (link → Tickets)
 - `product` (link → Products)
 - `quantity` (number) - Cantidad
@@ -192,6 +209,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 - `notes` (text) - Notas especiales
 
 ### **Payments** (Pagos)
+
 - `ticket` (link → Tickets)
 - `method` (single select) - CASH, CARD, DIGITAL_WALLET, BANK_TRANSFER, LOYALTY_POINTS
 - `amount` (number) - Monto pagado
@@ -202,6 +220,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 ## 👥 CRM y Lealtad
 
 ### **Customers** (Clientes)
+
 - `email` (email) - Email único
 - `phone` (phone) - Teléfono único
 - `first_name` (text) - Nombre
@@ -216,6 +235,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 - `active` (boolean) - Estado activo
 
 ### **Consents** (Consentimientos LFPDPPP)
+
 - `customer` (link → Customers)
 - `type` (single select) - MARKETING_EMAIL, MARKETING_SMS, MARKETING_WHATSAPP, DATA_PROCESSING, COOKIES
 - `granted` (boolean) - Consentimiento otorgado
@@ -225,6 +245,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 - `revoked_at` (date) - Fecha de revocación
 
 ### **Campaigns** (Campañas de Marketing)
+
 - `name` (text) - Nombre de la campaña
 - `type` (single select) - Birthday, Welcome, Winback, Promotion
 - `segment` (single select) - All, RFM segments, Custom
@@ -240,6 +261,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 ## ✅ Calidad y Cumplimiento
 
 ### **Checklists** (Listas de Verificación)
+
 - `name` (text) - Nombre del checklist
 - `description` (long text) - Descripción
 - `scope` (single select) - OPENING, CLOSING, MID_SHIFT, NOM_251, SAFETY, MAINTENANCE
@@ -247,6 +269,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 - `active` (boolean) - Estado activo
 
 ### **ChecklistItems** (Elementos del Checklist)
+
 - `checklist` (link → Checklists)
 - `label` (text) - Etiqueta del elemento
 - `description` (long text) - Descripción detallada
@@ -259,6 +282,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 - `active` (boolean) - Estado activo
 
 ### **TaskRuns** (Ejecuciones de Checklist)
+
 - `checklist` (link → Checklists)
 - `location` (link → Locations)
 - `user` (link → Users) - Usuario ejecutor
@@ -269,6 +293,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 - `evidence` (file multiple) - Evidencia fotográfica
 
 ### **TaskRunResponses** (Respuestas del Checklist)
+
 - `task_run` (link → TaskRuns)
 - `checklist_item` (link → ChecklistItems)
 - `boolean_value` (boolean) - Para elementos yes/no
@@ -278,6 +303,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 - `responded_at` (date) - Fecha/hora respuesta
 
 ### **QualityLogs** (Bitácoras de Calidad)
+
 - `location` (link → Locations)
 - `user` (link → Users) - Responsable del registro
 - `type` (single select) - TEMPERATURE, PPM, TDS, PH, PRESSURE, CLEANING
@@ -292,6 +318,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 ## 🏛️ Permisos y Cumplimiento
 
 ### **Permits** (Permisos)
+
 - `location` (link → Locations)
 - `name` (text) - Nombre del permiso
 - `authority` (single select) - Uso de Suelo, Salud, Protección Civil, etc.
@@ -303,6 +330,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 - `notes` (text) - Notas adicionales
 
 ### **PermitRenewals** (Renovaciones de Permisos)
+
 - `permit` (link → Permits)
 - `rrule` (text) - Regla de recurrencia RFC 5545
 - `next_due` (date) - Próxima fecha de renovación
@@ -312,6 +340,7 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 ## 💰 Facturación CFDI
 
 ### **InvoicesCFDI** (Facturas CFDI)
+
 - `ticket` (link → Tickets)
 - `uuid` (text) - UUID del CFDI
 - `series` (text) - Serie
@@ -329,19 +358,21 @@ El schema de Baserow replica y extiende el schema de Prisma, con campos específ
 ## 📊 Fórmulas y Cálculos Automáticos
 
 ### **Costeo Automático**
+
 ```javascript
 // En tabla Recipes, campo cost_calculated
-rollup('RecipeIngredients', 'cost_line', 'sum')
+rollup('RecipeIngredients', 'cost_line', 'sum');
 
-// En tabla RecipeIngredients, campo cost_line  
-field('quantity') * lookup('inventory_item', 'cost_per_unit')
+// En tabla RecipeIngredients, campo cost_line
+field('quantity') * lookup('inventory_item', 'cost_per_unit');
 ```
 
 ### **RFM Segmentation**
+
 ```javascript
 // En tabla Customers, campo rfm_bucket (fórmula compleja)
 if(
-  and(field('total_spent') > 1000, field('visit_count') > 10, 
+  and(field('total_spent') > 1000, field('visit_count') > 10,
       datetime_diff(now(), field('last_visit'), 'days') < 30),
   'Champions',
   if(field('visit_count') < 2, 'New Customers', 'At Risk')
@@ -349,30 +380,36 @@ if(
 ```
 
 ### **Stock Teórico**
+
 ```javascript
 // En tabla InventoryItems, campo theoretical_stock
-rollup('InventoryMovements', 'quantity', 'sum')
+rollup('InventoryMovements', 'quantity', 'sum');
 ```
 
 ### **Margen por Producto**
+
 ```javascript
 // En tabla Products, campo margin_percent
-(field('price') - lookup('recipes', 'cost_calculated')) / field('price') * 100
+((field('price') - lookup('recipes', 'cost_calculated')) / field('price')) *
+  100;
 ```
 
 ## 🔄 Vistas Predefinidas
 
 ### **Dashboard Gerencial**
+
 - **Vista Kanban**: Tickets por status
 - **Vista Calendar**: TaskRuns programados
 - **Vista Gallery**: Productos con imágenes
 
 ### **Control de Inventario**
+
 - **Vista Grid**: Items con stock < par level (filtrado)
 - **Vista Form**: Movimientos de inventario
 - **Vista Calendar**: Fechas de vencimiento
 
 ### **Calidad y Compliance**
+
 - **Vista Kanban**: TaskRuns por status
 - **Vista Calendar**: Renovaciones de permisos
 - **Vista Grid**: QualityLogs fuera de rango
@@ -380,12 +417,14 @@ rollup('InventoryMovements', 'quantity', 'sum')
 ## 🎨 Personalización UI
 
 ### **Colores por Categoría**
+
 - 🔴 **Crítico**: Temperaturas fuera de rango, permisos vencidos
-- 🟡 **Advertencia**: Stock bajo, renovaciones próximas  
+- 🟡 **Advertencia**: Stock bajo, renovaciones próximas
 - 🟢 **Normal**: Todo en orden
 - 🔵 **Información**: Datos de referencia
 
 ### **Iconos por Módulo**
+
 - ☕ **Productos**: Emoji de café
 - 📦 **Inventario**: Emoji de caja
 - ✅ **Calidad**: Emoji de check
@@ -395,6 +434,7 @@ rollup('InventoryMovements', 'quantity', 'sum')
 ## 🔗 API Integration
 
 ### **Baserow REST API**
+
 ```javascript
 // Obtener productos activos
 GET /api/database/tables/{table_id}/rows/?filters=[{"field":"active","type":"equal","value":"true"}]
@@ -409,6 +449,7 @@ POST /api/database/tables/{tickets_table_id}/rows/
 ```
 
 ### **Webhooks Configurados**
+
 - **Ticket Closed** → Trigger n8n workflow (NPS, inventory update)
 - **Inventory Low** → Trigger n8n workflow (reorder alert)
 - **Task Run Completed** → Trigger n8n workflow (quality notifications)
@@ -416,17 +457,20 @@ POST /api/database/tables/{tickets_table_id}/rows/
 ## 🚀 Setup Inicial
 
 ### 1. Crear Base de Datos
+
 1. Acceder a Baserow: http://localhost:8000
 2. Crear cuenta admin
 3. Crear workspace "CoffeeOS"
 4. Importar template de tablas
 
 ### 2. Configurar Permisos
+
 1. Crear grupos por rol (Propietario, Gerente, etc.)
 2. Asignar permisos por tabla
 3. Configurar Row-Level Security
 
 ### 3. Importar Datos Iniciales
+
 1. Organizaciones y ubicaciones
 2. Usuarios y roles
 3. Catálogo de productos base
@@ -434,6 +478,7 @@ POST /api/database/tables/{tickets_table_id}/rows/
 5. Proveedores principales
 
 ### 4. Configurar API Token
+
 1. Generar token de API
 2. Actualizar .env.local: `BASEROW_TOKEN=your-token`
 3. Configurar webhooks
@@ -441,7 +486,7 @@ POST /api/database/tables/{tickets_table_id}/rows/
 ## 📋 Checklist de Validación
 
 - [ ] ✅ Todas las tablas creadas con campos correctos
-- [ ] 🔗 Relaciones configuradas entre tablas  
+- [ ] 🔗 Relaciones configuradas entre tablas
 - [ ] 📊 Fórmulas de cálculo funcionando
 - [ ] 🎨 Vistas personalizadas creadas
 - [ ] 🔐 Permisos por rol configurados
@@ -452,12 +497,15 @@ POST /api/database/tables/{tickets_table_id}/rows/
 ## 🆘 Troubleshooting
 
 ### **Problema**: Fórmulas no calculan
+
 **Solución**: Verificar que los campos referenciados existan y tengan el tipo correcto
 
-### **Problema**: Permisos no funcionan  
+### **Problema**: Permisos no funcionan
+
 **Solución**: Revisar configuración de grupos y Row-Level Security
 
 ### **Problema**: API devuelve errores
+
 **Solución**: Validar token y permisos de la tabla específica
 
 ---
@@ -470,4 +518,4 @@ POST /api/database/tables/{tickets_table_id}/rows/
 
 ---
 
-*Configuración Baserow completada - CoffeeOS v1.0.0*
+_Configuración Baserow completada - CoffeeOS v1.0.0_

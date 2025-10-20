@@ -11,6 +11,7 @@ Fecha: Octubre 20, 2025
 ### 🎯 Lo que se Logró
 
 #### Infraestructura Auto-Dev
+
 - ✅ **122 archivos** creados (40,344 líneas de código)
 - ✅ **Continue Extension** configurada con GPT-4o
 - ✅ **aider CLI** configurado para auto-commits
@@ -21,6 +22,7 @@ Fecha: Octubre 20, 2025
 - ✅ **850+ líneas** de documentación
 
 #### GitHub
+
 - ✅ Repositorio: https://github.com/arrebolmedia/coffee-os
 - ✅ Branch `main` creado
 - ✅ Pull Request activo
@@ -28,6 +30,7 @@ Fecha: Octubre 20, 2025
 - ✅ Workflows ejecutándose
 
 #### Configuración Local
+
 - ✅ Variable de entorno `OPENAI_API_KEY` activa
 - ✅ VS Code reiniciado
 - ✅ Continue extension instalada
@@ -38,6 +41,7 @@ Fecha: Octubre 20, 2025
 ## 🚀 Cómo Usar Continue (Tu Nuevo Copiloto AI)
 
 ### Abrir Continue
+
 ```
 Ctrl+L
 ```
@@ -45,41 +49,49 @@ Ctrl+L
 ### Comandos Básicos
 
 #### 1. Hacer Preguntas
+
 ```
 Ctrl+L → "¿Cómo funciona el módulo de autenticación?"
 ```
 
 #### 2. Explicar Código
+
 ```
 Seleccionar código → Ctrl+L → "¿Qué hace este código?"
 ```
 
 #### 3. Generar Tests
+
 ```
 Seleccionar código → Ctrl+L → "/test"
 ```
 
 #### 4. Ayuda con NestJS
+
 ```
 Ctrl+L → "/nestjs ¿Cómo crear un Guard personalizado?"
 ```
 
 #### 5. Ayuda con Next.js
+
 ```
 Ctrl+L → "/nextjs ¿Cómo usar Server Components?"
 ```
 
 #### 6. Ayuda con Prisma
+
 ```
 Ctrl+L → "/prisma ¿Cómo definir una relación many-to-many?"
 ```
 
 #### 7. Editar Código
+
 ```
 Seleccionar código → Ctrl+L → "/edit Agrega validación y comentarios"
 ```
 
 #### 8. Generar Commit Message
+
 ```
 Hacer cambios → Ctrl+L → "/commit"
 ```
@@ -91,6 +103,7 @@ Hacer cambios → Ctrl+L → "/commit"
 ### Ejemplo 1: Crear un Nuevo Módulo
 
 **Pregunta a Continue:**
+
 ```
 Ctrl+L → "/nestjs Crea un módulo de productos con:
 - ProductsController con CRUD
@@ -101,6 +114,7 @@ Ctrl+L → "/nestjs Crea un módulo de productos con:
 ```
 
 **Continue generará:**
+
 - Código completo del módulo
 - DTOs con decoradores
 - Service con métodos CRUD
@@ -112,11 +126,13 @@ Ctrl+L → "/nestjs Crea un módulo de productos con:
 **Seleccionar archivo** `apps/api/src/health/health.controller.ts`
 
 **Ejecutar:**
+
 ```
 Ctrl+L → "/test"
 ```
 
 **Continue generará:**
+
 - Tests con Jest
 - Describe/it blocks
 - Mocks necesarios
@@ -127,8 +143,9 @@ Ctrl+L → "/test"
 **Seleccionar código que quieres mejorar**
 
 **Ejecutar:**
+
 ```
-Ctrl+L → "/edit 
+Ctrl+L → "/edit
 - Mejora la eficiencia
 - Agrega comentarios JSDoc
 - Implementa manejo de errores
@@ -136,6 +153,7 @@ Ctrl+L → "/edit
 ```
 
 **Continue refactorizará:**
+
 - Código optimizado
 - Comentarios descriptivos
 - Try-catch blocks
@@ -148,11 +166,13 @@ Ctrl+L → "/edit
 ### aider (Auto-commits)
 
 **Instalar:**
+
 ```powershell
 pip install aider-chat
 ```
 
 **Usar:**
+
 ```powershell
 # Editar un archivo con aider
 aider apps/api/src/app.module.ts
@@ -166,11 +186,13 @@ aider apps/api/src/app.module.ts
 ### OpenHands (Autonomous Agent)
 
 **Iniciar:**
+
 ```powershell
 docker-compose -f docker-compose.openhands.yml up -d
 ```
 
 **Usar:**
+
 1. Crear issue en GitHub
 2. Comentar: `/agent propose`
 3. OpenHands generará PR automáticamente
@@ -180,12 +202,14 @@ docker-compose -f docker-compose.openhands.yml up -d
 ## 📈 Workflow de Desarrollo Recomendado
 
 ### 1. Planificación
+
 ```
-Ctrl+L → "Necesito implementar un carrito de compras. 
+Ctrl+L → "Necesito implementar un carrito de compras.
 ¿Cuál es la mejor arquitectura para NestJS + Prisma?"
 ```
 
 ### 2. Implementación
+
 ```
 Ctrl+L → "/nestjs Genera el servicio de carrito con:
 - Agregar items
@@ -195,21 +219,25 @@ Ctrl+L → "/nestjs Genera el servicio de carrito con:
 ```
 
 ### 3. Testing
+
 ```
 Seleccionar código → Ctrl+L → "/test"
 ```
 
 ### 4. Commit
+
 ```
 Ctrl+L → "/commit"
 ```
 
 ### 5. Push
+
 ```powershell
 git push origin tu-feature-branch
 ```
 
 ### 6. CI/CD Automático
+
 - Los workflows se ejecutan automáticamente
 - Security scan, tests, build
 - Feedback en minutos
@@ -219,17 +247,20 @@ git push origin tu-feature-branch
 ## 🎯 Próximos Pasos Sugeridos
 
 ### Hoy (30 minutos)
+
 1. ✅ Probar Continue con diferentes comandos
 2. ✅ Revisar y mergear el PR si está verde
 3. ✅ Generar tu primera feature con ayuda de Continue
 
 ### Esta Semana
+
 1. 📝 Implementar módulo de productos
 2. 🧪 Escribir tests con `/test`
 3. 🔒 Configurar branch protection rules
 4. 🤖 Probar aider para auto-commits
 
 ### Este Mes
+
 1. 🚀 Desarrollar módulos principales (POS, Inventory, CRM)
 2. 📊 Implementar dashboards con Next.js
 3. 🔐 Implementar autenticación y autorización
@@ -240,16 +271,19 @@ git push origin tu-feature-branch
 ## 🎓 Tips de Uso de Continue
 
 ### 1. Sé Específico
+
 ❌ "Crea un componente"
 ✅ "Crea un componente de formulario de login con validación de email, password, manejo de errores y loading state"
 
 ### 2. Usa Contexto
+
 ```
-"Basándote en el archivo schema.prisma, genera el servicio 
+"Basándote en el archivo schema.prisma, genera el servicio
 de usuarios con métodos para CRUD y búsqueda"
 ```
 
 ### 3. Itera
+
 ```
 Primera pregunta: "Genera un servicio de productos"
 Seguimiento: "Ahora agrega búsqueda por categoría"
@@ -257,7 +291,8 @@ Refinamiento: "Optimiza la query para mejor performance"
 ```
 
 ### 4. Usa los Comandos Personalizados
-Los comandos `/nestjs`, `/nextjs`, `/prisma` tienen contexto 
+
+Los comandos `/nestjs`, `/nextjs`, `/prisma` tienen contexto
 especializado para mejores resultados.
 
 ---
@@ -265,18 +300,21 @@ especializado para mejores resultados.
 ## 📊 Métricas de Éxito
 
 ### Semana 1
+
 - [ ] Continue usado diariamente
 - [ ] 3+ features implementadas con AI
 - [ ] Tests coverage >80%
 - [ ] PR mergeado a main
 
 ### Semana 2
+
 - [ ] aider integrado al workflow
 - [ ] 10+ commits con AI assistance
 - [ ] Branch protection configurado
 - [ ] OpenHands probado
 
 ### Mes 1
+
 - [ ] 50% de código generado con AI
 - [ ] Velocity de desarrollo 3x
 - [ ] Coverage >90%
@@ -287,16 +325,19 @@ especializado para mejores resultados.
 ## 🆘 Troubleshooting
 
 ### Continue no responde
+
 1. Verificar `$env:OPENAI_API_KEY`
 2. Revisar Output → Continue
 3. Reiniciar VS Code
 
 ### Respuestas de baja calidad
+
 1. Ser más específico en las preguntas
 2. Proporcionar más contexto
 3. Usar comandos especializados (/nestjs, /nextjs)
 
 ### CI/CD falla
+
 1. Revisar logs en GitHub Actions
 2. Verificar Secret configurado
 3. Re-run workflow
@@ -306,12 +347,14 @@ especializado para mejores resultados.
 ## 📚 Documentación de Referencia
 
 ### En el Proyecto
+
 - `PLAN-DE-ACCION.md` - Plan detallado
 - `SETUP-COMPLETO.md` - Guía completa
 - `docs/auto-dev-quickstart.md` - Quick start
 - `.continue/README.md` - Continue config
 
 ### Online
+
 - Continue: https://continue.dev/docs
 - aider: https://aider.chat/docs
 - OpenHands: https://docs.all-hands.dev
@@ -323,7 +366,7 @@ especializado para mejores resultados.
 
 ## 🎊 ¡Felicidades!
 
-Has implementado exitosamente un sistema completo de desarrollo 
+Has implementado exitosamente un sistema completo de desarrollo
 asistido por AI. Ahora tienes:
 
 ✨ **Un copiloto AI** que entiende tu stack
@@ -339,7 +382,7 @@ asistido por AI. Ahora tienes:
 **Genera tu primer módulo con Continue:**
 
 ```
-Ctrl+L → "/nestjs Crea un módulo completo de productos para 
+Ctrl+L → "/nestjs Crea un módulo completo de productos para
 una cafetería con:
 
 1. ProductsController:
@@ -369,7 +412,7 @@ una cafetería con:
    - E2E tests para el controller
    - Mocks de Prisma
 
-Usa el schema de Prisma existente y sigue las convenciones 
+Usa el schema de Prisma existente y sigue las convenciones
 del proyecto."
 ```
 

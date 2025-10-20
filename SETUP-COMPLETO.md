@@ -13,6 +13,7 @@
 ## 📋 Checklist Completado
 
 ### ✅ Infraestructura
+
 - [x] Sistema auto-dev completo implementado (122 archivos, 40,344 líneas)
 - [x] Continue extension configurada
 - [x] aider CLI configurado
@@ -24,6 +25,7 @@
 - [x] Documentation completa (850+ líneas)
 
 ### ✅ Repositorio GitHub
+
 - [x] Repositorio creado: https://github.com/arrebolmedia/coffee-os
 - [x] Branch `main` creado y pusheado
 - [x] Branch `feat/auto-dev-bootstrap` pusheado
@@ -31,6 +33,7 @@
 - [x] Pull Request creado y ejecutándose
 
 ### ✅ Configuración Local
+
 - [x] Variable de entorno `OPENAI_API_KEY` configurada
 - [x] Archivo `.env.local` con todas las configuraciones
 - [x] Archivos sensibles en `.gitignore`
@@ -70,7 +73,7 @@
 
 - `/test` - Generar tests unitarios
 - `/nestjs` - Ayuda con NestJS
-- `/nextjs` - Ayuda con Next.js  
+- `/nextjs` - Ayuda con Next.js
 - `/prisma` - Ayuda con Prisma
 - `/edit` - Editar código seleccionado
 - `/comment` - Agregar comentarios
@@ -83,11 +86,13 @@
 ### 1. Verificar CI/CD
 
 Ir a GitHub Actions:
+
 ```
 https://github.com/arrebolmedia/coffee-os/actions
 ```
 
 Deberías ver el workflow `agent-verify` ejecutándose con 6 jobs:
+
 - ✅ lint-and-format
 - ✅ type-check
 - ✅ unit-tests
@@ -98,11 +103,13 @@ Deberías ver el workflow `agent-verify` ejecutándose con 6 jobs:
 ### 2. Revisar el Pull Request
 
 Ir al PR:
+
 ```
 https://github.com/arrebolmedia/coffee-os/pull/1
 ```
 
 Verificar:
+
 - ✅ Checks en progreso
 - ✅ Archivos cambiados (~123)
 - ✅ Sin conflictos
@@ -110,6 +117,7 @@ Verificar:
 ### 3. Probar Continue
 
 En VS Code:
+
 ```
 Ctrl+L → "Explícame el archivo app.module.ts"
 ```
@@ -117,6 +125,7 @@ Ctrl+L → "Explícame el archivo app.module.ts"
 ### 4. Usar aider (CLI)
 
 En terminal:
+
 ```powershell
 # Instalar aider si no está
 pip install aider-chat
@@ -139,15 +148,15 @@ docker-compose -f docker-compose.openhands.yml up -d
 
 ## 📊 Estadísticas del Proyecto
 
-| Métrica | Valor |
-|---------|-------|
-| Archivos creados | 122 |
-| Líneas de código | 40,344 |
-| Documentación | 850+ líneas |
-| Workflows CI/CD | 3 |
-| Security rules | 19 (8 Semgrep + 11 Gitleaks) |
-| Tests | 3 archivos |
-| Pre-commit hooks | 2 (lint, commit-msg) |
+| Métrica          | Valor                        |
+| ---------------- | ---------------------------- |
+| Archivos creados | 122                          |
+| Líneas de código | 40,344                       |
+| Documentación    | 850+ líneas                  |
+| Workflows CI/CD  | 3                            |
+| Security rules   | 19 (8 Semgrep + 11 Gitleaks) |
+| Tests            | 3 archivos                   |
+| Pre-commit hooks | 2 (lint, commit-msg)         |
 
 ---
 
@@ -157,7 +166,6 @@ docker-compose -f docker-compose.openhands.yml up -d
 
 1. ✅ **Revisar que el PR pase todos los checks**
    - Si falla alguno, revisar logs en Actions
-   
 2. ✅ **Hacer merge del PR**
    - Una vez que todo esté verde
    - Click "Merge pull request"
@@ -229,6 +237,7 @@ docker-compose -f docker-compose.openhands.yml up -d
 ### Continue no funciona
 
 1. Verificar variable de entorno:
+
    ```powershell
    $env:OPENAI_API_KEY
    ```
@@ -246,6 +255,7 @@ docker-compose -f docker-compose.openhands.yml up -d
 ### Tests fallan localmente
 
 1. Instalar dependencias:
+
    ```powershell
    npm install
    ```
@@ -259,21 +269,24 @@ docker-compose -f docker-compose.openhands.yml up -d
 
 ## 🎊 ¡Felicidades!
 
-Has implementado exitosamente un sistema completo de desarrollo asistido por AI para CoffeeOS. 
+Has implementado exitosamente un sistema completo de desarrollo asistido por AI para CoffeeOS.
 
 **Lo que lograste:**
 
 ✨ **Infraestructura moderna**
+
 - CI/CD automatizado
 - Security scanning continuo
 - Tests automáticos
 
 ✨ **AI-powered development**
+
 - Copilot en VS Code (Continue)
 - Auto-commits inteligentes (aider)
 - Autonomous agent (OpenHands)
 
 ✨ **Best practices**
+
 - Conventional commits
 - Pre-commit hooks
 - Quality gates
