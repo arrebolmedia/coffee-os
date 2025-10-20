@@ -2,7 +2,7 @@ import {
   Controller,
   Get,
   Post,
-  Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -19,33 +19,86 @@ import { QueryCategoriesDto } from './dto/query-categories.dto';
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
+  /**
+   * Crear categoría
+   */
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() createCategoryDto: CreateCategoryDto) {
     return this.categoriesService.create(createCategoryDto);
   }
 
+  /**
+   * Listar categorías con filtros
+   */
   @Get()
+  @HttpCode(HttpStatus.OK)
   async findAll(@Query() query: QueryCategoriesDto) {
     return this.categoriesService.findAll(query);
   }
 
-  @Get('active')
-  async findAllActive() {
-    return this.categoriesService.findAllActive();
-  }
-
+  /**
+   * Obtener categoría por ID
+   */
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.categoriesService.findOne(id);
+  @HttpCode(HttpStatus.OK)
+  async findById(@Param('id') id: string) {
+    return this.categoriesService.findById(id);
   }
 
-  @Get(':id/products')
-  async findProducts(@Param('id') id: string) {
-    return this.categoriesService.findCategoryProducts(id);
+  /**
+   * Obtener categoría por slug
+   */
+  @Get('slug/:slug/:organization_id')
+  @HttpCode(HttpStatus.OK)
+  async findBySlug(
+    @Param('slug') slug: string,
+    @Param('organization_id') organization_id: string,
+  ) {
+    return this.categoriesService.findBySlug(slug, organization_id);
   }
 
-  @Put(':id')
+  /**
+   * Obtener árbol de categorías
+   */
+  @Get('organization/:organization_id/tree')
+  @HttpCode(HttpStatus.OK)
+  async getTree(@Param('organization_id') organization_id: string) {
+    return this.categoriesService.getTree(organization_id);
+  }
+
+  /**
+   * Obtener breadcrumbs de categoría
+   */
+  @Get(':id/breadcrumbs')
+  @HttpCode(HttpStatus.OK)
+  async getBreadcrumbs(@Param('id') id: string) {
+    return this.categoriesService.getBreadcrumbs(id);
+  }
+
+  /**
+   * Obtener hijos directos
+   */
+  @Get(':id/children')
+  @HttpCode(HttpStatus.OK)
+  async getChildren(@Param('id') id: string) {
+    return this.categoriesService.getChildren(id);
+  }
+
+  /**
+   * Obtener todos los descendientes
+   */
+  @Get(':id/descendants')
+  @HttpCode(HttpStatus.OK)
+  async getDescendants(@Param('id') id: string) {
+    return this.categoriesService.getDescendants(id);
+  }
+
+  /**
+   * Actualizar categoría
+   */
+  @Patch(':id')
+  @HttpCode(HttpStatus.OK)
   async update(
     @Param('id') id: string,
     @Body() updateCategoryDto: UpdateCategoryDto,
@@ -53,14 +106,34 @@ export class CategoriesController {
     return this.categoriesService.update(id, updateCategoryDto);
   }
 
-  @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string) {
-    await this.categoriesService.remove(id);
+  /**
+   * Mover categoría a nuevo padre
+   */
+  @Patch(':id/move')
+  @HttpCode(HttpStatus.OK)
+  async move(
+    @Param('id') id: string,
+    @Body('new_parent_id') new_parent_id: string | undefined,
+    @Body('new_display_order') new_display_order: number | undefined,
+  ) {
+    return this.categoriesService.move(id, new_parent_id, new_display_order);
   }
 
-  @Put(':id/reorder')
-  async reorder(@Param('id') id: string, @Body('sortOrder') sortOrder: number) {
-    return this.categoriesService.updateSortOrder(id, sortOrder);
+  /**
+   * Eliminar categoría
+   */
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async delete(@Param('id') id: string) {
+    await this.categoriesService.delete(id);
+  }
+
+  /**
+   * Obtener estadísticas
+   */
+  @Get('organization/:organization_id/stats')
+  @HttpCode(HttpStatus.OK)
+  async getStats(@Param('organization_id') organization_id: string) {
+    return this.categoriesService.getStats(organization_id);
   }
 }
