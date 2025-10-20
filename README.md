@@ -15,9 +15,9 @@
 ## 🚨 Estado Actual
 
 > **✅ DESARROLLO ACTIVO**: Módulos backend en progreso  
-> **📊 Progreso**: 63% completado (17 de 27 módulos backend implementados)  
-> **🎯 Último módulo**: Locations (27 tests, 100% passing)  
-> **🔗 Último commit**: [9ca9142](https://github.com/arrebolmedia/coffee-os/commit/9ca9142)
+> **📊 Progreso**: 67% completado (18 de 27 módulos backend implementados)  
+> **🎯 Último módulo**: Roles & Permissions (37 tests, 100% passing)  
+> **🔗 Último commit**: [926cfbb](https://github.com/arrebolmedia/coffee-os/commit/926cfbb)
 
 **Lee primero**: [QUICKSTART.md](./QUICKSTART.md) | [STATUS.md](./STATUS.md) | [INDICE.md](./INDICE.md)
 
@@ -150,6 +150,7 @@ CoffeeOS/
 | 🏢 **Suppliers** | 7 | 29 | ✅ 100% | `ab8008b` |
 | � **Purchase Orders** | 10 | 29 | ✅ 100% | `b777b94` |
 | 📍 **Locations** | 9 | 27 | ✅ 100% | `9ca9142` |
+| � **Roles & Permissions** | 14 | 37 | ✅ 100% | `926cfbb` |
 | �🔐 **Auth** | 8 | 35 | ✅ 100% | `1c68dbf` |
 | 🏢 **Organizations** | 6 | 28 | ✅ 100% | `2d52bcb` |
 | 👥 **Users** | 7 | 30 | ✅ 100% | `e5f0aea` |
@@ -162,11 +163,10 @@ CoffeeOS/
 | 📊 **Analytics** | - | 72 | ✅ 100% | - |
 | 🔌 **Integrations** | - | 56 | ✅ 100% | - |
 
-**Total**: **161+ endpoints** | **685 tests** | **100% passing**
+**Total**: **175+ endpoints** | **722 tests** | **100% passing**
 
-### 🔄 Pendientes (10 módulos)
+### 🔄 Pendientes (9 módulos)
 
-- 🔄 **Roles & Permissions** - RBAC avanzado
 - 🔄 **Notifications** - Sistema de notificaciones
 - 🔄 **Settings** - Configuración multi-tenant
 - � **Frontend Components** (POS, Admin, Mobile)
