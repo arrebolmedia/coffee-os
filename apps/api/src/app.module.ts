@@ -24,6 +24,11 @@ import { InventoryMovementsModule } from './modules/inventory-movements/inventor
 import { RecipesModule } from './modules/recipes/recipes.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { OrdersModule } from './modules/orders/orders.module';
+import { DiscountsModule } from './modules/discounts/discounts.module';
+import { TaxesModule } from './modules/taxes/taxes.module';
+import { ShiftsModule } from './modules/shifts/shifts.module';
+import { CashRegistersModule } from './modules/cash-registers/cash-registers.module';
 import { QualityModule } from './modules/quality/quality.module';
 import { CrmModule } from './modules/crm/crm.module';
 import { FinanceModule } from './modules/finance/finance.module';
@@ -82,6 +87,11 @@ import { RedisModule } from './modules/redis/redis.module';
     RecipesModule,
     TransactionsModule,
     PaymentsModule,
+    OrdersModule,
+    DiscountsModule,
+    TaxesModule,
+    ShiftsModule,
+    CashRegistersModule,
     QualityModule,
     CrmModule,
     FinanceModule,
