@@ -62,6 +62,7 @@ git branch
 ### Ya preparé todo para empezar:
 
 **Ejecuta:**
+
 ```powershell
 # Crear nuevo branch
 git checkout -b feat/pos-products-module

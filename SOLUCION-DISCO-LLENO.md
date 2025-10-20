@@ -1,17 +1,20 @@
 # 🚨 SOLUCIÓN ALTERNATIVA - Instalar node_modules en otro disco
 
 ## Problema Detectado
+
 A pesar de tener 30 GB libres reportados, el disco E:\ se llena DURANTE la instalación de npm,
 causando errores ENOSPC repetidamente.
 
 ## Solución: Mover node_modules a disco C:\
 
 ### Paso 1: Crear directorio en C:\
+
 ```powershell
 New-Item -ItemType Directory -Path "C:\CoffeeOS-node_modules" -Force
 ```
 
 ### Paso 2: Crear symbolic link desde E:\ a C:\
+
 ```powershell
 # Importante: Ejecutar PowerShell como ADMINISTRADOR
 
@@ -25,6 +28,7 @@ cmd /c mklink /J "E:\CoffeeOS\node_modules" "C:\CoffeeOS-node_modules"
 ```
 
 ### Paso 3: Instalar dependencias (ahora se escribirán en C:\)
+
 ```powershell
 cd E:\CoffeeOS
 npm install
@@ -76,8 +80,8 @@ fsutil volume diskfree E:
 fsutil quota query E:
 
 # Ver archivos grandes en E:\
-Get-ChildItem E:\ -Recurse -File -ErrorAction SilentlyContinue | 
-  Sort-Object Length -Descending | 
+Get-ChildItem E:\ -Recurse -File -ErrorAction SilentlyContinue |
+  Sort-Object Length -Descending |
   Select-Object -First 20 FullName, @{Name="SizeMB";Expression={[math]::Round($_.Length/1MB,2)}}
 ```
 
@@ -98,6 +102,7 @@ npm install
 ```
 
 Una vez funcione, podrás continuar con:
+
 ```powershell
 .\scripts\start-dev.ps1
 ```

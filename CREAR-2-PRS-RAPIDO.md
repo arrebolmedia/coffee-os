@@ -5,6 +5,7 @@
 **Link**: Ya abierto en el navegador Simple Browser
 
 **Título**:
+
 ```
 feat(products): Add complete products CRUD module
 ```
@@ -18,17 +19,20 @@ feat(products): Add complete products CRUD module
 **Link**: https://github.com/arrebolmedia/coffee-os/compare/main...feat/pos-categories-module
 
 **Título**:
+
 ```
 feat(categories): Add complete categories CRUD module
 ```
 
 **Descripción**:
+
 ```markdown
 ## 📁 Categories Module - Complete CRUD Implementation
 
 ### ✨ Features Implemented
 
 #### API Endpoints (8 total)
+
 - `POST /categories` - Create new category
 - `GET /categories` - List categories with pagination and filters
 - `GET /categories/active` - Get all active categories (ordered by sortOrder)
@@ -39,6 +43,7 @@ feat(categories): Add complete categories CRUD module
 - `DELETE /categories/:id` - Delete category (soft/hard)
 
 #### Business Logic
+
 - ✅ Auto-assign sortOrder (last + 1) if not provided
 - ✅ Name uniqueness validation (case-insensitive)
 - ✅ Hex color format validation (#RRGGBB or #RGB)
@@ -47,16 +52,19 @@ feat(categories): Add complete categories CRUD module
 - ✅ Manual reorder support for drag & drop UI
 
 ### 🧪 Tests
+
 - **29 tests total** ✅ **100% passing**
 - CategoriesController: 9 tests
 - CategoriesService: 20 tests
 
 ### 📊 Code Quality
+
 - TypeScript strict mode
 - Clean architecture
 - Full validation with class-validator
 
 ### 🔗 Related
+
 Part of POS module from CoffeeOS master plan.
 Connected to Products module (one-to-many relationship).
 
@@ -91,6 +99,7 @@ Connected to Products module (one-to-many relationship).
 ## 🎯 Mientras Tú Haces los PRs...
 
 Yo ya estoy trabajando en:
+
 - ✅ Modifiers Module (siguiente)
 - Branch: `feat/pos-modifiers-module`
 - Enum ModifierType (SIZE, MILK, EXTRA, SYRUP, DECAF)

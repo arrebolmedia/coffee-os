@@ -47,18 +47,18 @@ model Product {
   stock       Int      @default(0)
   imageUrl    String?
   isActive    Boolean  @default(true)
-  
+
   // Multi-tenancy
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
-  
+
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Soft delete
   deletedAt DateTime?
-  
+
   @@index([organizationId])
   @@index([category])
   @@index([isActive])
@@ -81,6 +81,7 @@ cd ../..
 ## ✅ Paso 5: Generar Módulo NestJS
 
 Crearé:
+
 - `products.module.ts`
 - `products.controller.ts`
 - `products.service.ts`
@@ -91,6 +92,7 @@ Crearé:
 - `products.service.spec.ts`
 
 Con:
+
 - CRUD completo
 - Validaciones
 - Multi-tenancy
@@ -128,6 +130,7 @@ git push origin feat/pos-products-module
 ## ✅ Paso 8: Crear Pull Request
 
 Crearé el PR automáticamente con:
+
 - Título descriptivo
 - Descripción completa
 - Labels apropiados
@@ -150,6 +153,7 @@ Crearé el PR automáticamente con:
 ## 📊 Lo Que Obtendrás
 
 Un módulo completo de productos con:
+
 - ✅ Modelo en base de datos
 - ✅ API REST completa (5 endpoints)
 - ✅ Validación de datos

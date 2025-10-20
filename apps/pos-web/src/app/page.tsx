@@ -24,8 +24,12 @@ export default function HomePage() {
               <div className="flex items-center justify-center w-16 h-16 bg-green-100 rounded-lg mb-4 mx-auto group-hover:bg-green-200 transition-colors">
                 <ShoppingCart className="w-8 h-8 text-green-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2 text-center">Punto de Venta</h3>
-              <p className="text-gray-600 text-sm text-center">Procesar ventas y cobros</p>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2 text-center">
+                Punto de Venta
+              </h3>
+              <p className="text-gray-600 text-sm text-center">
+                Procesar ventas y cobros
+              </p>
             </div>
           </Link>
 
@@ -34,8 +38,12 @@ export default function HomePage() {
               <div className="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-lg mb-4 mx-auto group-hover:bg-blue-200 transition-colors">
                 <BarChart3 className="w-8 h-8 text-blue-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2 text-center">Inventario</h3>
-              <p className="text-gray-600 text-sm text-center">Gestionar stock y productos</p>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2 text-center">
+                Inventario
+              </h3>
+              <p className="text-gray-600 text-sm text-center">
+                Gestionar stock y productos
+              </p>
             </div>
           </Link>
 
@@ -44,8 +52,12 @@ export default function HomePage() {
               <div className="flex items-center justify-center w-16 h-16 bg-purple-100 rounded-lg mb-4 mx-auto group-hover:bg-purple-200 transition-colors">
                 <Coffee className="w-8 h-8 text-purple-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2 text-center">Calidad</h3>
-              <p className="text-gray-600 text-sm text-center">Checklists y temperaturas</p>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2 text-center">
+                Calidad
+              </h3>
+              <p className="text-gray-600 text-sm text-center">
+                Checklists y temperaturas
+              </p>
             </div>
           </Link>
 
@@ -54,18 +66,26 @@ export default function HomePage() {
               <div className="flex items-center justify-center w-16 h-16 bg-orange-100 rounded-lg mb-4 mx-auto group-hover:bg-orange-200 transition-colors">
                 <Users className="w-8 h-8 text-orange-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2 text-center">Clientes</h3>
-              <p className="text-gray-600 text-sm text-center">CRM y programa de lealtad</p>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2 text-center">
+                Clientes
+              </h3>
+              <p className="text-gray-600 text-sm text-center">
+                CRM y programa de lealtad
+              </p>
             </div>
           </Link>
         </div>
 
         {/* Today's Summary */}
         <div className="bg-white rounded-xl shadow-lg p-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">Resumen del Día</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">
+            Resumen del Día
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
-              <div className="text-3xl font-bold text-green-600 mb-2">$2,450</div>
+              <div className="text-3xl font-bold text-green-600 mb-2">
+                $2,450
+              </div>
               <div className="text-gray-600">Ventas Total</div>
             </div>
             <div className="text-center">
@@ -73,7 +93,9 @@ export default function HomePage() {
               <div className="text-gray-600">Tickets Vendidos</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-purple-600 mb-2">$28.16</div>
+              <div className="text-3xl font-bold text-purple-600 mb-2">
+                $28.16
+              </div>
               <div className="text-gray-600">Ticket Promedio</div>
             </div>
           </div>

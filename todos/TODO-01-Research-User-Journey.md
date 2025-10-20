@@ -2,7 +2,7 @@
 
 **Período**: Semana 1  
 **Owner**: Product Manager + UX Designer  
-**Prioridad**: 🔴 CRÍTICA  
+**Prioridad**: 🔴 CRÍTICA
 
 ## 📋 Objetivos
 
@@ -13,9 +13,10 @@ Validar el modelo de negocio con usuarios reales y mapear los flujos operativos 
 ### 1. Entrevistas Estructuradas (3 perfiles)
 
 #### 👤 Perfil Cajero/Barista (2 entrevistas)
+
 - [ ] **Flujo de venta completa**: desde orden hasta entrega
   - Tiempo promedio por transacción
-  - Pasos que más tiempo consumen  
+  - Pasos que más tiempo consumen
   - Errores frecuentes y pain points
   - Modificadores más usados (leche, tamaño, extras)
 
@@ -31,7 +32,8 @@ Validar el modelo de negocio con usuarios reales y mapear los flujos operativos 
   - Documentación de incidencias
   - Cumplimiento NOM-251
 
-#### 👔 Perfil Gerente (1 entrevista)  
+#### 👔 Perfil Gerente (1 entrevista)
+
 - [ ] **Reportes financieros**:
   - KPIs que revisa diariamente
   - Cálculo manual de P&L
@@ -53,17 +55,19 @@ Validar el modelo de negocio con usuarios reales y mapear los flujos operativos 
 ### 2. Mapeo de Flujos Críticos
 
 #### 🎯 Flujo: Venta Completa (Cliente → Pago)
+
 ```mermaid
 graph LR
 A[Cliente llega] → B[Toma orden] → C[Aplica modificadores] → D[Calcula total] → E[Método pago] → F[Imprime ticket] → G[Prepara bebida] → H[Entrega]
 ```
 
-- [ ] Tiempo total promedio: _____ minutos
-- [ ] Paso más lento: _____
-- [ ] % órdenes con modificadores: _____% 
-- [ ] % pagos efectivo vs tarjeta: _____% vs _____%
+- [ ] Tiempo total promedio: **\_** minutos
+- [ ] Paso más lento: **\_**
+- [ ] % órdenes con modificadores: **\_**%
+- [ ] % pagos efectivo vs tarjeta: **\_**% vs **\_**%
 
-#### 📦 Flujo: Descuento Inventario por Receta  
+#### 📦 Flujo: Descuento Inventario por Receta
+
 ```mermaid
 graph LR
 A[Venta cerrada] → B[Identifica receta] → C[Calcula ingredientes] → D[Descuenta del stock] → E[Actualiza costos] → F[Alerta si stock bajo]
@@ -74,77 +78,87 @@ A[Venta cerrada] → B[Identifica receta] → C[Calcula ingredientes] → D[Desc
 - [ ] ¿Qué pasa si se equivocan en el descuento?
 
 #### ✅ Flujo: Checklist Apertura/Cierre
-```mermaid  
+
+```mermaid
 graph LR
 A[Llega empleado] → B[Revisa checklist] → C[Toma temperaturas] → D[Documenta hallazgos] → E[Firma responsable] → F[Reporta anomalías]
 ```
 
-- [ ] Tiempo promedio checklist apertura: _____ minutos
-- [ ] Tiempo promedio checklist cierre: _____ minutos  
+- [ ] Tiempo promedio checklist apertura: **\_** minutos
+- [ ] Tiempo promedio checklist cierre: **\_** minutos
 - [ ] ¿Usan papel o digital actualmente?
 - [ ] ¿Quién valida el cumplimiento?
 
 ### 3. Validación de Assumptions del MVP
 
 #### 💡 Assumption: "Los baristas pueden usar tablets durante horas pico"
+
 - [ ] **Validación**: Observar 1 hora pico (8-10 AM o 2-4 PM)
-- [ ] **Métricas**: 
-  - Tickets atendidos por hora: _____
-  - Interrupciones por minuto: _____
-  - Tiempo promedio por transacción: _____
+- [ ] **Métricas**:
+  - Tickets atendidos por hora: **\_**
+  - Interrupciones por minuto: **\_**
+  - Tiempo promedio por transacción: **\_**
 - [ ] **Insight**: ¿Es factible una interfaz táctil vs teclado?
 
-#### 💡 Assumption: "El costeo automático por receta es crítico"  
+#### 💡 Assumption: "El costeo automático por receta es crítico"
+
 - [ ] **Validación**: ¿Calculan margen por producto actualmente?
 - [ ] **Métricas**:
-  - Productos con margen <60%: _____ 
-  - Frecuencia de revisión de costos: _____
-  - Impacto de no saber el costo real: _____
+  - Productos con margen <60%: **\_**
+  - Frecuencia de revisión de costos: **\_**
+  - Impacto de no saber el costo real: **\_**
 - [ ] **Insight**: ¿Es nice-to-have o must-have?
 
 #### 💡 Assumption: "Checklists digitales mejoran compliance"
+
 - [ ] **Validación**: Revisar checklists de última semana
 - [ ] **Métricas**:
-  - % completitud actual: _____%
-  - Incidencias no documentadas: _____
-  - Tiempo perdido buscando formatos: _____ min/día
+  - % completitud actual: **\_**%
+  - Incidencias no documentadas: **\_**
+  - Tiempo perdido buscando formatos: **\_** min/día
 - [ ] **Insight**: ¿El problema es el formato o la disciplina?
 
 ### 4. Definición de Pantallas MVP
 
 #### 🏪 POS Core Screens (5 pantallas)
+
 - [ ] **Dashboard**: grid de productos + carrito lateral
 - [ ] **Modificadores**: overlay con opciones de leche, tamaño, extras
 - [ ] **Checkout**: múltiples pagos + propina + CFDI opcional
-- [ ] **Inventario rápido**: stock actual + alertas críticas  
+- [ ] **Inventario rápido**: stock actual + alertas críticas
 - [ ] **Checklist diario**: tareas pendientes + captura rápida
 
 #### 📱 Mobile Screens (3 pantallas)
+
 - [ ] **Checklist ejecutor**: lista de tareas + captura evidencia
 - [ ] **Temperatura logger**: termómetro digital + histórico
 - [ ] **Recetas consulta**: pasos + parámetros + video corto
 
 #### 📊 Dashboard Screens (4 pantallas)
+
 - [ ] **KPIs diarios**: tickets, revenue, avg ticket, top products
-- [ ] **Inventario**: stock vs par level + órdenes sugeridas  
+- [ ] **Inventario**: stock vs par level + órdenes sugeridas
 - [ ] **Calidad**: compliance % + alertas + trends temperaturas
 - [ ] **Finanzas**: P&L simple + labor % + margen por categoría
 
 ## 🎯 Criterios de Aceptación
 
 ### Research Quality Gates
+
 - [ ] ✅ 3 entrevistas completadas con grabación y transcripción
-- [ ] ✅ Flujos críticos validados con tiempos reales  
+- [ ] ✅ Flujos críticos validados con tiempos reales
 - [ ] ✅ 3 assumptions principales validadas o refutadas
 - [ ] ✅ Pain points priorizados por impacto vs frecuencia
 
-### UX Validation Gates  
+### UX Validation Gates
+
 - [ ] ✅ Wireframes validados con al menos 1 usuario por pantalla
 - [ ] ✅ Flujo POS completo navegable en <30 segundos
 - [ ] ✅ Checklist mobile usable con una sola mano
 - [ ] ✅ Dashboard comprensible sin capacitación previa
 
 ### Technical Feasibility Gates
+
 - [ ] ✅ Integraciones críticas confirmadas (impresora, pagos, CFDI)
 - [ ] ✅ Arquitectura offline-first validada técnicamente
 - [ ] ✅ Performance targets definidos (30 tickets en 20 min)
@@ -153,12 +167,14 @@ A[Llega empleado] → B[Revisa checklist] → C[Toma temperaturas] → D[Documen
 ## 📊 Herramientas
 
 ### Research & Documentation
+
 - **Zoom/Teams**: Grabación de entrevistas
-- **Miro**: Journey mapping y user flows  
+- **Miro**: Journey mapping y user flows
 - **Notion**: Base de conocimiento centralizada
 - **Loom**: Screen recordings de procesos actuales
 
 ### Prototyping & Validation
+
 - **Figma**: Wireframes y prototipos navegables
 - **Maze**: Testing de usabilidad no moderado
 - **Hotjar**: Heatmaps y session recordings (si hay web actual)
@@ -166,57 +182,66 @@ A[Llega empleado] → B[Revisa checklist] → C[Toma temperaturas] → D[Documen
 ## 🚀 Entregables Finales
 
 ### 1. Research Report (15-20 páginas)
+
 ```markdown
 # CoffeeOS MVP - User Research Report
 
 ## Executive Summary
+
 - 3 key insights que cambiarán el diseño
 - 2 assumptions refutadas que evitamos construir
 - 1 surprise finding que agrega valor inesperado
 
-## User Personas Validadas  
+## User Personas Validadas
+
 - Cajero/Barista: goals, frustrations, workflows
 - Gerente: KPIs, decisions, pain points
 
 ## Journey Maps
+
 - Venta completa: current state vs ideal state
-- Inventario: manual vs automated workflows  
+- Inventario: manual vs automated workflows
 - Checklists: paper vs digital compliance
 
 ## Prioritized Feature List
+
 - Must-have (MVP): 8-10 features críticas
-- Should-have (V1.1): 5-7 features importantes  
+- Should-have (V1.1): 5-7 features importantes
 - Nice-to-have (V2.0): 3-5 features deseables
 ```
 
 ### 2. UX Wireframes Package
+
 - [ ] 📱 **12 pantallas** wireframed en Figma
 - [ ] 🔄 **3 flujos críticos** navegables e interactivos
 - [ ] 📋 **Design system basics**: grid, tipografía, iconografía
 - [ ] ✅ **Usability testing** con 3 usuarios reales
 
 ### 3. Technical Requirements Doc
+
 ```typescript
 // Ejemplo: Performance Requirements
 interface PerformanceTargets {
-  posTransactionTime: '< 30 seconds', // orden → pago
-  inventorySync: '< 5 seconds',      // offline → online  
-  dashboardLoad: '< 3 seconds',      // cold start
-  concurrentUsers: 10,               // por tienda
-  offlineCapacity: '8 hours',        // sin conexión
+  posTransactionTime: '< 30 seconds'; // orden → pago
+  inventorySync: '< 5 seconds'; // offline → online
+  dashboardLoad: '< 3 seconds'; // cold start
+  concurrentUsers: 10; // por tienda
+  offlineCapacity: '8 hours'; // sin conexión
 }
 ```
 
 ## 🔗 Dependencies & Handoffs
 
 ### ⬅️ Inputs Needed
+
 - [ ] ✅ Lista de cafeterías dispuestas a ser entrevistadas
-- [ ] ✅ Acceso a sistemas actuales (POS, inventarios, reportes)  
+- [ ] ✅ Acceso a sistemas actuales (POS, inventarios, reportes)
 - [ ] ✅ Documentación existente (manuales, checklists, recetas)
 
 ### ➡️ Outputs for Next Phase
+
 - [ ] ✅ **Detailed wireframes** → TODO 02 (Diseño UX Sistema POS)
-- [ ] ✅ **API requirements** → TODO 04 (API Core - Autenticación)  
+- [ ] ✅ **API requirements** → TODO 04 (API Core - Autenticación)
 - [ ] ✅ **Component list** → TODO 03 (Componentes UI Base)
 - [ ] ✅ **Performance targets** → TODO 07 (Interfaz POS Web PWA)
 
@@ -224,6 +249,6 @@ interface PerformanceTargets {
 
 **⏰ Deadline**: Viernes Semana 1  
 **👥 Stakeholders**: Product Manager, UX Designer, Tech Lead  
-**📧 Report to**: CTO + Founder  
+**📧 Report to**: CTO + Founder
 
-*Research is the foundation - measure twice, cut once! 🔍✂️*
+_Research is the foundation - measure twice, cut once! 🔍✂️_

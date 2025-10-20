@@ -9,6 +9,7 @@ npm warn tar TAR_ENTRY_ERROR ENOSPC: no space left on device, write
 ```
 
 ### Diagnóstico
+
 - **Disco**: E:\
 - **Problema**: Sin espacio disponible
 - **Proceso afectado**: npm install (instalación de node_modules)
@@ -50,6 +51,7 @@ npm warn tar TAR_ENTRY_ERROR ENOSPC: no space left on device, write
 ### 1. Liberar Espacio en Disco E:\
 
 #### Opción A: Limpiar archivos temporales
+
 ```powershell
 # Limpiar caché de npm
 npm cache clean --force
@@ -64,12 +66,14 @@ Get-PSDrive E
 ```
 
 #### Opción B: Mover archivos grandes a otro disco
+
 ```powershell
 # Buscar archivos grandes en E:\
 Get-ChildItem E:\ -Recurse -File | Sort-Object Length -Descending | Select-Object -First 20 FullName, @{Name="SizeMB";Expression={[math]::Round($_.Length/1MB,2)}}
 ```
 
 #### Opción C: Aumentar espacio del disco E:\
+
 - Si E:\ es una partición, redimensionar
 - Si es disco físico, considerar agregar almacenamiento
 
@@ -108,26 +112,31 @@ npm install
 ## 🚀 Plan de Continuación (Una Vez Resuelto)
 
 ### Paso 1: Completar Instalación
+
 ```powershell
 npm install
 ```
 
 ### Paso 2: Iniciar Servicios
+
 ```powershell
 .\scripts\start-dev.ps1
 ```
 
 ### Paso 3: Seed de Base de Datos
+
 ```powershell
 npm run db:seed
 ```
 
 ### Paso 4: Verificar Todo Funciona
+
 ```powershell
 npm run dev
 ```
 
 ### Paso 5: Abrir Aplicaciones
+
 - POS: http://localhost:3000
 - Admin: http://localhost:3001
 - API: http://localhost:4000
@@ -139,6 +148,7 @@ npm run dev
 Si E:\ no tiene suficiente espacio y no puede liberarse:
 
 ### Opción 1: Mover proyecto a disco C:\ o D:\
+
 ```powershell
 # Copiar proyecto
 Copy-Item -Recurse E:\CoffeeOS C:\CoffeeOS
@@ -151,6 +161,7 @@ npm install
 ```
 
 ### Opción 2: Symbolic link de node_modules a otro disco
+
 ```powershell
 # Crear directorio en C:\
 New-Item -ItemType Directory -Path "C:\temp\coffeeos-node_modules"
@@ -167,6 +178,7 @@ npm install
 ## 📊 Estado del Proyecto Actual
 
 ### Archivos Creados (Antes del Error)
+
 ```
 ✅ PLAN-COMPLETO.md (15 secciones, ROI 12x)
 ✅ PLAN-IMPLEMENTACION.md (27 TODOs, 12 semanas)
@@ -183,6 +195,7 @@ npm install
 ```
 
 ### Progreso General
+
 - **Planificación**: 100% ✅
 - **Documentación**: 100% ✅
 - **Setup inicial**: 90% ⏳ (falta completar npm install)
@@ -196,14 +209,15 @@ npm install
 **PRIORIDAD MÁXIMA**: Liberar al menos 4-5 GB en disco E:\ antes de continuar.
 
 Comandos rápidos para diagnóstico:
+
 ```powershell
 # Ver espacio en discos
 Get-PSDrive
 
 # Ver archivos más grandes en E:\
-Get-ChildItem E:\ -Recurse -File -ErrorAction SilentlyContinue | 
-  Sort-Object Length -Descending | 
-  Select-Object -First 50 FullName, @{Name="SizeMB";Expression={[math]::Round($_.Length/1MB,2)}} | 
+Get-ChildItem E:\ -Recurse -File -ErrorAction SilentlyContinue |
+  Sort-Object Length -Descending |
+  Select-Object -First 50 FullName, @{Name="SizeMB";Expression={[math]::Round($_.Length/1MB,2)}} |
   Format-Table -AutoSize
 
 # Limpiar caché de Windows

@@ -21,10 +21,12 @@
 ### 1. Probar Continue Extension
 
 **¿Está instalado Continue?**
+
 - Busca el ícono de Continue en la barra lateral izquierda
 - O intenta presionar `Ctrl+L`
 
 **Si NO está instalado:**
+
 ```
 1. Ctrl+Shift+X
 2. Buscar "Continue"
@@ -34,12 +36,14 @@
 ```
 
 **Primera Prueba:**
+
 ```
 Ctrl+L → Escribir:
 "Explícame la estructura de este proyecto CoffeeOS y sus módulos principales"
 ```
 
 **Comandos para probar:**
+
 - `/test` - Generar tests
 - `/nestjs` - Ayuda con NestJS
 - `/nextjs` - Ayuda con Next.js
@@ -53,11 +57,13 @@ Ctrl+L → Escribir:
 **URL:** https://github.com/arrebolmedia/coffee-os/pulls
 
 **Verificar:**
+
 - Estado de los workflows (verde/amarillo/rojo)
 - Comentarios o revisiones
 - Conflictos
 
 **Si todo está verde:**
+
 - Hacer merge del PR
 - Git pull en local
 
@@ -68,17 +74,20 @@ Ctrl+L → Escribir:
 **Con Continue funcionando, puedes:**
 
 1. **Generar código:**
+
    ```
    Ctrl+L → "/nestjs Crea un servicio de productos con CRUD básico"
    ```
 
 2. **Generar tests:**
+
    ```
    Seleccionar código
    Ctrl+L → "/test"
    ```
 
 3. **Explicar código:**
+
    ```
    Seleccionar código
    Ctrl+L → "¿Qué hace este código?"
@@ -120,16 +129,19 @@ Ctrl+L → Escribir:
 ## 📞 Si Algo No Funciona
 
 ### Continue no abre con Ctrl+L
+
 1. Verificar que está instalado (Ctrl+Shift+X → "Continue")
 2. Reintentar después de instalar
 3. Revisar Output → Continue para errores
 
 ### Continue no responde
+
 1. Verificar `$env:OPENAI_API_KEY` en terminal
 2. Revisar `.continue\config.json`
 3. Reiniciar VS Code
 
 ### API Key no funciona
+
 1. Verificar que es la correcta en `.env.local`
 2. Reconfigurar variable de entorno
 3. Reiniciar VS Code nuevamente

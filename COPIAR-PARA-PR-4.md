@@ -1,6 +1,7 @@
 # COPY THIS FOR GITHUB PR
 
 ## Title (Copy this):
+
 feat(inventory-items): Add complete inventory items CRUD module
 
 ## Description (Copy this):
@@ -12,6 +13,7 @@ This PR adds a complete CRUD module for managing inventory items with advanced s
 ### ✨ Features Implemented
 
 #### 🎯 Core Functionality
+
 - **9 REST endpoints** for comprehensive inventory management
 - **Code uniqueness validation** (uppercase + numbers + hyphens format)
 - **Supplier relationship validation** with foreign key checks
@@ -21,6 +23,7 @@ This PR adds a complete CRUD module for managing inventory items with advanced s
 - **Soft/hard delete logic** based on recipe and movement dependencies
 
 #### 🔌 API Endpoints
+
 1. `POST /inventory-items` - Create new inventory item
 2. `GET /inventory-items` - List with pagination and filters
 3. `GET /inventory-items/active` - Get all active items
@@ -32,6 +35,7 @@ This PR adds a complete CRUD module for managing inventory items with advanced s
 9. `DELETE /inventory-items/:id` - Soft or hard delete
 
 #### 📊 Data Model
+
 - **code**: Unique identifier (e.g., MILK-WHOLE-001)
 - **name**: Item name (required)
 - **description**: Optional detailed description
@@ -43,6 +47,7 @@ This PR adds a complete CRUD module for managing inventory items with advanced s
 - **supplierId**: Foreign key to supplier
 
 #### 🧪 Test Coverage
+
 - **36 tests total** (100% passing ✅)
   - 10 controller tests
   - 26 service tests
@@ -57,6 +62,7 @@ This PR adds a complete CRUD module for managing inventory items with advanced s
   - Search functionality
 
 #### 🏗️ Architecture
+
 - **Clean separation of concerns**
 - **DTO validation** with class-validator
 - **Comprehensive error handling** (ConflictException, NotFoundException, BadRequestException)
@@ -64,12 +70,15 @@ This PR adds a complete CRUD module for managing inventory items with advanced s
 - **Service layer business logic** for complex operations
 
 ### 🔗 Dependencies
+
 - Requires `Supplier` model in database schema
 - Uses `PrismaService` from database module
 - Integrated into `AppModule`
 
 ### 📈 Impact
+
 This module is foundational for:
+
 - Recipe costing (calculating ingredient costs)
 - Stock management and tracking
 - Automatic reorder alerts
@@ -77,6 +86,7 @@ This module is foundational for:
 - Inventory movements tracking
 
 ### 🧹 Code Quality
+
 - ✅ All tests passing (36/36)
 - ✅ Prettier formatting applied
 - ✅ TypeScript strict mode compliance
