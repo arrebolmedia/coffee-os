@@ -15,6 +15,14 @@ pids
 .env*
 !.env.example
 
+# Sensitive documentation (tokens, secrets)
+TOKENS-Y-SECRETS.md
+ACCION-INMEDIATA.md
+ERROR-GITHUB-SECRET.md
+PROXIMOS-PASOS.md
+INSTRUCCIONES-SECRETS.md
+PROGRESO-CONFIGURACION.md
+
 # IDE
 .vscode/
 .idea/
