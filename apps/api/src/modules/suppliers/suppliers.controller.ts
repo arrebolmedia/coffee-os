@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -27,19 +28,14 @@ export class SuppliersController {
     return this.suppliersService.findAll(query);
   }
 
-  @Get('active')
-  findAllActive() {
-    return this.suppliersService.findAllActive();
+  @Get('stats/:organizationId')
+  getStats(@Param('organizationId') organizationId: string) {
+    return this.suppliersService.getStats(organizationId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.suppliersService.findOne(id);
-  }
-
-  @Get('code/:code')
-  findByCode(@Param('code') code: string) {
-    return this.suppliersService.findByCode(code);
+  findById(@Param('id') id: string) {
+    return this.suppliersService.findById(id);
   }
 
   @Put(':id')
@@ -50,8 +46,21 @@ export class SuppliersController {
     return this.suppliersService.update(id, updateSupplierDto);
   }
 
+  @Patch(':id/rating')
+  updateRating(
+    @Param('id') id: string,
+    @Body() body: { rating: number; on_time_delivery_rate?: number },
+  ) {
+    return this.suppliersService.updateRating(
+      id,
+      body.rating,
+      body.on_time_delivery_rate,
+    );
+  }
+
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.suppliersService.remove(id);
+  delete(@Param('id') id: string) {
+    return this.suppliersService.delete(id);
   }
 }
+
