@@ -18,10 +18,13 @@ import { ProductsModule } from './modules/products/products.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { ModifiersModule } from './modules/modifiers/modifiers.module';
 import { InventoryItemsModule } from './modules/inventory-items/inventory-items.module';
+import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { InventoryMovementsModule } from './modules/inventory-movements/inventory-movements.module';
 import { RecipesModule } from './modules/recipes/recipes.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { OrdersModule } from './modules/orders/orders.module';
 import { QualityModule } from './modules/quality/quality.module';
 import { CrmModule } from './modules/crm/crm.module';
 import { FinanceModule } from './modules/finance/finance.module';
@@ -74,10 +77,13 @@ import { RedisModule } from './modules/redis/redis.module';
     CategoriesModule,
     ModifiersModule,
     InventoryItemsModule,
+    SuppliersModule,
     InventoryModule,
+    InventoryMovementsModule,
     RecipesModule,
     TransactionsModule,
     PaymentsModule,
+    OrdersModule,
     QualityModule,
     CrmModule,
     FinanceModule,
