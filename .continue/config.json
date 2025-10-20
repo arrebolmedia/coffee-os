@@ -1,0 +1,134 @@
+{
+  "models": [
+    {
+      "title": "GPT-4o",
+      "provider": "openai",
+      "model": "gpt-4o",
+      "apiKey": "${OPENAI_API_KEY}",
+      "contextLength": 128000,
+      "completionOptions": {
+        "temperature": 0.2,
+        "maxTokens": 4096
+      }
+    },
+    {
+      "title": "DeepSeek Coder",
+      "provider": "ollama",
+      "model": "deepseek-coder:33b",
+      "apiBase": "http://localhost:11434",
+      "contextLength": 16384,
+      "completionOptions": {
+        "temperature": 0.2,
+        "maxTokens": 2048
+      }
+    }
+  ],
+  "tabAutocompleteModel": {
+    "title": "Codestral",
+    "provider": "ollama",
+    "model": "codestral:latest",
+    "apiBase": "http://localhost:11434"
+  },
+  "embeddingsProvider": {
+    "provider": "openai",
+    "model": "text-embedding-3-small",
+    "apiKey": "${OPENAI_API_KEY}"
+  },
+  "contextProviders": [
+    {
+      "name": "code",
+      "params": {}
+    },
+    {
+      "name": "docs",
+      "params": {}
+    },
+    {
+      "name": "diff",
+      "params": {}
+    },
+    {
+      "name": "terminal",
+      "params": {}
+    },
+    {
+      "name": "problems",
+      "params": {}
+    },
+    {
+      "name": "folder",
+      "params": {}
+    },
+    {
+      "name": "codebase",
+      "params": {}
+    }
+  ],
+  "slashCommands": [
+    {
+      "name": "edit",
+      "description": "Edit selected code"
+    },
+    {
+      "name": "comment",
+      "description": "Write comments for the selected code"
+    },
+    {
+      "name": "share",
+      "description": "Export the current chat session to markdown"
+    },
+    {
+      "name": "cmd",
+      "description": "Generate a shell command"
+    },
+    {
+      "name": "commit",
+      "description": "Generate a commit message for current changes"
+    }
+  ],
+  "customCommands": [
+    {
+      "name": "test",
+      "prompt": "Write comprehensive unit tests for the selected code using Jest. Follow these guidelines:\n- Use describe/it blocks\n- Mock external dependencies\n- Cover edge cases\n- Aim for >90% coverage\n- Use TypeScript types\n\nCode: {{{ input }}}"
+    },
+    {
+      "name": "nestjs",
+      "prompt": "You are an expert NestJS developer. Help me with this NestJS-related question or code. Follow NestJS best practices:\n- Use dependency injection\n- Implement proper DTOs with class-validator\n- Use Guards for authentication\n- Implement proper exception filters\n- Follow module structure\n\nQuestion: {{{ input }}}"
+    },
+    {
+      "name": "nextjs",
+      "prompt": "You are an expert Next.js 13+ developer. Help me with this Next.js question or code. Follow Next.js App Router best practices:\n- Use Server Components by default\n- Client Components only when needed (add 'use client')\n- Implement proper loading and error states\n- Use TypeScript strictly\n- Follow accessibility standards\n\nQuestion: {{{ input }}}"
+    },
+    {
+      "name": "prisma",
+      "prompt": "You are an expert Prisma ORM developer. Help me with this Prisma-related question. Follow best practices:\n- Use transactions for multiple operations\n- Implement proper error handling\n- Use select to optimize queries\n- Consider N+1 query problems\n- Use proper indexes\n\nQuestion: {{{ input }}}"
+    }
+  ],
+  "systemMessage": "You are an expert pair programmer specialized in building multi-tenant SaaS applications with:\n- Backend: NestJS + TypeScript + Prisma + PostgreSQL\n- Frontend: Next.js 13+ App Router + React + TypeScript + Tailwind CSS\n- Mobile: React Native + Expo\n\nYou follow these principles:\n1. Write clean, maintainable, well-documented code\n2. Follow TypeScript strict mode\n3. Implement comprehensive error handling\n4. Write unit tests (Jest) for all business logic\n5. Follow SOLID principles and design patterns\n6. Prioritize security (OWASP guidelines)\n7. Use Conventional Commits (feat, fix, docs, etc.)\n8. Think about scalability and performance\n9. Consider Mexican market requirements (CFDI, NOM-251, Spanish language)\n10. Keep commits small (<200 LOC)\n\nWhen suggesting code:\n- Provide complete, working implementations\n- Include necessary imports\n- Add JSDoc comments for public methods\n- Consider edge cases and error scenarios\n- Suggest tests when appropriate",
+  "allowAnonymousTelemetry": false,
+  "docs": [
+    {
+      "title": "NestJS",
+      "startUrl": "https://docs.nestjs.com"
+    },
+    {
+      "title": "Next.js",
+      "startUrl": "https://nextjs.org/docs"
+    },
+    {
+      "title": "Prisma",
+      "startUrl": "https://www.prisma.io/docs"
+    },
+    {
+      "title": "React Native",
+      "startUrl": "https://reactnative.dev/docs"
+    }
+  ],
+  "experimental": {
+    "modelRoles": {
+      "inlineEdit": "GPT-4o",
+      "chat": "GPT-4o",
+      "autocomplete": "Codestral"
+    }
+  }
+}

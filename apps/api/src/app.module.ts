@@ -1,0 +1,82 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { GraphQLModule } from '@nestjs/graphql';
+import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { join } from 'path';
+
+// Health check
+import { HealthModule } from './health/health.module';
+
+// Core modules
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { OrganizationsModule } from './modules/organizations/organizations.module';
+
+// Business modules
+import { PosModule } from './modules/pos/pos.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
+import { RecipesModule } from './modules/recipes/recipes.module';
+import { QualityModule } from './modules/quality/quality.module';
+import { CrmModule } from './modules/crm/crm.module';
+import { FinanceModule } from './modules/finance/finance.module';
+import { HrModule } from './modules/hr/hr.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+
+// Integration modules
+import { IntegrationsModule } from './modules/integrations/integrations.module';
+import { TwilioModule } from './modules/integrations/twilio/twilio.module';
+import { MailrelayModule } from './modules/integrations/mailrelay/mailrelay.module';
+import { CfdiModule } from './modules/integrations/cfdi/cfdi.module';
+
+// Infrastructure modules
+import { DatabaseModule } from './modules/database/database.module';
+import { RedisModule } from './modules/redis/redis.module';
+
+@Module({
+  imports: [
+    // Configuration
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env.local', '.env'],
+    }),
+
+    // GraphQL
+    GraphQLModule.forRoot<ApolloDriverConfig>({
+      driver: ApolloDriver,
+      autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+      sortSchema: true,
+      playground: process.env.NODE_ENV !== 'production',
+      introspection: true,
+      context: ({ req }) => ({ req }),
+    }),
+
+    // Infrastructure
+    DatabaseModule,
+    RedisModule,
+    
+    // Health check
+    HealthModule,
+
+    // Core modules
+    AuthModule,
+    UsersModule,
+    OrganizationsModule,
+
+    // Business modules
+    PosModule,
+    InventoryModule,
+    RecipesModule,
+    QualityModule,
+    CrmModule,
+    FinanceModule,
+    HrModule,
+    AnalyticsModule,
+
+    // Integration modules
+    IntegrationsModule,
+    TwilioModule,
+    MailrelayModule,
+    CfdiModule,
+  ],
+})
+export class AppModule {}

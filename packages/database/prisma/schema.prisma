@@ -1,0 +1,849 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========================================
+// CORE ENTITIES
+// ========================================
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  timezone    String   @default("America/Mexico_City")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  locations Location[]
+  users     User[]
+
+  @@map("organizations")
+}
+
+model Location {
+  id           String  @id @default(cuid())
+  organizationId String @map("organization_id")
+  name         String
+  address      String?
+  city         String?
+  state        String?
+  postalCode   String? @map("postal_code")
+  country      String  @default("MX")
+  phone        String?
+  email        String?
+  timezone     String  @default("America/Mexico_City")
+  active       Boolean @default(true)
+  
+  // Business settings
+  taxRate      Float   @default(0.16) @map("tax_rate")
+  currency     String  @default("MXN")
+  
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users        UserLocation[]
+  tickets      Ticket[]
+  inventoryMovements InventoryMovement[]
+  qualityLogs  QualityLog[]
+  taskRuns     TaskRun[]
+  permits      Permit[]
+
+  @@map("locations")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  scopes      String[] // JSON array of permissions
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  users User[]
+
+  @@map("roles")
+}
+
+model User {
+  id         String    @id @default(cuid())
+  organizationId String @map("organization_id")
+  roleId     String    @map("role_id")
+  
+  email      String    @unique
+  password   String
+  firstName  String    @map("first_name")
+  lastName   String    @map("last_name")
+  phone      String?
+  avatar     String?
+  
+  // Authentication
+  emailVerified DateTime? @map("email_verified")
+  twoFactorEnabled Boolean @default(false) @map("two_factor_enabled")
+  lastLoginAt   DateTime? @map("last_login_at")
+  
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         Role @relation(fields: [roleId], references: [id])
+  locations    UserLocation[]
+  tickets      Ticket[]
+  qualityLogs  QualityLog[]
+  taskRuns     TaskRun[]
+
+  @@map("users")
+}
+
+model UserLocation {
+  id         String @id @default(cuid())
+  userId     String @map("user_id")
+  locationId String @map("location_id")
+  
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, locationId])
+  @@map("user_locations")
+}
+
+// ========================================
+// PRODUCT CATALOG & RECIPES
+// ========================================
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String?
+  icon        String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  categoryId  String   @map("category_id")
+  
+  sku         String   @unique
+  name        String
+  description String?
+  image       String?
+  
+  // Pricing
+  price       Float
+  cost        Float    @default(0)
+  taxRate     Float    @default(0.16) @map("tax_rate")
+  
+  // Settings
+  allowModifiers Boolean @default(true) @map("allow_modifiers")
+  trackInventory Boolean @default(true) @map("track_inventory")
+  
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  category       Category @relation(fields: [categoryId], references: [id])
+  recipes        Recipe[]
+  ticketLines    TicketLine[]
+  productModifiers ProductModifier[]
+
+  @@map("products")
+}
+
+model Modifier {
+  id          String      @id @default(cuid())
+  name        String
+  type        ModifierType
+  priceDelta  Float       @default(0) @map("price_delta")
+  
+  active      Boolean     @default(true)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  products    ProductModifier[]
+  ticketLineModifiers TicketLineModifier[]
+
+  @@map("modifiers")
+}
+
+model ProductModifier {
+  id         String @id @default(cuid())
+  productId  String @map("product_id")
+  modifierId String @map("modifier_id")
+  
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  modifier Modifier @relation(fields: [modifierId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, modifierId])
+  @@map("product_modifiers")
+}
+
+model Recipe {
+  id           String   @id @default(cuid())
+  productId    String   @map("product_id")
+  
+  name         String
+  description  String?
+  instructions String?
+  yield        Float    @default(1)
+  yieldUnit    String   @default("unit") @map("yield_unit")
+  
+  // Preparation details
+  prepTime     Int?     @map("prep_time") // seconds
+  allergens    String[] // JSON array
+  videoUrl     String?  @map("video_url")
+  
+  version      Int      @default(1)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ingredients RecipeIngredient[]
+
+  @@map("recipes")
+}
+
+model InventoryItem {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  
+  // Units and costing
+  unitOfMeasure String @map("unit_of_measure") // ml, g, unit, kg, l
+  costPerUnit   Float  @default(0) @map("cost_per_unit")
+  
+  // Stock management
+  parLevel      Float  @default(0) @map("par_level")
+  reorderPoint  Float  @default(0) @map("reorder_point")
+  
+  // Classification
+  category      String?
+  supplierId    String? @map("supplier_id")
+  
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  supplier            Supplier? @relation(fields: [supplierId], references: [id])
+  recipeIngredients   RecipeIngredient[]
+  inventoryMovements  InventoryMovement[]
+  goodsReceipts       GoodsReceipt[]
+
+  @@map("inventory_items")
+}
+
+model RecipeIngredient {
+  id              String @id @default(cuid())
+  recipeId        String @map("recipe_id")
+  inventoryItemId String @map("inventory_item_id")
+  
+  quantity        Float
+  unit           String
+  notes          String?
+  
+  recipe         Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  inventoryItem  InventoryItem @relation(fields: [inventoryItemId], references: [id])
+
+  @@unique([recipeId, inventoryItemId])
+  @@map("recipe_ingredients")
+}
+
+// ========================================
+// INVENTORY MANAGEMENT
+// ========================================
+
+model InventoryMovement {
+  id              String      @id @default(cuid())
+  locationId      String      @map("location_id")
+  inventoryItemId String      @map("inventory_item_id")
+  
+  type            MovementType
+  quantity        Float
+  unitCost        Float?      @map("unit_cost")
+  
+  // Reference data
+  reason          String?
+  reference       String?     // PO number, ticket number, etc.
+  lotId           String?     @map("lot_id")
+  
+  notes           String?
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  location      Location @relation(fields: [locationId], references: [id])
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  lot           Lot? @relation(fields: [lotId], references: [id])
+
+  @@map("inventory_movements")
+}
+
+model Supplier {
+  id            String   @id @default(cuid())
+  name          String
+  contactName   String?  @map("contact_name")
+  email         String?
+  phone         String?
+  address       String?
+  
+  // Terms
+  paymentTerms  String?  @map("payment_terms")
+  leadTime      Int?     @map("lead_time") // days
+  
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  inventoryItems InventoryItem[]
+  purchaseOrders PurchaseOrder[]
+
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id           String          @id @default(cuid())
+  locationId   String          @map("location_id")
+  supplierId   String          @map("supplier_id")
+  
+  poNumber     String          @unique @map("po_number")
+  status       PurchaseOrderStatus
+  
+  // Dates
+  orderDate    DateTime        @map("order_date")
+  expectedDate DateTime?       @map("expected_date")
+  receivedDate DateTime?       @map("received_date")
+  
+  // Totals
+  subtotal     Float           @default(0)
+  tax          Float           @default(0)
+  total        Float           @default(0)
+  
+  notes        String?
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  supplier      Supplier @relation(fields: [supplierId], references: [id])
+  goodsReceipts GoodsReceipt[]
+
+  @@map("purchase_orders")
+}
+
+model GoodsReceipt {
+  id              String    @id @default(cuid())
+  purchaseOrderId String    @map("purchase_order_id")
+  inventoryItemId String    @map("inventory_item_id")
+  lotId           String?   @map("lot_id")
+  
+  quantity        Float
+  unitCost        Float     @map("unit_cost")
+  
+  receivedAt      DateTime  @map("received_at")
+  notes           String?
+
+  // Relations
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  lot           Lot? @relation(fields: [lotId], references: [id])
+
+  @@map("goods_receipts")
+}
+
+model Lot {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  expirationDate  DateTime? @map("expiration_date")
+  
+  // Documentation
+  documents       String[]  // JSON array of file URLs
+  
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  inventoryMovements InventoryMovement[]
+  goodsReceipts      GoodsReceipt[]
+
+  @@map("lots")
+}
+
+// ========================================
+// POINT OF SALE
+// ========================================
+
+model Ticket {
+  id          String       @id @default(cuid())
+  locationId  String       @map("location_id")
+  userId      String       @map("user_id")
+  customerId  String?      @map("customer_id")
+  
+  ticketNumber String      @unique @map("ticket_number")
+  status       TicketStatus @default(OPEN)
+  
+  // Totals
+  subtotal    Float        @default(0)
+  tax         Float        @default(0)
+  tip         Float        @default(0)
+  discount    Float        @default(0)
+  total       Float        @default(0)
+  
+  // Timestamps
+  openedAt    DateTime     @default(now()) @map("opened_at")
+  closedAt    DateTime?    @map("closed_at")
+  
+  notes       String?
+
+  // Relations
+  location    Location @relation(fields: [locationId], references: [id])
+  user        User @relation(fields: [userId], references: [id])
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  lines       TicketLine[]
+  payments    Payment[]
+  invoices    InvoiceCfdi[]
+
+  @@map("tickets")
+}
+
+model TicketLine {
+  id        String  @id @default(cuid())
+  ticketId  String  @map("ticket_id")
+  productId String  @map("product_id")
+  
+  quantity  Float
+  unitPrice Float   @map("unit_price")
+  discount  Float   @default(0)
+  total     Float
+  
+  notes     String?
+
+  // Relations
+  ticket    Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+  modifiers TicketLineModifier[]
+
+  @@map("ticket_lines")
+}
+
+model TicketLineModifier {
+  id           String @id @default(cuid())
+  ticketLineId String @map("ticket_line_id")
+  modifierId   String @map("modifier_id")
+  
+  priceDelta   Float  @map("price_delta")
+
+  // Relations
+  ticketLine TicketLine @relation(fields: [ticketLineId], references: [id], onDelete: Cascade)
+  modifier   Modifier @relation(fields: [modifierId], references: [id])
+
+  @@map("ticket_line_modifiers")
+}
+
+model Payment {
+  id       String        @id @default(cuid())
+  ticketId String        @map("ticket_id")
+  
+  method   PaymentMethod
+  amount   Float
+  
+  // Payment processor data
+  reference     String?
+  processorData Json?      @map("processor_data")
+  
+  processedAt   DateTime   @default(now()) @map("processed_at")
+  
+  // Relations
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+
+  @@map("payments")
+}
+
+// ========================================
+// CRM & LOYALTY
+// ========================================
+
+model Customer {
+  id        String    @id @default(cuid())
+  email     String?   @unique
+  phone     String?   @unique
+  
+  firstName String?   @map("first_name")
+  lastName  String?   @map("last_name")
+  birthday  DateTime?
+  
+  // Loyalty
+  loyaltyPoints Int @default(0) @map("loyalty_points")
+  totalSpent    Float @default(0) @map("total_spent")
+  visitCount    Int @default(0) @map("visit_count")
+  
+  // RFM Segmentation
+  rfmBucket     String? @map("rfm_bucket")
+  lastVisit     DateTime? @map("last_visit")
+  
+  // Preferences
+  preferences   Json?
+  
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tickets   Ticket[]
+  consents  Consent[]
+
+  @@map("customers")
+}
+
+model Consent {
+  id         String      @id @default(cuid())
+  customerId String      @map("customer_id")
+  
+  type       ConsentType
+  granted    Boolean
+  source     String      // where consent was collected
+  ipAddress  String?     @map("ip_address")
+  
+  grantedAt  DateTime    @default(now()) @map("granted_at")
+  revokedAt  DateTime?   @map("revoked_at")
+
+  // Relations
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("consents")
+}
+
+// ========================================
+// QUALITY & COMPLIANCE
+// ========================================
+
+model Checklist {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  scope       ChecklistScope
+  frequency   String        // daily, weekly, monthly, on-demand
+  
+  active      Boolean       @default(true)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  items    ChecklistItem[]
+  taskRuns TaskRun[]
+
+  @@map("checklists")
+}
+
+model ChecklistItem {
+  id          String          @id @default(cuid())
+  checklistId String          @map("checklist_id")
+  
+  label       String
+  description String?
+  type        ChecklistItemType
+  required    Boolean         @default(true)
+  sortOrder   Int             @default(0) @map("sort_order")
+  
+  // Validation rules
+  minValue    Float?          @map("min_value")
+  maxValue    Float?          @map("max_value")
+  unit        String?
+  
+  active      Boolean         @default(true)
+
+  // Relations
+  checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  responses   TaskRunResponse[]
+
+  @@map("checklist_items")
+}
+
+model TaskRun {
+  id          String           @id @default(cuid())
+  checklistId String           @map("checklist_id")
+  locationId  String           @map("location_id")
+  userId      String           @map("user_id")
+  
+  status      TaskRunStatus    @default(IN_PROGRESS)
+  
+  startedAt   DateTime         @default(now()) @map("started_at")
+  completedAt DateTime?        @map("completed_at")
+  
+  notes       String?
+  evidence    String[]         // JSON array of file URLs
+
+  // Relations
+  checklist Checklist @relation(fields: [checklistId], references: [id])
+  location  Location @relation(fields: [locationId], references: [id])
+  user      User @relation(fields: [userId], references: [id])
+  responses TaskRunResponse[]
+
+  @@map("task_runs")
+}
+
+model TaskRunResponse {
+  id              String @id @default(cuid())
+  taskRunId       String @map("task_run_id")
+  checklistItemId String @map("checklist_item_id")
+  
+  // Response data
+  booleanValue    Boolean?
+  numberValue     Float?
+  textValue       String?
+  fileUrls        String[] // JSON array
+  
+  respondedAt     DateTime @default(now()) @map("responded_at")
+
+  // Relations
+  taskRun       TaskRun @relation(fields: [taskRunId], references: [id], onDelete: Cascade)
+  checklistItem ChecklistItem @relation(fields: [checklistItemId], references: [id])
+
+  @@unique([taskRunId, checklistItemId])
+  @@map("task_run_responses")
+}
+
+model QualityLog {
+  id         String      @id @default(cuid())
+  locationId String      @map("location_id")
+  userId     String      @map("user_id")
+  
+  type       QualityLogType
+  value      Float
+  unit       String
+  
+  // Context
+  equipment  String?
+  notes      String?
+  
+  // Digital signature
+  signedBy   String?     @map("signed_by")
+  signedAt   DateTime?   @map("signed_at")
+  
+  recordedAt DateTime    @default(now()) @map("recorded_at")
+
+  // Relations
+  location Location @relation(fields: [locationId], references: [id])
+  user     User @relation(fields: [userId], references: [id])
+
+  @@map("quality_logs")
+}
+
+// ========================================
+// PERMITS & COMPLIANCE
+// ========================================
+
+model Permit {
+  id           String   @id @default(cuid())
+  locationId   String   @map("location_id")
+  
+  name         String
+  authority    String   // issuing authority
+  permitNumber String?  @map("permit_number")
+  status       PermitStatus
+  
+  // Dates
+  issuedDate   DateTime? @map("issued_date")
+  expiryDate   DateTime? @map("expiry_date")
+  
+  // Files
+  documents    String[]  // JSON array of file URLs
+  
+  notes        String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  location  Location @relation(fields: [locationId], references: [id])
+  renewals  PermitRenewal[]
+
+  @@map("permits")
+}
+
+model PermitRenewal {
+  id         String   @id @default(cuid())
+  permitId   String   @map("permit_id")
+  
+  rrule      String   // RFC 5545 recurrence rule
+  nextDue    DateTime @map("next_due")
+  
+  // Responsible party
+  userId     String?  @map("user_id")
+  
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  permit Permit @relation(fields: [permitId], references: [id], onDelete: Cascade)
+
+  @@map("permit_renewals")
+}
+
+// ========================================
+// FINANCIAL & INVOICING
+// ========================================
+
+model InvoiceCfdi {
+  id         String           @id @default(cuid())
+  ticketId   String           @map("ticket_id")
+  
+  // CFDI specific fields
+  uuid       String?          @unique
+  series     String?
+  folio      String?
+  
+  // Customer data
+  rfc        String
+  name       String
+  address    String?
+  
+  // Files
+  xmlFile    String?          @map("xml_file")
+  pdfFile    String?          @map("pdf_file")
+  
+  // Status
+  status     InvoiceStatus    @default(PENDING)
+  
+  // PAC response data
+  pacResponse Json?           @map("pac_response")
+  
+  issuedAt   DateTime?        @map("issued_at")
+  canceledAt DateTime?        @map("canceled_at")
+  
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+
+  @@map("invoice_cfdi")
+}
+
+// ========================================
+// ENUMS
+// ========================================
+
+enum ModifierType {
+  SIZE
+  MILK
+  EXTRA
+  SYRUP
+  DECAF
+}
+
+enum MovementType {
+  IN          // Stock received
+  OUT         // Stock consumed
+  ADJUSTMENT  // Manual adjustment
+  TRANSFER    // Between locations
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  CONFIRMED
+  PARTIAL
+  RECEIVED
+  CANCELED
+}
+
+enum TicketStatus {
+  OPEN
+  CLOSED
+  REFUNDED
+  VOIDED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  DIGITAL_WALLET
+  BANK_TRANSFER
+  LOYALTY_POINTS
+}
+
+enum ConsentType {
+  MARKETING_EMAIL
+  MARKETING_SMS
+  MARKETING_WHATSAPP
+  DATA_PROCESSING
+  COOKIES
+}
+
+enum ChecklistScope {
+  OPENING
+  CLOSING
+  MID_SHIFT
+  NOM_251
+  SAFETY
+  MAINTENANCE
+}
+
+enum ChecklistItemType {
+  BOOLEAN     // Yes/No
+  NUMBER      // Numeric value
+  TEMPERATURE // Temperature reading
+  PHOTO       // Photo evidence
+  SIGNATURE   // Digital signature
+  TEXT        // Free text
+}
+
+enum TaskRunStatus {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
+enum QualityLogType {
+  TEMPERATURE
+  PPM
+  TDS
+  PH
+  PRESSURE
+  CLEANING
+}
+
+enum PermitStatus {
+  ACTIVE
+  EXPIRED
+  PENDING_RENEWAL
+  SUSPENDED
+  CANCELED
+}
+
+enum InvoiceStatus {
+  PENDING
+  ISSUED
+  SENT
+  PAID
+  CANCELED
+  ERROR
+}

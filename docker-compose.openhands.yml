@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  openhands:
+    image: ghcr.io/all-hands-ai/openhands:latest
+    container_name: coffeeos-openhands
+    pull_policy: always
+    
+    environment:
+      # GitHub configuration
+      - GIT_CLONE_URL=${GIT_CLONE_URL:-https://github.com/your-org/CoffeeOS.git}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      
+      # AI Model configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - MODEL_NAME=${MODEL_NAME:-gpt-4o}
+      
+      # Agent configuration
+      - TOOL_WHITELIST=git,npm,pnpm,curl,cat,echo,grep,find,sed,awk
+      - MAX_DIFF_LOC=300
+      - AUTO_TEST=true
+      - AUTO_LINT=true
+      - CONVENTIONAL_COMMITS=true
+      
+      # Workspace configuration
+      - WORKSPACE=/workspace
+      - MAX_ITERATIONS=30
+      - TIMEOUT=1800
+      
+      # Security
+      - SANDBOX_MODE=true
+      - ALLOW_FILE_WRITE=true
+      - ALLOW_NETWORK=true
+      
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FILE=/workspace/logs/openhands.log
+    
+    volumes:
+      # Workspace (isolated for each run)
+      - openhands-workspace:/workspace
+      
+      # Logs persistence
+      - ./logs/openhands:/workspace/logs
+      
+      # Optional: SSH keys for private repos
+      # - ~/.ssh:/root/.ssh:ro
+    
+    ports:
+      - "3001:3000"  # Web UI
+    
+    networks:
+      - coffeeos-network
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+
+  # Optional: Local LLM with Ollama
+  ollama:
+    image: ollama/ollama:latest
+    container_name: coffeeos-ollama
+    profiles:
+      - local-llm
+    
+    volumes:
+      - ollama-models:/root/.ollama
+    
+    ports:
+      - "11434:11434"
+    
+    networks:
+      - coffeeos-network
+    
+    restart: unless-stopped
+    
+    # Uncomment for GPU support
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+volumes:
+  openhands-workspace:
+    driver: local
+  ollama-models:
+    driver: local
+
+networks:
+  coffeeos-network:
+    name: coffeeos-network
+    driver: bridge

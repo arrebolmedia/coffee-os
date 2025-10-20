@@ -1,0 +1,69 @@
+{
+  "name": "coffeeos",
+  "version": "1.0.0",
+  "description": "Multi-tenant coffee shop management platform",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "test:coverage": "turbo run test:coverage",
+    "test:load": "echo 'Load testing with k6 - install separately: npm install -g k6'",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "type-check": "turbo run type-check",
+    "precommit": "lint-staged",
+    "prepare": "husky",
+    "validate": "npm run format:check && npm run lint && npm run type-check && npm run test",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "db:migrate": "cd packages/database && npx prisma migrate dev",
+    "db:generate": "cd packages/database && npx prisma generate",
+    "db:seed": "cd packages/database && npx tsx seed.ts",
+    "db:studio": "cd packages/database && npx prisma studio",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "deploy:staging": "./scripts/deploy-staging.sh",
+    "deploy:prod": "./scripts/deploy-prod.sh",
+    "setup": "npm install && npm run db:migrate && npm run db:seed"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "@types/node": "^20.10.5",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.4",
+    "prettier": "^3.1.1",
+    "turbo": "^1.11.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tu-org/coffeeos.git"
+  },
+  "keywords": [
+    "coffee",
+    "pos",
+    "inventory",
+    "crm",
+    "multi-tenant",
+    "mexico",
+    "cfdi",
+    "nestjs",
+    "nextjs",
+    "react-native"
+  ],
+  "license": "MIT",
+  "author": "CoffeeOS Team",
+  "packageManager": "npm@9.8.1"
+}

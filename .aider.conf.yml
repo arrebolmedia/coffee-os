@@ -1,0 +1,61 @@
+# Aider Configuration for CoffeeOS
+# https://aider.chat/docs/config.html
+
+# Model configuration
+model: gpt-4o
+editor-model: gpt-4o-mini
+
+# Auto-commit settings
+auto-commits: true
+dirty-commits: true
+commit-prompt: Generate a conventional commit message following the format: type(scope): description
+
+# Edit format
+edit-format: diff
+
+# Files to read/edit
+read:
+  - apps/
+  - packages/
+  - docs/
+
+# Files to exclude
+exclude:
+  - node_modules/
+  - .next/
+  - dist/
+  - build/
+  - .turbo/
+  - coverage/
+  - .git/
+  - "*.lock"
+  - "*.log"
+
+# Message settings
+message-file: .aider.msg
+commit: true
+attribute-author: true
+attribute-committer: true
+
+# Linting and testing
+lint: true
+lint-cmd: "npm run lint"
+auto-test: false
+test-cmd: "npm run test"
+
+# Git settings
+git: true
+gitignore: true
+
+# Cache
+cache-prompts: true
+cache-keepalive-pings: 0
+
+# Voice
+voice-language: es
+
+# Map refresh
+map-refresh: auto
+
+# Show diffs
+show-diffs: true

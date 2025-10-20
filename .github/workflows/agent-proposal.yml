@@ -1,0 +1,216 @@
+name: Agent Proposal - Automated PR
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to process'
+        required: true
+        type: number
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  trigger-agent:
+    name: 🤖 Trigger OpenHands Agent
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'issue_comment' && 
+       contains(github.event.comment.body, '/agent propose') &&
+       (github.event.comment.author_association == 'OWNER' || 
+        github.event.comment.author_association == 'MEMBER' ||
+        github.event.comment.author_association == 'COLLABORATOR')) ||
+      github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: React to comment
+        if: github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'rocket'
+            });
+      
+      - name: Add processing label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = context.payload.issue?.number || ${{ github.event.inputs.issue_number }};
+            github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              labels: ['agent-processing']
+            });
+      
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get issue details
+        id: issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = context.payload.issue?.number || ${{ github.event.inputs.issue_number }};
+            const issue = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber
+            });
+            
+            core.setOutput('title', issue.data.title);
+            core.setOutput('body', issue.data.body);
+            core.setOutput('number', issue.data.number);
+            core.setOutput('labels', JSON.stringify(issue.data.labels.map(l => l.name)));
+            
+            return issue.data;
+      
+      - name: Setup OpenHands environment
+        run: |
+          echo "Setting up OpenHands agent..."
+          echo "Issue: #${{ steps.issue.outputs.number }}"
+          echo "Title: ${{ steps.issue.outputs.title }}"
+      
+      - name: Run OpenHands agent
+        id: openhands
+        run: |
+          # This is a placeholder for OpenHands integration
+          # In production, this would call OpenHands API or run the agent
+          
+          # Example command (to be implemented):
+          # docker run --rm \
+          #   -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
+          #   -e GIT_REPO=${{ github.repository }} \
+          #   -e ISSUE_NUMBER=${{ steps.issue.outputs.number }} \
+          #   -v $(pwd):/workspace \
+          #   ghcr.io/all-hands-ai/openhands:latest \
+          #   solve --issue ${{ steps.issue.outputs.number }}
+          
+          echo "branch=fix/issue-${{ steps.issue.outputs.number }}-$(date +%s)" >> $GITHUB_OUTPUT
+          echo "commit_message=fix: resolve issue #${{ steps.issue.outputs.number }}" >> $GITHUB_OUTPUT
+          
+          # Placeholder: simulate agent work
+          echo "Agent would work here..."
+          sleep 5
+      
+      - name: Create PR from agent branch
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = ${{ steps.issue.outputs.number }};
+            const branch = '${{ steps.openhands.outputs.branch }}';
+            
+            // Check if branch exists (placeholder)
+            // In production, agent would create the branch
+            
+            const prBody = `## 🤖 Automated Fix by OpenHands\n\n` +
+              `This PR was automatically generated to address issue #${issueNumber}.\n\n` +
+              `### Changes\n` +
+              `- Analyzed issue requirements\n` +
+              `- Generated solution\n` +
+              `- Added/updated tests\n\n` +
+              `### Review Checklist\n` +
+              `- [ ] Solution addresses the issue\n` +
+              `- [ ] Tests are passing\n` +
+              `- [ ] Code follows project standards\n` +
+              `- [ ] Documentation updated if needed\n\n` +
+              `**Note:** This is an automated PR. Please review carefully before merging.\n\n` +
+              `Closes #${issueNumber}`;
+            
+            // Create PR (placeholder - would be real in production)
+            console.log('Would create PR:', {
+              title: `fix: resolve issue #${issueNumber}`,
+              body: prBody,
+              head: branch,
+              base: 'main'
+            });
+      
+      - name: Comment on issue
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = ${{ steps.issue.outputs.number }};
+            const branch = '${{ steps.openhands.outputs.branch }}';
+            
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: `🤖 **Agent Update**\n\n` +
+                    `I've analyzed this issue and prepared a solution.\n\n` +
+                    `**Branch:** \`${branch}\`\n` +
+                    `**Status:** ✅ Ready for review\n\n` +
+                    `A pull request will be created shortly. Please review the changes and provide feedback.`
+            });
+      
+      - name: Update labels
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = ${{ steps.issue.outputs.number }};
+            
+            // Remove processing label
+            await github.rest.issues.removeLabel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              name: 'agent-processing'
+            }).catch(() => {});
+            
+            // Add bot-generated label
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              labels: ['bot-generated', 'needs-review']
+            });
+      
+      - name: Handle failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = context.payload.issue?.number || ${{ github.event.inputs.issue_number }};
+            
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: `🤖 **Agent Error**\n\n` +
+                    `I encountered an error while trying to solve this issue.\n\n` +
+                    `**Status:** ❌ Failed\n` +
+                    `**Action:** Please review the workflow logs and try again.\n\n` +
+                    `You may need to:\n` +
+                    `- Check if the issue description is clear\n` +
+                    `- Verify that required secrets are configured\n` +
+                    `- Manually investigate the problem`
+            });
+            
+            // Remove processing label and add error label
+            await github.rest.issues.removeLabel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              name: 'agent-processing'
+            }).catch(() => {});
+            
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              labels: ['agent-error']
+            });

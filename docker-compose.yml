@@ -1,0 +1,197 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: coffeeos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: coffeeos
+      POSTGRES_PASSWORD: coffeeos123
+      POSTGRES_DB: coffeeos_dev
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init:/docker-entrypoint-initdb.d
+    networks:
+      - coffeeos-network
+
+  # Redis Cache & Queue
+  redis:
+    image: redis:7-alpine
+    container_name: coffeeos-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - coffeeos-network
+
+  # Baserow - No-code Database
+  baserow:
+    image: baserow/baserow:1.22.3
+    container_name: coffeeos-baserow
+    restart: unless-stopped
+    environment:
+      BASEROW_PUBLIC_URL: http://localhost:8000
+      DATABASE_URL: postgresql://baserow:baserow123@baserow-db:5432/baserow
+      REDIS_URL: redis://redis:6379
+      DISABLE_VOLUME_CHECK: "yes"
+    ports:
+      - "8000:80"
+    volumes:
+      - baserow_media:/baserow/media
+      - baserow_data:/baserow/data
+    depends_on:
+      - baserow-db
+      - redis
+    networks:
+      - coffeeos-network
+
+  # Baserow Database
+  baserow-db:
+    image: postgres:15-alpine
+    container_name: coffeeos-baserow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: baserow
+      POSTGRES_PASSWORD: baserow123
+      POSTGRES_DB: baserow
+    volumes:
+      - baserow_postgres_data:/var/lib/postgresql/data
+    networks:
+      - coffeeos-network
+
+  # n8n - Automation Platform
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: coffeeos-n8n
+    restart: unless-stopped
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: coffeeos
+      DB_POSTGRESDB_PASSWORD: coffeeos123
+      N8N_BASIC_AUTH_ACTIVE: true
+      N8N_BASIC_AUTH_USER: admin
+      N8N_BASIC_AUTH_PASSWORD: coffeeos123
+      WEBHOOK_URL: http://localhost:5678
+      N8N_ENCRYPTION_KEY: very-secret-encryption-key-change-this
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./infrastructure/n8n/workflows:/home/node/.n8n/workflows
+    depends_on:
+      - postgres
+    networks:
+      - coffeeos-network
+
+  # Metabase - Analytics Dashboard
+  metabase:
+    image: metabase/metabase:latest
+    container_name: coffeeos-metabase
+    restart: unless-stopped
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase
+      MB_DB_PORT: 5432
+      MB_DB_USER: coffeeos
+      MB_DB_PASS: coffeeos123
+      MB_DB_HOST: postgres
+    ports:
+      - "3030:3000"
+    volumes:
+      - metabase_data:/metabase-data
+    depends_on:
+      - postgres
+    networks:
+      - coffeeos-network
+
+  # Mailhog - Email Testing (Development only)
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: coffeeos-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - coffeeos-network
+
+  # MinIO - S3 Compatible Storage
+  minio:
+    image: minio/minio:latest
+    container_name: coffeeos-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: coffeeos
+      MINIO_ROOT_PASSWORD: coffeeos123
+    ports:
+      - "9000:9000"  # API
+      - "9001:9001"  # Console
+    volumes:
+      - minio_data:/data
+    networks:
+      - coffeeos-network
+
+  # Prometheus - Metrics Collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: coffeeos-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - coffeeos-network
+
+  # Grafana - Monitoring Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: coffeeos-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: coffeeos123
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/docker/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    networks:
+      - coffeeos-network
+
+networks:
+  coffeeos-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  baserow_postgres_data:
+  baserow_media:
+  baserow_data:
+  n8n_data:
+  metabase_data:
+  minio_data:
+  prometheus_data:
+  grafana_data:

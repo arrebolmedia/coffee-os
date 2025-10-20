@@ -1,0 +1,11 @@
+{
+  "database_id": null,
+  "tables": {},
+  "api_url": "http://localhost:8000/api/database/tables/",
+  "created_at": null,
+  "config": {
+    "name": "CoffeeOS Core",
+    "tables_count": 0,
+    "baserow_url": "http://localhost:8000"
+  }
+}

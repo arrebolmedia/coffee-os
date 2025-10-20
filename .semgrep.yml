@@ -1,0 +1,158 @@
+# Semgrep Configuration for CoffeeOS
+# Security scanning with OWASP rules and custom patterns
+
+rules:
+  # OWASP Top 10 rules
+  - id: owasp-top-ten
+    patterns:
+      - pattern: $X
+    languages:
+      - typescript
+      - javascript
+    severity: WARNING
+    message: Check OWASP Top 10 compliance
+    metadata:
+      category: security
+      owasp: 'A01:2021 - Broken Access Control'
+      cwe: 'CWE-284'
+      
+  # SQL Injection prevention (Prisma)
+  - id: prisma-sql-injection
+    patterns:
+      - pattern: prisma.$queryRaw`... ${$VAR} ...`
+      - pattern: prisma.$executeRaw`... ${$VAR} ...`
+    languages:
+      - typescript
+    severity: ERROR
+    message: |
+      Potential SQL injection vulnerability.
+      Use Prisma's parameterized queries: prisma.$queryRaw`SELECT * FROM users WHERE id = ${Prisma.join([id])}`
+    metadata:
+      category: security
+      cwe: 'CWE-89'
+      owasp: 'A03:2021 - Injection'
+      
+  # Hard-coded secrets
+  - id: hardcoded-secret
+    patterns:
+      - pattern: |
+          const $VAR = "..."
+      - metavariable-pattern:
+          metavariable: $VAR
+          patterns:
+            - pattern-regex: '.*(password|secret|key|token|api_key|apikey).*'
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    message: |
+      Hard-coded secret detected. Use environment variables instead.
+      Example: process.env.API_KEY
+    metadata:
+      category: security
+      cwe: 'CWE-798'
+      
+  # JWT without expiration
+  - id: jwt-missing-expiration
+    patterns:
+      - pattern: jwt.sign($PAYLOAD, ...)
+      - pattern-not: jwt.sign($PAYLOAD, ..., { expiresIn: ... })
+    languages:
+      - typescript
+      - javascript
+    severity: WARNING
+    message: JWT should have an expiration time (expiresIn option)
+    metadata:
+      category: security
+      cwe: 'CWE-613'
+      
+  # Insecure random
+  - id: insecure-random
+    patterns:
+      - pattern: Math.random()
+    languages:
+      - typescript
+      - javascript
+    severity: WARNING
+    message: |
+      Math.random() is not cryptographically secure.
+      Use crypto.randomBytes() or crypto.getRandomValues() instead.
+    metadata:
+      category: security
+      cwe: 'CWE-338'
+      
+  # Missing authentication check
+  - id: missing-auth-guard
+    patterns:
+      - pattern: |
+          @$DECORATOR()
+          $METHOD(...) { ... }
+      - pattern-not-inside: |
+          @UseGuards(...)
+          ...
+      - metavariable-pattern:
+          metavariable: $DECORATOR
+          patterns:
+            - pattern-regex: '(Post|Get|Put|Delete|Patch)'
+    languages:
+      - typescript
+    severity: WARNING
+    message: Controller method may be missing authentication guard
+    paths:
+      include:
+        - "apps/api/src/**/*.controller.ts"
+    metadata:
+      category: security
+      cwe: 'CWE-306'
+      
+  # Prototype pollution
+  - id: prototype-pollution
+    patterns:
+      - pattern: Object.assign($TARGET, $SOURCE)
+      - pattern: $OBJECT[$KEY] = $VALUE
+      - metavariable-pattern:
+          metavariable: $KEY
+          patterns:
+            - pattern-regex: '.*(proto|constructor|prototype).*'
+    languages:
+      - typescript
+      - javascript
+    severity: ERROR
+    message: Potential prototype pollution vulnerability
+    metadata:
+      category: security
+      cwe: 'CWE-1321'
+      
+  # Sensitive data in logs
+  - id: sensitive-data-in-logs
+    patterns:
+      - pattern-either:
+          - pattern: console.log(..., $VAR, ...)
+          - pattern: logger.log(..., $VAR, ...)
+          - pattern: logger.info(..., $VAR, ...)
+      - metavariable-pattern:
+          metavariable: $VAR
+          patterns:
+            - pattern-regex: '.*(password|secret|token|key|credit|ssn|email).*'
+    languages:
+      - typescript
+      - javascript
+    severity: WARNING
+    message: Avoid logging sensitive data
+    metadata:
+      category: security
+      cwe: 'CWE-532'
+
+# Paths to scan
+paths:
+  include:
+    - apps/
+    - packages/
+  exclude:
+    - node_modules/
+    - dist/
+    - build/
+    - coverage/
+    - "*.test.ts"
+    - "*.spec.ts"
+    - "*.mock.ts"
