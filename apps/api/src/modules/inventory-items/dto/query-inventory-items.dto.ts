@@ -3,13 +3,11 @@ import {
   IsString,
   IsBoolean,
   IsNumber,
-  IsEnum,
   Min,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
-import { ModifierType } from './create-modifier.dto';
 
-export class QueryModifiersDto {
+export class QueryInventoryItemsDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
@@ -28,10 +26,19 @@ export class QueryModifiersDto {
   active?: boolean;
 
   @IsOptional()
-  @IsEnum(ModifierType)
-  type?: ModifierType;
+  @IsString()
+  category?: string;
 
   @IsOptional()
   @IsString()
   search?: string;
+
+  @IsOptional()
+  @IsString()
+  supplierId?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  lowStock?: boolean;
 }

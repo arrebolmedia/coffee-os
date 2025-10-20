@@ -13,19 +13,24 @@ async function bootstrap() {
   // Security
   app.use(helmet());
   app.use(compression());
-  
+
   // CORS
   app.enableCors({
-    origin: configService.get('CORS_ORIGINS')?.split(',') || ['http://localhost:3000', 'http://localhost:3001'],
+    origin: configService.get('CORS_ORIGINS')?.split(',') || [
+      'http://localhost:3000',
+      'http://localhost:3001',
+    ],
     credentials: true,
   });
 
   // Global validation pipe
-  app.useGlobalPipes(new ValidationPipe({
-    transform: true,
-    whitelist: true,
-    forbidNonWhitelisted: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
 
   // Global prefix
   app.setGlobalPrefix('api/v1');
@@ -55,7 +60,7 @@ async function bootstrap() {
 
   const port = configService.get('PORT') || 4000;
   await app.listen(port);
-  
+
   console.log(`🚀 CoffeeOS API running on: http://localhost:${port}`);
   console.log(`📚 Documentation: http://localhost:${port}/docs`);
 }

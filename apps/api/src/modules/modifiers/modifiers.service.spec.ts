@@ -1,10 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ModifiersService } from './modifiers.service';
 import { PrismaService } from '../database/prisma.service';
-import {
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { CreateModifierDto, ModifierType } from './dto/create-modifier.dto';
 import { UpdateModifierDto } from './dto/update-modifier.dto';
 
@@ -238,9 +235,9 @@ describe('ModifiersService', () => {
     it('should throw NotFoundException if modifier not found', async () => {
       mockPrismaService.modifier.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.findModifierProducts('invalid-id'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.findModifierProducts('invalid-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -276,9 +273,7 @@ describe('ModifiersService', () => {
       const existingModifier = { ...mockModifier, id: 'other-id' };
 
       mockPrismaService.modifier.findUnique.mockResolvedValue(mockModifier);
-      mockPrismaService.modifier.findFirst.mockResolvedValue(
-        existingModifier,
-      );
+      mockPrismaService.modifier.findFirst.mockResolvedValue(existingModifier);
 
       await expect(
         service.update('modifier-1', updateWithName),
@@ -314,9 +309,7 @@ describe('ModifiersService', () => {
         _count: { products: 0, ticketLineModifiers: 0 },
       };
 
-      mockPrismaService.modifier.findUnique.mockResolvedValue(
-        modifierNotInUse,
-      );
+      mockPrismaService.modifier.findUnique.mockResolvedValue(modifierNotInUse);
       mockPrismaService.modifier.delete.mockResolvedValue(mockModifier);
 
       await service.remove('modifier-1');
