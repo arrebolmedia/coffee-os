@@ -16,6 +16,7 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { PosModule } from './modules/pos/pos.module';
 import { ProductsModule } from './modules/products/products.module';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { ModifiersModule } from './modules/modifiers/modifiers.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { RecipesModule } from './modules/recipes/recipes.module';
 import { QualityModule } from './modules/quality/quality.module';
@@ -68,6 +69,7 @@ import { RedisModule } from './modules/redis/redis.module';
     PosModule,
     ProductsModule,
     CategoriesModule,
+    ModifiersModule,
     InventoryModule,
     RecipesModule,
     QualityModule,
