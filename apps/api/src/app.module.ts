@@ -19,6 +19,8 @@ import { CategoriesModule } from './modules/categories/categories.module';
 import { ModifiersModule } from './modules/modifiers/modifiers.module';
 import { InventoryItemsModule } from './modules/inventory-items/inventory-items.module';
 import { SuppliersModule } from './modules/suppliers/suppliers.module';
+import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
+import { LocationsModule } from './modules/locations/locations.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { InventoryMovementsModule } from './modules/inventory-movements/inventory-movements.module';
 import { RecipesModule } from './modules/recipes/recipes.module';
@@ -82,6 +84,8 @@ import { RedisModule } from './modules/redis/redis.module';
     ModifiersModule,
     InventoryItemsModule,
     SuppliersModule,
+    PurchaseOrdersModule,
+    LocationsModule,
     InventoryModule,
     InventoryMovementsModule,
     RecipesModule,
