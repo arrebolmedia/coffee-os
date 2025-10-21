@@ -47,6 +47,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { SettingsModule } from './modules/settings/settings.module';
 import { WasteModule } from './modules/waste/waste.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
+import { OnboardingModule } from './modules/onboarding/onboarding.module';
 
 // Infrastructure modules
 import { DatabaseModule } from './modules/database/database.module';
@@ -117,6 +118,7 @@ import { RedisModule } from './modules/redis/redis.module';
     SettingsModule,
     WasteModule,
     MaintenanceModule,
+    OnboardingModule,
   ],
 })
 export class AppModule {}

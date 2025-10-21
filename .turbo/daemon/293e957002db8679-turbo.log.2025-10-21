@@ -17,3 +17,188 @@
 2025-10-21T15:33:12.711513Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
 2025-10-21T15:38:19.907152Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf(".turbo\\cookies")}
 2025-10-21T15:38:19.907176Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-21T15:38:21.008373Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf(".turbo\\daemon\\293e957002db8679-turbo.log.2025-10-21")}
+2025-10-21T15:38:21.008449Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-21T15:38:32.196634Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("README.md")}
+2025-10-21T15:38:32.196647Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-21T15:38:43.108142Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("README.md")}
+2025-10-21T15:38:43.108231Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-21T15:45:58.706839Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("node_modules")}
+2025-10-21T15:45:58.706859Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-21T15:45:59.401684Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\package.json")}
+2025-10-21T15:45:59.401703Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T15:46:00.508965Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("package-lock.json")}
+2025-10-21T15:46:00.508990Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-21T15:46:01.200676Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("node_modules")}
+2025-10-21T15:46:01.200693Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-21T15:46:40.096836Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\recipes\\recipes.controller.spec.ts")}
+2025-10-21T15:46:40.096854Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T15:56:18.110340Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("README.md")}
+2025-10-21T15:56:18.110367Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-21T15:56:36.796750Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("README.md")}
+2025-10-21T15:56:36.796772Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-21T15:56:46.404188Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("README.md")}
+2025-10-21T15:56:46.404212Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-21T15:59:36.610319Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste")}
+2025-10-21T15:59:36.610337Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T15:59:37.125524Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T15:59:37.125705Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\tests"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\interfaces"), AnchoredSystemPathBuf("apps\\api\\src\\modules"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto")}
+2025-10-21T15:59:37.125715Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T15:59:37.125838Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:00:00.799459Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\interfaces\\waste.interface.ts")}
+2025-10-21T16:00:00.799478Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:00:01.171240Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\interfaces"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\interfaces\\waste.interface.ts")}
+2025-10-21T16:00:01.171259Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:00:01.171373Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:00:12.711737Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto\\create-waste-log.dto.ts")}
+2025-10-21T16:00:12.711755Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:00:12.952040Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto\\create-waste-log.dto.ts")}
+2025-10-21T16:00:12.952051Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:00:12.952115Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:00:21.410142Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto\\update-waste-log.dto.ts")}
+2025-10-21T16:00:21.410167Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:00:21.702321Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto\\update-waste-log.dto.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto")}
+2025-10-21T16:00:21.702350Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:00:21.702473Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:00:32.402245Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto\\create-sustainability-metric.dto.ts")}
+2025-10-21T16:00:32.402262Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:00:32.741892Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto\\create-sustainability-metric.dto.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto")}
+2025-10-21T16:00:32.741912Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:00:32.742038Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:00:43.301634Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto\\create-sustainability-target.dto.ts")}
+2025-10-21T16:00:43.301653Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:00:43.605189Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto\\create-sustainability-target.dto.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto")}
+2025-10-21T16:00:43.605209Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:00:43.605341Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:00:52.510099Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto\\query-waste-logs.dto.ts")}
+2025-10-21T16:00:52.510125Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:00:52.824647Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto\\query-waste-logs.dto.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto")}
+2025-10-21T16:00:52.824662Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:00:52.824789Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:01:02.808016Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto\\index.ts")}
+2025-10-21T16:01:02.808039Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:01:03.122597Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto\\index.ts")}
+2025-10-21T16:01:03.122608Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:01:03.122673Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:02:02.817722Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\waste.service.ts")}
+2025-10-21T16:02:02.817759Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:02:03.282931Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\waste.service.ts")}
+2025-10-21T16:02:03.282951Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:02:03.283068Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:02:25.703402Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\waste.controller.ts")}
+2025-10-21T16:02:25.703430Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:02:26.042379Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\waste.controller.ts")}
+2025-10-21T16:02:26.042410Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:02:26.042540Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:02:34.898228Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\waste.module.ts")}
+2025-10-21T16:02:34.898249Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:02:35.340304Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\waste.module.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste")}
+2025-10-21T16:02:35.340325Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:02:35.340482Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:04:03.607088Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\tests\\waste.service.spec.ts")}
+2025-10-21T16:04:03.607117Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:04:04.008324Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\tests"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\tests\\waste.service.spec.ts")}
+2025-10-21T16:04:04.008341Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:04:04.008468Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:05:31.799887Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\tests\\waste.service.spec.ts")}
+2025-10-21T16:05:31.799900Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:05:35.302100Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\settings\\tests\\settings.service.spec.ts")}
+2025-10-21T16:05:35.302113Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:05:35.335805Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:05:36.401472Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\recipes\\recipes.controller.spec.ts")}
+2025-10-21T16:05:36.401486Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:05:36.415655Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:09:16.705107Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\app.module.ts")}
+2025-10-21T16:09:16.705132Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:09:34.409988Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\app.module.ts")}
+2025-10-21T16:09:34.410012Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:11:59.198127Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("README.md")}
+2025-10-21T16:11:59.198142Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-21T16:12:15.304353Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("README.md")}
+2025-10-21T16:12:15.304367Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-21T16:12:27.997797Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("README.md")}
+2025-10-21T16:12:27.997811Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-21T16:16:07.306047Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance")}
+2025-10-21T16:16:07.306073Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:16:07.629364Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\tests"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\interfaces"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto"), AnchoredSystemPathBuf("apps\\api\\src\\modules"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance")}
+2025-10-21T16:16:07.629376Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:16:07.629442Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:16:31.097643Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\interfaces"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\interfaces\\maintenance.interface.ts")}
+2025-10-21T16:16:31.097657Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:16:31.221305Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\interfaces\\maintenance.interface.ts")}
+2025-10-21T16:16:31.221317Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:16:31.221381Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:16:44.398273Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto\\create-asset.dto.ts")}
+2025-10-21T16:16:44.398289Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:16:44.568196Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto\\create-asset.dto.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto")}
+2025-10-21T16:16:44.568208Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:16:44.568276Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:16:50.997968Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto\\update-asset.dto.ts")}
+2025-10-21T16:16:50.997981Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:16:51.168559Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto\\update-asset.dto.ts")}
+2025-10-21T16:16:51.168571Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:16:51.168639Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:17:00.904019Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto\\create-maintenance-record.dto.ts")}
+2025-10-21T16:17:00.904034Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:17:01.059389Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto\\create-maintenance-record.dto.ts")}
+2025-10-21T16:17:01.059400Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:17:01.059465Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:17:10.897665Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto\\complete-maintenance.dto.ts")}
+2025-10-21T16:17:10.897677Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:17:11.113159Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto\\complete-maintenance.dto.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto")}
+2025-10-21T16:17:11.113170Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:17:11.113236Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:17:23.405375Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto\\complete-maintenance.dto.ts")}
+2025-10-21T16:17:23.405388Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:17:29.502813Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto\\index.ts")}
+2025-10-21T16:17:29.502827Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:17:29.730192Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto\\index.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto")}
+2025-10-21T16:17:29.730204Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:17:29.730272Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:18:35.607402Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\maintenance.service.ts")}
+2025-10-21T16:18:35.607416Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:18:35.814335Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\maintenance.service.ts")}
+2025-10-21T16:18:35.814351Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:18:35.814433Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:18:58.700991Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\maintenance.controller.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance")}
+2025-10-21T16:18:58.701014Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:18:58.840552Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\maintenance.controller.ts")}
+2025-10-21T16:18:58.840563Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:18:58.840636Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:19:05.701105Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\maintenance.module.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance")}
+2025-10-21T16:19:05.701118Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:19:05.835743Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\maintenance.module.ts")}
+2025-10-21T16:19:05.835754Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:19:05.835823Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:20:19.501082Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\tests\\maintenance.service.spec.ts")}
+2025-10-21T16:20:19.501096Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:20:19.675742Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\tests"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\tests\\maintenance.service.spec.ts")}
+2025-10-21T16:20:19.675752Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:20:19.675819Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:31:41.207945Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\app.module.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\interfaces\\waste.interface.ts"), AnchoredSystemPathBuf("README.md")}
+2025-10-21T16:31:41.207963Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }, WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-21T16:31:42.135615Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:31:42.135817Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\interfaces\\maintenance.interface.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\maintenance.service.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto\\index.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto\\update-asset.dto.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto\\index.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\tests\\waste.service.spec.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\waste.module.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto\\complete-maintenance.dto.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto\\create-maintenance-record.dto.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\tests\\maintenance.service.spec.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto\\create-sustainability-target.dto.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\maintenance.module.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto\\query-waste-logs.dto.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto\\create-waste-log.dto.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto\\create-sustainability-metric.dto.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\dto\\create-asset.dto.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\maintenance.controller.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\dto\\update-waste-log.dto.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\waste.controller.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\waste\\waste.service.ts")}
+2025-10-21T16:31:42.135826Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:31:42.135892Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:31:57.999919Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\tests\\maintenance.service.spec.ts")}
+2025-10-21T16:31:57.999933Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:32:08.601545Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\tests\\maintenance.service.spec.ts")}
+2025-10-21T16:32:08.601566Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:37:43.003000Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\tests\\maintenance.service.spec.ts")}
+2025-10-21T16:37:43.003035Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:38:01.409158Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\app.module.ts")}
+2025-10-21T16:38:01.409172Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:38:08.001780Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\app.module.ts")}
+2025-10-21T16:38:08.001797Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:40:14.102394Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf(".turbo\\daemon\\293e957002db8679-turbo.log.2025-10-21")}
+2025-10-21T16:40:14.102517Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-21T16:40:16.399075Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\app.module.ts")}
+2025-10-21T16:40:16.399100Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:40:16.539334Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\maintenance\\tests\\maintenance.service.spec.ts")}
+2025-10-21T16:40:16.539345Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-21T16:40:16.539418Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-21T16:40:24.908762Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("README.md")}
+2025-10-21T16:40:24.908790Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-21T16:40:44.899088Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("README.md")}
+2025-10-21T16:40:44.899110Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
