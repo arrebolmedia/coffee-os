@@ -43,6 +43,7 @@ import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { TwilioModule } from './modules/integrations/twilio/twilio.module';
 import { MailrelayModule } from './modules/integrations/mailrelay/mailrelay.module';
 import { CfdiModule } from './modules/integrations/cfdi/cfdi.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 // Infrastructure modules
 import { DatabaseModule } from './modules/database/database.module';
@@ -109,6 +110,7 @@ import { RedisModule } from './modules/redis/redis.module';
     TwilioModule,
     MailrelayModule,
     CfdiModule,
+  NotificationsModule,
   ],
 })
 export class AppModule {}
