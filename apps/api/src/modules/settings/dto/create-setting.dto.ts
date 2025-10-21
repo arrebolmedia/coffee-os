@@ -32,4 +32,12 @@ export class CreateSettingDto {
   @IsBoolean()
   @IsOptional()
   is_readonly?: boolean = false;
+
+  @IsBoolean()
+  @IsOptional()
+  is_encrypted?: boolean = false;
+
+  @IsString()
+  @IsOptional()
+  created_by?: string;
 }
