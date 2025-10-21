@@ -15,9 +15,9 @@
 ## 🚨 Estado Actual
 
 > **✅ DESARROLLO ACTIVO**: Módulos backend en progreso  
-> **📊 Progreso**: 67% completado (18 de 27 módulos backend implementados)  
-> **🎯 Último módulo**: Roles & Permissions (37 tests, 100% passing)  
-> **🔗 Último commit**: [926cfbb](https://github.com/arrebolmedia/coffee-os/commit/926cfbb)
+> **📊 Progreso**: 70% completado (19 de 27 módulos backend implementados)  
+> **🎯 Último módulo**: Notifications (25 tests, 100% passing)  
+> **🔗 Último commit**: [3db127a](https://github.com/arrebolmedia/coffee-os/commit/3db127a)
 
 **Lee primero**: [QUICKSTART.md](./QUICKSTART.md) | [STATUS.md](./STATUS.md) | [INDICE.md](./INDICE.md)
 
@@ -162,10 +162,9 @@ CoffeeOS/
 | 👔 **HR & Training** | - | 58 | ✅ 100% | - |
 | 📊 **Analytics** | - | 72 | ✅ 100% | - |
 | 🔌 **Integrations** | - | 56 | ✅ 100% | - |
+| 🔔 **Notifications** | 12 | 25 | ✅ 100% | `3db127a` |
 
-| 🔔 **Notifications** | 12 | 12 | ✅ scaffold | `in-progress` |
-
-**Total**: **187+ endpoints** | **734 tests** | **100% passing**
+**Total**: **187+ endpoints** | **747 tests** | **100% passing**
 
 ### 🔄 Pendientes (8 módulos)
 
