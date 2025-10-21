@@ -11,8 +11,8 @@ import { useAuthStore } from '@/store/auth.store';
 import { ProductCatalog } from '@/components/pos/ProductCatalog';
 import { Cart } from '@/components/pos/Cart';
 import { PaymentModal } from '@/components/pos/PaymentModal';
-import { ShoppingCart, User, LogOut, Menu, X, Wifi, WifiOff } from 'lucide-react';
-import { useOfflineStore } from '@/store/offline.store';
+import { ShoppingCart, User, LogOut, Menu, X } from 'lucide-react';
+import { OfflineIndicator } from '@/components/pos/OfflineIndicator';
 import Link from 'next/link';
 
 export default function POSPage() {
@@ -23,8 +23,6 @@ export default function POSPage() {
   const getItemCount = useCartStore((state) => state.getItemCount);
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
-  const isOnline = useOfflineStore((state) => state.isOnline);
-  const syncQueueSize = useOfflineStore((state) => state.getQueueSize());
 
   const itemCount = getItemCount();
 
@@ -78,30 +76,7 @@ export default function POSPage() {
           {/* Center: Status */}
           <div className="flex items-center gap-4">
             {/* Online/Offline Status */}
-            <div
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${
-                isOnline
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-red-100 text-red-700'
-              }`}
-            >
-              {isOnline ? (
-                <>
-                  <Wifi className="w-4 h-4" />
-                  <span className="text-sm font-medium hidden sm:inline">En línea</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff className="w-4 h-4" />
-                  <span className="text-sm font-medium hidden sm:inline">Sin conexión</span>
-                  {syncQueueSize > 0 && (
-                    <span className="ml-2 px-2 py-0.5 bg-red-200 text-red-800 text-xs font-bold rounded-full">
-                      {syncQueueSize}
-                    </span>
-                  )}
-                </>
-              )}
-            </div>
+            <OfflineIndicator />
 
             {/* Cart Badge */}
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg">

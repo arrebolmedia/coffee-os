@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sin Conexión - CoffeeOS POS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 24px;
+            padding: 48px 32px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .icon {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 32px;
+            background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-center;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .icon svg {
+            width: 60px;
+            height: 60px;
+            stroke: white;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 16px;
+        }
+
+        p {
+            font-size: 18px;
+            color: #6b7280;
+            line-height: 1.6;
+            margin-bottom: 32px;
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: #fee2e2;
+            color: #dc2626;
+            border-radius: 12px;
+            font-weight: 600;
+            margin-bottom: 32px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #dc2626;
+            border-radius: 50%;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        button {
+            background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(245, 158, 11, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .features {
+            margin-top: 48px;
+            padding-top: 32px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .features h2 {
+            font-size: 18px;
+            color: #1f2937;
+            margin-bottom: 16px;
+        }
+
+        .feature-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            text-align: left;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .feature-icon {
+            width: 24px;
+            height: 24px;
+            background: #10b981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-center;
+            flex-shrink: 0;
+        }
+
+        .feature-icon svg {
+            width: 14px;
+            height: 14px;
+            stroke: white;
+            stroke-width: 3;
+        }
+
+        .feature-text {
+            font-size: 14px;
+            color: #4b5563;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8.5 14.5C8.5 14.5 10 16 12 16C14 16 15.5 14.5 15.5 14.5M15 9H15.01M9 9H9.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+
+        <div class="status">
+            <span class="status-dot"></span>
+            Sin conexión a Internet
+        </div>
+
+        <h1>Modo Sin Conexión</h1>
+        <p>
+            No te preocupes, puedes seguir trabajando. Todas tus transacciones se guardarán y sincronizarán automáticamente cuando recuperes la conexión.
+        </p>
+
+        <button onclick="tryReload()">
+            Reintentar Conexión
+        </button>
+
+        <div class="features">
+            <h2>Funcionalidades Disponibles</h2>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 13L9 17L19 7" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="feature-text">Ver catálogo de productos guardados</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 13L9 17L19 7" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="feature-text">Procesar ventas sin conexión</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 13L9 17L19 7" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="feature-text">Sincronización automática al reconectar</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function tryReload() {
+            if (navigator.onLine) {
+                window.location.href = '/pos';
+            } else {
+                alert('Aún sin conexión. Por favor intenta de nuevo en un momento.');
+            }
+        }
+
+        // Auto-reload when connection is restored
+        window.addEventListener('online', () => {
+            setTimeout(() => {
+                window.location.href = '/pos';
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
