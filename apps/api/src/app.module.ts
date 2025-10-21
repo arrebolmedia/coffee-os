@@ -46,6 +46,7 @@ import { CfdiModule } from './modules/integrations/cfdi/cfdi.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { WasteModule } from './modules/waste/waste.module';
+import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 
 // Infrastructure modules
 import { DatabaseModule } from './modules/database/database.module';
@@ -115,6 +116,7 @@ import { RedisModule } from './modules/redis/redis.module';
     NotificationsModule,
     SettingsModule,
     WasteModule,
+    MaintenanceModule,
   ],
 })
 export class AppModule {}
