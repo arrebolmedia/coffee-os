@@ -464,3 +464,43 @@
 2025-10-20T23:52:08.233409Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\roles\\dto\\index.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\roles\\dto")}
 2025-10-20T23:52:08.233431Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
 2025-10-20T23:52:08.233575Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-20T23:53:04.064478Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf(".turbo\\daemon\\293e957002db8679-turbo.log.2025-10-20")}
+2025-10-20T23:53:04.064501Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-20T23:53:04.474057Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\roles\\roles.service.ts")}
+2025-10-20T23:53:04.474158Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-20T23:53:04.825044Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\roles"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\roles\\roles.service.ts")}
+2025-10-20T23:53:04.825065Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-20T23:53:04.825229Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-20T23:53:19.766400Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\roles\\roles.controller.ts")}
+2025-10-20T23:53:19.766420Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-20T23:53:20.063772Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\roles\\roles.controller.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\roles")}
+2025-10-20T23:53:20.063795Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-20T23:53:20.063913Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-20T23:53:25.363322Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\roles\\roles.module.ts")}
+2025-10-20T23:53:25.363346Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-20T23:53:25.764421Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\roles\\roles.module.ts"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\roles")}
+2025-10-20T23:53:25.764444Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-20T23:53:25.764556Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-20T23:54:33.063511Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\roles\\tests\\roles.service.spec.ts")}
+2025-10-20T23:54:33.063528Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-20T23:54:33.267453Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\modules\\roles\\tests"), AnchoredSystemPathBuf("apps\\api\\src\\modules\\roles\\tests\\roles.service.spec.ts")}
+2025-10-20T23:54:33.267464Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-20T23:54:33.267526Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2025-10-20T23:54:48.355389Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\app.module.ts")}
+2025-10-20T23:54:48.355405Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-20T23:54:52.856772Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps\\api\\src\\app.module.ts")}
+2025-10-20T23:54:52.856787Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@coffeeos/api"), path: AnchoredSystemPathBuf("apps\\api") }}))
+2025-10-20T23:55:02.055074Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf(".turbo\\daemon\\293e957002db8679-turbo.log.2025-10-20")}
+2025-10-20T23:55:02.055090Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-20T23:55:03.967481Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf(".turbo\\daemon\\293e957002db8679-turbo.log.2025-10-20")}
+2025-10-20T23:55:03.967493Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-20T23:55:10.769061Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("README.md")}
+2025-10-20T23:55:10.769073Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-20T23:55:17.666427Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("README.md")}
+2025-10-20T23:55:17.666447Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-20T23:55:25.965386Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("README.md")}
+2025-10-20T23:55:25.965411Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-20T23:57:04.159802Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf(".turbo\\daemon\\293e957002db8679-turbo.log.2025-10-20")}
+2025-10-20T23:57:04.159830Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2025-10-20T23:59:04.068550Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf(".turbo\\daemon\\293e957002db8679-turbo.log.2025-10-20")}
+2025-10-20T23:59:04.068569Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))

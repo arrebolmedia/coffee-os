@@ -66,7 +66,7 @@ export class NotificationsService {
     if (dto.template_id) {
       const tpl = this.templates.get(dto.template_id);
       if (!tpl) throw new NotFoundException('Template not found');
-      notif.subject = notif.subject || tpl.subject;
+      notif.subject = notif.subject || (tpl.subject ? this.interpolate(tpl.subject, notif.data || {}) : undefined);
       notif.body = notif.body || this.interpolate(tpl.body, notif.data || {});
     }
 
