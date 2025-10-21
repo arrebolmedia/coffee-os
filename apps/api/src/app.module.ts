@@ -49,6 +49,7 @@ import { WasteModule } from './modules/waste/waste.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { DashboardsModule } from './modules/dashboards/dashboards.module';
 
 // Infrastructure modules
 import { DatabaseModule } from './modules/database/database.module';
@@ -121,6 +122,7 @@ import { RedisModule } from './modules/redis/redis.module';
     MaintenanceModule,
     OnboardingModule,
     ReportsModule,
+    DashboardsModule,
   ],
 })
 export class AppModule {}
