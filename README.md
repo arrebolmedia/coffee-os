@@ -16,8 +16,9 @@
 
 > **✅ DESARROLLO ACTIVO**: Módulos backend en progreso  
 > **📊 Progreso**: 74% completado (20 de 27 módulos backend implementados)  
+> **✅ Tests**: 916 tests pasando (52 suites, 100% success)  
 > **🎯 Último módulo**: Settings (28 tests, 100% passing)  
-> **🔗 Último commit**: [5fd7d6d](https://github.com/arrebolmedia/coffee-os/commit/5fd7d6d)
+> **🔗 Último commit**: [0b25a9e](https://github.com/arrebolmedia/coffee-os/commit/0b25a9e)
 
 **Lee primero**: [QUICKSTART.md](./QUICKSTART.md) | [STATUS.md](./STATUS.md) | [INDICE.md](./INDICE.md)
 
@@ -165,12 +166,17 @@ CoffeeOS/
 | 🔔 **Notifications** | 12 | 25 | ✅ 100% | `3db127a` |
 | ⚙️ **Settings** | 7 | 28 | ✅ 100% | `5fd7d6d` |
 
-**Total**: **194+ endpoints** | **775 tests** | **100% passing**
+**Total**: **194+ endpoints** | **916 tests** | **✅ 100% passing** (52 suites)
 
 ### 🔄 Pendientes (7 módulos)
 
-- 🔄 **Settings** - Configuración multi-tenant
-- � **Frontend Components** (POS, Admin, Mobile)
+- 🔄 **Waste & Sustainability** - Tracking de desperdicio y métricas eco
+- 🔄 **Maintenance & Assets** - Gestión de equipos y mantenimiento  
+- 🔄 **Onboarding** - Malla curricular 30/60/90
+- 🔄 **Reports** - Generación de reportes avanzados
+- 🔄 **Dashboards** - Tableros operativos y KPIs
+- 🔄 **Mobile Sync** - Sincronización offline
+- 📱 **Frontend Components** (POS, Admin, Mobile)
 
 Ver roadmap completo en [todos/README.md](./todos/README.md)
 
