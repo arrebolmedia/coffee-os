@@ -45,6 +45,7 @@ import { MailrelayModule } from './modules/integrations/mailrelay/mailrelay.modu
 import { CfdiModule } from './modules/integrations/cfdi/cfdi.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { WasteModule } from './modules/waste/waste.module';
 
 // Infrastructure modules
 import { DatabaseModule } from './modules/database/database.module';
@@ -113,6 +114,7 @@ import { RedisModule } from './modules/redis/redis.module';
     CfdiModule,
     NotificationsModule,
     SettingsModule,
+    WasteModule,
   ],
 })
 export class AppModule {}
