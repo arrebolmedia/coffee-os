@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { RecipesController } from './recipes.controller';
 import { RecipesService } from './recipes.service';
-import { CreateRecipeDto } from './dto/create-recipe.dto';
+import { CreateRecipeDto, RecipeCategory } from './dto/create-recipe.dto';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
 import { QueryRecipesDto } from './dto/query-recipes.dto';
 
@@ -12,43 +12,33 @@ describe('RecipesController', () => {
   const mockRecipesService = {
     create: jest.fn(),
     findAll: jest.fn(),
-    findAllActive: jest.fn(),
-    findByProduct: jest.fn(),
-    findOne: jest.fn(),
+    findById: jest.fn(),
     calculateCost: jest.fn(),
+    scaleRecipe: jest.fn(),
     update: jest.fn(),
-    remove: jest.fn(),
+    delete: jest.fn(),
+    getStats: jest.fn(),
+    analyzeProfitability: jest.fn(),
   };
 
   const mockRecipe = {
     id: 'recipe-1',
-    productId: 'product-1',
+    organization_id: 'org-1',
     name: 'Latte Recipe',
     description: 'Classic latte recipe',
+    category: RecipeCategory.LECHE,
     servings: 1,
-    prepTimeMinutes: 5,
-    instructions: 'Steam milk, pull espresso, combine',
-    active: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    product: {
-      id: 'product-1',
-      name: 'Latte',
-      sku: 'LAT-001',
-    },
+    is_active: true,
+    created_at: new Date(),
+    updated_at: new Date(),
     ingredients: [
       {
         id: 'ing-1',
-        recipeId: 'recipe-1',
-        inventoryItemId: 'inv-1',
+        recipe_id: 'recipe-1',
+        inventory_item_id: 'inv-1',
         quantity: 240,
         unit: 'ml',
-        inventoryItem: {
-          id: 'inv-1',
-          code: 'MILK-001',
-          name: 'Whole Milk',
-          costPerUnit: 0.02,
-        },
+        cost_per_unit: 0.02,
       },
     ],
   };
@@ -79,12 +69,13 @@ describe('RecipesController', () => {
   describe('create', () => {
     it('should create a recipe', async () => {
       const createDto: CreateRecipeDto = {
-        productId: 'product-1',
+        organization_id: 'org-1',
         name: 'Latte Recipe',
+        category: RecipeCategory.LECHE,
         servings: 1,
         ingredients: [
           {
-            inventoryItemId: 'inv-1',
+            inventory_item_id: 'inv-1',
             quantity: 240,
             unit: 'ml',
           },
@@ -101,75 +92,47 @@ describe('RecipesController', () => {
   });
 
   describe('findAll', () => {
-    it('should return paginated recipes', async () => {
+    it('should return filtered recipes', async () => {
       const query: QueryRecipesDto = {
-        skip: 0,
-        take: 10,
+        organization_id: 'org-1',
       };
 
-      const paginatedResult = {
-        items: [mockRecipe],
-        total: 1,
-        skip: 0,
-        take: 10,
-      };
+      const recipes = [mockRecipe];
 
-      mockRecipesService.findAll.mockResolvedValue(paginatedResult);
+      mockRecipesService.findAll.mockResolvedValue(recipes);
 
       const result = await controller.findAll(query);
 
-      expect(result).toEqual(paginatedResult);
+      expect(result).toEqual(recipes);
       expect(service.findAll).toHaveBeenCalledWith(query);
     });
   });
 
-  describe('findAllActive', () => {
-    it('should return all active recipes', async () => {
-      mockRecipesService.findAllActive.mockResolvedValue([mockRecipe]);
-
-      const result = await controller.findAllActive();
-
-      expect(result).toEqual([mockRecipe]);
-      expect(service.findAllActive).toHaveBeenCalled();
-    });
-  });
-
-  describe('findByProduct', () => {
-    it('should return recipes for a product', async () => {
-      mockRecipesService.findByProduct.mockResolvedValue([mockRecipe]);
-
-      const result = await controller.findByProduct('product-1');
-
-      expect(result).toEqual([mockRecipe]);
-      expect(service.findByProduct).toHaveBeenCalledWith('product-1');
-    });
-  });
-
-  describe('findOne', () => {
+  describe('findById', () => {
     it('should return a recipe by id', async () => {
-      mockRecipesService.findOne.mockResolvedValue(mockRecipe);
+      mockRecipesService.findById.mockResolvedValue(mockRecipe);
 
-      const result = await controller.findOne('recipe-1');
+      const result = await controller.findById('recipe-1');
 
       expect(result).toEqual(mockRecipe);
-      expect(service.findOne).toHaveBeenCalledWith('recipe-1');
+      expect(service.findById).toHaveBeenCalledWith('recipe-1');
     });
   });
 
   describe('calculateCost', () => {
     it('should calculate recipe cost', async () => {
       const costResult = {
-        recipeId: 'recipe-1',
-        recipeName: 'Latte Recipe',
-        totalCost: 4.8,
+        recipe_id: 'recipe-1',
+        recipe_name: 'Latte Recipe',
+        total_cost: 4.8,
         currency: 'MXN',
         ingredients: [
           {
             name: 'Whole Milk',
             quantity: 240,
             unit: 'ml',
-            costPerUnit: 0.02,
-            totalCost: 4.8,
+            cost_per_unit: 0.02,
+            total_cost: 4.8,
           },
         ],
       };
@@ -186,10 +149,10 @@ describe('RecipesController', () => {
   describe('update', () => {
     it('should update a recipe', async () => {
       const updateDto: UpdateRecipeDto = {
-        prepTimeMinutes: 4,
+        estimated_time_minutes: 4,
       };
 
-      const updatedRecipe = { ...mockRecipe, prepTimeMinutes: 4 };
+      const updatedRecipe = { ...mockRecipe, estimated_time_minutes: 4 };
       mockRecipesService.update.mockResolvedValue(updatedRecipe);
 
       const result = await controller.update('recipe-1', updateDto);
@@ -199,13 +162,58 @@ describe('RecipesController', () => {
     });
   });
 
-  describe('remove', () => {
-    it('should remove a recipe', async () => {
-      mockRecipesService.remove.mockResolvedValue(undefined);
+  describe('delete', () => {
+    it('should delete a recipe', async () => {
+      mockRecipesService.delete.mockResolvedValue(undefined);
 
-      await controller.remove('recipe-1');
+      await controller.delete('recipe-1');
 
-      expect(service.remove).toHaveBeenCalledWith('recipe-1');
+      expect(service.delete).toHaveBeenCalledWith('recipe-1');
+    });
+  });
+
+  describe('getStats', () => {
+    it('should return recipe statistics', async () => {
+      const stats = {
+        total: 10,
+        by_category: {
+          [RecipeCategory.LECHE]: 5,
+          [RecipeCategory.ESPRESSO]: 3,
+          [RecipeCategory.FILTRADO]: 2,
+        },
+        active: 8,
+        inactive: 2,
+      };
+
+      mockRecipesService.getStats.mockResolvedValue(stats);
+
+      const result = await controller.getStats('org-1');
+
+      expect(result).toEqual(stats);
+      expect(service.getStats).toHaveBeenCalledWith('org-1');
+    });
+  });
+
+  describe('analyzeProfitability', () => {
+    it('should analyze recipe profitability', async () => {
+      const analysis = {
+        recipes: [
+          {
+            recipe_id: 'recipe-1',
+            recipe_name: 'Latte',
+            cost: 15.5,
+            suggested_price: 50,
+            margin_percentage: 68.9,
+          },
+        ],
+      };
+
+      mockRecipesService.analyzeProfitability.mockResolvedValue(analysis);
+
+      const result = await controller.analyzeProfitability('org-1');
+
+      expect(result).toEqual(analysis);
+      expect(service.analyzeProfitability).toHaveBeenCalledWith('org-1');
     });
   });
 });
