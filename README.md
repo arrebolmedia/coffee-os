@@ -15,10 +15,10 @@
 ## 🚨 Estado Actual
 
 > **✅ DESARROLLO ACTIVO**: Módulos backend en progreso  
-> **📊 Progreso**: 82% completado (22 de 27 módulos backend implementados)  
-> **✅ Tests**: 992 tests pasando (54 suites, 100% success)  
-> **🎯 Último módulo**: Maintenance & Assets (37 tests, 100% passing)  
-> **🔗 Último commit**: [5c3d2a1](https://github.com/arrebolmedia/coffee-os/commit/5c3d2a1)
+> **📊 Progreso**: 85% completado (23 de 27 módulos backend implementados)  
+> **✅ Tests**: 1040 tests pasando (55 suites, 100% success)  
+> **🎯 Último módulo**: Onboarding & HR Training (48 tests, 100% passing)  
+> **🔗 Último commit**: [36b52b9](https://github.com/arrebolmedia/coffee-os/commit/36b52b9)
 
 **Lee primero**: [QUICKSTART.md](./QUICKSTART.md) | [STATUS.md](./STATUS.md) | [INDICE.md](./INDICE.md)
 
@@ -139,7 +139,7 @@ CoffeeOS/
 - **Monitoreo**: Prometheus + Grafana
 - **Logs**: ELK Stack
 
-## 📦 Módulos Backend (22 de 27 Completados)
+## 📦 Módulos Backend (23 de 27 Completados)
 
 ### ✅ Módulos Completados
 
@@ -167,12 +167,12 @@ CoffeeOS/
 | ⚙️ **Settings** | 7 | 28 | ✅ 100% | `5fd7d6d` |
 | ♻️ **Waste & Sustainability** | 14 | 39 | ✅ 100% | `714829c` |
 | 🔧 **Maintenance & Assets** | 15 | 37 | ✅ 100% | `5c3d2a1` |
+| 🎓 **Onboarding & HR Training** | 22 | 48 | ✅ 100% | `36b52b9` |
 
-**Total**: **223+ endpoints** | **992 tests** | **✅ 100% passing** (54 suites)
+**Total**: **245+ endpoints** | **1040 tests** | **✅ 100% passing** (55 suites)
 
-### 🔄 Pendientes (5 módulos)
+### 🔄 Pendientes (4 módulos)
 
-- 🔄 **Onboarding** - Malla curricular 30/60/90
 - 🔄 **Reports** - Generación de reportes avanzados
 - 🔄 **Dashboards** - Tableros operativos y KPIs
 - 🔄 **Mobile Sync** - Sincronización offline
