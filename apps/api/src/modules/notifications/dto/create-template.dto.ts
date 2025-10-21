@@ -1,5 +1,14 @@
-import { IsString, IsUUID, IsEnum, IsOptional, IsArray, MaxLength } from 'class-validator';
-import { Channel } from '../interfaces';
+import {
+  IsString,
+  IsUUID,
+  IsEnum,
+  IsOptional,
+  IsArray,
+  IsBoolean,
+  IsObject,
+  MaxLength,
+} from 'class-validator';
+import { Channel, TemplateCategory } from '../interfaces';
 
 export class CreateTemplateDto {
   @IsUUID()
@@ -13,6 +22,14 @@ export class CreateTemplateDto {
   @MaxLength(200)
   name: string;
 
+  @IsString()
+  @IsOptional()
+  @MaxLength(1000)
+  description?: string;
+
+  @IsEnum(TemplateCategory)
+  category: TemplateCategory;
+
   @IsEnum(Channel)
   channel: Channel;
 
@@ -24,7 +41,22 @@ export class CreateTemplateDto {
   @IsString()
   body: string;
 
+  @IsString()
+  @IsOptional()
+  html_body?: string;
+
   @IsArray()
   @IsOptional()
   variables?: string[];
+
+  @IsObject()
+  @IsOptional()
+  metadata?: Record<string, any>;
+
+  @IsBoolean()
+  @IsOptional()
+  is_active?: boolean;
+
+  @IsUUID()
+  created_by: string;
 }

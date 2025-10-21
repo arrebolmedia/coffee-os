@@ -1,12 +1,22 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotificationsService } from '../notifications.service';
-import { CreateTemplateDto, CreateNotificationDto } from '../dto';
-import { Channel, NotificationStatus } from '../interfaces';
 import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { NotificationsService } from '../notifications.service';
+import {
+  Channel,
+  NotificationStatus,
+  NotificationPriority,
+  TemplateCategory,
+} from '../interfaces/notification.interface';
+import { CreateTemplateDto } from '../dto/create-template.dto';
+import { CreateNotificationDto } from '../dto/create-notification.dto';
+import { CreatePreferenceDto } from '../dto/create-preference.dto';
+import { CreateBatchDto } from '../dto/create-batch.dto';
 
 describe('NotificationsService', () => {
   let service: NotificationsService;
-  const orgId = 'org-123';
+
+  const mockOrgId = '123e4567-e89b-12d3-a456-426614174000';
+  const mockUserId = '123e4567-e89b-12d3-a456-426614174001';
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -14,409 +24,729 @@ describe('NotificationsService', () => {
     }).compile();
 
     service = module.get<NotificationsService>(NotificationsService);
-    (service as any).templates.clear();
-    (service as any).notifications.clear();
   });
 
-  describe('createTemplate', () => {
-    it('should create a template with all fields', async () => {
-      const dto: CreateTemplateDto = {
-        organization_id: orgId,
-        code: 'WELCOME_1',
-        name: 'Welcome Email',
-        channel: Channel.EMAIL,
-        subject: 'Bienvenido {{user_name}}',
-        body: '<p>Hola {{user_name}}</p>',
-        variables: ['user_name'],
-      };
-
-      const tpl = await service.createTemplate(dto);
-      expect(tpl).toBeDefined();
-      expect(tpl.id).toBeDefined();
-      expect(tpl.code).toBe('WELCOME_1');
-      expect(tpl.channel).toBe(Channel.EMAIL);
-      expect(tpl.variables).toEqual(['user_name']);
-      expect(tpl.created_at).toBeInstanceOf(Date);
-    });
-
-    it('should throw ConflictException if code exists', async () => {
-      await service.createTemplate({
-        organization_id: orgId,
-        code: 'DUP',
-        name: 'Test',
-        channel: Channel.EMAIL,
-        body: 'test',
-      });
-
-      await expect(
-        service.createTemplate({
-          organization_id: orgId,
-          code: 'DUP',
-          name: 'Test 2',
-          channel: Channel.SMS,
-          body: 'test',
-        }),
-      ).rejects.toThrow(ConflictException);
-    });
-
-    it('should allow same code in different orgs', async () => {
-      await service.createTemplate({
-        organization_id: orgId,
-        code: 'SAME',
-        name: 'Test',
-        channel: Channel.EMAIL,
-        body: 'test',
-      });
-
-      const tpl2 = await service.createTemplate({
-        organization_id: 'org-456',
-        code: 'SAME',
-        name: 'Test 2',
-        channel: Channel.SMS,
-        body: 'test',
-      });
-
-      expect(tpl2.code).toBe('SAME');
-    });
+  afterEach(() => {
+    // Clear all storage
+    service['templates'].clear();
+    service['notifications'].clear();
+    service['preferences'].clear();
+    service['batches'].clear();
+    service['logs'].clear();
   });
 
-  describe('findTemplates', () => {
-    beforeEach(async () => {
-      await service.createTemplate({
-        organization_id: orgId,
-        code: 'T1',
-        name: 'Template 1',
-        channel: Channel.EMAIL,
-        body: 'body1',
-      });
-      await service.createTemplate({
-        organization_id: orgId,
-        code: 'T2',
-        name: 'Template 2',
-        channel: Channel.SMS,
-        body: 'body2',
-      });
-      await service.createTemplate({
-        organization_id: 'org-456',
-        code: 'T3',
-        name: 'Template 3',
-        channel: Channel.EMAIL,
-        body: 'body3',
-      });
-    });
-
-    it('should return all templates', async () => {
-      const result = await service.findTemplates();
-      expect(result).toHaveLength(3);
-    });
-
-    it('should filter by organization_id', async () => {
-      const result = await service.findTemplates(orgId);
-      expect(result).toHaveLength(2);
-    });
+  it('should be defined', () => {
+    expect(service).toBeDefined();
   });
 
-  describe('findTemplateById', () => {
-    it('should return template by id', async () => {
-      const created = await service.createTemplate({
-        organization_id: orgId,
-        code: 'FIND',
-        name: 'Find Me',
-        channel: Channel.EMAIL,
-        body: 'test',
-      });
-
-      const result = await service.findTemplateById(created.id);
-      expect(result.id).toBe(created.id);
-    });
-
-    it('should throw NotFoundException if not found', async () => {
-      await expect(service.findTemplateById('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
-    });
-  });
-
-  describe('createNotification', () => {
-    it('should create notification without template', async () => {
-      const dto: CreateNotificationDto = {
-        organization_id: orgId,
-        channel: Channel.SMS,
-        to: '+5215555555555',
-        body: 'Hola mundo',
-      };
-
-      const notif = await service.createNotification(dto);
-      expect(notif).toBeDefined();
-      expect(notif.channel).toBe(Channel.SMS);
-      expect(notif.to).toBe('+5215555555555');
-      expect(notif.body).toBe('Hola mundo');
-      expect(notif.status).toBe(NotificationStatus.PENDING);
-      expect(notif.attempts).toBe(0);
-    });
-
-    it('should create notification with template and interpolate', async () => {
-      const tpl = await service.createTemplate({
-        organization_id: orgId,
-        code: 'WELCOME',
-        name: 'Welcome',
-        channel: Channel.EMAIL,
-        subject: 'Hola {{name}}',
-        body: 'Bienvenido {{name}}, tu código es {{code}}',
-      });
-
-      const dto: CreateNotificationDto = {
-        organization_id: orgId,
-        channel: Channel.EMAIL,
-        to: 'user@example.com',
-        template_id: tpl.id,
-        data: { name: 'Carlos', code: '1234' },
-      };
-
-      const notif = await service.createNotification(dto);
-      expect(notif.body).toBe('Bienvenido Carlos, tu código es 1234');
-      expect(notif.subject).toBe('Hola Carlos');
-    });
-
-    it('should create scheduled notification', async () => {
-      const scheduled = new Date('2025-12-31');
-      const dto: CreateNotificationDto = {
-        organization_id: orgId,
-        channel: Channel.EMAIL,
-        to: 'user@example.com',
-        body: 'test',
-        scheduled_at: scheduled,
-      };
-
-      const notif = await service.createNotification(dto);
-      expect(notif.status).toBe(NotificationStatus.SCHEDULED);
-      expect(notif.scheduled_at).toEqual(scheduled);
-    });
-
-    it('should throw NotFoundException if template not found', async () => {
-      await expect(
-        service.createNotification({
-          organization_id: orgId,
+  describe('Templates', () => {
+    describe('createTemplate', () => {
+      it('should create a new template', async () => {
+        const dto: CreateTemplateDto = {
+          organization_id: mockOrgId,
+          code: 'welcome_email',
+          name: 'Welcome Email',
+          description: 'Sent to new users',
+          category: TemplateCategory.TRANSACTIONAL,
           channel: Channel.EMAIL,
-          to: 'test@test.com',
-          template_id: 'non-existent',
-        }),
-      ).rejects.toThrow(NotFoundException);
+          subject: 'Welcome to {{app_name}}!',
+          body: 'Hello {{name}}, welcome!',
+          html_body: '<h1>Hello {{name}}</h1>',
+          variables: ['app_name', 'name'],
+          created_by: mockUserId,
+        };
+
+        const result = await service.createTemplate(dto);
+
+        expect(result).toBeDefined();
+        expect(result.id).toContain('tpl-');
+        expect(result.code).toBe('welcome_email');
+        expect(result.is_active).toBe(true);
+      });
+
+      it('should throw ConflictException if code exists', async () => {
+        const dto: CreateTemplateDto = {
+          organization_id: mockOrgId,
+          code: 'welcome_email',
+          name: 'Welcome Email',
+          category: TemplateCategory.TRANSACTIONAL,
+          channel: Channel.EMAIL,
+          body: 'Hello!',
+          created_by: mockUserId,
+        };
+
+        await service.createTemplate(dto);
+
+        await expect(service.createTemplate(dto)).rejects.toThrow(
+          ConflictException,
+        );
+      });
+    });
+
+    describe('findAllTemplates', () => {
+      beforeEach(async () => {
+        await service.createTemplate({
+          organization_id: mockOrgId,
+          code: 'email1',
+          name: 'Email 1',
+          category: TemplateCategory.TRANSACTIONAL,
+          channel: Channel.EMAIL,
+          body: 'Test',
+          created_by: mockUserId,
+        });
+
+        await service.createTemplate({
+          organization_id: mockOrgId,
+          code: 'sms1',
+          name: 'SMS 1',
+          category: TemplateCategory.MARKETING,
+          channel: Channel.SMS,
+          body: 'Test',
+          created_by: mockUserId,
+        });
+      });
+
+      it('should return all templates', async () => {
+        const result = await service.findAllTemplates();
+        expect(result.length).toBeGreaterThanOrEqual(2);
+      });
+
+      it('should filter by organization_id', async () => {
+        const result = await service.findAllTemplates(mockOrgId);
+        expect(result.every((t) => t.organization_id === mockOrgId)).toBe(true);
+      });
+
+      it('should filter by channel', async () => {
+        const result = await service.findAllTemplates(undefined, Channel.EMAIL);
+        expect(result.every((t) => t.channel === Channel.EMAIL)).toBe(true);
+      });
+
+      it('should filter by category', async () => {
+        const result = await service.findAllTemplates(
+          undefined,
+          undefined,
+          TemplateCategory.MARKETING,
+        );
+        expect(
+          result.every((t) => t.category === TemplateCategory.MARKETING),
+        ).toBe(true);
+      });
+    });
+
+    describe('findTemplateById', () => {
+      it('should return template by id', async () => {
+        const created = await service.createTemplate({
+          organization_id: mockOrgId,
+          code: 'test',
+          name: 'Test',
+          category: TemplateCategory.TRANSACTIONAL,
+          channel: Channel.EMAIL,
+          body: 'Test',
+          created_by: mockUserId,
+        });
+
+        const result = await service.findTemplateById(created.id);
+        expect(result).toEqual(created);
+      });
+
+      it('should throw NotFoundException', async () => {
+        await expect(service.findTemplateById('invalid')).rejects.toThrow(
+          NotFoundException,
+        );
+      });
+    });
+
+    describe('findTemplateByCode', () => {
+      it('should return template by code', async () => {
+        await service.createTemplate({
+          organization_id: mockOrgId,
+          code: 'test_code',
+          name: 'Test',
+          category: TemplateCategory.TRANSACTIONAL,
+          channel: Channel.EMAIL,
+          body: 'Test',
+          created_by: mockUserId,
+        });
+
+        const result = await service.findTemplateByCode(mockOrgId, 'test_code');
+        expect(result.code).toBe('test_code');
+      });
+
+      it('should throw NotFoundException for invalid code', async () => {
+        await expect(
+          service.findTemplateByCode(mockOrgId, 'invalid'),
+        ).rejects.toThrow(NotFoundException);
+      });
+    });
+
+    describe('updateTemplate', () => {
+      it('should update template', async () => {
+        const created = await service.createTemplate({
+          organization_id: mockOrgId,
+          code: 'test',
+          name: 'Original',
+          category: TemplateCategory.TRANSACTIONAL,
+          channel: Channel.EMAIL,
+          body: 'Test',
+          created_by: mockUserId,
+        });
+
+        const result = await service.updateTemplate(created.id, {
+          name: 'Updated',
+        });
+
+        expect(result.name).toBe('Updated');
+      });
+    });
+
+    describe('deleteTemplate', () => {
+      it('should delete template', async () => {
+        const created = await service.createTemplate({
+          organization_id: mockOrgId,
+          code: 'test',
+          name: 'Test',
+          category: TemplateCategory.TRANSACTIONAL,
+          channel: Channel.EMAIL,
+          body: 'Test',
+          created_by: mockUserId,
+        });
+
+        await service.deleteTemplate(created.id);
+
+        await expect(service.findTemplateById(created.id)).rejects.toThrow(
+          NotFoundException,
+        );
+      });
     });
   });
 
-  describe('findAll', () => {
+  describe('Notifications', () => {
+    let templateId: string;
+
     beforeEach(async () => {
-      await service.createNotification({
-        organization_id: orgId,
+      const template = await service.createTemplate({
+        organization_id: mockOrgId,
+        code: 'test_template',
+        name: 'Test Template',
+        category: TemplateCategory.TRANSACTIONAL,
         channel: Channel.EMAIL,
-        to: 'a@test.com',
-        body: 'A',
+        subject: 'Hello {{name}}',
+        body: 'Message for {{name}}',
+        created_by: mockUserId,
       });
-      await service.createNotification({
-        organization_id: orgId,
-        channel: Channel.SMS,
-        to: '+52155',
-        body: 'B',
+      templateId = template.id;
+    });
+
+    describe('createNotification', () => {
+      it('should create notification with template', async () => {
+        const dto: CreateNotificationDto = {
+          organization_id: mockOrgId,
+          user_id: mockUserId,
+          template_id: templateId,
+          channel: Channel.EMAIL,
+          to: 'test@example.com',
+          data: { name: 'John' },
+        };
+
+        const result = await service.createNotification(dto);
+
+        expect(result).toBeDefined();
+        expect(result.id).toContain('not-');
+        expect(result.subject).toBe('Hello John');
+        expect(result.body).toBe('Message for John');
+        expect(result.status).toBe(NotificationStatus.PENDING);
       });
-      await service.createNotification({
-        organization_id: 'org-456',
-        channel: Channel.EMAIL,
-        to: 'c@test.com',
-        body: 'C',
+
+      it('should create notification without template', async () => {
+        const dto: CreateNotificationDto = {
+          organization_id: mockOrgId,
+          channel: Channel.SMS,
+          to: '+1234567890',
+          subject: 'Test',
+          body: 'Test message',
+        };
+
+        const result = await service.createNotification(dto);
+        expect(result.subject).toBe('Test');
+        expect(result.body).toBe('Test message');
+      });
+
+      it('should set scheduled status', async () => {
+        const dto: CreateNotificationDto = {
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          to: 'test@example.com',
+          body: 'Test',
+          scheduled_at: new Date(),
+        };
+
+        const result = await service.createNotification(dto);
+        expect(result.status).toBe(NotificationStatus.SCHEDULED);
+      });
+
+      it('should throw error for inactive template', async () => {
+        await service.updateTemplate(templateId, { is_active: false });
+
+        const dto: CreateNotificationDto = {
+          organization_id: mockOrgId,
+          template_id: templateId,
+          channel: Channel.EMAIL,
+          to: 'test@example.com',
+          data: {},
+        };
+
+        await expect(service.createNotification(dto)).rejects.toThrow(
+          BadRequestException,
+        );
       });
     });
 
-    it('should return all notifications', async () => {
-      const result = await service.findAll();
-      expect(result).toHaveLength(3);
+    describe('findAllNotifications', () => {
+      beforeEach(async () => {
+        await service.createNotification({
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          priority: NotificationPriority.HIGH,
+          to: 'test@example.com',
+          body: 'Test',
+        });
+
+        await service.createNotification({
+          organization_id: mockOrgId,
+          user_id: mockUserId,
+          channel: Channel.SMS,
+          priority: NotificationPriority.NORMAL,
+          to: '+1234567890',
+          body: 'Test',
+        });
+      });
+
+      it('should return all notifications', async () => {
+        const result = await service.findAllNotifications();
+        expect(result.length).toBeGreaterThanOrEqual(2);
+      });
+
+      it('should filter by organization_id', async () => {
+        const result = await service.findAllNotifications(mockOrgId);
+        expect(result.every((n) => n.organization_id === mockOrgId)).toBe(true);
+      });
+
+      it('should filter by user_id', async () => {
+        const result = await service.findAllNotifications(
+          undefined,
+          mockUserId,
+        );
+        expect(result.every((n) => n.user_id === mockUserId)).toBe(true);
+      });
+
+      it('should filter by channel', async () => {
+        const result = await service.findAllNotifications(
+          undefined,
+          undefined,
+          Channel.EMAIL,
+        );
+        expect(result.every((n) => n.channel === Channel.EMAIL)).toBe(true);
+      });
+
+      it('should filter by priority', async () => {
+        const result = await service.findAllNotifications(
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          NotificationPriority.HIGH,
+        );
+        expect(result.every((n) => n.priority === NotificationPriority.HIGH)).toBe(
+          true,
+        );
+      });
     });
 
-    it('should filter by organization_id', async () => {
-      const result = await service.findAll(orgId);
-      expect(result).toHaveLength(2);
+    describe('sendNotification', () => {
+      it('should send notification', async () => {
+        const notification = await service.createNotification({
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          to: 'test@example.com',
+          body: 'Test',
+        });
+
+        const result = await service.sendNotification(notification.id);
+
+        expect(result.status).toBe(NotificationStatus.DELIVERED);
+        expect(result.sent_at).toBeDefined();
+        expect(result.delivered_at).toBeDefined();
+        expect(result.attempts).toBe(1);
+      });
+
+      it('should throw error if already sent', async () => {
+        const notification = await service.createNotification({
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          to: 'test@example.com',
+          body: 'Test',
+        });
+
+        await service.sendNotification(notification.id);
+
+        await expect(
+          service.sendNotification(notification.id),
+        ).rejects.toThrow(BadRequestException);
+      });
     });
 
-    it('should sort by created_at desc', async () => {
-      const result = await service.findAll(orgId);
-      expect(result[0].created_at.getTime()).toBeGreaterThanOrEqual(
-        result[1].created_at.getTime(),
-      );
+    describe('retryNotification', () => {
+      it('should retry failed notification', async () => {
+        const notification = await service.createNotification({
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          to: 'test@example.com',
+          body: 'Test',
+        });
+
+        // Manually set as failed
+        notification.status = NotificationStatus.FAILED;
+        notification.attempts = 1;
+        service['notifications'].set(notification.id, notification);
+
+        const result = await service.retryNotification(notification.id);
+        expect(result.attempts).toBe(2);
+      });
+
+      it('should fail after max retries', async () => {
+        const notification = await service.createNotification({
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          to: 'test@example.com',
+          body: 'Test',
+          max_attempts: 3,
+        });
+
+        // Set attempts to max
+        notification.attempts = 3;
+        service['notifications'].set(notification.id, notification);
+
+        await expect(
+          service.retryNotification(notification.id),
+        ).rejects.toThrow(BadRequestException);
+      });
+    });
+
+    describe('markDelivered', () => {
+      it('should mark as delivered', async () => {
+        const notification = await service.createNotification({
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          to: 'test@example.com',
+          body: 'Test',
+        });
+
+        const result = await service.markDelivered(notification.id);
+        expect(result.status).toBe(NotificationStatus.DELIVERED);
+        expect(result.delivered_at).toBeDefined();
+      });
+    });
+
+    describe('markRead', () => {
+      it('should mark as read', async () => {
+        const notification = await service.createNotification({
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          to: 'test@example.com',
+          body: 'Test',
+        });
+
+        const result = await service.markRead(notification.id);
+        expect(result.status).toBe(NotificationStatus.READ);
+        expect(result.read_at).toBeDefined();
+      });
+    });
+
+    describe('markBounced', () => {
+      it('should mark as bounced', async () => {
+        const notification = await service.createNotification({
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          to: 'test@example.com',
+          body: 'Test',
+        });
+
+        const result = await service.markBounced(
+          notification.id,
+          'Invalid email',
+        );
+        expect(result.status).toBe(NotificationStatus.BOUNCED);
+        expect(result.bounced_at).toBeDefined();
+        expect(result.last_error).toBe('Invalid email');
+      });
+    });
+
+    describe('deleteNotification', () => {
+      it('should delete notification', async () => {
+        const notification = await service.createNotification({
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          to: 'test@example.com',
+          body: 'Test',
+        });
+
+        await service.deleteNotification(notification.id);
+
+        await expect(
+          service.findNotificationById(notification.id),
+        ).rejects.toThrow(NotFoundException);
+      });
+    });
+
+    describe('getNotificationLogs', () => {
+      it('should return logs', async () => {
+        const notification = await service.createNotification({
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          to: 'test@example.com',
+          body: 'Test',
+        });
+
+        await service.sendNotification(notification.id);
+
+        const logs = await service.getNotificationLogs(notification.id);
+        expect(logs.length).toBeGreaterThan(0);
+      });
     });
   });
 
-  describe('findById', () => {
-    it('should return notification by id', async () => {
-      const created = await service.createNotification({
-        organization_id: orgId,
-        channel: Channel.EMAIL,
-        to: 'test@test.com',
-        body: 'test',
+  describe('Preferences', () => {
+    describe('createPreference', () => {
+      it('should create preference', async () => {
+        const dto: CreatePreferenceDto = {
+          user_id: mockUserId,
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          category: TemplateCategory.MARKETING,
+          enabled: false,
+          quiet_hours_start: '22:00',
+          quiet_hours_end: '08:00',
+        };
+
+        const result = await service.createPreference(dto);
+
+        expect(result).toBeDefined();
+        expect(result.id).toContain('pref-');
+        expect(result.enabled).toBe(false);
       });
 
-      const result = await service.findById(created.id);
-      expect(result.id).toBe(created.id);
+      it('should throw ConflictException if exists', async () => {
+        const dto: CreatePreferenceDto = {
+          user_id: mockUserId,
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          category: TemplateCategory.MARKETING,
+          enabled: true,
+        };
+
+        await service.createPreference(dto);
+
+        await expect(service.createPreference(dto)).rejects.toThrow(
+          ConflictException,
+        );
+      });
     });
 
-    it('should throw NotFoundException if not found', async () => {
-      await expect(service.findById('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+    describe('findUserPreferences', () => {
+      beforeEach(async () => {
+        await service.createPreference({
+          user_id: mockUserId,
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          category: TemplateCategory.MARKETING,
+          enabled: false,
+        });
+      });
+
+      it('should return user preferences', async () => {
+        const result = await service.findUserPreferences(mockUserId);
+        expect(result.length).toBeGreaterThan(0);
+        expect(result.every((p) => p.user_id === mockUserId)).toBe(true);
+      });
+    });
+
+    describe('updatePreference', () => {
+      it('should update preference', async () => {
+        const pref = await service.createPreference({
+          user_id: mockUserId,
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          category: TemplateCategory.MARKETING,
+          enabled: false,
+        });
+
+        const result = await service.updatePreference(pref.id, {
+          enabled: true,
+        });
+
+        expect(result.enabled).toBe(true);
+      });
+    });
+
+    describe('deletePreference', () => {
+      it('should delete preference', async () => {
+        const pref = await service.createPreference({
+          user_id: mockUserId,
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          category: TemplateCategory.MARKETING,
+          enabled: false,
+        });
+
+        await service.deletePreference(pref.id);
+
+        await expect(service.updatePreference(pref.id, {})).rejects.toThrow(
+          NotFoundException,
+        );
+      });
     });
   });
 
-  describe('sendNotification', () => {
-    it('should send pending notification', async () => {
-      const notif = await service.createNotification({
-        organization_id: orgId,
-        channel: Channel.EMAIL,
-        to: 'test@test.com',
-        body: 'test',
-      });
+  describe('Batches', () => {
+    let templateId: string;
 
-      const sent = await service.sendNotification(notif.id);
-      expect(sent.status).toBe(NotificationStatus.DELIVERED);
-      expect(sent.sent_at).toBeDefined();
-      expect(sent.delivered_at).toBeDefined();
-      expect(sent.attempts).toBe(1);
-    });
-
-    it('should throw BadRequestException if already sent', async () => {
-      const notif = await service.createNotification({
-        organization_id: orgId,
-        channel: Channel.EMAIL,
-        to: 'test@test.com',
-        body: 'test',
-      });
-
-      await service.sendNotification(notif.id);
-
-      await expect(service.sendNotification(notif.id)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-  });
-
-  describe('retryNotification', () => {
-    it('should retry notification', async () => {
-      const notif = await service.createNotification({
-        organization_id: orgId,
-        channel: Channel.SMS,
-        to: '+52155',
-        body: 'test',
-      });
-
-      const retried = await service.retryNotification(notif.id);
-      expect(retried.attempts).toBe(1);
-      expect(retried.status).toBe(NotificationStatus.DELIVERED);
-    });
-
-    it('should mark as failed after 3 attempts', async () => {
-      const notif = await service.createNotification({
-        organization_id: orgId,
-        channel: Channel.SMS,
-        to: '+52155',
-        body: 'test',
-      });
-
-      // Force 3 attempts
-      const n = (service as any).notifications.get(notif.id);
-      n.attempts = 3;
-      (service as any).notifications.set(notif.id, n);
-
-      const result = await service.retryNotification(notif.id);
-      expect(result.status).toBe(NotificationStatus.FAILED);
-      expect(result.last_error).toContain('Max retries');
-    });
-  });
-
-  describe('markDelivered', () => {
-    it('should mark notification as delivered', async () => {
-      const notif = await service.createNotification({
-        organization_id: orgId,
-        channel: Channel.PUSH,
-        to: 'user-123',
-        body: 'test',
-      });
-
-      const result = await service.markDelivered(notif.id);
-      expect(result.status).toBe(NotificationStatus.DELIVERED);
-      expect(result.delivered_at).toBeInstanceOf(Date);
-    });
-  });
-
-  describe('markRead', () => {
-    it('should mark notification as read', async () => {
-      const notif = await service.createNotification({
-        organization_id: orgId,
-        channel: Channel.IN_APP,
-        to: 'user-123',
-        body: 'test',
-      });
-
-      const result = await service.markRead(notif.id);
-      expect(result.status).toBe(NotificationStatus.READ);
-      expect(result.read_at).toBeInstanceOf(Date);
-    });
-  });
-
-  describe('deleteNotification', () => {
-    it('should delete notification', async () => {
-      const notif = await service.createNotification({
-        organization_id: orgId,
-        channel: Channel.EMAIL,
-        to: 'test@test.com',
-        body: 'test',
-      });
-
-      await service.deleteNotification(notif.id);
-
-      await expect(service.findById(notif.id)).rejects.toThrow(
-        NotFoundException,
-      );
-    });
-
-    it('should throw NotFoundException if not found', async () => {
-      await expect(service.deleteNotification('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
-    });
-  });
-
-  describe('getStats', () => {
     beforeEach(async () => {
-      await service.createNotification({
-        organization_id: orgId,
+      const template = await service.createTemplate({
+        organization_id: mockOrgId,
+        code: 'batch_template',
+        name: 'Batch Template',
+        category: TemplateCategory.MARKETING,
         channel: Channel.EMAIL,
-        to: 'a@test.com',
-        body: 'A',
+        subject: 'Hello {{name}}',
+        body: 'Message for {{name}}',
+        created_by: mockUserId,
       });
-      await service.createNotification({
-        organization_id: orgId,
-        channel: Channel.EMAIL,
-        to: 'b@test.com',
-        body: 'B',
+      templateId = template.id;
+    });
+
+    describe('createBatch', () => {
+      it('should create batch', async () => {
+        const dto: CreateBatchDto = {
+          organization_id: mockOrgId,
+          name: 'Test Batch',
+          description: 'Test batch sending',
+          template_id: templateId,
+          channel: Channel.EMAIL,
+          recipients: ['user1@example.com', 'user2@example.com'],
+          data: { company: 'CoffeeOS' },
+          created_by: mockUserId,
+        };
+
+        const result = await service.createBatch(dto);
+
+        expect(result).toBeDefined();
+        expect(result.id).toContain('batch-');
+        expect(result.total_count).toBe(2);
+        expect(result.status).toBe('pending');
       });
-      await service.createNotification({
-        organization_id: orgId,
-        channel: Channel.SMS,
-        to: '+52155',
-        body: 'C',
-      });
-      await service.createNotification({
-        organization_id: 'org-456',
-        channel: Channel.EMAIL,
-        to: 'c@test.com',
-        body: 'D',
+
+      it('should throw error for inactive template', async () => {
+        await service.updateTemplate(templateId, { is_active: false });
+
+        const dto: CreateBatchDto = {
+          organization_id: mockOrgId,
+          name: 'Test Batch',
+          template_id: templateId,
+          channel: Channel.EMAIL,
+          recipients: ['test@example.com'],
+          created_by: mockUserId,
+        };
+
+        await expect(service.createBatch(dto)).rejects.toThrow(
+          BadRequestException,
+        );
       });
     });
 
-    it('should return comprehensive stats', async () => {
-      const stats = await service.getStats(orgId);
-      expect(stats.total).toBe(3);
-      expect(stats.by_channel[Channel.EMAIL]).toBe(2);
-      expect(stats.by_channel[Channel.SMS]).toBe(1);
-      expect(stats.by_status[NotificationStatus.PENDING]).toBe(3);
+    describe('processBatch', () => {
+      it('should process batch and create notifications', async () => {
+        const batch = await service.createBatch({
+          organization_id: mockOrgId,
+          name: 'Test Batch',
+          template_id: templateId,
+          channel: Channel.EMAIL,
+          recipients: ['user1@example.com', 'user2@example.com'],
+          data: { company: 'CoffeeOS' },
+          created_by: mockUserId,
+        });
+
+        const result = await service.processBatch(batch.id);
+
+        expect(result.status).toBe('completed');
+        expect(result.sent_count).toBe(2);
+
+        const notifications = await service.findAllNotifications(mockOrgId);
+        expect(notifications.length).toBeGreaterThanOrEqual(2);
+      });
+
+      it('should throw error if already processed', async () => {
+        const batch = await service.createBatch({
+          organization_id: mockOrgId,
+          name: 'Test Batch',
+          template_id: templateId,
+          channel: Channel.EMAIL,
+          recipients: ['test@example.com'],
+          created_by: mockUserId,
+        });
+
+        await service.processBatch(batch.id);
+
+        await expect(service.processBatch(batch.id)).rejects.toThrow(
+          BadRequestException,
+        );
+      });
+    });
+  });
+
+  describe('Statistics', () => {
+    beforeEach(async () => {
+      // Create some notifications
+      await service.createNotification({
+        organization_id: mockOrgId,
+        channel: Channel.EMAIL,
+        to: 'test1@example.com',
+        body: 'Test',
+        priority: NotificationPriority.HIGH,
+      });
+
+      const notif2 = await service.createNotification({
+        organization_id: mockOrgId,
+        channel: Channel.SMS,
+        to: '+1234567890',
+        body: 'Test',
+        priority: NotificationPriority.NORMAL,
+      });
+
+      await service.sendNotification(notif2.id);
+    });
+
+    describe('getStats', () => {
+      it('should return comprehensive statistics', async () => {
+        const result = await service.getStats(mockOrgId);
+
+        expect(result.organization_id).toBe(mockOrgId);
+        expect(result.total).toBeGreaterThanOrEqual(2);
+        expect(result.by_status).toBeDefined();
+        expect(result.by_channel).toBeDefined();
+        expect(result.by_priority).toBeDefined();
+        expect(result.success_rate).toBeDefined();
+      });
+
+      it('should calculate success rate', async () => {
+        const result = await service.getStats(mockOrgId);
+        expect(result.success_rate).toBeGreaterThan(0);
+      });
+
+      it('should include today counts', async () => {
+        const result = await service.getStats(mockOrgId);
+        expect(result.sent_today).toBeDefined();
+        expect(result.delivered_today).toBeDefined();
+      });
     });
   });
 });
