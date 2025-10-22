@@ -82,13 +82,10 @@ export class ProductsController {
   /**
    * Obtener producto por SKU
    */
-  @Get('sku/:sku/:organization_id')
+  @Get('sku/:sku')
   @HttpCode(HttpStatus.OK)
-  async findBySku(
-    @Param('sku') sku: string,
-    @Param('organization_id') organization_id: string,
-  ) {
-    return this.productsService.findBySku(sku, organization_id);
+  async findBySku(@Param('sku') sku: string) {
+    return this.productsService.findBySku(sku);
   }
 
   /**
@@ -124,31 +121,25 @@ export class ProductsController {
   /**
    * Crear modificador para un producto
    */
-  @Post(':id/modifiers')
+  @Post(':id/modifiers/:modifierId')
   @HttpCode(HttpStatus.CREATED)
-  async createModifier(@Body() createModifierDto: CreateModifierDto) {
-    return this.productsService.createModifier(createModifierDto);
-  }
-
-  /**
-   * Actualizar modificador
-   */
-  @Patch('modifiers/:id')
-  @HttpCode(HttpStatus.OK)
-  async updateModifier(
+  async createModifier(
     @Param('id') id: string,
-    @Body() updateModifierDto: UpdateModifierDto,
+    @Param('modifierId') modifierId: string,
   ) {
-    return this.productsService.updateModifier(id, updateModifierDto);
+    return this.productsService.createModifier(id, modifierId);
   }
 
   /**
-   * Eliminar modificador
+   * Eliminar modificador de producto
    */
-  @Delete('modifiers/:id')
+  @Delete(':id/modifiers/:modifierId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteModifier(@Param('id') id: string) {
-    await this.productsService.deleteModifier(id);
+  async deleteModifier(
+    @Param('id') id: string,
+    @Param('modifierId') modifierId: string,
+  ) {
+    await this.productsService.deleteModifier(id, modifierId);
   }
 
   /**
@@ -164,23 +155,21 @@ export class ProductsController {
   }
 
   /**
-   * Obtener estadísticas de productos por organización
+   * Obtener estadísticas de productos
    */
-  @Get('organization/:organization_id/stats')
+  @Get('stats')
   @HttpCode(HttpStatus.OK)
-  async getStats(@Param('organization_id') organization_id: string) {
-    return this.productsService.getStats(organization_id);
+  async getStats() {
+    return this.productsService.getStats();
   }
 
   /**
    * Analizar rentabilidad de productos
    */
-  @Get('organization/:organization_id/profitability')
+  @Get('profitability')
   @HttpCode(HttpStatus.OK)
-  async analyzeProfitability(
-    @Param('organization_id') organization_id: string,
-  ) {
-    return this.productsService.analyzeProfitability(organization_id);
+  async analyzeProfitability() {
+    return this.productsService.analyzeProfitability();
   }
 
   /**

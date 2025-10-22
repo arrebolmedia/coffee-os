@@ -5,34 +5,46 @@ import {
   ConflictException,
   Logger,
 } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
+import { PrismaService } from '../database/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { QueryCategoriesDto } from './dto/query-categories.dto';
 import {
-  Category,
-  CategoryTree,
-  CategoryStats,
-  CategoryType,
-  CategoryStatus,
-  CategoryBreadcrumb,
-} from './interfaces';
+  BulkDeleteCategoriesDto,
+  BulkUpdateStatusDto,
+  ReorderCategoriesDto,
+} from './dto/bulk-operations.dto';
+import { CategoryStatus } from './interfaces';
 
+/**
+ * CategoriesService con Prisma ORM
+ * 
+ * Nota: El schema actual de Prisma es simplificado:
+ * - No incluye parent_id (jerarquías)
+ * - No incluye organization_id (multi-tenant)
+ * - Campos básicos: id, name, description, color, icon, sortOrder, active
+ * 
+ * Este servicio se adapta al schema existente.
+ */
 @Injectable()
 export class CategoriesService {
   private readonly logger = new Logger(CategoriesService.name);
-  private categories = new Map<string, Category>();
+
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Crear categoría
    */
-  async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
-    // Validar nombre único en organización
-    const existing = Array.from(this.categories.values()).find(
-      (c) =>
-        c.organization_id === createCategoryDto.organization_id &&
-        c.name.toLowerCase() === createCategoryDto.name.toLowerCase(),
-    );
+  async create(createCategoryDto: CreateCategoryDto): Promise<any> {
+    // Validar nombre único
+    const existing = await this.prisma.category.findFirst({
+      where: {
+        name: {
+          equals: createCategoryDto.name,
+          mode: 'insensitive',
+        },
+      },
+    });
 
     if (existing) {
       throw new ConflictException(
@@ -40,164 +52,63 @@ export class CategoriesService {
       );
     }
 
-    // Validar parent_id si existe
-    if (createCategoryDto.parent_id) {
-      const parent = this.categories.get(createCategoryDto.parent_id);
-      if (!parent) {
-        throw new NotFoundException(
-          `Parent category ${createCategoryDto.parent_id} not found`,
-        );
-      }
+    // Crear categoría
+    const category = await this.prisma.category.create({
+      data: {
+        name: createCategoryDto.name,
+        description: createCategoryDto.description,
+        icon: createCategoryDto.icon,
+        color: createCategoryDto.color,
+        sortOrder: createCategoryDto.display_order ?? 0,
+        active: createCategoryDto.status === CategoryStatus.ACTIVE,
+      },
+      include: {
+        products: true,
+      },
+    });
 
-      // Validar misma organización
-      if (parent.organization_id !== createCategoryDto.organization_id) {
-        throw new BadRequestException(
-          'Parent category must be in the same organization',
-        );
-      }
-    }
-
-    // Generar slug si no existe
-    const slug =
-      createCategoryDto.slug ||
-      createCategoryDto.name
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '') // Remove accents
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '');
-
-    // Calcular level y path
-    const level = createCategoryDto.parent_id
-      ? this.categories.get(createCategoryDto.parent_id)!.level + 1
-      : 0;
-
-    const path = createCategoryDto.parent_id
-      ? `${this.categories.get(createCategoryDto.parent_id)!.path}/${slug}`
-      : `/${slug}`;
-
-    // Calcular display_order si no existe
-    const display_order =
-      createCategoryDto.display_order ?? this.getNextDisplayOrder();
-
-    const category: Category = {
-      id: uuidv4(),
-      organization_id: createCategoryDto.organization_id,
-      name: createCategoryDto.name,
-      slug,
-      description: createCategoryDto.description,
-      type: createCategoryDto.type ?? CategoryType.PRODUCT,
-      status: createCategoryDto.status ?? CategoryStatus.ACTIVE,
-      parent_id: createCategoryDto.parent_id,
-      level,
-      path,
-      display_order,
-      icon: createCategoryDto.icon,
-      color: createCategoryDto.color,
-      image_url: createCategoryDto.image_url,
-      is_featured: createCategoryDto.is_featured ?? false,
-      show_in_menu: createCategoryDto.show_in_menu ?? true,
-      allow_products: createCategoryDto.allow_products ?? true,
-      tags: createCategoryDto.tags ?? [],
-      created_at: new Date(),
-      updated_at: new Date(),
-    };
-
-    this.categories.set(category.id, category);
-    this.logger.log(`Created category: ${category.name} (${category.id})`);
-
+    this.logger.log(`Categoría creada: ${category.name}`);
     return category;
   }
 
   /**
    * Listar categorías con filtros
    */
-  async findAll(query?: QueryCategoriesDto): Promise<Category[]> {
-    let categories = Array.from(this.categories.values());
+  async findAll(query?: QueryCategoriesDto): Promise<any[]> {
+    const where: any = {};
 
-    if (query) {
-      // Filtrar por organization_id
-      if (query.organization_id) {
-        categories = categories.filter(
-          (c) => c.organization_id === query.organization_id,
-        );
-      }
-
-      // Filtrar por parent_id
-      if (query.parent_id !== undefined) {
-        categories = categories.filter((c) => c.parent_id === query.parent_id);
-      }
-
-      // Filtrar por type
-      if (query.type) {
-        categories = categories.filter((c) => c.type === query.type);
-      }
-
-      // Filtrar por status
-      if (query.status) {
-        categories = categories.filter((c) => c.status === query.status);
-      }
-
-      // Filtrar por level
-      if (query.level !== undefined) {
-        categories = categories.filter((c) => c.level === query.level);
-      }
-
-      // Filtrar por is_featured
-      if (query.is_featured === 'true') {
-        categories = categories.filter((c) => c.is_featured);
-      } else if (query.is_featured === 'false') {
-        categories = categories.filter((c) => !c.is_featured);
-      }
-
-      // Filtrar por show_in_menu
-      if (query.show_in_menu === 'true') {
-        categories = categories.filter((c) => c.show_in_menu);
-      } else if (query.show_in_menu === 'false') {
-        categories = categories.filter((c) => !c.show_in_menu);
-      }
-
-      // Filtrar por allow_products
-      if (query.allow_products === 'true') {
-        categories = categories.filter((c) => c.allow_products);
-      } else if (query.allow_products === 'false') {
-        categories = categories.filter((c) => !c.allow_products);
-      }
-
-      // Búsqueda por texto
-      if (query.search) {
-        const searchLower = query.search.toLowerCase();
-        categories = categories.filter(
-          (c) =>
-            c.name.toLowerCase().includes(searchLower) ||
-            c.slug.toLowerCase().includes(searchLower) ||
-            c.description?.toLowerCase().includes(searchLower) ||
-            c.path.toLowerCase().includes(searchLower),
-        );
-      }
-
-      // Ordenamiento
-      const sortBy = query.sort_by || 'display_order';
-      const order = query.order || 'asc';
-
-      categories.sort((a, b) => {
-        let comparison = 0;
-
-        switch (sortBy) {
-          case 'name':
-            comparison = a.name.localeCompare(b.name);
-            break;
-          case 'display_order':
-            comparison = a.display_order - b.display_order;
-            break;
-          case 'created_at':
-            comparison = a.created_at.getTime() - b.created_at.getTime();
-            break;
-        }
-
-        return order === 'asc' ? comparison : -comparison;
-      });
+    // Filtro por estado activo
+    if (query?.status) {
+      where.active = query.status === CategoryStatus.ACTIVE;
     }
+
+    // Búsqueda por texto
+    if (query?.search) {
+      where.OR = [
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { description: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+
+    // Ordenamiento
+    const sortBy = query?.sort_by || 'sortOrder';
+    const order = query?.order || 'asc';
+
+    const orderBy: any = {};
+    orderBy[sortBy === 'display_order' ? 'sortOrder' : sortBy] = order;
+
+    const categories = await this.prisma.category.findMany({
+      where,
+      orderBy,
+      include: {
+        products: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
 
     return categories;
   }
@@ -205,8 +116,13 @@ export class CategoriesService {
   /**
    * Obtener categoría por ID
    */
-  async findById(id: string): Promise<Category> {
-    const category = this.categories.get(id);
+  async findById(id: string): Promise<any> {
+    const category = await this.prisma.category.findUnique({
+      where: { id },
+      include: {
+        products: true,
+      },
+    });
 
     if (!category) {
       throw new NotFoundException(`Category with ID ${id} not found`);
@@ -216,124 +132,24 @@ export class CategoriesService {
   }
 
   /**
-   * Obtener categoría por slug
-   */
-  async findBySlug(
-    slug: string,
-    organization_id: string,
-  ): Promise<Category> {
-    const category = Array.from(this.categories.values()).find(
-      (c) => c.slug === slug && c.organization_id === organization_id,
-    );
-
-    if (!category) {
-      throw new NotFoundException(
-        `Category with slug "${slug}" not found in organization`,
-      );
-    }
-
-    return category;
-  }
-
-  /**
-   * Obtener árbol de categorías
-   */
-  async getTree(organization_id: string): Promise<CategoryTree[]> {
-    const categories = await this.findAll({ organization_id });
-
-    // Construir árbol recursivamente
-    const buildTree = (parentId?: string): CategoryTree[] => {
-      return categories
-        .filter((c) => c.parent_id === parentId)
-        .map((category) => ({
-          ...category,
-          children: buildTree(category.id),
-        }))
-        .sort((a, b) => a.display_order - b.display_order);
-    };
-
-    return buildTree();
-  }
-
-  /**
-   * Obtener breadcrumbs (ruta de navegación)
-   */
-  async getBreadcrumbs(id: string): Promise<CategoryBreadcrumb[]> {
-    const category = await this.findById(id);
-    const breadcrumbs: CategoryBreadcrumb[] = [];
-
-    // Construir breadcrumbs desde la raíz
-    let current: Category | undefined = category;
-    while (current) {
-      breadcrumbs.unshift({
-        id: current.id,
-        name: current.name,
-        slug: current.slug,
-        level: current.level,
-      });
-
-      current = current.parent_id
-        ? this.categories.get(current.parent_id)
-        : undefined;
-    }
-
-    return breadcrumbs;
-  }
-
-  /**
-   * Obtener hijos directos de una categoría
-   */
-  async getChildren(id: string): Promise<Category[]> {
-    const category = await this.findById(id);
-
-    return Array.from(this.categories.values())
-      .filter((c) => c.parent_id === id)
-      .sort((a, b) => a.display_order - b.display_order);
-  }
-
-  /**
-   * Obtener todos los descendientes (recursivo)
-   */
-  async getDescendants(id: string): Promise<Category[]> {
-    const category = await this.findById(id);
-    const descendants: Category[] = [];
-
-    const collectDescendants = (parentId: string) => {
-      const children = Array.from(this.categories.values()).filter(
-        (c) => c.parent_id === parentId,
-      );
-
-      for (const child of children) {
-        descendants.push(child);
-        collectDescendants(child.id);
-      }
-    };
-
-    collectDescendants(id);
-
-    return descendants;
-  }
-
-  /**
    * Actualizar categoría
    */
-  async update(
-    id: string,
-    updateCategoryDto: UpdateCategoryDto,
-  ): Promise<Category> {
-    const category = await this.findById(id);
+  async update(id: string, updateCategoryDto: UpdateCategoryDto): Promise<any> {
+    await this.findById(id);
 
-    // Validar nombre único si se cambia
-    if (
-      updateCategoryDto.name &&
-      updateCategoryDto.name.toLowerCase() !== category.name.toLowerCase()
-    ) {
-      const existing = Array.from(this.categories.values()).find(
-        (c) =>
-          c.organization_id === category.organization_id &&
-          c.name.toLowerCase() === updateCategoryDto.name.toLowerCase() &&
-          c.id !== id,
-      );
+    // Validar nombre único si está cambiando
+    if (updateCategoryDto.name) {
+      const existing = await this.prisma.category.findFirst({
+        where: {
+          name: {
+            equals: updateCategoryDto.name,
+            mode: 'insensitive',
+          },
+          NOT: {
+            id,
+          },
+        },
+      });
 
       if (existing) {
         throw new ConflictException(
@@ -342,76 +158,35 @@ export class CategoriesService {
       }
     }
 
-    // Validar parent_id si se cambia
-    if (updateCategoryDto.parent_id !== undefined) {
-      if (updateCategoryDto.parent_id === id) {
-        throw new BadRequestException('Category cannot be its own parent');
-      }
-
-      if (updateCategoryDto.parent_id) {
-        const parent = this.categories.get(updateCategoryDto.parent_id);
-        if (!parent) {
-          throw new NotFoundException(
-            `Parent category ${updateCategoryDto.parent_id} not found`,
-          );
-        }
-
-        // Verificar que no se cree ciclo
-        const descendants = await this.getDescendants(id);
-        if (descendants.some((d) => d.id === updateCategoryDto.parent_id)) {
-          throw new BadRequestException(
-            'Cannot set a descendant as parent (circular reference)',
-          );
-        }
-      }
-    }
-
-    // Actualizar campos
-    const updated: Category = {
-      ...category,
-      ...updateCategoryDto,
-      updated_at: new Date(),
-    };
-
-    // Recalcular level y path si cambió parent_id
-    if (updateCategoryDto.parent_id !== undefined) {
-      updated.level = updated.parent_id
-        ? this.categories.get(updated.parent_id)!.level + 1
-        : 0;
-
-      const slug =
-        updateCategoryDto.slug ||
-        category.slug ||
-        updated.name
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '') // Remove accents
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-|-$/g, '');
-
-      updated.path = updated.parent_id
-        ? `${this.categories.get(updated.parent_id)!.path}/${slug}`
-        : `/${slug}`;
-    }
-
-    this.categories.set(id, updated);
-    this.logger.log(`Updated category: ${updated.name} (${id})`);
-
-    return updated;
-  }
-
-  /**
-   * Mover categoría a nuevo padre
-   */
-  async move(
-    id: string,
-    new_parent_id?: string,
-    new_display_order?: number,
-  ): Promise<Category> {
-    return this.update(id, {
-      parent_id: new_parent_id,
-      display_order: new_display_order,
+    const category = await this.prisma.category.update({
+      where: { id },
+      data: {
+        ...(updateCategoryDto.name !== undefined && {
+          name: updateCategoryDto.name,
+        }),
+        ...(updateCategoryDto.description !== undefined && {
+          description: updateCategoryDto.description,
+        }),
+        ...(updateCategoryDto.icon !== undefined && {
+          icon: updateCategoryDto.icon,
+        }),
+        ...(updateCategoryDto.color !== undefined && {
+          color: updateCategoryDto.color,
+        }),
+        ...(updateCategoryDto.display_order !== undefined && {
+          sortOrder: updateCategoryDto.display_order,
+        }),
+        ...(updateCategoryDto.status !== undefined && {
+          active: updateCategoryDto.status === CategoryStatus.ACTIVE,
+        }),
+      },
+      include: {
+        products: true,
+      },
     });
+
+    this.logger.log(`Categoría actualizada: ${category.name}`);
+    return category;
   }
 
   /**
@@ -420,154 +195,171 @@ export class CategoriesService {
   async delete(id: string): Promise<void> {
     const category = await this.findById(id);
 
-    // Verificar que no tenga hijos
-    const children = await this.getChildren(id);
-    if (children.length > 0) {
+    // Verificar que no tenga productos
+    const productCount = await this.prisma.product.count({
+      where: { categoryId: id },
+    });
+
+    if (productCount > 0) {
       throw new BadRequestException(
-        'Cannot delete category with children. Delete or move children first.',
+        `Cannot delete category "${category.name}" because it has ${productCount} product(s)`,
       );
     }
 
-    this.categories.delete(id);
-    this.logger.log(`Deleted category: ${category.name} (${id})`);
-  }
-
-  /**
-   * Obtener estadísticas
-   */
-  async getStats(organization_id: string): Promise<CategoryStats> {
-    const categories = await this.findAll({ organization_id });
-
-    const by_type: Record<CategoryType, number> = {
-      [CategoryType.PRODUCT]: 0,
-      [CategoryType.INVENTORY]: 0,
-      [CategoryType.RECIPE]: 0,
-      [CategoryType.EXPENSE]: 0,
-    };
-
-    const by_status: Record<CategoryStatus, number> = {
-      [CategoryStatus.ACTIVE]: 0,
-      [CategoryStatus.INACTIVE]: 0,
-      [CategoryStatus.ARCHIVED]: 0,
-    };
-
-    const by_level: Record<number, number> = {};
-
-    categories.forEach((category) => {
-      by_type[category.type] = (by_type[category.type] || 0) + 1;
-      by_status[category.status] = (by_status[category.status] || 0) + 1;
-      by_level[category.level] = (by_level[category.level] || 0) + 1;
+    await this.prisma.category.delete({
+      where: { id },
     });
 
+    this.logger.log(`Categoría eliminada: ${category.name}`);
+  }
+
+  /**
+   * Obtener estadísticas de categorías
+   */
+  async getStats(): Promise<any> {
+    const [total, active, inactive, productsCount] = await Promise.all([
+      this.prisma.category.count(),
+      this.prisma.category.count({ where: { active: true } }),
+      this.prisma.category.count({ where: { active: false } }),
+      this.prisma.product.count(),
+    ]);
+
     return {
-      total_categories: categories.length,
-      by_type,
-      by_status,
-      by_level,
-      total_products: 0, // TODO: Integrar con Products module
-      average_products_per_category: 0,
-      categories_without_products: categories.length,
+      total_categories: total,
+      active_categories: active,
+      inactive_categories: inactive,
+      total_products: productsCount,
+      avg_products_per_category: total > 0 ? productsCount / total : 0,
     };
   }
 
   /**
-   * Obtener siguiente display_order disponible
+   * Reordenar categorías
    */
-  private getNextDisplayOrder(): number {
-    const orders = Array.from(this.categories.values()).map(
-      (c) => c.display_order,
+  async reorder(reorderDto: ReorderCategoriesDto): Promise<any> {
+    const updates = reorderDto.items.map((item) =>
+      this.prisma.category.update({
+        where: { id: item.id },
+        data: { sortOrder: item.sortOrder },
+      }),
     );
-    return orders.length > 0 ? Math.max(...orders) + 1 : 0;
-  }
 
-  /**
-   * Reordenar múltiples categorías
-   */
-  async reorderCategories(
-    items: Array<{ id: string; sortOrder: number }>,
-  ): Promise<{ count: number }> {
-    let count = 0;
-    const errors: string[] = [];
+    await Promise.all(updates);
 
-    for (const item of items) {
-      try {
-        const category = await this.findById(item.id);
-        const updated: Category = {
-          ...category,
-          display_order: item.sortOrder,
-          updated_at: new Date(),
-        };
-        this.categories.set(item.id, updated);
-        count++;
-      } catch (error) {
-        errors.push(`${item.id}: ${error.message}`);
-      }
-    }
+    this.logger.log(`Reordenadas ${reorderDto.items.length} categorías`);
 
-    if (errors.length > 0) {
-      this.logger.warn(`Errors reordering categories: ${errors.join(', ')}`);
-    }
-
-    this.logger.log(`Reordered ${count}/${items.length} categories`);
-    return { count };
+    return {
+      success: true,
+      data: {
+        count: reorderDto.items.length,
+      },
+      message: 'Categories reordered successfully',
+    };
   }
 
   /**
    * Eliminar múltiples categorías
    */
-  async bulkDelete(categoryIds: string[]): Promise<{ count: number }> {
-    let count = 0;
-    const errors: string[] = [];
+  async bulkDelete(bulkDeleteDto: BulkDeleteCategoriesDto): Promise<any> {
+    // Verificar que ninguna tenga productos
+    for (const id of bulkDeleteDto.categoryIds) {
+      const productCount = await this.prisma.product.count({
+        where: { categoryId: id },
+      });
 
-    for (const id of categoryIds) {
-      try {
-        await this.delete(id);
-        count++;
-      } catch (error) {
-        errors.push(`${id}: ${error.message}`);
+      if (productCount > 0) {
+        const category = await this.prisma.category.findUnique({
+          where: { id },
+          select: { name: true },
+        });
+        throw new BadRequestException(
+          `Cannot delete category "${category?.name}" because it has ${productCount} product(s)`,
+        );
       }
     }
 
-    if (errors.length > 0) {
-      this.logger.warn(`Errors in bulk delete: ${errors.join(', ')}`);
-    }
+    const result = await this.prisma.category.deleteMany({
+      where: {
+        id: {
+          in: bulkDeleteDto.categoryIds,
+        },
+      },
+    });
 
-    this.logger.log(`Deleted ${count}/${categoryIds.length} categories`);
-    return { count };
+    this.logger.log(`Eliminadas ${result.count} categorías en lote`);
+
+    return {
+      success: true,
+      data: {
+        count: result.count,
+      },
+      message: `${result.count} categories deleted successfully`,
+    };
   }
 
   /**
    * Actualizar estado de múltiples categorías
    */
-  async bulkUpdateStatus(
-    categoryIds: string[],
-    status: CategoryStatus,
-  ): Promise<{ count: number }> {
-    let count = 0;
-    const errors: string[] = [];
-
-    for (const id of categoryIds) {
-      try {
-        const category = await this.findById(id);
-        const updated: Category = {
-          ...category,
-          status,
-          updated_at: new Date(),
-        };
-        this.categories.set(id, updated);
-        count++;
-      } catch (error) {
-        errors.push(`${id}: ${error.message}`);
-      }
-    }
-
-    if (errors.length > 0) {
-      this.logger.warn(`Errors updating status: ${errors.join(', ')}`);
-    }
+  async bulkUpdateStatus(bulkUpdateDto: BulkUpdateStatusDto): Promise<any> {
+    const result = await this.prisma.category.updateMany({
+      where: {
+        id: {
+          in: bulkUpdateDto.categoryIds,
+        },
+      },
+      data: {
+        active: bulkUpdateDto.status === 'active',
+      },
+    });
 
     this.logger.log(
-      `Updated status of ${count}/${categoryIds.length} categories to ${status}`,
+      `Actualizado estado de ${result.count} categorías a ${bulkUpdateDto.status}`,
     );
-    return { count };
+
+    return {
+      success: true,
+      data: {
+        count: result.count,
+        status: bulkUpdateDto.status,
+      },
+      message: `${result.count} categories updated to ${bulkUpdateDto.status}`,
+    };
+  }
+
+  // ========================================
+  // Métodos de compatibilidad (no implementados en schema actual)
+  // ========================================
+
+  /**
+   * Obtener categoría por slug
+   * Nota: El schema no tiene campo slug
+   */
+  async findBySlug(slug: string, organization_id?: string): Promise<any> {
+    this.logger.warn('findBySlug not implemented: schema has no slug field');
+    throw new BadRequestException(
+      'Slug lookup not supported in current schema',
+    );
+  }
+
+  /**
+   * Obtener árbol de categorías
+   * Nota: El schema no tiene parent_id para jerarquías
+   */
+  async getTree(organization_id?: string): Promise<any[]> {
+    this.logger.warn('getTree not implemented: schema has no parent_id field');
+    const categories = await this.findAll();
+    return categories; // Retorna lista plana
+  }
+
+  /**
+   * Obtener breadcrumbs
+   * Nota: El schema no tiene parent_id para jerarquías
+   */
+  async getBreadcrumbs(id: string): Promise<any[]> {
+    this.logger.warn(
+      'getBreadcrumbs not implemented: schema has no parent_id field',
+    );
+    const category = await this.findById(id);
+    return [category]; // Solo la categoría misma
   }
 }
