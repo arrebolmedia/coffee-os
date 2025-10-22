@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   useReactTable,
@@ -19,6 +19,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import ProductModal from '@/components/products/ProductModal';
 import ProductActionsMenu from '@/components/products/ProductActionsMenu';
 import CategoriesList from '@/components/products/CategoriesList';
+import BulkActionsBar from '@/components/products/BulkActionsBar';
 import { apiClient } from '@/lib/api-client';
 import { Product, Category } from '@/types';
 
@@ -439,6 +440,13 @@ export default function ProductsPage() {
             setSelectedProduct(undefined);
           }}
           product={selectedProduct}
+          categories={categoriesData?.data || []}
+        />
+
+        {/* Bulk Actions Bar */}
+        <BulkActionsBar
+          selectedProducts={table.getSelectedRowModel().rows.map((row) => row.original)}
+          onClearSelection={() => table.resetRowSelection()}
           categories={categoriesData?.data || []}
         />
       </div>
