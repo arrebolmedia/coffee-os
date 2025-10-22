@@ -73,7 +73,7 @@ export default function CategoriesList() {
         </h3>
         <button
           onClick={handleNew}
-          className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+          className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-3 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
         >
           <Plus className="h-4 w-4" />
           Nueva Categoría
@@ -88,7 +88,7 @@ export default function CategoriesList() {
           </p>
           <button
             onClick={handleNew}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700"
           >
             <Plus className="h-4 w-4" />
             Crear Primera Categoría

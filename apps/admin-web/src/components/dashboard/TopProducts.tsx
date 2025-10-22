@@ -46,8 +46,8 @@ export function TopProducts() {
             className="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors"
           >
             {/* Rank */}
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
-              <span className="text-amber-700 font-semibold text-sm">
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+              <span className="text-purple-700 font-semibold text-sm">
                 {index + 1}
               </span>
             </div>

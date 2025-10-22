@@ -5,11 +5,11 @@ import { Dialog, Transition } from '@headlessui/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X, Loader2 } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { X, Loader2, Link as LinkIcon } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { apiClient } from '@/lib/api-client';
-import { Product, Category } from '@/types';
+import { Product, Category, Modifier } from '@/types';
 import ImageUpload from './ImageUpload';
 
 const productSchema = z.object({
@@ -26,6 +26,7 @@ const productSchema = z.object({
   taxRate: z.number().min(0).max(100, 'La tasa de impuesto debe estar entre 0 y 100').optional(),
   isActive: z.boolean(),
   trackInventory: z.boolean(),
+  modifierIds: z.array(z.string()).optional(),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -47,7 +48,21 @@ export default function ProductModal({
   const [imagePreview, setImagePreview] = useState<string | null>(
     product?.image || product?.image_url || null
   );
+  const [selectedModifiers, setSelectedModifiers] = useState<string[]>(
+    product?.modifiers?.map((m) => m.id) || []
+  );
   const queryClient = useQueryClient();
+
+  // Fetch modifier groups
+  const { data: modifiersData } = useQuery<{ data: Modifier[] }>({
+    queryKey: ['modifiers'],
+    queryFn: async () => {
+      const response = await apiClient.get('/modifiers');
+      return response.data;
+    },
+  });
+
+  const modifierGroups = modifiersData?.data || [];
 
   const {
     register,
@@ -70,6 +85,7 @@ export default function ProductModal({
       taxRate: product?.taxRate || 16,
       isActive: product?.isActive ?? true,
       trackInventory: product?.trackInventory ?? true,
+      modifierIds: product?.modifiers?.map((m) => m.id) || [],
     },
   });
 
@@ -79,7 +95,12 @@ export default function ProductModal({
       
       // Append all fields
       Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
+        if (key === 'modifierIds') {
+          // Handle array of modifier IDs
+          if (Array.isArray(value) && value.length > 0) {
+            formData.append('modifierIds', JSON.stringify(value));
+          }
+        } else if (value !== undefined && value !== null) {
           formData.append(key, value.toString());
         }
       });
@@ -113,6 +134,7 @@ export default function ProductModal({
     reset();
     setImageFile(null);
     setImagePreview(product?.image || product?.image_url || null);
+    setSelectedModifiers(product?.modifiers?.map((m) => m.id) || []);
     onClose();
   };
 
@@ -124,8 +146,21 @@ export default function ProductModal({
     setImagePreview(preview);
   };
 
+  const toggleModifier = (modifierId: string) => {
+    setSelectedModifiers((prev) => {
+      if (prev.includes(modifierId)) {
+        return prev.filter((id) => id !== modifierId);
+      } else {
+        return [...prev, modifierId];
+      }
+    });
+  };
+
   const onSubmit = (data: ProductFormData) => {
-    mutation.mutate(data);
+    mutation.mutate({
+      ...data,
+      modifierIds: selectedModifiers,
+    });
   };
 
   return (
@@ -188,7 +223,7 @@ export default function ProductModal({
                       <input
                         type="text"
                         {...register('name')}
-                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                       />
                       {errors.name && (
                         <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
@@ -202,7 +237,7 @@ export default function ProductModal({
                       <textarea
                         {...register('description')}
                         rows={3}
-                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                       />
                     </div>
 
@@ -213,7 +248,7 @@ export default function ProductModal({
                       <input
                         type="text"
                         {...register('sku')}
-                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                       />
                     </div>
 
@@ -224,7 +259,7 @@ export default function ProductModal({
                       <input
                         type="text"
                         {...register('barcode')}
-                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                       />
                     </div>
 
@@ -234,7 +269,7 @@ export default function ProductModal({
                       </label>
                       <select
                         {...register('categoryId')}
-                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                       >
                         <option value="">Selecciona una categoría</option>
                         {categories.map((category) => (
@@ -258,7 +293,7 @@ export default function ProductModal({
                         type="number"
                         step="0.01"
                         {...register('taxRate', { valueAsNumber: true })}
-                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                       />
                     </div>
 
@@ -270,7 +305,7 @@ export default function ProductModal({
                         type="number"
                         step="0.01"
                         {...register('price', { valueAsNumber: true })}
-                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                       />
                       {errors.price && (
                         <p className="mt-1 text-sm text-red-600">{errors.price.message}</p>
@@ -285,7 +320,7 @@ export default function ProductModal({
                         type="number"
                         step="0.01"
                         {...register('cost', { valueAsNumber: true })}
-                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                       />
                     </div>
                   </div>
@@ -296,7 +331,7 @@ export default function ProductModal({
                       <input
                         type="checkbox"
                         {...register('trackInventory')}
-                        className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                        className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                       />
                       <label className="text-sm font-medium text-gray-700">
                         Rastrear Inventario
@@ -312,7 +347,7 @@ export default function ProductModal({
                       <input
                         type="number"
                         {...register('stock', { valueAsNumber: true })}
-                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                       />
                     </div>
 
@@ -323,7 +358,7 @@ export default function ProductModal({
                       <input
                         type="number"
                         {...register('minStock', { valueAsNumber: true })}
-                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                       />
                     </div>
 
@@ -334,7 +369,7 @@ export default function ProductModal({
                       <input
                         type="number"
                         {...register('maxStock', { valueAsNumber: true })}
-                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                       />
                     </div>
                   </div>
@@ -345,7 +380,7 @@ export default function ProductModal({
                       <input
                         type="checkbox"
                         {...register('isActive')}
-                        className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                        className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                       />
                       <label className="text-sm font-medium text-gray-700">
                         Producto Activo
@@ -353,19 +388,93 @@ export default function ProductModal({
                     </div>
                   </div>
 
+                  {/* Modifiers Section */}
+                  {modifierGroups.length > 0 && (
+                    <div className="space-y-3 pt-4 border-t border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Modificadores Opcionales
+                        </label>
+                        <a
+                          href="/dashboard/modifiers"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700"
+                        >
+                          <LinkIcon className="h-3 w-3" />
+                          Gestionar grupos
+                        </a>
+                      </div>
+                      
+                      <p className="text-xs text-gray-500">
+                        Selecciona los grupos de opciones que aplican a este producto
+                      </p>
+
+                      <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2">
+                        {modifierGroups.map((group) => (
+                          <label
+                            key={group.id}
+                            className={`flex items-start gap-3 rounded-lg border-2 p-3 cursor-pointer transition-all ${
+                              selectedModifiers.includes(group.id)
+                                ? 'border-purple-500 bg-purple-50'
+                                : 'border-gray-200 bg-white hover:border-purple-300'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedModifiers.includes(group.id)}
+                              onChange={() => toggleModifier(group.id)}
+                              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {group.name}
+                              </p>
+                              <div className="mt-1 flex items-center gap-2">
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                    group.type === 'SINGLE'
+                                      ? 'bg-blue-100 text-blue-700'
+                                      : 'bg-purple-100 text-purple-700'
+                                  }`}
+                                >
+                                  {group.type === 'SINGLE' ? 'Una' : 'Múltiple'}
+                                </span>
+                                {group.required && (
+                                  <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                                    Req.
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-1 text-xs text-gray-500">
+                                {group.options.length} opciones
+                              </p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+
+                      {selectedModifiers.length > 0 && (
+                        <p className="text-xs text-purple-600 font-medium">
+                          {selectedModifiers.length} grupo(s) seleccionado(s)
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Actions */}
                   <div className="flex justify-end gap-3">
                     <button
                       type="button"
                       onClick={handleClose}
-                      className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+                      className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
                     >
                       Cancelar
                     </button>
                     <button
                       type="submit"
                       disabled={mutation.isPending}
-                      className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50"
                     >
                       {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                       {product ? 'Actualizar' : 'Crear'} Producto

@@ -31,7 +31,7 @@ interface CategoryModalProps {
 const PRESET_COLORS = [
   { name: 'Rojo', value: '#EF4444', bg: 'bg-red-500' },
   { name: 'Naranja', value: '#F97316', bg: 'bg-orange-500' },
-  { name: 'Ámbar', value: '#F59E0B', bg: 'bg-amber-500' },
+  { name: 'Ámbar', value: '#F59E0B', bg: 'bg-purple-500' },
   { name: 'Amarillo', value: '#EAB308', bg: 'bg-yellow-500' },
   { name: 'Lima', value: '#84CC16', bg: 'bg-lime-500' },
   { name: 'Verde', value: '#22C55E', bg: 'bg-green-500' },
@@ -168,7 +168,7 @@ export default function CategoryModal({
                     <input
                       type="text"
                       {...register('name')}
-                      className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                     />
                     {errors.name && (
                       <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
@@ -182,7 +182,7 @@ export default function CategoryModal({
                     <textarea
                       {...register('description')}
                       rows={3}
-                      className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                     />
                   </div>
 
@@ -200,7 +200,7 @@ export default function CategoryModal({
                             setSelectedColor(color.value);
                             setValue('color', color.value);
                           }}
-                          className={`relative h-10 w-10 rounded-lg ${color.bg} hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2`}
+                          className={`relative h-10 w-10 rounded-lg ${color.bg} hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2`}
                           title={color.name}
                         >
                           {selectedColor === color.value && (
@@ -227,9 +227,9 @@ export default function CategoryModal({
                             setSelectedIcon(icon);
                             setValue('icon', icon);
                           }}
-                          className={`relative h-10 w-10 rounded-lg border-2 text-2xl hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 ${
+                          className={`relative h-10 w-10 rounded-lg border-2 text-2xl hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
                             selectedIcon === icon
-                              ? 'border-amber-500 bg-amber-50'
+                              ? 'border-purple-500 bg-purple-50'
                               : 'border-gray-200 bg-white hover:border-gray-300'
                           }`}
                         >
@@ -270,7 +270,7 @@ export default function CategoryModal({
                     <input
                       type="number"
                       {...register('sort_order', { valueAsNumber: true })}
-                      className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                     />
                     <p className="mt-1 text-xs text-gray-500">
                       Menor número aparece primero en el menú
@@ -283,7 +283,7 @@ export default function CategoryModal({
                       <input
                         type="checkbox"
                         {...register('is_active')}
-                        className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                        className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                       />
                       <label className="text-sm font-medium text-gray-700">
                         Categoría Activa
@@ -296,14 +296,14 @@ export default function CategoryModal({
                     <button
                       type="button"
                       onClick={handleClose}
-                      className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+                      className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
                     >
                       Cancelar
                     </button>
                     <button
                       type="submit"
                       disabled={mutation.isPending}
-                      className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50"
                     >
                       {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                       {category ? 'Actualizar' : 'Crear'} Categoría

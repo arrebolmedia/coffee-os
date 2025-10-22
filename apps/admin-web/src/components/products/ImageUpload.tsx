@@ -94,18 +94,18 @@ export default function ImageUpload({
           {...getRootProps()}
           className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-10 transition-colors ${
             isDragActive
-              ? 'border-amber-500 bg-amber-50'
+              ? 'border-purple-500 bg-purple-50'
               : isDragReject
               ? 'border-red-500 bg-red-50'
-              : 'border-gray-300 bg-gray-50 hover:border-amber-400 hover:bg-amber-50'
+              : 'border-gray-300 bg-gray-50 hover:border-purple-400 hover:bg-purple-50'
           } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
         >
           <input {...getInputProps()} />
           <div className="flex flex-col items-center text-center">
             {isDragActive ? (
               <>
-                <Upload className="mb-3 h-12 w-12 text-amber-500" />
-                <p className="text-sm font-medium text-amber-700">
+                <Upload className="mb-3 h-12 w-12 text-purple-500" />
+                <p className="text-sm font-medium text-purple-700">
                   Suelta la imagen aquí
                 </p>
               </>
@@ -124,7 +124,7 @@ export default function ImageUpload({
                 <Upload className="mb-3 h-12 w-12 text-gray-400" />
                 <p className="text-sm font-medium text-gray-700">
                   Arrastra una imagen o{' '}
-                  <span className="text-amber-600">haz clic para seleccionar</span>
+                  <span className="text-purple-600">haz clic para seleccionar</span>
                 </p>
                 <p className="mt-2 text-xs text-gray-500">
                   JPG, PNG, WebP o GIF hasta 5MB

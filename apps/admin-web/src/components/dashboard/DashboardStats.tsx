@@ -52,7 +52,7 @@ export function DashboardStats() {
       value: `$${stats?.today.average_ticket.toLocaleString('es-MX') || 0}`,
       change: stats?.today.growth || 0,
       icon: ShoppingBag,
-      color: 'bg-amber-500',
+      color: 'bg-purple-500',
     },
   ];
 
