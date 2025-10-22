@@ -14,10 +14,11 @@ import {
   ColumnFiltersState,
 } from '@tanstack/react-table';
 import Image from 'next/image';
-import { Plus, Search, Filter, Edit, Eye } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Eye, Folder } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import ProductModal from '@/components/products/ProductModal';
 import ProductActionsMenu from '@/components/products/ProductActionsMenu';
+import CategoriesList from '@/components/products/CategoriesList';
 import { apiClient } from '@/lib/api-client';
 import { Product, Category } from '@/types';
 
@@ -31,6 +32,7 @@ export default function ProductsPage() {
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
+  const [showCategories, setShowCategories] = useState(false);
 
   // Fetch products
   const { data, isLoading } = useQuery<{ data: Product[]; total: number }>({
@@ -228,17 +230,33 @@ export default function ProductsPage() {
               Gestiona tu catálogo de productos
             </p>
           </div>
-          <button
-            onClick={() => {
-              setSelectedProduct(undefined);
-              setIsModalOpen(true);
-            }}
-            className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
-          >
-            <Plus className="h-5 w-5" />
-            Nuevo Producto
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowCategories(!showCategories)}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+            >
+              <Folder className="h-5 w-5" />
+              Categorías
+            </button>
+            <button
+              onClick={() => {
+                setSelectedProduct(undefined);
+                setIsModalOpen(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+            >
+              <Plus className="h-5 w-5" />
+              Nuevo Producto
+            </button>
+          </div>
         </div>
+
+        {/* Categories Panel */}
+        {showCategories && (
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow">
+            <CategoriesList />
+          </div>
+        )}
 
         {/* Filters */}
         <div className="flex items-center gap-4">
