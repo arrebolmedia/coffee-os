@@ -12,17 +12,19 @@ import {
   FileText,
   Warehouse,
   Coffee,
+  Tag,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'Productos', href: '/dashboard/products', icon: Package },
-  { name: 'Órdenes', href: '/dashboard/orders', icon: ShoppingCart },
-  { name: 'Clientes', href: '/dashboard/customers', icon: Users },
-  { name: 'Inventario', href: '/dashboard/inventory', icon: Warehouse },
-  { name: 'Reportes', href: '/dashboard/reports', icon: BarChart3 },
-  { name: 'Configuración', href: '/dashboard/settings', icon: Settings },
+  { name: 'Productos', href: '/productos', icon: Package },
+  { name: 'Categorías', href: '/categorias', icon: Tag },
+  { name: 'Órdenes', href: '/ordenes', icon: ShoppingCart },
+  { name: 'Clientes', href: '/clientes', icon: Users },
+  { name: 'Inventario', href: '/inventario', icon: Warehouse },
+  { name: 'Reportes', href: '/reportes', icon: BarChart3 },
+  { name: 'Configuración', href: '/configuracion', icon: Settings },
 ];
 
 export function Sidebar() {
