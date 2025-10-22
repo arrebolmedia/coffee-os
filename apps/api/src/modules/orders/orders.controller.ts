@@ -8,13 +8,15 @@ import {
   Delete,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { QueryOrdersDto } from './dto/query-orders.dto';
+import { OrderStatsDto } from './dto/order-stats.dto';
 
 @ApiTags('orders')
+@ApiBearerAuth()
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
@@ -31,6 +33,18 @@ export class OrdersController {
   @ApiResponse({ status: 200, description: 'Return all orders' })
   findAll(@Query() query: QueryOrdersDto) {
     return this.ordersService.findAll(query);
+  }
+
+  @Get('stats')
+  @ApiOperation({ summary: 'Get order statistics' })
+  @ApiResponse({ status: 200, description: 'Return order statistics' })
+  getStats(@Query() statsDto: OrderStatsDto) {
+    return this.ordersService.getStats(
+      statsDto.organizationId,
+      statsDto.locationId,
+      statsDto.startDate,
+      statsDto.endDate,
+    );
   }
 
   @Get('status/:status')

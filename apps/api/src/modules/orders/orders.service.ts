@@ -373,4 +373,165 @@ export class OrdersService {
 
     return `ORD-${dateStr}-${String(count + 1).padStart(4, '0')}`;
   }
+
+  async getStats(
+    organizationId?: string,
+    locationId?: string,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    const now = new Date();
+    const today = new Date(now.setHours(0, 0, 0, 0));
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Build where clause
+    const where: any = {};
+    if (organizationId) where.organizationId = organizationId;
+    if (locationId) where.locationId = locationId;
+    if (startDate && endDate) {
+      where.createdAt = {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      };
+    }
+
+    const todayWhere = { ...where, createdAt: { gte: today } };
+    const yesterdayWhere = {
+      ...where,
+      createdAt: { gte: yesterday, lt: today },
+    };
+
+    // Get all orders in period
+    const orders = await this.prisma.order.findMany({
+      where,
+      include: {
+        orderItems: {
+          include: {
+            product: true,
+          },
+        },
+        transaction: true,
+      },
+    });
+
+    const todayOrders = await this.prisma.order.findMany({
+      where: todayWhere,
+      include: {
+        transaction: true,
+      },
+    });
+
+    const yesterdayOrders = await this.prisma.order.findMany({
+      where: yesterdayWhere,
+      include: {
+        transaction: true,
+      },
+    });
+
+    // Calculate totals
+    const totalOrders = orders.length;
+    const totalSales = orders.reduce((sum, order) => {
+      return sum + (order.transaction?.total || 0);
+    }, 0);
+    const averageTicket = totalOrders > 0 ? totalSales / totalOrders : 0;
+
+    const todayOrdersCount = todayOrders.length;
+    const todaySales = todayOrders.reduce((sum, order) => {
+      return sum + (order.transaction?.total || 0);
+    }, 0);
+
+    const yesterdaySales = yesterdayOrders.reduce((sum, order) => {
+      return sum + (order.transaction?.total || 0);
+    }, 0);
+
+    const growthPercentage =
+      yesterdaySales > 0
+        ? ((todaySales - yesterdaySales) / yesterdaySales) * 100
+        : todaySales > 0
+        ? 100
+        : 0;
+
+    // Count by status
+    const byStatus = {
+      PENDING: 0,
+      IN_PROGRESS: 0,
+      READY: 0,
+      SERVED: 0,
+      CANCELLED: 0,
+    };
+    orders.forEach((order) => {
+      if (byStatus[order.status] !== undefined) {
+        byStatus[order.status]++;
+      }
+    });
+
+    // Count by type
+    const byType = {
+      DINE_IN: 0,
+      TAKE_OUT: 0,
+      DELIVERY: 0,
+    };
+    orders.forEach((order) => {
+      if (byType[order.type] !== undefined) {
+        byType[order.type]++;
+      }
+    });
+
+    // Count by payment method
+    const byPaymentMethod = {
+      CASH: 0,
+      CARD: 0,
+      TRANSFER: 0,
+      MIXED: 0,
+    };
+    orders.forEach((order) => {
+      if (order.transaction?.paymentMethod) {
+        const method = order.transaction.paymentMethod;
+        if (byPaymentMethod[method] !== undefined) {
+          byPaymentMethod[method]++;
+        }
+      }
+    });
+
+    // Calculate top products
+    const productStats = new Map<
+      string,
+      { productId: string; productName: string; quantity: number; revenue: number }
+    >();
+
+    orders.forEach((order) => {
+      order.orderItems.forEach((item) => {
+        const existing = productStats.get(item.productId);
+        if (existing) {
+          existing.quantity += item.quantity;
+          existing.revenue += item.price * item.quantity;
+        } else {
+          productStats.set(item.productId, {
+            productId: item.productId,
+            productName: item.product?.name || 'Unknown',
+            quantity: item.quantity,
+            revenue: item.price * item.quantity,
+          });
+        }
+      });
+    });
+
+    const topProducts = Array.from(productStats.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    return {
+      totalOrders,
+      totalSales: Math.round(totalSales * 100) / 100,
+      averageTicket: Math.round(averageTicket * 100) / 100,
+      todayOrders: todayOrdersCount,
+      todaySales: Math.round(todaySales * 100) / 100,
+      growthPercentage: Math.round(growthPercentage * 100) / 100,
+      byStatus,
+      byType,
+      byPaymentMethod,
+      topProducts,
+    };
+  }
 }
