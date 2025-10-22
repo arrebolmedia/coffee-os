@@ -7,9 +7,6 @@ const nextConfig = {
     domains: ['localhost', 'coffeeos-storage.s3.amazonaws.com'],
     formats: ['image/avif', 'image/webp'],
   },
-  experimental: {
-    serverActions: true,
-  },
 };
 
 module.exports = nextConfig;

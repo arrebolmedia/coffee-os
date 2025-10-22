@@ -191,21 +191,30 @@ export enum ProductType {
 }
 
 export interface Product extends BaseEntity, OrganizationContext {
-  sku: string;
+  sku?: string;
   name: string;
   description?: string;
   type: ProductType;
-  category_id: UUID;
+  category_id?: UUID;
+  categoryId?: UUID;
   category?: Category;
   price: number;
   cost?: number;
   status: ProductStatus;
+  isActive?: boolean;
+  is_active?: boolean;
   image_url?: string;
+  image?: string;
   barcode?: string;
   track_inventory: boolean;
+  trackInventory?: boolean;
   current_stock?: number;
+  stock?: number;
   min_stock?: number;
+  minStock?: number;
   max_stock?: number;
+  maxStock?: number;
+  taxRate?: number;
   modifiers?: Modifier[];
   tags?: string[];
 }
