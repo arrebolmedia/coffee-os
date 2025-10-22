@@ -5,9 +5,11 @@ import {
   HttpHealthIndicator,
   HealthCheck,
 } from '@nestjs/terminus';
+import { Public } from '../modules/auth/decorators/public.decorator';
 
 @ApiTags('health')
 @Controller('health')
+@Public() // Health checks are always public
 export class HealthController {
   constructor(
     private health: HealthCheckService,

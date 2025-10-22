@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { APP_GUARD } from '@nestjs/core';
 import { join } from 'path';
 
 // Health check
@@ -54,6 +55,7 @@ import { DashboardsModule } from './modules/dashboards/dashboards.module';
 // Infrastructure modules
 import { DatabaseModule } from './modules/database/database.module';
 import { RedisModule } from './modules/redis/redis.module';
+import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard.global';
 
 @Module({
   imports: [
@@ -123,6 +125,13 @@ import { RedisModule } from './modules/redis/redis.module';
     OnboardingModule,
     ReportsModule,
     DashboardsModule,
+  ],
+  providers: [
+    // Apply JWT guard globally to all endpoints
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
   ],
 })
 export class AppModule {}
