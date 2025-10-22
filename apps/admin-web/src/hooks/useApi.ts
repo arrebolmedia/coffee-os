@@ -8,6 +8,7 @@ import { authService } from '@/services/auth.service';
 import { productService } from '@/services/product.service';
 import { orderService } from '@/services/order.service';
 import { dashboardService } from '@/services/dashboard.service';
+import { categoryService } from '@/services/category.service';
 import type { ListParams } from '@/types';
 
 // ============================================================================
@@ -242,5 +243,79 @@ export function useRecentOrders(limit: number = 10) {
     queryFn: () => orderService.getRecentOrders(limit),
     staleTime: 30 * 1000, // 30 seconds
     refetchInterval: 1 * 60 * 1000, // Refetch every minute
+  });
+}
+
+// ============================================================================
+// CATEGORY HOOKS
+// ============================================================================
+
+export function useCategories(params?: ListParams) {
+  return useQuery({
+    queryKey: ['categories', params],
+    queryFn: () => categoryService.getCategories(params),
+    staleTime: 2 * 60 * 1000, // 2 minutes (categories don't change often)
+  });
+}
+
+export function useActiveCategories() {
+  return useQuery({
+    queryKey: ['categories', 'active'],
+    queryFn: () => categoryService.getActiveCategories(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+export function useCategory(id: string) {
+  return useQuery({
+    queryKey: ['categories', id],
+    queryFn: () => categoryService.getCategory(id),
+    enabled: !!id,
+  });
+}
+
+export function useCreateCategory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: categoryService.createCategory,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+  });
+}
+
+export function useUpdateCategory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      categoryService.updateCategory(id, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['categories', variables.id] });
+    },
+  });
+}
+
+export function useDeleteCategory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => categoryService.deleteCategory(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+  });
+}
+
+export function useReorderCategories() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: categoryService.reorderCategories,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
   });
 }

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { ProductFormModal } from '@/components/products/ProductFormModal';
 import { useProducts, useDeleteProduct, useBulkDeleteProducts } from '@/hooks/useApi';
 import { Plus, Search, Filter, MoreVertical, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
 import { format } from 'date-fns';
@@ -13,8 +14,10 @@ export default function ProductsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
-  const { data, isLoading, error } = useProducts({
+  const { data, isLoading, error, refetch } = useProducts({
     page,
     per_page: 20,
     search: search || undefined,
@@ -22,6 +25,25 @@ export default function ProductsPage() {
 
   const deleteProductMutation = useDeleteProduct();
   const bulkDeleteMutation = useBulkDeleteProducts();
+
+  const handleOpenCreateModal = () => {
+    setEditingProduct(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (product: Product) => {
+    setEditingProduct(product);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingProduct(null);
+  };
+
+  const handleModalSuccess = () => {
+    refetch();
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Estás seguro de eliminar este producto?')) return;
@@ -72,7 +94,10 @@ export default function ProductsPage() {
             </p>
           </div>
 
-          <button className="inline-flex items-center gap-2 bg-coffee-600 hover:bg-coffee-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors">
+          <button
+            onClick={handleOpenCreateModal}
+            className="inline-flex items-center gap-2 bg-coffee-600 hover:bg-coffee-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
+          >
             <Plus className="w-5 h-5" />
             Nuevo Producto
           </button>
@@ -241,7 +266,10 @@ export default function ProductsPage() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                          <button
+                            onClick={() => handleOpenEditModal(product)}
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          >
                             <Edit className="w-4 h-4 text-gray-600" />
                           </button>
                           <button
@@ -296,6 +324,14 @@ export default function ProductsPage() {
           </div>
         )}
       </div>
+
+      {/* Product Form Modal */}
+      <ProductFormModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        product={editingProduct}
+        onSuccess={handleModalSuccess}
+      />
     </DashboardLayout>
   );
 }
