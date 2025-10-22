@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
 import {
   CreateProductDto,
@@ -18,6 +19,11 @@ import {
   CreateModifierDto,
   UpdateModifierDto,
 } from './dto';
+import {
+  BulkDeleteDto,
+  BulkUpdateStatusDto,
+  BulkUpdateCategoryDto,
+} from './dto/bulk-operations.dto';
 
 /**
  * Controlador para gestión de productos
@@ -29,14 +35,19 @@ import {
  * - GET /sku/:sku/:organization_id - Obtener por SKU
  * - PATCH /:id - Actualizar producto
  * - DELETE /:id - Eliminar producto
- * - GET /:id/modifiers - Obtener modificadores
- * - POST /:id/modifiers - Crear modificador
+ * - POST /bulk-delete - Eliminar múltiples productos
+ * - POST /bulk-update-status - Actualizar estado de múltiples productos
+ * - POST /bulk-update-category - Actualizar categoría de múltiples productos
+ * - GET /:id/modifiers - Obtener modificadores de un producto
+ * - POST /:id/modifiers - Crear modificador para un producto
  * - PATCH /modifiers/:id - Actualizar modificador
  * - DELETE /modifiers/:id - Eliminar modificador
  * - PATCH /:id/stock - Actualizar stock
- * - GET /organization/:id/stats - Estadísticas
- * - GET /organization/:id/profitability - Rentabilidad
+ * - GET /organization/:id/stats - Estadísticas de productos
+ * - GET /organization/:id/profitability - Análisis de rentabilidad
  */
+@ApiTags('products')
+@ApiBearerAuth()
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
@@ -162,7 +173,7 @@ export class ProductsController {
   }
 
   /**
-   * Analizar rentabilidad de productos por organización
+   * Analizar rentabilidad de productos
    */
   @Get('organization/:organization_id/profitability')
   @HttpCode(HttpStatus.OK)
@@ -170,5 +181,62 @@ export class ProductsController {
     @Param('organization_id') organization_id: string,
   ) {
     return this.productsService.analyzeProfitability(organization_id);
+  }
+
+  /**
+   * Eliminar múltiples productos
+   */
+  @Post('bulk-delete')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Eliminar múltiples productos' })
+  @ApiResponse({ status: 200, description: 'Productos eliminados exitosamente' })
+  @ApiResponse({ status: 400, description: 'Solicitud inválida' })
+  async bulkDelete(@Body() bulkDeleteDto: BulkDeleteDto) {
+    const result = await this.productsService.bulkDelete(bulkDeleteDto.productIds);
+    return {
+      success: true,
+      data: result,
+      message: `${result.count} productos eliminados exitosamente`,
+    };
+  }
+
+  /**
+   * Actualizar estado de múltiples productos
+   */
+  @Post('bulk-update-status')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Actualizar estado de múltiples productos' })
+  @ApiResponse({ status: 200, description: 'Estados actualizados exitosamente' })
+  @ApiResponse({ status: 400, description: 'Solicitud inválida' })
+  async bulkUpdateStatus(@Body() bulkUpdateStatusDto: BulkUpdateStatusDto) {
+    const result = await this.productsService.bulkUpdateStatus(
+      bulkUpdateStatusDto.productIds,
+      bulkUpdateStatusDto.isActive,
+    );
+    return {
+      success: true,
+      data: result,
+      message: `${result.count} productos ${bulkUpdateStatusDto.isActive ? 'activados' : 'desactivados'} exitosamente`,
+    };
+  }
+
+  /**
+   * Actualizar categoría de múltiples productos
+   */
+  @Post('bulk-update-category')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Actualizar categoría de múltiples productos' })
+  @ApiResponse({ status: 200, description: 'Categorías actualizadas exitosamente' })
+  @ApiResponse({ status: 400, description: 'Solicitud inválida' })
+  async bulkUpdateCategory(@Body() bulkUpdateCategoryDto: BulkUpdateCategoryDto) {
+    const result = await this.productsService.bulkUpdateCategory(
+      bulkUpdateCategoryDto.productIds,
+      bulkUpdateCategoryDto.categoryId,
+    );
+    return {
+      success: true,
+      data: result,
+      message: `${result.count} productos actualizados exitosamente`,
+    };
   }
 }

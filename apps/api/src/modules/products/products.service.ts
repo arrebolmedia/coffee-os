@@ -489,4 +489,104 @@ export class ProductsService {
 
     return updatedProduct;
   }
+
+  /**
+   * Eliminar múltiples productos
+   */
+  async bulkDelete(productIds: string[]): Promise<{ count: number }> {
+    let count = 0;
+    const errors: string[] = [];
+
+    for (const id of productIds) {
+      try {
+        await this.delete(id);
+        count++;
+      } catch (error) {
+        errors.push(`${id}: ${error.message}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      this.logger.warn(`Errores en eliminación masiva: ${errors.join(', ')}`);
+    }
+
+    this.logger.log(`Productos eliminados en masa: ${count}/${productIds.length}`);
+    return { count };
+  }
+
+  /**
+   * Actualizar estado de múltiples productos
+   */
+  async bulkUpdateStatus(
+    productIds: string[],
+    isActive: boolean,
+  ): Promise<{ count: number }> {
+    let count = 0;
+    const errors: string[] = [];
+    const status = isActive ? ProductStatus.ACTIVE : ProductStatus.INACTIVE;
+
+    for (const id of productIds) {
+      try {
+        const product = await this.findById(id);
+        const updatedProduct: Product = {
+          ...product,
+          status,
+          is_available: isActive,
+          updated_at: new Date(),
+        };
+        this.products.set(id, updatedProduct);
+        count++;
+      } catch (error) {
+        errors.push(`${id}: ${error.message}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      this.logger.warn(
+        `Errores en actualización masiva de estado: ${errors.join(', ')}`,
+      );
+    }
+
+    this.logger.log(
+      `Estados actualizados en masa: ${count}/${productIds.length} a ${status}`,
+    );
+    return { count };
+  }
+
+  /**
+   * Actualizar categoría de múltiples productos
+   */
+  async bulkUpdateCategory(
+    productIds: string[],
+    categoryId: string,
+  ): Promise<{ count: number }> {
+    let count = 0;
+    const errors: string[] = [];
+
+    for (const id of productIds) {
+      try {
+        const product = await this.findById(id);
+        const updatedProduct: Product = {
+          ...product,
+          category_id: categoryId,
+          updated_at: new Date(),
+        };
+        this.products.set(id, updatedProduct);
+        count++;
+      } catch (error) {
+        errors.push(`${id}: ${error.message}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      this.logger.warn(
+        `Errores en actualización masiva de categoría: ${errors.join(', ')}`,
+      );
+    }
+
+    this.logger.log(
+      `Categorías actualizadas en masa: ${count}/${productIds.length} a categoría ${categoryId}`,
+    );
+    return { count };
+  }
 }
