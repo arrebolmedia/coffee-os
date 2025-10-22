@@ -10,11 +10,19 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { QueryCategoriesDto } from './dto/query-categories.dto';
+import {
+  ReorderCategoriesDto,
+  BulkDeleteCategoriesDto,
+  BulkUpdateStatusDto,
+} from './dto/bulk-operations.dto';
 
+@ApiTags('categories')
+@ApiBearerAuth()
 @Controller('categories')
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
@@ -24,6 +32,9 @@ export class CategoriesController {
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Crear nueva categoría' })
+  @ApiResponse({ status: 201, description: 'Categoría creada exitosamente' })
+  @ApiResponse({ status: 409, description: 'Nombre de categoría ya existe' })
   async create(@Body() createCategoryDto: CreateCategoryDto) {
     return this.categoriesService.create(createCategoryDto);
   }
@@ -133,7 +144,64 @@ export class CategoriesController {
    */
   @Get('organization/:organization_id/stats')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Obtener estadísticas de categorías' })
+  @ApiResponse({ status: 200, description: 'Estadísticas obtenidas' })
   async getStats(@Param('organization_id') organization_id: string) {
     return this.categoriesService.getStats(organization_id);
+  }
+
+  /**
+   * Reordenar múltiples categorías
+   */
+  @Post('reorder')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reordenar múltiples categorías' })
+  @ApiResponse({ status: 200, description: 'Categorías reordenadas exitosamente' })
+  async reorder(@Body() reorderDto: ReorderCategoriesDto) {
+    const result = await this.categoriesService.reorderCategories(
+      reorderDto.items,
+    );
+    return {
+      success: true,
+      data: result,
+      message: `${result.count} categorías reordenadas exitosamente`,
+    };
+  }
+
+  /**
+   * Eliminar múltiples categorías
+   */
+  @Post('bulk-delete')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Eliminar múltiples categorías' })
+  @ApiResponse({ status: 200, description: 'Categorías eliminadas exitosamente' })
+  async bulkDelete(@Body() bulkDeleteDto: BulkDeleteCategoriesDto) {
+    const result = await this.categoriesService.bulkDelete(
+      bulkDeleteDto.categoryIds,
+    );
+    return {
+      success: true,
+      data: result,
+      message: `${result.count} categorías eliminadas exitosamente`,
+    };
+  }
+
+  /**
+   * Actualizar estado de múltiples categorías
+   */
+  @Post('bulk-update-status')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Actualizar estado de múltiples categorías' })
+  @ApiResponse({ status: 200, description: 'Estados actualizados exitosamente' })
+  async bulkUpdateStatus(@Body() bulkUpdateStatusDto: BulkUpdateStatusDto) {
+    const result = await this.categoriesService.bulkUpdateStatus(
+      bulkUpdateStatusDto.categoryIds,
+      bulkUpdateStatusDto.status as any,
+    );
+    return {
+      success: true,
+      data: result,
+      message: `${result.count} categorías actualizadas a ${bulkUpdateStatusDto.status}`,
+    };
   }
 }

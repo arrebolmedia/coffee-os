@@ -479,4 +479,95 @@ export class CategoriesService {
     );
     return orders.length > 0 ? Math.max(...orders) + 1 : 0;
   }
+
+  /**
+   * Reordenar múltiples categorías
+   */
+  async reorderCategories(
+    items: Array<{ id: string; sortOrder: number }>,
+  ): Promise<{ count: number }> {
+    let count = 0;
+    const errors: string[] = [];
+
+    for (const item of items) {
+      try {
+        const category = await this.findById(item.id);
+        const updated: Category = {
+          ...category,
+          display_order: item.sortOrder,
+          updated_at: new Date(),
+        };
+        this.categories.set(item.id, updated);
+        count++;
+      } catch (error) {
+        errors.push(`${item.id}: ${error.message}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      this.logger.warn(`Errors reordering categories: ${errors.join(', ')}`);
+    }
+
+    this.logger.log(`Reordered ${count}/${items.length} categories`);
+    return { count };
+  }
+
+  /**
+   * Eliminar múltiples categorías
+   */
+  async bulkDelete(categoryIds: string[]): Promise<{ count: number }> {
+    let count = 0;
+    const errors: string[] = [];
+
+    for (const id of categoryIds) {
+      try {
+        await this.delete(id);
+        count++;
+      } catch (error) {
+        errors.push(`${id}: ${error.message}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      this.logger.warn(`Errors in bulk delete: ${errors.join(', ')}`);
+    }
+
+    this.logger.log(`Deleted ${count}/${categoryIds.length} categories`);
+    return { count };
+  }
+
+  /**
+   * Actualizar estado de múltiples categorías
+   */
+  async bulkUpdateStatus(
+    categoryIds: string[],
+    status: CategoryStatus,
+  ): Promise<{ count: number }> {
+    let count = 0;
+    const errors: string[] = [];
+
+    for (const id of categoryIds) {
+      try {
+        const category = await this.findById(id);
+        const updated: Category = {
+          ...category,
+          status,
+          updated_at: new Date(),
+        };
+        this.categories.set(id, updated);
+        count++;
+      } catch (error) {
+        errors.push(`${id}: ${error.message}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      this.logger.warn(`Errors updating status: ${errors.join(', ')}`);
+    }
+
+    this.logger.log(
+      `Updated status of ${count}/${categoryIds.length} categories to ${status}`,
+    );
+    return { count };
+  }
 }
