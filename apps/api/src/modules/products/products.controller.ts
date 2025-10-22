@@ -9,9 +9,16 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
+import { FileUploadService } from '../upload/file-upload.service';
 import {
   CreateProductDto,
   UpdateProductDto,
@@ -50,7 +57,10 @@ import {
 @ApiBearerAuth()
 @Controller('products')
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly fileUploadService: FileUploadService,
+  ) {}
 
   /**
    * Crear un nuevo producto
@@ -226,6 +236,103 @@ export class ProductsController {
       success: true,
       data: result,
       message: `${result.count} productos actualizados exitosamente`,
+    };
+  }
+
+  /**
+   * Subir imagen de producto
+   */
+  @Post(':id/upload-image')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Subir imagen de producto' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        image: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Imagen subida exitosamente' })
+  @ApiResponse({ status: 400, description: 'Archivo inválido' })
+  @ApiResponse({ status: 404, description: 'Producto no encontrado' })
+  async uploadImage(
+    @Param('id') id: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5MB
+          new FileTypeValidator({ fileType: /(jpg|jpeg|png|webp)$/ }),
+        ],
+        fileIsRequired: true,
+      }),
+    )
+    file: Express.Multer.File,
+  ) {
+    // Verificar que el producto existe
+    const product = await this.productsService.findById(id);
+
+    // Eliminar imagen anterior si existe
+    if (product.image) {
+      const oldFilename = product.image.split('/').pop();
+      if (oldFilename) {
+        await this.fileUploadService.deleteProductImage(oldFilename);
+      }
+    }
+
+    // Subir nueva imagen
+    const uploadedFile = await this.fileUploadService.uploadProductImage(file);
+
+    // Actualizar producto con la nueva URL
+    const updatedProduct = await this.productsService.update(id, {
+      image_url: uploadedFile.url,
+    });
+
+    return {
+      success: true,
+      data: {
+        product: updatedProduct,
+        image: {
+          url: uploadedFile.url,
+          thumbnails: {
+            small: this.fileUploadService.getThumbnailUrl(uploadedFile.filename, 'small'),
+            medium: this.fileUploadService.getThumbnailUrl(uploadedFile.filename, 'medium'),
+            large: this.fileUploadService.getThumbnailUrl(uploadedFile.filename, 'large'),
+          },
+        },
+      },
+      message: 'Imagen subida exitosamente',
+    };
+  }
+
+  /**
+   * Eliminar imagen de producto
+   */
+  @Delete(':id/image')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Eliminar imagen de producto' })
+  @ApiResponse({ status: 200, description: 'Imagen eliminada exitosamente' })
+  @ApiResponse({ status: 404, description: 'Producto no encontrado' })
+  async deleteImage(@Param('id') id: string) {
+    const product = await this.productsService.findById(id);
+
+    if (product.image) {
+      const filename = product.image.split('/').pop();
+      if (filename) {
+        await this.fileUploadService.deleteProductImage(filename);
+      }
+
+      await this.productsService.update(id, { image_url: null });
+    }
+
+    return {
+      success: true,
+      message: 'Imagen eliminada exitosamente',
     };
   }
 }

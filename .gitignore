@@ -59,6 +59,10 @@ temp/
 logs/
 *.log
 
+# Uploads (keep structure but ignore content)
+apps/api/uploads/**/*
+!apps/api/uploads/**/.gitkeep
+
 # Database
 *.db
 *.sqlite

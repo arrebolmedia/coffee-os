@@ -55,6 +55,7 @@ import { DashboardsModule } from './modules/dashboards/dashboards.module';
 // Infrastructure modules
 import { DatabaseModule } from './modules/database/database.module';
 import { RedisModule } from './modules/redis/redis.module';
+import { UploadModule } from './modules/upload/upload.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard.global';
 
 @Module({
@@ -78,6 +79,7 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard.global';
     // Infrastructure
     DatabaseModule,
     RedisModule,
+    UploadModule,
 
     // Health check
     HealthModule,
