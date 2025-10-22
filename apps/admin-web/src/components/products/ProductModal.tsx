@@ -5,11 +5,12 @@ import { Dialog, Transition } from '@headlessui/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X, Upload, Loader2 } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { apiClient } from '@/lib/api-client';
 import { Product, Category } from '@/types';
+import ImageUpload from './ImageUpload';
 
 const productSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
@@ -44,7 +45,7 @@ export default function ProductModal({
 }: ProductModalProps) {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(
-    product?.image || null
+    product?.image || product?.image_url || null
   );
   const queryClient = useQueryClient();
 
@@ -90,14 +91,10 @@ export default function ProductModal({
 
       if (product?.id) {
         // Update existing product
-        return apiClient.put(`/products/${product.id}`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        return apiClient.uploadFormData(`/products/${product.id}`, formData, 'PUT');
       } else {
         // Create new product
-        return apiClient.post('/products', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        return apiClient.uploadFormData('/products', formData, 'POST');
       }
     },
     onSuccess: () => {
@@ -115,20 +112,16 @@ export default function ProductModal({
   const handleClose = () => {
     reset();
     setImageFile(null);
-    setImagePreview(product?.image || null);
+    setImagePreview(product?.image || product?.image_url || null);
     onClose();
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleImageChange = (file: File | null) => {
+    setImageFile(file);
+  };
+
+  const handleImagePreviewChange = (preview: string | null) => {
+    setImagePreview(preview);
   };
 
   const onSubmit = (data: ProductFormData) => {
@@ -180,33 +173,11 @@ export default function ProductModal({
 
                 <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-6">
                   {/* Image Upload */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Imagen del Producto
-                    </label>
-                    <div className="mt-2 flex items-center gap-4">
-                      {imagePreview ? (
-                        <img
-                          src={imagePreview}
-                          alt="Preview"
-                          className="h-24 w-24 rounded-lg object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-24 w-24 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50">
-                          <Upload className="h-8 w-8 text-gray-400" />
-                        </div>
-                      )}
-                      <label className="cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                        <span>Seleccionar imagen</span>
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept="image/*"
-                          onChange={handleImageChange}
-                        />
-                      </label>
-                    </div>
-                  </div>
+                  <ImageUpload
+                    value={imagePreview}
+                    onChange={handleImageChange}
+                    onPreviewChange={handleImagePreviewChange}
+                  />
 
                   {/* Basic Info */}
                   <div className="grid grid-cols-2 gap-4">

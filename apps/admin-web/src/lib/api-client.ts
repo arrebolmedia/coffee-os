@@ -166,6 +166,26 @@ class ApiClient {
 
     return response.data.data as T;
   }
+
+  // Upload FormData (for multi-field forms with files)
+  async uploadFormData<T = any>(url: string, formData: FormData, method: 'POST' | 'PUT' = 'POST', onProgress?: (progress: number) => void): Promise<T> {
+    const response = await this.client.request<ApiResponse<T>>({
+      url,
+      method,
+      data: formData,
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        if (onProgress && progressEvent.total) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(progress);
+        }
+      },
+    });
+
+    return response.data.data as T;
+  }
 }
 
 export const apiClient = new ApiClient();
