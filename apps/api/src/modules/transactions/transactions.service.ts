@@ -1,7 +1,7 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
@@ -303,7 +303,7 @@ export class TransactionsService {
   }
 
   async complete(id: string) {
-    const transaction = await this.findOne(id);
+    await this.findOne(id);
 
     // Calculate total
     const totals = await this.calculateTotal(id);

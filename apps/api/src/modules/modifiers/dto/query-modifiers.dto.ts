@@ -1,12 +1,12 @@
 import {
+  IsBoolean,
+  IsEnum,
+  IsNumber,
   IsOptional,
   IsString,
-  IsBoolean,
-  IsNumber,
-  IsEnum,
   Min,
 } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ModifierType } from './create-modifier.dto';
 
 export class QueryModifiersDto {

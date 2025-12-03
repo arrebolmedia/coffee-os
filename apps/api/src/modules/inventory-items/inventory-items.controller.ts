@@ -1,14 +1,14 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
   Body,
-  Param,
-  Query,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Post,
+  Put,
+  Query,
 } from '@nestjs/common';
 import { InventoryItemsService } from './inventory-items.service';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';

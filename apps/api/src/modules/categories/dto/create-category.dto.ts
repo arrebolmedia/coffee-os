@@ -1,12 +1,12 @@
 import {
-  IsString,
-  IsOptional,
   IsBoolean,
-  IsNumber,
   IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Matches,
   MaxLength,
   Min,
-  Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 

@@ -1,8 +1,8 @@
 import {
+  BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
-  ConflictException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
@@ -53,15 +53,7 @@ export class InventoryItemsService {
   }
 
   async findAll(query: QueryInventoryItemsDto) {
-    const {
-      skip = 0,
-      take = 50,
-      active,
-      category,
-      search,
-      supplierId,
-      lowStock,
-    } = query;
+    const { skip = 0, take = 50, active, category, search, supplierId } = query;
 
     const where: any = {};
 

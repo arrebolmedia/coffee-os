@@ -1,14 +1,14 @@
 import {
-  IsOptional,
-  IsInt,
-  Min,
-  IsEnum,
-  IsString,
   IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { MovementType, MovementReason } from '../inventory-movements.service';
+import { MovementReason, MovementType } from '../inventory-movements.service';
 
 export class QueryInventoryMovementsDto {
   @ApiPropertyOptional({

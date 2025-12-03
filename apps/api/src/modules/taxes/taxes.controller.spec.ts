@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TaxesController } from './taxes.controller';
-import { TaxesService, TaxCategory } from './taxes.service';
+import { TaxCategory, TaxesService } from './taxes.service';
 
 describe('TaxesController', () => {
   let controller: TaxesController;

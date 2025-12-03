@@ -1,14 +1,14 @@
 import {
-  IsString,
+  IsDateString,
+  IsEnum,
   IsNotEmpty,
   IsNumber,
-  IsPositive,
-  IsEnum,
   IsOptional,
-  IsDateString,
+  IsPositive,
+  IsString,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { MovementType, MovementReason } from '../inventory-movements.service';
+import { MovementReason, MovementType } from '../inventory-movements.service';
 
 export class CreateInventoryMovementDto {
   @ApiProperty({
