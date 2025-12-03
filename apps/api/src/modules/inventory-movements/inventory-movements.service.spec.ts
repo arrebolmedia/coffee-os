@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   InventoryMovementsService,
-  MovementType,
   MovementReason,
+  MovementType,
 } from './inventory-movements.service';
 import { PrismaService } from '../database/prisma.service';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('InventoryMovementsService', () => {
   let service: InventoryMovementsService;

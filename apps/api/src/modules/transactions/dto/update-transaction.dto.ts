@@ -1,6 +1,6 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateTransactionDto } from './create-transaction.dto';
-import { IsString, IsOptional, IsEnum } from 'class-validator';
+import { IsEnum, IsOptional } from 'class-validator';
 
 export enum TransactionStatus {
   PENDING = 'PENDING',

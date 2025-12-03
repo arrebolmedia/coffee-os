@@ -4,7 +4,7 @@ import { PrismaService } from '../database/prisma.service';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
 import { QueryRecipesDto } from './dto/query-recipes.dto';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('RecipesService', () => {
   let service: RecipesService;

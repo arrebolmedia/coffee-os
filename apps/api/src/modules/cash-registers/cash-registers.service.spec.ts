@@ -201,7 +201,6 @@ describe('CashRegistersService', () => {
     it('should record an expense and update total', async () => {
       const id = '1';
       const dto = { amount: 500, description: 'Cambio' };
-      const existingExpenses = [{ amount: 200 }];
       const newTotal = 700;
       const mockRegister = {
         id,

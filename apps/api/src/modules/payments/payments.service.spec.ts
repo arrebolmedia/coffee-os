@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
-  PaymentsService,
   PaymentMethod,
+  PaymentsService,
   PaymentStatus,
 } from './payments.service';
 import { PrismaService } from '../database/prisma.service';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('PaymentsService', () => {
   let service: PaymentsService;

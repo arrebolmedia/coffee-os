@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TaxesService, TaxCategory } from './taxes.service';
+import { TaxCategory, TaxesService } from './taxes.service';
 import { PrismaService } from '../database/prisma.service';
 import { NotFoundException } from '@nestjs/common';
 

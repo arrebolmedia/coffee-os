@@ -1,13 +1,13 @@
 import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  MaxLength,
   IsArray,
-  ValidateNested,
+  IsNotEmpty,
   IsNumber,
-  Min,
+  IsOptional,
+  IsString,
   IsUUID,
+  MaxLength,
+  Min,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 

@@ -1,10 +1,10 @@
 import {
-  IsOptional,
-  IsInt,
-  Min,
   IsBoolean,
+  IsInt,
+  IsOptional,
   IsString,
   IsUUID,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 

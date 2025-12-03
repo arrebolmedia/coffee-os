@@ -1,9 +1,9 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
+  HealthCheck,
   HealthCheckService,
   HttpHealthIndicator,
-  HealthCheck,
 } from '@nestjs/terminus';
 
 @ApiTags('health')

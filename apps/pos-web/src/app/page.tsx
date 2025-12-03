@@ -1,6 +1,5 @@
-import Image from 'next/image';
 import Link from 'next/link';
-import { Coffee, ShoppingCart, Users, BarChart3 } from 'lucide-react';
+import { BarChart3, Coffee, ShoppingCart, Users } from 'lucide-react';
 
 export default function HomePage() {
   return (

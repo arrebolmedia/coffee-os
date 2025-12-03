@@ -1,11 +1,11 @@
 import {
+  Body,
   Controller,
+  Delete,
   Get,
+  Param,
   Post,
   Put,
-  Delete,
-  Body,
-  Param,
   Query,
 } from '@nestjs/common';
 import { RecipesService } from './recipes.service';

@@ -1,11 +1,11 @@
 import {
-  IsOptional,
-  IsString,
   IsBoolean,
   IsNumber,
+  IsOptional,
+  IsString,
   Min,
 } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class QueryInventoryItemsDto {
   @IsOptional()

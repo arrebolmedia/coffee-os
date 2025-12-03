@@ -1,16 +1,18 @@
 import './globals.css';
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import type { Metadata, Viewport } from 'next';
 import { Providers } from './providers';
 
-const inter = Inter({ subsets: ['latin'] });
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  userScalable: false,
+  themeColor: '#8B4513',
+};
 
 export const metadata: Metadata = {
   title: 'CoffeeOS POS',
   description: 'Sistema punto de venta para cafeterías',
   manifest: '/manifest.json',
-  themeColor: '#8B4513',
-  viewport: 'width=device-width, initial-scale=1, user-scalable=no',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -25,7 +27,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className={inter.className}>
+      <body className="font-sans">
         <Providers>{children}</Providers>
       </body>
     </html>
