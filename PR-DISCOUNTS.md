@@ -7,6 +7,7 @@ Implements the **Discounts module** for CoffeeOS, enabling complete discount and
 ## ✨ Features Added
 
 ### DiscountsService
+
 - **Discount Types**: PERCENTAGE, FIXED_AMOUNT, BUY_X_GET_Y
 - **Code Validation**: Unique discount codes
 - **Percentage Validation**: 0-100% range enforcement
@@ -18,6 +19,7 @@ Implements the **Discounts module** for CoffeeOS, enabling complete discount and
 - **Calculation Logic**: Automatic discount amount calculation
 
 ### DiscountsController (10 Endpoints)
+
 ```typescript
 POST   /discounts                  // Create new discount
 GET    /discounts                  // List with pagination
@@ -32,11 +34,13 @@ DELETE /discounts/:id              // Delete discount
 ```
 
 ### DTOs
+
 - **CreateDiscountDto** (93 lines): Complete discount creation with validation
 - **UpdateDiscountDto** (4 lines): Partial updates
 - **QueryDiscountsDto** (31 lines): Filtering and pagination
 
 ### Business Rules
+
 - ✅ Unique discount codes
 - ✅ Percentage must be 0-100
 - ✅ Fixed amounts must be positive
@@ -51,6 +55,7 @@ DELETE /discounts/:id              // Delete discount
 **39 tests (100% passing)**
 
 ### Controller Tests (10)
+
 - ✅ Create discount
 - ✅ List discounts
 - ✅ Get active discounts
@@ -63,6 +68,7 @@ DELETE /discounts/:id              // Delete discount
 - ✅ Delete discount
 
 ### Service Tests (29)
+
 - ✅ Create percentage discount
 - ✅ Code already exists error
 - ✅ Invalid percentage error
@@ -110,9 +116,11 @@ DELETE /discounts/:id              // Delete discount
 ## 🔗 Integration Points
 
 ### Current
+
 - **DatabaseModule**: Prisma ORM access
 
 ### Future
+
 - **Transactions Module**: Apply discounts to transactions
 - **Products Module**: Product-specific discounts
 - **CRM Module**: Customer-based loyalty discounts
@@ -131,13 +139,13 @@ const discount = await discountsService.create({
   validUntil: new Date('2024-08-31'),
   minPurchaseAmount: 100,
   usageLimit: 1000,
-  organizationId: 'org-1'
+  organizationId: 'org-1',
 });
 
 // Calculate discount
 const amount = await discountsService.calculateDiscount(
   discount.id,
-  250 // subtotal
+  250, // subtotal
 );
 // → Returns: 50 (20% of 250)
 
@@ -148,17 +156,20 @@ await discountsService.incrementUsage(discount.id);
 ## 🎯 Business Value
 
 ### For Marketing
+
 - **Promotional Campaigns**: Seasonal discounts
 - **Coupon Codes**: Unique codes for campaigns
 - **Usage Limits**: Control budget impact
 - **Date Ranges**: Time-limited offers
 
 ### For Sales
+
 - **Cart Abandonment**: Incentive discounts
 - **Minimum Purchase**: Drive average order value
 - **Loyalty Rewards**: Repeat customer discounts
 
 ### For Finance
+
 - **Max Discount Cap**: Prevent excessive discounts
 - **Usage Tracking**: Monitor discount ROI
 - **Reporting**: Discount impact analysis
@@ -169,10 +180,10 @@ await discountsService.incrementUsage(discount.id);
 
 Previous: Products, Categories, Modifiers, Inventory Items, Suppliers, Recipes, Transactions, Payments, Inventory Movements, Orders
 
-**New:**
-11. ✅ **Discounts (39 tests)** ⭐
+**New:** 11. ✅ **Discounts (39 tests)** ⭐
 
 **Cumulative Stats:**
+
 - **Total Tests**: 352 (313 + 39)
 - **Total Endpoints**: 95+
 - **Test Coverage**: Comprehensive
