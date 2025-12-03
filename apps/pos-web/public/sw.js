@@ -16,15 +16,15 @@ if (!self.define) {
       })
   );
   self.define = (t, a) => {
-    const c =
+    const i =
       e ||
       ('document' in self ? document.currentScript.src : '') ||
       location.href;
-    if (s[c]) return;
-    let i = {};
-    const r = (e) => n(e, c),
-      o = { module: { uri: c }, exports: i, require: r };
-    s[c] = Promise.all(t.map((e) => o[e] || r(e))).then((e) => (a(...e), i));
+    if (s[i]) return;
+    let c = {};
+    const u = (e) => n(e, i),
+      r = { module: { uri: i }, exports: c, require: u };
+    s[i] = Promise.all(t.map((e) => r[e] || u(e))).then((e) => (a(...e), c));
   };
 }
 define(['./workbox-fdcc1164'], function (e) {
@@ -39,60 +39,52 @@ define(['./workbox-fdcc1164'], function (e) {
           revision: 'bf76b5e291916cb1c3292546fc3c4a89',
         },
         {
-          url: '/_next/static/YA-8R9tZz81PVjcnOuvZk/_buildManifest.js',
-          revision: 'faaa18916828f796d1c86f67e67dae84',
-        },
-        {
-          url: '/_next/static/YA-8R9tZz81PVjcnOuvZk/_ssgManifest.js',
-          revision: 'b6652df95db52feb4daf4eca35380933',
-        },
-        {
           url: '/_next/static/chunks/1dd3208c-4302603e1ad077ae.js',
-          revision: 'YA-8R9tZz81PVjcnOuvZk',
+          revision: 'zUQE-jJ0eMIvOuV8RUmuw',
         },
         {
           url: '/_next/static/chunks/245-ca522209e68e428f.js',
-          revision: 'YA-8R9tZz81PVjcnOuvZk',
+          revision: 'zUQE-jJ0eMIvOuV8RUmuw',
         },
         {
           url: '/_next/static/chunks/340-b9903abdd93dbfed.js',
-          revision: 'YA-8R9tZz81PVjcnOuvZk',
+          revision: 'zUQE-jJ0eMIvOuV8RUmuw',
         },
         {
           url: '/_next/static/chunks/528-77ec7a874993aa69.js',
-          revision: 'YA-8R9tZz81PVjcnOuvZk',
+          revision: 'zUQE-jJ0eMIvOuV8RUmuw',
         },
         {
           url: '/_next/static/chunks/app/_not-found/page-4083c727f012c4fc.js',
-          revision: 'YA-8R9tZz81PVjcnOuvZk',
+          revision: 'zUQE-jJ0eMIvOuV8RUmuw',
         },
         {
           url: '/_next/static/chunks/app/layout-238b88aaad08e6e3.js',
-          revision: 'YA-8R9tZz81PVjcnOuvZk',
+          revision: 'zUQE-jJ0eMIvOuV8RUmuw',
         },
         {
           url: '/_next/static/chunks/app/page-dcd1e87f8593bd6d.js',
-          revision: 'YA-8R9tZz81PVjcnOuvZk',
+          revision: 'zUQE-jJ0eMIvOuV8RUmuw',
         },
         {
           url: '/_next/static/chunks/framework-3664cab31236a9fa.js',
-          revision: 'YA-8R9tZz81PVjcnOuvZk',
+          revision: 'zUQE-jJ0eMIvOuV8RUmuw',
         },
         {
           url: '/_next/static/chunks/main-2140b444aed0c57d.js',
-          revision: 'YA-8R9tZz81PVjcnOuvZk',
+          revision: 'zUQE-jJ0eMIvOuV8RUmuw',
         },
         {
           url: '/_next/static/chunks/main-app-db961af23184051c.js',
-          revision: 'YA-8R9tZz81PVjcnOuvZk',
+          revision: 'zUQE-jJ0eMIvOuV8RUmuw',
         },
         {
           url: '/_next/static/chunks/pages/_app-10a93ab5b7c32eb3.js',
-          revision: 'YA-8R9tZz81PVjcnOuvZk',
+          revision: 'zUQE-jJ0eMIvOuV8RUmuw',
         },
         {
           url: '/_next/static/chunks/pages/_error-2d792b2a41857be4.js',
-          revision: 'YA-8R9tZz81PVjcnOuvZk',
+          revision: 'zUQE-jJ0eMIvOuV8RUmuw',
         },
         {
           url: '/_next/static/chunks/polyfills-42372ed130431b0a.js',
@@ -100,11 +92,19 @@ define(['./workbox-fdcc1164'], function (e) {
         },
         {
           url: '/_next/static/chunks/webpack-f60560fce93593a2.js',
-          revision: 'YA-8R9tZz81PVjcnOuvZk',
+          revision: 'zUQE-jJ0eMIvOuV8RUmuw',
         },
         {
           url: '/_next/static/css/f0f81a1e9017436b.css',
           revision: 'f0f81a1e9017436b',
+        },
+        {
+          url: '/_next/static/zUQE-jJ0eMIvOuV8RUmuw/_buildManifest.js',
+          revision: 'faaa18916828f796d1c86f67e67dae84',
+        },
+        {
+          url: '/_next/static/zUQE-jJ0eMIvOuV8RUmuw/_ssgManifest.js',
+          revision: 'b6652df95db52feb4daf4eca35380933',
         },
         { url: '/manifest.json', revision: 'ccc9da28bcbe6e02f41036f992ac3e96' },
       ],
