@@ -206,9 +206,9 @@ export default function ProductsPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          {product.image_url ? (
+                          {product.image ? (
                             <img
-                              src={product.image_url}
+                              src={product.image}
                               alt={product.name}
                               className="w-12 h-12 rounded-lg object-cover"
                             />
@@ -236,13 +236,13 @@ export default function ProductsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        {product.track_inventory ? (
+                        {product.trackInventory ? (
                           <span className={`text-sm ${
-                            product.current_stock && product.current_stock <= (product.min_stock || 0)
+                            product.stockQuantity && product.stockQuantity <= (product.minimumStock || 0)
                               ? 'text-red-600 font-semibold'
                               : 'text-gray-900'
                           }`}>
-                            {product.current_stock || 0}
+                            {product.stockQuantity || 0}
                           </span>
                         ) : (
                           <span className="text-sm text-gray-400">N/A</span>

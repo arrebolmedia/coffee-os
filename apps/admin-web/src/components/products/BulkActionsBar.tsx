@@ -1,7 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Trash2, FolderInput, Download, ToggleLeft, ToggleRight, X } from 'lucide-react';
+import {
+  Trash2,
+  FolderInput,
+  Download,
+  ToggleLeft,
+  ToggleRight,
+  X,
+} from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { apiClient } from '@/lib/api-client';
@@ -35,30 +42,55 @@ export default function BulkActionsBar({
       onClearSelection();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Error al eliminar productos');
+      toast.error(
+        error.response?.data?.message || 'Error al eliminar productos',
+      );
     },
   });
 
   // Bulk update status mutation
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ productIds, isActive }: { productIds: string[]; isActive: boolean }) => {
-      return apiClient.post('/products/bulk-update-status', { productIds, isActive });
+    mutationFn: async ({
+      productIds,
+      isActive,
+    }: {
+      productIds: string[];
+      isActive: boolean;
+    }) => {
+      return apiClient.post('/products/bulk-update-status', {
+        productIds,
+        isActive,
+      });
     },
-    onSuccess: (_data: any, variables: { productIds: string[]; isActive: boolean }) => {
+    onSuccess: (
+      _data: any,
+      variables: { productIds: string[]; isActive: boolean },
+    ) => {
       const status = variables.isActive ? 'activados' : 'desactivados';
       toast.success(`${selectedCount} producto(s) ${status}`);
       queryClient.invalidateQueries({ queryKey: ['products'] });
       onClearSelection();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Error al actualizar productos');
+      toast.error(
+        error.response?.data?.message || 'Error al actualizar productos',
+      );
     },
   });
 
   // Bulk update category mutation
   const updateCategoryMutation = useMutation({
-    mutationFn: async ({ productIds, categoryId }: { productIds: string[]; categoryId: string }) => {
-      return apiClient.post('/products/bulk-update-category', { productIds, categoryId });
+    mutationFn: async ({
+      productIds,
+      categoryId,
+    }: {
+      productIds: string[];
+      categoryId: string;
+    }) => {
+      return apiClient.post('/products/bulk-update-category', {
+        productIds,
+        categoryId,
+      });
     },
     onSuccess: () => {
       toast.success(`Categoría actualizada para ${selectedCount} producto(s)`);
@@ -67,14 +99,16 @@ export default function BulkActionsBar({
       onClearSelection();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Error al actualizar categoría');
+      toast.error(
+        error.response?.data?.message || 'Error al actualizar categoría',
+      );
     },
   });
 
   const handleBulkDelete = () => {
     if (
       window.confirm(
-        `¿Estás seguro de eliminar ${selectedCount} producto(s)?\n\nEsta acción no se puede deshacer.`
+        `¿Estás seguro de eliminar ${selectedCount} producto(s)?\n\nEsta acción no se puede deshacer.`,
       )
     ) {
       deleteMutation.mutate(selectedIds);
@@ -101,8 +135,8 @@ export default function BulkActionsBar({
       product.name,
       product.category?.name || 'Sin categoría',
       product.price.toFixed(2),
-      product.stock || 0,
-      product.isActive ? 'Activo' : 'Inactivo',
+      product.stockQuantity || 0,
+      product.status === 'ACTIVE' ? 'Activo' : 'Inactivo',
     ]);
 
     const csvContent = [
@@ -111,11 +145,16 @@ export default function BulkActionsBar({
     ].join('\n');
 
     // Create and download file
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + csvContent], {
+      type: 'text/csv;charset=utf-8;',
+    });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `productos_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute(
+      'download',
+      `productos_${new Date().toISOString().split('T')[0]}.csv`,
+    );
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -135,7 +174,8 @@ export default function BulkActionsBar({
             {selectedCount}
           </div>
           <span className="font-medium">
-            {selectedCount} producto{selectedCount > 1 ? 's' : ''} seleccionado{selectedCount > 1 ? 's' : ''}
+            {selectedCount} producto{selectedCount > 1 ? 's' : ''} seleccionado
+            {selectedCount > 1 ? 's' : ''}
           </span>
         </div>
 
@@ -162,11 +202,13 @@ export default function BulkActionsBar({
                   className="fixed inset-0 z-40"
                   onClick={() => setShowCategorySelector(false)}
                 />
-                
+
                 {/* Dropdown */}
                 <div className="absolute bottom-full mb-2 left-0 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
                   <div className="px-3 py-2 border-b border-gray-200">
-                    <p className="text-xs font-medium text-gray-500">Selecciona una categoría</p>
+                    <p className="text-xs font-medium text-gray-500">
+                      Selecciona una categoría
+                    </p>
                   </div>
                   <div className="max-h-64 overflow-y-auto">
                     {categories.map((category) => (

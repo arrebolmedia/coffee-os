@@ -5,7 +5,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X, Upload, Trash2, Loader2 } from 'lucide-react';
-import { useCreateProduct, useUpdateProduct, useUploadProductImage, useDeleteProductImage, useActiveCategories } from '@/hooks/useApi';
+import {
+  useCreateProduct,
+  useUpdateProduct,
+  useUploadProductImage,
+  useDeleteProductImage,
+  useActiveCategories,
+} from '@/hooks/useApi';
 import toast from 'react-hot-toast';
 import type { Product } from '@/types';
 
@@ -14,15 +20,15 @@ const productSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   description: z.string().optional(),
   type: z.enum(['SIMPLE', 'COMBO', 'VARIABLE']),
-  category_id: z.string().optional(),
+  categoryId: z.string().optional(),
   price: z.number().min(0, 'El precio debe ser mayor a 0'),
   cost: z.number().min(0).optional(),
   sku: z.string().optional(),
   barcode: z.string().optional(),
-  track_inventory: z.boolean().default(false),
-  current_stock: z.number().int().min(0).optional(),
-  min_stock: z.number().int().min(0).optional(),
-  max_stock: z.number().int().min(0).optional(),
+  trackInventory: z.boolean().default(false),
+  stockQuantity: z.number().int().min(0).optional(),
+  minimumStock: z.number().int().min(0).optional(),
+  maxStock: z.number().int().min(0).optional(),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -34,9 +40,16 @@ interface ProductFormModalProps {
   onSuccess?: () => void;
 }
 
-export function ProductFormModal({ isOpen, onClose, product, onSuccess }: ProductFormModalProps) {
+export function ProductFormModal({
+  isOpen,
+  onClose,
+  product,
+  onSuccess,
+}: ProductFormModalProps) {
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(product?.image_url || null);
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    product?.image || null,
+  );
   const [uploadProgress, setUploadProgress] = useState(0);
 
   const isEditing = !!product;
@@ -49,37 +62,40 @@ export function ProductFormModal({ isOpen, onClose, product, onSuccess }: Produc
     watch,
   } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
-    defaultValues: product ? {
-      name: product.name,
-      description: product.description || '',
-      type: product.type,
-      category_id: product.category_id || '',
-      price: product.price,
-      cost: product.cost || 0,
-      sku: product.sku || '',
-      barcode: product.barcode || '',
-      track_inventory: product.track_inventory,
-      current_stock: product.current_stock || 0,
-      min_stock: product.min_stock || 0,
-      max_stock: product.max_stock || 0,
-    } : {
-      type: 'SIMPLE',
-      price: 0,
-      track_inventory: false,
-    },
+    defaultValues: product
+      ? {
+          name: product.name,
+          description: product.description || '',
+          type: product.type,
+          categoryId: product.categoryId || '',
+          price: product.price,
+          cost: product.cost || 0,
+          sku: product.sku || '',
+          barcode: product.barcode || '',
+          trackInventory: product.trackInventory,
+          stockQuantity: product.stockQuantity || 0,
+          minimumStock: product.minimumStock || 0,
+          maxStock: 0,
+        }
+      : {
+          type: 'SIMPLE',
+          price: 0,
+          trackInventory: false,
+        },
   });
 
-  const trackInventory = watch('track_inventory');
+  const trackInventory = watch('trackInventory');
 
   const createProductMutation = useCreateProduct();
   const updateProductMutation = useUpdateProduct();
   const uploadImageMutation = useUploadProductImage();
   const deleteImageMutation = useDeleteProductImage();
-  const { data: categories, isLoading: categoriesLoading } = useActiveCategories();
+  const { data: categories, isLoading: categoriesLoading } =
+    useActiveCategories();
 
   useEffect(() => {
     if (product) {
-      setImagePreview(product.image_url || null);
+      setImagePreview(product?.image || null);
     }
   }, [product]);
 
@@ -87,7 +103,7 @@ export function ProductFormModal({ isOpen, onClose, product, onSuccess }: Produc
     if (!isOpen) {
       reset();
       setImageFile(null);
-      setImagePreview(product?.image_url || null);
+      setImagePreview(product?.image || null);
       setUploadProgress(0);
     }
   }, [isOpen, reset, product]);
@@ -119,12 +135,14 @@ export function ProductFormModal({ isOpen, onClose, product, onSuccess }: Produc
   };
 
   const handleRemoveImage = async () => {
-    if (isEditing && product?.image_url) {
+    if (isEditing && product?.image) {
       try {
         await deleteImageMutation.mutateAsync(product.id);
         toast.success('Imagen eliminada');
       } catch (error: any) {
-        toast.error(error.response?.data?.message || 'Error al eliminar imagen');
+        toast.error(
+          error.response?.data?.message || 'Error al eliminar imagen',
+        );
       }
     }
     setImageFile(null);
@@ -162,7 +180,8 @@ export function ProductFormModal({ isOpen, onClose, product, onSuccess }: Produc
       onClose();
     } catch (error: any) {
       console.error('Submit error:', error);
-      const errorMessage = error.response?.data?.message || 'Error al guardar el producto';
+      const errorMessage =
+        error.response?.data?.message || 'Error al guardar el producto';
       toast.error(errorMessage);
     }
   };
@@ -200,7 +219,7 @@ export function ProductFormModal({ isOpen, onClose, product, onSuccess }: Produc
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Imagen del Producto
               </label>
-              
+
               {imagePreview ? (
                 <div className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
                   <img
@@ -256,7 +275,9 @@ export function ProductFormModal({ isOpen, onClose, product, onSuccess }: Produc
                   placeholder="Café Americano"
                 />
                 {errors.name && (
-                  <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.name.message}
+                  </p>
                 )}
               </div>
 
@@ -291,7 +312,7 @@ export function ProductFormModal({ isOpen, onClose, product, onSuccess }: Produc
                   Categoría
                 </label>
                 <select
-                  {...register('category_id')}
+                  {...register('categoryId')}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coffee-500 focus:border-transparent"
                   disabled={categoriesLoading}
                 >
@@ -325,7 +346,9 @@ export function ProductFormModal({ isOpen, onClose, product, onSuccess }: Produc
                   />
                 </div>
                 {errors.price && (
-                  <p className="mt-1 text-sm text-red-600">{errors.price.message}</p>
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.price.message}
+                  </p>
                 )}
               </div>
 
@@ -380,12 +403,15 @@ export function ProductFormModal({ isOpen, onClose, product, onSuccess }: Produc
             <div className="border-t border-gray-200 pt-6">
               <div className="flex items-center mb-4">
                 <input
-                  {...register('track_inventory')}
+                  {...register('trackInventory')}
                   type="checkbox"
-                  id="track_inventory"
+                  id="trackInventory"
                   className="w-4 h-4 rounded border-gray-300 text-coffee-600 focus:ring-coffee-500"
                 />
-                <label htmlFor="track_inventory" className="ml-2 text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="trackInventory"
+                  className="ml-2 text-sm font-medium text-gray-700"
+                >
                   Rastrear inventario
                 </label>
               </div>
@@ -397,7 +423,7 @@ export function ProductFormModal({ isOpen, onClose, product, onSuccess }: Produc
                       Stock Actual
                     </label>
                     <input
-                      {...register('current_stock', { valueAsNumber: true })}
+                      {...register('stockQuantity', { valueAsNumber: true })}
                       type="number"
                       min="0"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coffee-500 focus:border-transparent"
@@ -410,7 +436,7 @@ export function ProductFormModal({ isOpen, onClose, product, onSuccess }: Produc
                       Stock Mínimo
                     </label>
                     <input
-                      {...register('min_stock', { valueAsNumber: true })}
+                      {...register('minimumStock', { valueAsNumber: true })}
                       type="number"
                       min="0"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coffee-500 focus:border-transparent"
@@ -423,7 +449,7 @@ export function ProductFormModal({ isOpen, onClose, product, onSuccess }: Produc
                       Stock Máximo
                     </label>
                     <input
-                      {...register('max_stock', { valueAsNumber: true })}
+                      {...register('maxStock', { valueAsNumber: true })}
                       type="number"
                       min="0"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coffee-500 focus:border-transparent"
@@ -445,10 +471,14 @@ export function ProductFormModal({ isOpen, onClose, product, onSuccess }: Produc
               </button>
               <button
                 type="submit"
-                disabled={createProductMutation.isPending || updateProductMutation.isPending}
+                disabled={
+                  createProductMutation.isPending ||
+                  updateProductMutation.isPending
+                }
                 className="px-6 py-2 bg-coffee-600 hover:bg-coffee-700 text-white rounded-lg transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {(createProductMutation.isPending || updateProductMutation.isPending) && (
+                {(createProductMutation.isPending ||
+                  updateProductMutation.isPending) && (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 )}
                 {isEditing ? 'Actualizar' : 'Crear'} Producto

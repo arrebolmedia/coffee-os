@@ -9,6 +9,19 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        coffee: {
+          50:  '#fdf8f0',
+          100: '#f9edd8',
+          200: '#f2d9b0',
+          300: '#e8be7e',
+          400: '#dc9d4a',
+          500: '#d4842a',
+          600: '#c56a1f',
+          700: '#a4531b',
+          800: '#84421c',
+          900: '#6b361a',
+          950: '#3a1a0b',
+        },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',

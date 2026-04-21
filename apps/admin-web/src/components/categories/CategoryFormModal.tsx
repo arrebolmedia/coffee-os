@@ -13,10 +13,13 @@ import type { Category } from '@/types';
 const categorySchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   description: z.string().optional(),
-  color: z.string().regex(/^#[0-9A-F]{6}$/i, 'Color debe ser hexadecimal').optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9A-F]{6}$/i, 'Color debe ser hexadecimal')
+    .optional(),
   icon: z.string().optional(),
-  sort_order: z.number().int().min(0).default(0),
-  is_active: z.boolean().default(true),
+  sortOrder: z.number().int().min(0).default(0),
+  active: z.boolean().default(true),
 });
 
 type CategoryFormData = z.infer<typeof categorySchema>;
@@ -42,7 +45,12 @@ const PRESET_COLORS = [
   { name: 'Gray', value: '#6B7280' },
 ];
 
-export function CategoryFormModal({ isOpen, onClose, category, onSuccess }: CategoryFormModalProps) {
+export function CategoryFormModal({
+  isOpen,
+  onClose,
+  category,
+  onSuccess,
+}: CategoryFormModalProps) {
   const isEditing = !!category;
 
   const {
@@ -54,21 +62,23 @@ export function CategoryFormModal({ isOpen, onClose, category, onSuccess }: Cate
     setValue,
   } = useForm<CategoryFormData>({
     resolver: zodResolver(categorySchema),
-    defaultValues: category ? {
-      name: category.name,
-      description: category.description || '',
-      color: category.color || '#6B7280',
-      icon: category.icon || '',
-      sort_order: category.sort_order,
-      is_active: category.is_active,
-    } : {
-      name: '',
-      description: '',
-      color: '#6B7280',
-      icon: '',
-      sort_order: 0,
-      is_active: true,
-    },
+    defaultValues: category
+      ? {
+          name: category.name,
+          description: category.description || '',
+          color: category.color || '#6B7280',
+          icon: category.icon || '',
+          sortOrder: category.sortOrder,
+          active: category.active,
+        }
+      : {
+          name: '',
+          description: '',
+          color: '#6B7280',
+          icon: '',
+          sortOrder: 0,
+          active: true,
+        },
   });
 
   const selectedColor = watch('color');
@@ -99,7 +109,8 @@ export function CategoryFormModal({ isOpen, onClose, category, onSuccess }: Cate
       onClose();
     } catch (error: any) {
       console.error('Submit error:', error);
-      const errorMessage = error.response?.data?.message || 'Error al guardar la categoría';
+      const errorMessage =
+        error.response?.data?.message || 'Error al guardar la categoría';
       toast.error(errorMessage);
     }
   };
@@ -144,7 +155,9 @@ export function CategoryFormModal({ isOpen, onClose, category, onSuccess }: Cate
                 placeholder="Bebidas calientes"
               />
               {errors.name && (
-                <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.name.message}
+                </p>
               )}
             </div>
 
@@ -166,7 +179,7 @@ export function CategoryFormModal({ isOpen, onClose, category, onSuccess }: Cate
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Color
               </label>
-              
+
               {/* Preset Colors */}
               <div className="grid grid-cols-5 gap-2 mb-3">
                 {PRESET_COLORS.map((color) => (
@@ -200,7 +213,9 @@ export function CategoryFormModal({ isOpen, onClose, category, onSuccess }: Cate
                 />
               </div>
               {errors.color && (
-                <p className="mt-1 text-sm text-red-600">{errors.color.message}</p>
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.color.message}
+                </p>
               )}
             </div>
 
@@ -211,7 +226,7 @@ export function CategoryFormModal({ isOpen, onClose, category, onSuccess }: Cate
                   Orden
                 </label>
                 <input
-                  {...register('sort_order', { valueAsNumber: true })}
+                  {...register('sortOrder', { valueAsNumber: true })}
                   type="number"
                   min="0"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-coffee-500 focus:border-transparent"
@@ -222,7 +237,7 @@ export function CategoryFormModal({ isOpen, onClose, category, onSuccess }: Cate
               <div className="flex items-end">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
-                    {...register('is_active')}
+                    {...register('active')}
                     type="checkbox"
                     className="w-4 h-4 rounded border-gray-300 text-coffee-600 focus:ring-coffee-500"
                   />
@@ -252,7 +267,9 @@ export function CategoryFormModal({ isOpen, onClose, category, onSuccess }: Cate
                     {watch('name') || 'Nombre de categoría'}
                   </p>
                   {watch('description') && (
-                    <p className="text-sm text-gray-500">{watch('description')}</p>
+                    <p className="text-sm text-gray-500">
+                      {watch('description')}
+                    </p>
                   )}
                 </div>
               </div>
@@ -269,10 +286,14 @@ export function CategoryFormModal({ isOpen, onClose, category, onSuccess }: Cate
               </button>
               <button
                 type="submit"
-                disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending}
+                disabled={
+                  createCategoryMutation.isPending ||
+                  updateCategoryMutation.isPending
+                }
                 className="px-6 py-2 bg-coffee-600 hover:bg-coffee-700 text-white rounded-lg transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {(createCategoryMutation.isPending || updateCategoryMutation.isPending) && (
+                {(createCategoryMutation.isPending ||
+                  updateCategoryMutation.isPending) && (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 )}
                 {isEditing ? 'Actualizar' : 'Crear'} Categoría

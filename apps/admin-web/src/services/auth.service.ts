@@ -37,7 +37,7 @@ class AuthService {
       
       return response;
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('[AuthService] Login error:', error);
       throw error;
     }
   }
@@ -180,20 +180,31 @@ class AuthService {
   /**
    * Store session data
    */
-  private setSession(authResponse: AuthResponse): void {
+  private setSession(authResponse: AuthResponse | any): void {
     if (typeof window === 'undefined') return;
 
-    localStorage.setItem('auth_token', authResponse.access_token);
-    localStorage.setItem('refresh_token', authResponse.refresh_token);
-    localStorage.setItem('current_user', JSON.stringify(authResponse.user));
+    // Accept both snake_case and camelCase token names, and support
+    // responses that may be wrapped under `data`.
+    const payload = authResponse?.data ?? authResponse;
 
-    // Store organization and location if available
-    if (authResponse.user.organization_id) {
-      localStorage.setItem('organization_id', authResponse.user.organization_id);
+    const accessToken = payload?.accessToken ?? payload?.access_token;
+    const refreshToken = payload?.refreshToken ?? payload?.refresh_token;
+    const user = payload?.user;
+
+    if (accessToken) {
+      localStorage.setItem('auth_token', accessToken);
+      // Store in cookie for Next.js middleware authentication
+      document.cookie = `auth_token=${accessToken}; path=/; max-age=${7 * 24 * 60 * 60}`; // 7 days
     }
-    if (authResponse.user.location_id) {
-      localStorage.setItem('location_id', authResponse.user.location_id);
-    }
+    if (refreshToken) localStorage.setItem('refresh_token', refreshToken);
+    if (user) localStorage.setItem('current_user', JSON.stringify(user));
+
+    // Store organization and location if available (support both keys)
+    const orgId = user?.organizationId ?? user?.organization_id;
+    const locId = user?.locationId ?? user?.location_id;
+
+    if (orgId) localStorage.setItem('organization_id', orgId);
+    if (locId) localStorage.setItem('location_id', locId);
   }
 
   /**
@@ -207,6 +218,9 @@ class AuthService {
     localStorage.removeItem('current_user');
     localStorage.removeItem('organization_id');
     localStorage.removeItem('location_id');
+    
+    // Clear auth_token cookie
+    document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
   }
 }
 

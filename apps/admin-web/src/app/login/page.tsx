@@ -16,6 +16,10 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    if (isLoading) return;
+    
     setIsLoading(true);
 
     try {
@@ -23,17 +27,16 @@ export default function LoginPage() {
       
       toast.success(`¡Bienvenido, ${response.user.name}!`);
       
-      // Redirect to dashboard
-      router.push('/dashboard');
+      // Force full page navigation to ensure middleware runs
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 500);
     } catch (error: any) {
-      console.error('Login error:', error);
-      
       const errorMessage = error.response?.data?.message || 
                           error.message || 
                           'Error al iniciar sesión';
       
       toast.error(errorMessage);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -61,7 +64,7 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Iniciar Sesión</h2>
           
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Correo Electrónico
@@ -70,7 +73,7 @@ export default function LoginPage() {
                 id="email"
                 name="email"
                 type="email"
-                autoComplete="email"
+                autoComplete="off"
                 required
                 value={formData.email}
                 onChange={handleChange}
@@ -88,7 +91,7 @@ export default function LoginPage() {
                 id="password"
                 name="password"
                 type="password"
-                autoComplete="current-password"
+                autoComplete="off"
                 required
                 value={formData.password}
                 onChange={handleChange}

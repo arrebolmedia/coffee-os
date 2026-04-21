@@ -119,7 +119,7 @@ export function useBulkDeleteProducts() {
 
   return useMutation({
     mutationFn: (productIds: string[]) =>
-      productService.bulkDelete({ product_ids: productIds }),
+      productService.bulkDelete({ productIds }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
     },
@@ -130,8 +130,8 @@ export function useBulkUpdateProductStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ productIds, status }: { productIds: string[]; status: any }) =>
-      productService.bulkUpdateStatus({ product_ids: productIds, status }),
+    mutationFn: ({ productIds, isActive }: { productIds: string[]; isActive: boolean }) =>
+      productService.bulkUpdateStatus({ productIds, isActive }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
     },

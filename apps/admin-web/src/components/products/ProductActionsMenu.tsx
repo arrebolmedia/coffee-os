@@ -71,7 +71,7 @@ export default function ProductActionsMenu({
                     active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
                   } group flex w-full items-center gap-2 px-4 py-2 text-sm`}
                 >
-                  {product.isActive || product.is_active ? (
+                  {product.status === 'ACTIVE' ? (
                     <>
                       <EyeOff className="h-4 w-4" />
                       Desactivar

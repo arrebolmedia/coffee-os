@@ -16,8 +16,11 @@ const categorySchema = z.object({
   description: z.string().optional(),
   color: z.string().min(1, 'Selecciona un color'),
   icon: z.string().optional(),
-  sort_order: z.number().min(0, 'El orden debe ser mayor o igual a 0').optional(),
-  is_active: z.boolean(),
+  sortOrder: z
+    .number()
+    .min(0, 'El orden debe ser mayor o igual a 0')
+    .optional(),
+  active: z.boolean(),
 });
 
 type CategoryFormData = z.infer<typeof categorySchema>;
@@ -48,8 +51,22 @@ const PRESET_COLORS = [
 ];
 
 const PRESET_ICONS = [
-  '☕', '🍰', '🥐', '🥪', '🍕', '🍔', '🌮', '🍜',
-  '🍦', '🧃', '🥤', '🍵', '🥗', '🍲', '🍱', '🍛',
+  '☕',
+  '🍰',
+  '🥐',
+  '🥪',
+  '🍕',
+  '🍔',
+  '🌮',
+  '🍜',
+  '🍦',
+  '🧃',
+  '🥤',
+  '🍵',
+  '🥗',
+  '🍲',
+  '🍱',
+  '🍛',
 ];
 
 export default function CategoryModal({
@@ -57,7 +74,9 @@ export default function CategoryModal({
   onClose,
   category,
 }: CategoryModalProps) {
-  const [selectedColor, setSelectedColor] = useState(category?.color || PRESET_COLORS[0].value);
+  const [selectedColor, setSelectedColor] = useState(
+    category?.color || PRESET_COLORS[0].value,
+  );
   const [selectedIcon, setSelectedIcon] = useState(category?.icon || '☕');
   const queryClient = useQueryClient();
 
@@ -74,8 +93,8 @@ export default function CategoryModal({
       description: category?.description || '',
       color: category?.color || PRESET_COLORS[0].value,
       icon: category?.icon || '☕',
-      sort_order: category?.sort_order || 0,
-      is_active: category?.is_active ?? true,
+      sortOrder: category?.sortOrder || 0,
+      active: category?.active ?? true,
     },
   });
 
@@ -95,13 +114,17 @@ export default function CategoryModal({
     },
     onSuccess: () => {
       toast.success(
-        category ? 'Categoría actualizada exitosamente' : 'Categoría creada exitosamente'
+        category
+          ? 'Categoría actualizada exitosamente'
+          : 'Categoría creada exitosamente',
       );
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       handleClose();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Error al guardar la categoría');
+      toast.error(
+        error.response?.data?.message || 'Error al guardar la categoría',
+      );
     },
   });
 
@@ -159,7 +182,10 @@ export default function CategoryModal({
                   </button>
                 </div>
 
-                <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-6">
+                <form
+                  onSubmit={handleSubmit(onSubmit)}
+                  className="mt-6 space-y-6"
+                >
                   {/* Basic Info */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
@@ -171,7 +197,9 @@ export default function CategoryModal({
                       className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                     />
                     {errors.name && (
-                      <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+                      <p className="mt-1 text-sm text-red-600">
+                        {errors.name.message}
+                      </p>
                     )}
                   </div>
 
@@ -253,7 +281,9 @@ export default function CategoryModal({
                       </div>
                       <div>
                         <div className="font-medium text-gray-900">
-                          {register('name').name ? 'Nueva Categoría' : 'Vista Previa'}
+                          {register('name').name
+                            ? 'Nueva Categoría'
+                            : 'Vista Previa'}
                         </div>
                         <div className="text-sm text-gray-500">
                           Color y ícono seleccionados
@@ -269,7 +299,7 @@ export default function CategoryModal({
                     </label>
                     <input
                       type="number"
-                      {...register('sort_order', { valueAsNumber: true })}
+                      {...register('sortOrder', { valueAsNumber: true })}
                       className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                     />
                     <p className="mt-1 text-xs text-gray-500">
@@ -282,7 +312,7 @@ export default function CategoryModal({
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        {...register('is_active')}
+                        {...register('active')}
                         className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                       />
                       <label className="text-sm font-medium text-gray-700">
@@ -305,7 +335,9 @@ export default function CategoryModal({
                       disabled={mutation.isPending}
                       className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50"
                     >
-                      {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {mutation.isPending && (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      )}
                       {category ? 'Actualizar' : 'Crear'} Categoría
                     </button>
                   </div>

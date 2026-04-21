@@ -16,7 +16,7 @@ import {
 import { Search, Filter, Eye, Receipt, Calendar, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import OrderDetailModal from '@/components/orders/OrderDetailModal';
 import { apiClient } from '@/lib/api-client';
 import { Order, OrderStatus, PaymentMethod } from '@/types';

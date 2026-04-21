@@ -27,17 +27,17 @@ export interface UpdateProductData extends Partial<CreateProductData> {
 }
 
 export interface BulkDeleteData {
-  product_ids: string[];
+  productIds: string[];
 }
 
 export interface BulkUpdateStatusData {
-  product_ids: string[];
-  status: 'ACTIVE' | 'INACTIVE' | 'OUT_OF_STOCK';
+  productIds: string[];
+  isActive: boolean;
 }
 
 export interface BulkUpdateCategoryData {
-  product_ids: string[];
-  category_id: string;
+  productIds: string[];
+  categoryId: string;
 }
 
 export interface ProductImageUploadResponse {

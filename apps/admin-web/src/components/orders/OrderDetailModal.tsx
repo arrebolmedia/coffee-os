@@ -2,7 +2,16 @@
 
 import { Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { X, Receipt, User, Calendar, CreditCard, Package, Clock, MapPin } from 'lucide-react';
+import {
+  X,
+  Receipt,
+  User,
+  Calendar,
+  CreditCard,
+  Package,
+  Clock,
+  MapPin,
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Order, OrderStatus } from '@/types';
@@ -38,7 +47,11 @@ const paymentMethodLabels = {
   MIXED: 'Mixto',
 };
 
-export default function OrderDetailModal({ isOpen, onClose, order }: OrderDetailModalProps) {
+export default function OrderDetailModal({
+  isOpen,
+  onClose,
+  order,
+}: OrderDetailModalProps) {
   if (!order) return null;
 
   return (
@@ -79,9 +92,13 @@ export default function OrderDetailModal({ isOpen, onClose, order }: OrderDetail
                         Orden #{order.order_number}
                       </Dialog.Title>
                       <p className="text-sm text-gray-500">
-                        {format(new Date(order.created_at), "dd 'de' MMMM yyyy, HH:mm", {
-                          locale: es,
-                        })}
+                        {format(
+                          new Date(order.created_at),
+                          "dd 'de' MMMM yyyy, HH:mm",
+                          {
+                            locale: es,
+                          },
+                        )}
                       </p>
                     </div>
                   </div>
@@ -109,7 +126,9 @@ export default function OrderDetailModal({ isOpen, onClose, order }: OrderDetail
                         </span>
                       </div>
                       <div className="bg-gray-50 rounded-lg p-4">
-                        <p className="text-sm text-gray-600 mb-2">Método de Pago</p>
+                        <p className="text-sm text-gray-600 mb-2">
+                          Método de Pago
+                        </p>
                         <div className="flex items-center gap-2">
                           <CreditCard className="h-4 w-4 text-gray-500" />
                           <span className="text-sm font-medium text-gray-900">
@@ -129,10 +148,14 @@ export default function OrderDetailModal({ isOpen, onClose, order }: OrderDetail
                               {order.customer.name}
                             </p>
                             {order.customer.email && (
-                              <p className="text-sm text-gray-500">{order.customer.email}</p>
+                              <p className="text-sm text-gray-500">
+                                {order.customer.email}
+                              </p>
                             )}
                             {order.customer.phone && (
-                              <p className="text-sm text-gray-500">{order.customer.phone}</p>
+                              <p className="text-sm text-gray-500">
+                                {order.customer.phone}
+                              </p>
                             )}
                           </div>
                         </div>
@@ -145,14 +168,18 @@ export default function OrderDetailModal({ isOpen, onClose, order }: OrderDetail
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <User className="h-4 w-4" />
                           <span>Atendido por: </span>
-                          <span className="font-medium text-gray-900">{order.cashier.name}</span>
+                          <span className="font-medium text-gray-900">
+                            {order.cashier.name}
+                          </span>
                         </div>
                       </div>
                     )}
 
                     {/* Order Items */}
                     <div className="border-t border-gray-200 pt-4">
-                      <h3 className="text-sm font-medium text-gray-900 mb-3">Productos</h3>
+                      <h3 className="text-sm font-medium text-gray-900 mb-3">
+                        Productos
+                      </h3>
                       <div className="space-y-3">
                         {order.items.map((item, index) => (
                           <div
@@ -168,26 +195,36 @@ export default function OrderDetailModal({ isOpen, onClose, order }: OrderDetail
                                   {item.product_name}
                                 </span>
                               </div>
-                              
+
                               {/* Modifiers */}
-                              {item.selected_modifiers && item.selected_modifiers.length > 0 && (
-                                <div className="mt-1 ml-6 space-y-0.5">
-                                  {item.selected_modifiers.map((modifier, modIndex) => (
-                                    <div
-                                      key={modIndex}
-                                      className="flex items-center gap-2 text-xs text-gray-600"
-                                    >
-                                      <span>• {modifier.option_name}</span>
-                                      {modifier.price_adjustment !== 0 && (
-                                        <span className="text-gray-500">
-                                          ({modifier.price_adjustment > 0 ? '+' : ''}$
-                                          {modifier.price_adjustment.toFixed(2)})
-                                        </span>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
+                              {item.selected_modifiers &&
+                                item.selected_modifiers.length > 0 && (
+                                  <div className="mt-1 ml-6 space-y-0.5">
+                                    {item.selected_modifiers.map(
+                                      (modifier, modIndex) => (
+                                        <div
+                                          key={modIndex}
+                                          className="flex items-center gap-2 text-xs text-gray-600"
+                                        >
+                                          <span>• {modifier.option_name}</span>
+                                          {modifier.price_adjustment !== 0 && (
+                                            <span className="text-gray-500">
+                                              (
+                                              {modifier.price_adjustment > 0
+                                                ? '+'
+                                                : ''}
+                                              $
+                                              {modifier.price_adjustment.toFixed(
+                                                2,
+                                              )}
+                                              )
+                                            </span>
+                                          )}
+                                        </div>
+                                      ),
+                                    )}
+                                  </div>
+                                )}
 
                               {/* Notes */}
                               {item.notes && (
@@ -235,7 +272,9 @@ export default function OrderDetailModal({ isOpen, onClose, order }: OrderDetail
                         </div>
                         <div className="flex justify-between text-base font-semibold pt-2 border-t border-gray-200">
                           <span className="text-gray-900">Total</span>
-                          <span className="text-gray-900">${order.total.toFixed(2)}</span>
+                          <span className="text-gray-900">
+                            ${order.total.toFixed(2)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -249,9 +288,12 @@ export default function OrderDetailModal({ isOpen, onClose, order }: OrderDetail
                         <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
                           {order.payment_details.cash_received && (
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Efectivo recibido</span>
+                              <span className="text-gray-600">
+                                Efectivo recibido
+                              </span>
                               <span className="font-medium text-gray-900">
-                                ${order.payment_details.cash_received.toFixed(2)}
+                                $
+                                {order.payment_details.cash_received.toFixed(2)}
                               </span>
                             </div>
                           )}
@@ -273,7 +315,9 @@ export default function OrderDetailModal({ isOpen, onClose, order }: OrderDetail
                           )}
                           {order.payment_details.authorization_code && (
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Autorización</span>
+                              <span className="text-gray-600">
+                                Autorización
+                              </span>
                               <span className="font-mono text-xs text-gray-900">
                                 {order.payment_details.authorization_code}
                               </span>
@@ -286,7 +330,9 @@ export default function OrderDetailModal({ isOpen, onClose, order }: OrderDetail
                     {/* Notes */}
                     {order.notes && (
                       <div className="border-t border-gray-200 pt-4">
-                        <h3 className="text-sm font-medium text-gray-900 mb-2">Notas</h3>
+                        <h3 className="text-sm font-medium text-gray-900 mb-2">
+                          Notas
+                        </h3>
                         <p className="text-sm text-gray-600 bg-yellow-50 rounded-lg p-3">
                           {order.notes}
                         </p>
@@ -294,24 +340,29 @@ export default function OrderDetailModal({ isOpen, onClose, order }: OrderDetail
                     )}
 
                     {/* Cancellation Info */}
-                    {order.status === 'CANCELLED' && order.cancellation_reason && (
-                      <div className="border-t border-gray-200 pt-4">
-                        <h3 className="text-sm font-medium text-gray-900 mb-2">
-                          Razón de Cancelación
-                        </h3>
-                        <p className="text-sm text-gray-600 bg-red-50 rounded-lg p-3">
-                          {order.cancellation_reason}
-                        </p>
-                        {order.cancelled_at && (
-                          <p className="text-xs text-gray-500 mt-2">
-                            Cancelada el{' '}
-                            {format(new Date(order.cancelled_at), "dd 'de' MMMM yyyy, HH:mm", {
-                              locale: es,
-                            })}
+                    {order.status === 'CANCELLED' &&
+                      order.cancellation_reason && (
+                        <div className="border-t border-gray-200 pt-4">
+                          <h3 className="text-sm font-medium text-gray-900 mb-2">
+                            Razón de Cancelación
+                          </h3>
+                          <p className="text-sm text-gray-600 bg-red-50 rounded-lg p-3">
+                            {order.cancellation_reason}
                           </p>
-                        )}
-                      </div>
-                    )}
+                          {order.cancelled_at && (
+                            <p className="text-xs text-gray-500 mt-2">
+                              Cancelada el{' '}
+                              {format(
+                                new Date(order.cancelled_at),
+                                "dd 'de' MMMM yyyy, HH:mm",
+                                {
+                                  locale: es,
+                                },
+                              )}
+                            </p>
+                          )}
+                        </div>
+                      )}
                   </div>
                 </div>
 

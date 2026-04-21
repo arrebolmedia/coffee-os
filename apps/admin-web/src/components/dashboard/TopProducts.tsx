@@ -54,10 +54,10 @@ export function TopProducts() {
 
             {/* Image */}
             <div className="flex-shrink-0">
-              {product.image_url ? (
+              {product.image ? (
                 <div className="relative h-12 w-12 rounded-lg overflow-hidden">
                   <Image
-                    src={product.image_url}
+                    src={product.image}
                     alt={product.product_name}
                     fill
                     className="object-cover"

@@ -47,15 +47,16 @@ export default function ImageUpload({
         reader.readAsDataURL(file);
       }
     },
-    [onChange, onPreviewChange]
+    [onChange, onPreviewChange],
   );
 
-  const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
-    onDrop,
-    accept: ACCEPTED_TYPES,
-    maxFiles: 1,
-    disabled,
-  });
+  const { getRootProps, getInputProps, isDragActive, isDragReject } =
+    useDropzone({
+      onDrop,
+      accept: ACCEPTED_TYPES,
+      maxFiles: 1,
+      disabled,
+    });
 
   const handleRemove = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -96,8 +97,8 @@ export default function ImageUpload({
             isDragActive
               ? 'border-purple-500 bg-purple-50'
               : isDragReject
-              ? 'border-red-500 bg-red-50'
-              : 'border-gray-300 bg-gray-50 hover:border-purple-400 hover:bg-purple-50'
+                ? 'border-red-500 bg-red-50'
+                : 'border-gray-300 bg-gray-50 hover:border-purple-400 hover:bg-purple-50'
           } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
         >
           <input {...getInputProps()} />
@@ -124,7 +125,9 @@ export default function ImageUpload({
                 <Upload className="mb-3 h-12 w-12 text-gray-400" />
                 <p className="text-sm font-medium text-gray-700">
                   Arrastra una imagen o{' '}
-                  <span className="text-purple-600">haz clic para seleccionar</span>
+                  <span className="text-purple-600">
+                    haz clic para seleccionar
+                  </span>
                 </p>
                 <p className="mt-2 text-xs text-gray-500">
                   JPG, PNG, WebP o GIF hasta 5MB

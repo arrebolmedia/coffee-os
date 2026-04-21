@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { ApiResponse } from '@/types';
 
+// TODO: Restore environment variable when Next.js build-time injection is fixed
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
 class ApiClient {
@@ -29,10 +30,10 @@ class ApiClient {
         const locId = this.getLocationId();
         
         if (orgId) {
-          config.headers['X-Organization-ID'] = orgId;
+          config.headers['X-Organization-Id'] = orgId;
         }
         if (locId) {
-          config.headers['X-Location-ID'] = locId;
+          config.headers['X-Location-Id'] = locId;
         }
 
         return config;
@@ -101,11 +102,17 @@ class ApiClient {
         refresh_token: refreshToken,
       });
 
-      const { access_token, refresh_token: newRefreshToken } = response.data;
-      this.setAuthToken(access_token);
-      this.setRefreshToken(newRefreshToken);
-      
-      return true;
+      // Support both snake_case and camelCase and also handle responses
+      // wrapped under `data` or plain body.
+      const payload = response.data && (response.data.data ?? response.data);
+
+      const accessToken = payload?.access_token ?? payload?.accessToken;
+      const newRefreshToken = payload?.refresh_token ?? payload?.refreshToken;
+
+      if (accessToken) this.setAuthToken(accessToken);
+      if (newRefreshToken) this.setRefreshToken(newRefreshToken);
+
+      return !!accessToken;
     } catch (error) {
       return false;
     }
@@ -122,29 +129,31 @@ class ApiClient {
   }
 
   // HTTP Methods
+  // Generic HTTP helpers that tolerate responses wrapped in { data: ... }
+  // or responses that return the payload at the top-level.
   async get<T = any>(url: string, params?: any): Promise<T> {
     const response = await this.client.get<ApiResponse<T>>(url, { params });
-    return response.data.data as T;
+    return (response.data && (response.data.data ?? response.data)) as T;
   }
 
   async post<T = any>(url: string, data?: any): Promise<T> {
     const response = await this.client.post<ApiResponse<T>>(url, data);
-    return response.data.data as T;
+    return (response.data && (response.data.data ?? response.data)) as T;
   }
 
   async put<T = any>(url: string, data?: any): Promise<T> {
     const response = await this.client.put<ApiResponse<T>>(url, data);
-    return response.data.data as T;
+    return (response.data && (response.data.data ?? response.data)) as T;
   }
 
   async patch<T = any>(url: string, data?: any): Promise<T> {
     const response = await this.client.patch<ApiResponse<T>>(url, data);
-    return response.data.data as T;
+    return (response.data && (response.data.data ?? response.data)) as T;
   }
 
   async delete<T = any>(url: string): Promise<T> {
     const response = await this.client.delete<ApiResponse<T>>(url);
-    return response.data.data as T;
+    return (response.data && (response.data.data ?? response.data)) as T;
   }
 
   // File upload

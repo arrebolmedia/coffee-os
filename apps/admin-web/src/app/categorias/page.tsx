@@ -51,7 +51,7 @@ export default function CategoriesPage() {
   };
 
   // Sort categories by sort_order
-  const sortedCategories = categories?.sort((a, b) => a.sort_order - b.sort_order) || [];
+  const sortedCategories = categories?.sort((a, b) => a.sortOrder - b.sortOrder) || [];
 
   return (
     <DashboardLayout>
@@ -160,14 +160,14 @@ export default function CategoriesPage() {
 
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-400">
-                      Orden: {category.sort_order}
+                      Orden: {category.sortOrder}
                     </span>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      category.is_active
+                      category.active
                         ? 'bg-green-100 text-green-800'
                         : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {category.is_active ? 'Activa' : 'Inactiva'}
+                      {category.active ? 'Activa' : 'Inactiva'}
                     </span>
                   </div>
                 </div>

@@ -97,7 +97,7 @@ export default function CategoriesList() {
       ) : (
         <div className="space-y-2">
           {categories
-            .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+            .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
             .map((category) => (
               <div
                 key={category.id}
@@ -123,7 +123,7 @@ export default function CategoriesList() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <h4 className="font-medium text-gray-900">{category.name}</h4>
-                    {!category.is_active && (
+                    {!category.active && (
                       <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
                         Inactiva
                       </span>
@@ -136,7 +136,7 @@ export default function CategoriesList() {
 
                 {/* Sort Order */}
                 <div className="text-sm text-gray-500">
-                  Orden: {category.sort_order || 0}
+                  Orden: {category.sortOrder || 0}
                 </div>
 
                 {/* Actions */}

@@ -84,14 +84,15 @@ export default function ModifierGroupModal({
       toast.success(
         modifierGroup
           ? 'Grupo de modificadores actualizado'
-          : 'Grupo de modificadores creado'
+          : 'Grupo de modificadores creado',
       );
       queryClient.invalidateQueries({ queryKey: ['modifiers'] });
       handleClose();
     },
     onError: (error: any) => {
       toast.error(
-        error.response?.data?.message || 'Error al guardar el grupo de modificadores'
+        error.response?.data?.message ||
+          'Error al guardar el grupo de modificadores',
       );
     },
   });
@@ -165,7 +166,9 @@ export default function ModifierGroupModal({
                         className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                       />
                       {errors.name && (
-                        <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+                        <p className="mt-1 text-sm text-red-600">
+                          {errors.name.message}
+                        </p>
                       )}
                     </div>
 
@@ -180,10 +183,14 @@ export default function ModifierGroupModal({
                           className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                         >
                           <option value="SINGLE">Una opción (radio)</option>
-                          <option value="MULTIPLE">Múltiples opciones (checkbox)</option>
+                          <option value="MULTIPLE">
+                            Múltiples opciones (checkbox)
+                          </option>
                         </select>
                         {errors.type && (
-                          <p className="mt-1 text-sm text-red-600">{errors.type.message}</p>
+                          <p className="mt-1 text-sm text-red-600">
+                            {errors.type.message}
+                          </p>
                         )}
                       </div>
 
@@ -214,7 +221,9 @@ export default function ModifierGroupModal({
                           <input
                             type="number"
                             min="0"
-                            {...register('min_selections', { valueAsNumber: true })}
+                            {...register('min_selections', {
+                              valueAsNumber: true,
+                            })}
                             className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                           />
                           {errors.min_selections && (
@@ -231,7 +240,9 @@ export default function ModifierGroupModal({
                           <input
                             type="number"
                             min="1"
-                            {...register('max_selections', { valueAsNumber: true })}
+                            {...register('max_selections', {
+                              valueAsNumber: true,
+                            })}
                             className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                           />
                           {errors.max_selections && (
@@ -261,7 +272,9 @@ export default function ModifierGroupModal({
                     </div>
 
                     {errors.options && (
-                      <p className="text-sm text-red-600">{errors.options.message}</p>
+                      <p className="text-sm text-red-600">
+                        {errors.options.message}
+                      </p>
                     )}
 
                     <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
@@ -294,9 +307,12 @@ export default function ModifierGroupModal({
                               <input
                                 type="number"
                                 step="0.01"
-                                {...register(`options.${index}.price_adjustment`, {
-                                  valueAsNumber: true,
-                                })}
+                                {...register(
+                                  `options.${index}.price_adjustment`,
+                                  {
+                                    valueAsNumber: true,
+                                  },
+                                )}
                                 placeholder="0.00"
                                 className="block w-full rounded-lg border border-gray-300 pl-7 pr-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                               />
@@ -345,7 +361,9 @@ export default function ModifierGroupModal({
                       disabled={mutation.isPending}
                       className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50"
                     >
-                      {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {mutation.isPending && (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      )}
                       {modifierGroup ? 'Actualizar' : 'Crear'} Grupo
                     </button>
                   </div>

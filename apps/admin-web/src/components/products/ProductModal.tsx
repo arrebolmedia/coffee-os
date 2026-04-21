@@ -21,9 +21,19 @@ const productSchema = z.object({
   barcode: z.string().optional(),
   categoryId: z.string().min(1, 'La categoría es requerida'),
   stock: z.number().min(0, 'El stock debe ser mayor o igual a 0').optional(),
-  minStock: z.number().min(0, 'El stock mínimo debe ser mayor o igual a 0').optional(),
-  maxStock: z.number().min(0, 'El stock máximo debe ser mayor o igual a 0').optional(),
-  taxRate: z.number().min(0).max(100, 'La tasa de impuesto debe estar entre 0 y 100').optional(),
+  minStock: z
+    .number()
+    .min(0, 'El stock mínimo debe ser mayor o igual a 0')
+    .optional(),
+  maxStock: z
+    .number()
+    .min(0, 'El stock máximo debe ser mayor o igual a 0')
+    .optional(),
+  taxRate: z
+    .number()
+    .min(0)
+    .max(100, 'La tasa de impuesto debe estar entre 0 y 100')
+    .optional(),
   isActive: z.boolean(),
   trackInventory: z.boolean(),
   modifierIds: z.array(z.string()).optional(),
@@ -46,10 +56,10 @@ export default function ProductModal({
 }: ProductModalProps) {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(
-    product?.image || product?.image_url || null
+    product?.image || null,
   );
   const [selectedModifiers, setSelectedModifiers] = useState<string[]>(
-    product?.modifiers?.map((m) => m.id) || []
+    product?.modifiers?.map((m) => m.id) || [],
   );
   const queryClient = useQueryClient();
 
@@ -79,11 +89,11 @@ export default function ProductModal({
       sku: product?.sku || '',
       barcode: product?.barcode || '',
       categoryId: product?.categoryId || '',
-      stock: product?.stock || 0,
-      minStock: product?.minStock || 0,
-      maxStock: product?.maxStock || 0,
+      stock: product?.stockQuantity || 0,
+      minStock: product?.minimumStock || 0,
+      maxStock: 0,
       taxRate: product?.taxRate || 16,
-      isActive: product?.isActive ?? true,
+      isActive: product ? product.status === 'ACTIVE' : true,
       trackInventory: product?.trackInventory ?? true,
       modifierIds: product?.modifiers?.map((m) => m.id) || [],
     },
@@ -92,7 +102,7 @@ export default function ProductModal({
   const mutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
       const formData = new FormData();
-      
+
       // Append all fields
       Object.entries(data).forEach(([key, value]) => {
         if (key === 'modifierIds') {
@@ -112,7 +122,11 @@ export default function ProductModal({
 
       if (product?.id) {
         // Update existing product
-        return apiClient.uploadFormData(`/products/${product.id}`, formData, 'PUT');
+        return apiClient.uploadFormData(
+          `/products/${product.id}`,
+          formData,
+          'PUT',
+        );
       } else {
         // Create new product
         return apiClient.uploadFormData('/products', formData, 'POST');
@@ -120,20 +134,24 @@ export default function ProductModal({
     },
     onSuccess: () => {
       toast.success(
-        product ? 'Producto actualizado exitosamente' : 'Producto creado exitosamente'
+        product
+          ? 'Producto actualizado exitosamente'
+          : 'Producto creado exitosamente',
       );
       queryClient.invalidateQueries({ queryKey: ['products'] });
       handleClose();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Error al guardar el producto');
+      toast.error(
+        error.response?.data?.message || 'Error al guardar el producto',
+      );
     },
   });
 
   const handleClose = () => {
     reset();
     setImageFile(null);
-    setImagePreview(product?.image || product?.image_url || null);
+    setImagePreview(product?.image || null);
     setSelectedModifiers(product?.modifiers?.map((m) => m.id) || []);
     onClose();
   };
@@ -206,7 +224,10 @@ export default function ProductModal({
                   </button>
                 </div>
 
-                <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-6">
+                <form
+                  onSubmit={handleSubmit(onSubmit)}
+                  className="mt-6 space-y-6"
+                >
                   {/* Image Upload */}
                   <ImageUpload
                     value={imagePreview}
@@ -226,7 +247,9 @@ export default function ProductModal({
                         className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                       />
                       {errors.name && (
-                        <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+                        <p className="mt-1 text-sm text-red-600">
+                          {errors.name.message}
+                        </p>
                       )}
                     </div>
 
@@ -308,7 +331,9 @@ export default function ProductModal({
                         className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                       />
                       {errors.price && (
-                        <p className="mt-1 text-sm text-red-600">{errors.price.message}</p>
+                        <p className="mt-1 text-sm text-red-600">
+                          {errors.price.message}
+                        </p>
                       )}
                     </div>
 
@@ -405,9 +430,10 @@ export default function ProductModal({
                           Gestionar grupos
                         </a>
                       </div>
-                      
+
                       <p className="text-xs text-gray-500">
-                        Selecciona los grupos de opciones que aplican a este producto
+                        Selecciona los grupos de opciones que aplican a este
+                        producto
                       </p>
 
                       <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2">
@@ -476,7 +502,9 @@ export default function ProductModal({
                       disabled={mutation.isPending}
                       className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50"
                     >
-                      {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {mutation.isPending && (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      )}
                       {product ? 'Actualizar' : 'Crear'} Producto
                     </button>
                   </div>

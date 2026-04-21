@@ -155,7 +155,7 @@ export interface TopProduct {
   product_name: string;
   quantity_sold: number;
   total_revenue: number;
-  image_url?: string;
+  image?: string;
 }
 
 export interface OrderSummary {
@@ -195,26 +195,23 @@ export interface Product extends BaseEntity, OrganizationContext {
   name: string;
   description?: string;
   type: ProductType;
-  category_id?: UUID;
-  categoryId?: UUID;
+  categoryId: UUID;
   category?: Category;
   price: number;
   cost?: number;
+  basePrice?: number;
+  taxRate?: number;
   status: ProductStatus;
-  isActive?: boolean;
-  is_active?: boolean;
-  image_url?: string;
   image?: string;
   barcode?: string;
-  track_inventory: boolean;
-  trackInventory?: boolean;
-  current_stock?: number;
-  stock?: number;
-  min_stock?: number;
-  minStock?: number;
-  max_stock?: number;
-  maxStock?: number;
-  taxRate?: number;
+  trackInventory: boolean;
+  stockQuantity?: number;
+  minimumStock?: number;
+  reorderPoint?: number;
+  allowModifiers?: boolean;
+  allowDiscounts?: boolean;
+  isFeatured?: boolean;
+  isAvailable?: boolean;
   modifiers?: Modifier[];
   tags?: string[];
 }
@@ -224,9 +221,8 @@ export interface Category extends BaseEntity, OrganizationContext {
   description?: string;
   color?: string;
   icon?: string;
-  sort_order: number;
-  parent_id?: UUID;
-  is_active: boolean;
+  sortOrder: number;
+  active: boolean;
 }
 
 export interface Modifier extends BaseEntity, OrganizationContext {

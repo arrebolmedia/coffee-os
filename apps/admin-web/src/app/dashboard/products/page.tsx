@@ -13,15 +13,38 @@ import {
   SortingState,
   ColumnFiltersState,
 } from '@tanstack/react-table';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { Plus, Search, Filter, Edit, Eye, Folder } from 'lucide-react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
-import ProductModal from '@/components/products/ProductModal';
-import ProductActionsMenu from '@/components/products/ProductActionsMenu';
-import CategoriesList from '@/components/products/CategoriesList';
-import BulkActionsBar from '@/components/products/BulkActionsBar';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { apiClient } from '@/lib/api-client';
 import { Product, Category } from '@/types';
+
+// Lazy load heavy components
+const ProductModal = dynamic(
+  () => import('@/components/products/ProductModal'),
+  {
+    ssr: false,
+  },
+);
+const ProductActionsMenu = dynamic(
+  () => import('@/components/products/ProductActionsMenu'),
+  {
+    ssr: false,
+  },
+);
+const CategoriesList = dynamic(
+  () => import('@/components/products/CategoriesList'),
+  {
+    ssr: false,
+  },
+);
+const BulkActionsBar = dynamic(
+  () => import('@/components/products/BulkActionsBar'),
+  {
+    ssr: false,
+  },
+);
 
 export default function ProductsPage() {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -132,7 +155,10 @@ export default function ProductsPage() {
       header: 'Precio',
       cell: ({ row }) => (
         <span className="font-medium text-gray-900">
-          ${row.original.price.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+          $
+          {row.original.price.toLocaleString('es-MX', {
+            minimumFractionDigits: 2,
+          })}
         </span>
       ),
     },
@@ -140,7 +166,7 @@ export default function ProductsPage() {
       accessorKey: 'stock',
       header: 'Stock',
       cell: ({ row }) => {
-        const stock = row.original.stock || 0;
+        const stock = row.original.stockQuantity || 0;
         const lowStock = stock < 10;
         return (
           <span
@@ -161,12 +187,12 @@ export default function ProductsPage() {
       cell: ({ row }) => (
         <span
           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-            row.original.isActive
+            row.original.status === 'ACTIVE'
               ? 'bg-green-100 text-green-800'
               : 'bg-gray-100 text-gray-800'
           }`}
         >
-          {row.original.isActive ? 'Activo' : 'Inactivo'}
+          {row.original.status === 'ACTIVE' ? 'Activo' : 'Inactivo'}
         </span>
       ),
     },
@@ -302,14 +328,15 @@ export default function ProductsPage() {
                           >
                             {flexRender(
                               header.column.columnDef.header,
-                              header.getContext()
+                              header.getContext(),
                             )}
                             {header.column.getCanSort() && (
                               <span className="text-gray-400">
                                 {{
                                   asc: '↑',
                                   desc: '↓',
-                                }[header.column.getIsSorted() as string] ?? '↕'}
+                                }[header.column.getIsSorted() as string] ??
+                                  '↕'}
                               </span>
                             )}
                           </div>
@@ -342,15 +369,15 @@ export default function ProductsPage() {
                   </tr>
                 ) : (
                   table.getRowModel().rows.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="hover:bg-gray-50"
-                    >
+                    <tr key={row.id} className="hover:bg-gray-50">
                       {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className="whitespace-nowrap px-6 py-4">
+                        <td
+                          key={cell.id}
+                          className="whitespace-nowrap px-6 py-4"
+                        >
                           {flexRender(
                             cell.column.columnDef.cell,
-                            cell.getContext()
+                            cell.getContext(),
                           )}
                         </td>
                       ))}
@@ -390,10 +417,11 @@ export default function ProductsPage() {
                   <span className="font-medium">
                     {Math.min(
                       (pagination.pageIndex + 1) * pagination.pageSize,
-                      data?.total || 0
+                      data?.total || 0,
                     )}
                   </span>{' '}
-                  de <span className="font-medium">{data?.total || 0}</span> productos
+                  de <span className="font-medium">{data?.total || 0}</span>{' '}
+                  productos
                 </p>
               </div>
               <div>
@@ -445,7 +473,9 @@ export default function ProductsPage() {
 
         {/* Bulk Actions Bar */}
         <BulkActionsBar
-          selectedProducts={table.getSelectedRowModel().rows.map((row) => row.original)}
+          selectedProducts={table
+            .getSelectedRowModel()
+            .rows.map((row) => row.original)}
           onClearSelection={() => table.resetRowSelection()}
           categories={categoriesData?.data || []}
         />
