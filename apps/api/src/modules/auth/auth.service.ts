@@ -46,14 +46,17 @@ export class AuthService {
       data: {
         email: registerDto.email,
         password: hashedPassword,
-        name: registerDto.name,
+        firstName: registerDto.firstName || '',
+        lastName: registerDto.lastName || '',
         organizationId: registerDto.organizationId,
+        roleId: registerDto.roleId,
         active: true,
       },
       select: {
         id: true,
         email: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         organizationId: true,
         createdAt: true,
       },
@@ -62,7 +65,11 @@ export class AuthService {
     this.logger.log(`User registered: ${user.email}`);
 
     // Generar tokens
-    const tokens = await this.generateTokens(user.id, user.email, user.organizationId);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.organizationId,
+    );
 
     return {
       user,
@@ -80,10 +87,18 @@ export class AuthService {
       select: {
         id: true,
         email: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         password: true,
         organizationId: true,
+        roleId: true,
+        isSuperAdmin: true,
         active: true,
+        role: {
+          select: {
+            name: true,
+          },
+        },
       },
     });
 
@@ -109,14 +124,22 @@ export class AuthService {
     this.logger.log(`User logged in: ${user.email}`);
 
     // Generar tokens
-    const tokens = await this.generateTokens(user.id, user.email, user.organizationId);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.organizationId,
+      user.isSuperAdmin,
+    );
 
     return {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name,
+        name: `${user.firstName} ${user.lastName}`.trim() || user.email,
+        role: user.role?.name || 'USER',
         organizationId: user.organizationId,
+        locationId: null, // TODO: Agregar cuando exista relación user-location
+        isSuperAdmin: user.isSuperAdmin,
       },
       ...tokens,
     };
@@ -145,7 +168,11 @@ export class AuthService {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
-      const tokens = await this.generateTokens(user.id, user.email, user.organizationId);
+      const tokens = await this.generateTokens(
+        user.id,
+        user.email,
+        user.organizationId,
+      );
 
       return tokens;
     } catch (error) {
@@ -205,7 +232,8 @@ export class AuthService {
       select: {
         id: true,
         email: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         organizationId: true,
         active: true,
       },
@@ -221,11 +249,17 @@ export class AuthService {
   /**
    * Generar access y refresh tokens
    */
-  private async generateTokens(userId: string, email: string, organizationId?: string) {
+  private async generateTokens(
+    userId: string,
+    email: string,
+    organizationId?: string,
+    isSuperAdmin?: boolean,
+  ) {
     const payload = {
       sub: userId,
       email,
       organizationId,
+      isSuperAdmin: isSuperAdmin || false,
     };
 
     const accessToken = this.jwtService.sign(payload, {

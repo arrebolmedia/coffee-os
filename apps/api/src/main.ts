@@ -4,24 +4,47 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
-import compression from 'compression';
+import * as compression from 'compression';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
   // Security
-  app.use(helmet());
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
   app.use(compression());
 
-  // CORS
+  // CORS - Configuración explícita
   app.enableCors({
-    origin: configService.get('CORS_ORIGINS')?.split(',') || [
+    origin: [
       'http://localhost:3000',
       'http://localhost:3001',
+      'http://localhost:3002',
     ],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Accept',
+      'X-Organization-Id',
+      'X-Location-Id',
+      'X-Requested-With',
+    ],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
     credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
+
+  console.log('✅ CORS enabled for:', [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+  ]);
 
   // Global validation pipe
   app.useGlobalPipes(
@@ -65,4 +88,19 @@ async function bootstrap() {
   console.log(`📚 Documentation: http://localhost:${port}/docs`);
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  console.error('❌ Failed to start application:', error);
+  process.exit(1);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  process.exit(1);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});

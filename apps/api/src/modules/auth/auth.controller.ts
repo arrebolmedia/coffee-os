@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Get,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -13,10 +14,18 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto, RefreshTokenDto, ChangePasswordDto } from './dto/auth.dto';
+import {
+  RegisterDto,
+  LoginDto,
+  RefreshTokenDto,
+  ChangePasswordDto,
+} from './dto/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Public } from './decorators/public.decorator';
-import { CurrentUser, CurrentUserType } from './decorators/current-user.decorator';
+import {
+  CurrentUser,
+  CurrentUserType,
+} from './decorators/current-user.decorator';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -83,8 +92,7 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('me')
-  @HttpCode(HttpStatus.OK)
+  @Get('me')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user info' })
   @ApiResponse({ status: 200, description: 'Current user info' })

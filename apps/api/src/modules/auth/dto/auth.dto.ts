@@ -19,20 +19,32 @@ export class RegisterDto {
   password: string;
 
   @ApiProperty({
-    description: 'User full name',
-    example: 'Juan Pérez',
+    description: 'User first name',
+    example: 'Juan',
   })
   @IsString()
-  name: string;
+  firstName: string;
 
   @ApiProperty({
-    description: 'Organization ID (optional for super admin)',
-    example: 'org_abc123',
-    required: false,
+    description: 'User last name',
+    example: 'Pérez',
   })
-  @IsOptional()
   @IsString()
-  organizationId?: string;
+  lastName: string;
+
+  @ApiProperty({
+    description: 'Organization ID',
+    example: 'org_abc123',
+  })
+  @IsString()
+  organizationId: string;
+
+  @ApiProperty({
+    description: 'Role ID',
+    example: 'role_abc123',
+  })
+  @IsString()
+  roleId: string;
 }
 
 export class LoginDto {

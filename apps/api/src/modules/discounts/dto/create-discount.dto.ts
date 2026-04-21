@@ -86,9 +86,10 @@ export class CreateDiscountDto {
   @ApiPropertyOptional({ description: 'Is discount active', default: true })
   @IsOptional()
   @IsBoolean()
-  isActive?: boolean;
+  active?: boolean;
 
   @ApiProperty({ description: 'Organization ID' })
   @IsString()
   organizationId: string;
 }
+

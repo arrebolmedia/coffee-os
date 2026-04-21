@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
+import { PrismaService } from '../database/prisma.service';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
 import { QueryInventoryItemsDto } from './dto/query-inventory-items.dto';
@@ -24,69 +25,169 @@ export class InventoryService {
   private items = new Map<string, InventoryItem>();
   private movements = new Map<string, StockMovement>();
 
+  constructor(private prisma: PrismaService) {}
+
   async create(createDto: CreateInventoryItemDto): Promise<InventoryItem> {
     // Validar SKU único
-    const existing = Array.from(this.items.values()).find(
-      (i) =>
-        i.organization_id === createDto.organization_id &&
-        i.sku === createDto.sku,
-    );
+    const existing = await this.prisma.inventoryItem.findFirst({
+      where: {
+        organizationId: createDto.organization_id,
+        code: createDto.sku,
+      },
+    });
 
     if (existing) {
-      throw new ConflictException(`Item with SKU "${createDto.sku}" already exists`);
+      throw new ConflictException(
+        `Item with SKU "${createDto.sku}" already exists`,
+      );
     }
 
-    const item: InventoryItem = {
-      id: uuidv4(),
-      organization_id: createDto.organization_id,
-      category_id: createDto.category_id,
-      supplier_id: createDto.supplier_id,
-      sku: createDto.sku,
-      name: createDto.name,
-      description: createDto.description,
-      brand: createDto.brand,
-      type: createDto.type ?? ItemType.INGREDIENT,
-      status: createDto.status ?? ItemStatus.ACTIVE,
-      unit_of_measure: createDto.unit_of_measure,
-      units_per_package: createDto.units_per_package,
-      package_size: createDto.package_size,
-      cost_per_unit: createDto.cost_per_unit,
-      average_cost: createDto.cost_per_unit,
-      track_inventory: createDto.track_inventory ?? true,
-      current_stock: createDto.current_stock ?? 0,
-      minimum_stock: createDto.minimum_stock ?? 0,
-      maximum_stock: createDto.maximum_stock,
-      par_level: createDto.par_level,
-      conversion_factor: createDto.conversion_factor,
-      conversion_unit: createDto.conversion_unit,
-      lead_time_days: createDto.lead_time_days,
-      order_frequency_days: createDto.order_frequency_days,
-      is_perishable: createDto.is_perishable ?? false,
-      is_taxable: createDto.is_taxable ?? true,
-      requires_refrigeration: createDto.requires_refrigeration ?? false,
-      storage_location: createDto.storage_location,
-      storage_temperature_min: createDto.storage_temperature_min,
-      storage_temperature_max: createDto.storage_temperature_max,
-      tags: createDto.tags ?? [],
-      barcode: createDto.barcode,
-      image_url: createDto.image_url,
-      notes: createDto.notes,
-      created_at: new Date(),
-      updated_at: new Date(),
+    const newItem = await this.prisma.inventoryItem.create({
+      data: {
+        organizationId: createDto.organization_id,
+        code: createDto.sku,
+        name: createDto.name,
+        description: createDto.description,
+        unitOfMeasure: createDto.unit_of_measure,
+        costPerUnit: createDto.cost_per_unit,
+        parLevel: createDto.par_level || 0,
+        reorderPoint: createDto.minimum_stock || 0,
+        category: createDto.category_id,
+        supplierId: createDto.supplier_id,
+        active: createDto.status !== ItemStatus.INACTIVE,
+        currentStock: createDto.current_stock || 0,
+      },
+    });
+
+    this.logger.log(`Created inventory item: ${newItem.name} (${newItem.id})`);
+
+    const mappedItem: InventoryItem = {
+      id: newItem.id,
+      organization_id: newItem.organizationId,
+      category_id: newItem.category || '',
+      supplier_id: newItem.supplierId || undefined,
+      sku: newItem.code,
+      name: newItem.name,
+      description: newItem.description || undefined,
+      brand: undefined,
+      type: ItemType.INGREDIENT,
+      status: newItem.active ? ItemStatus.ACTIVE : ItemStatus.INACTIVE,
+      unit_of_measure: newItem.unitOfMeasure as any,
+      units_per_package: 1,
+      package_size: undefined,
+      cost_per_unit: newItem.costPerUnit,
+      average_cost: newItem.costPerUnit,
+      track_inventory: true,
+      current_stock: newItem.currentStock,
+      minimum_stock: newItem.reorderPoint,
+      maximum_stock: newItem.parLevel,
+      par_level: newItem.parLevel,
+      conversion_factor: undefined,
+      conversion_unit: undefined,
+      lead_time_days: undefined,
+      order_frequency_days: undefined,
+      is_perishable: false,
+      is_taxable: true,
+      requires_refrigeration: false,
+      storage_location: undefined,
+      storage_temperature_min: undefined,
+      storage_temperature_max: undefined,
+      tags: [],
+      barcode: undefined,
+      image_url: undefined,
+      notes: undefined,
+      created_at: newItem.createdAt,
+      updated_at: newItem.updatedAt,
     };
 
-    this.items.set(item.id, item);
-    this.logger.log(`Created inventory item: ${item.name} (${item.id})`);
-
-    return item;
+    // Cache in memory Map so findById works without DB
+    this.items.set(mappedItem.id, mappedItem);
+    return mappedItem;
   }
 
-  async findAll(query?: QueryInventoryItemsDto): Promise<InventoryItem[]> {
+  async findAll(
+    query?: QueryInventoryItemsDto,
+    user?: any,
+  ): Promise<InventoryItem[]> {
+    // Primero intentar cargar de base de datos
+    try {
+      const whereClause: any = {
+        organizationId: user?.organizationId,
+        ...(query?.search && {
+          OR: [
+            { name: { contains: query.search, mode: 'insensitive' } },
+            { code: { contains: query.search, mode: 'insensitive' } },
+            { description: { contains: query.search, mode: 'insensitive' } },
+          ],
+        }),
+        ...(query?.status && {
+          active: query.status === ItemStatus.ACTIVE,
+        }),
+      };
+
+      const items = await this.prisma.inventoryItem.findMany({
+        where: whereClause,
+        include: {
+          supplier: true,
+        },
+        orderBy: {
+          name: 'asc',
+        },
+      });
+
+      // Mapear a formato InventoryItem
+      return items.map((item: any) => ({
+        id: item.id,
+        organization_id: item.organizationId,
+        category_id: item.category || '',
+        supplier_id: item.supplierId || undefined,
+        sku: item.code,
+        name: item.name,
+        description: item.description || undefined,
+        brand: undefined,
+        type: 'INGREDIENT' as ItemType,
+        status: item.active ? ItemStatus.ACTIVE : ItemStatus.INACTIVE,
+        unit_of_measure: item.unitOfMeasure,
+        units_per_package: 1,
+        package_size: undefined,
+        cost_per_unit: item.costPerUnit,
+        average_cost: item.costPerUnit,
+        track_inventory: true,
+        current_stock: item.currentStock,
+        minimum_stock: item.reorderPoint,
+        maximum_stock: item.parLevel,
+        par_level: item.parLevel,
+        conversion_factor: undefined,
+        conversion_unit: undefined,
+        lead_time_days: undefined,
+        order_frequency_days: undefined,
+        is_perishable:
+          item.category === 'DAIRY' || item.category === 'PASTRIES',
+        is_taxable: true,
+        requires_refrigeration: item.category === 'DAIRY',
+        storage_location: undefined,
+        storage_temperature_min: undefined,
+        storage_temperature_max: undefined,
+        tags: item.category ? [item.category] : [],
+        barcode: undefined,
+        image_url: undefined,
+        notes: undefined,
+        created_at: item.createdAt,
+        updated_at: item.updatedAt,
+      }));
+    } catch (error) {
+      this.logger.error('Error cargando inventory items de DB:', error);
+      // Continuar con fallback
+    }
+
+    // Fallback a Map en memoria
     let items = Array.from(this.items.values());
 
     if (query) {
       if (query.organization_id) {
-        items = items.filter((i) => i.organization_id === query.organization_id);
+        items = items.filter(
+          (i) => i.organization_id === query.organization_id,
+        );
       }
 
       if (query.category_id) {
@@ -189,7 +290,10 @@ export class InventoryService {
     return item;
   }
 
-  async findBySku(sku: string, organization_id: string): Promise<InventoryItem> {
+  async findBySku(
+    sku: string,
+    organization_id: string,
+  ): Promise<InventoryItem> {
     const item = Array.from(this.items.values()).find(
       (i) => i.sku === sku && i.organization_id === organization_id,
     );
@@ -203,7 +307,10 @@ export class InventoryService {
     return item;
   }
 
-  async update(id: string, updateDto: UpdateInventoryItemDto): Promise<InventoryItem> {
+  async update(
+    id: string,
+    updateDto: UpdateInventoryItemDto,
+  ): Promise<InventoryItem> {
     const item = await this.findById(id);
 
     // Validar SKU único si se cambia
@@ -216,7 +323,9 @@ export class InventoryService {
       );
 
       if (existing) {
-        throw new ConflictException(`Item with SKU "${updateDto.sku}" already exists`);
+        throw new ConflictException(
+          `Item with SKU "${updateDto.sku}" already exists`,
+        );
       }
     }
 
@@ -275,7 +384,10 @@ export class InventoryService {
       id: uuidv4(),
       item_id: id,
       type: 'adjustment',
-      quantity: operation === 'set' ? newStock - item.current_stock : quantity * (operation === 'subtract' ? -1 : 1),
+      quantity:
+        operation === 'set'
+          ? newStock - item.current_stock
+          : quantity * (operation === 'subtract' ? -1 : 1),
       notes,
       created_at: new Date(),
     };
@@ -338,7 +450,9 @@ export class InventoryService {
     };
   }
 
-  async getValuation(organization_id: string): Promise<InventoryItemValuation[]> {
+  async getValuation(
+    organization_id: string,
+  ): Promise<InventoryItemValuation[]> {
     const items = await this.findAll({ organization_id });
 
     const valuations = items.map((item) => ({
@@ -354,7 +468,8 @@ export class InventoryService {
     const total_value = valuations.reduce((sum, v) => sum + v.total_value, 0);
 
     valuations.forEach((v) => {
-      v.percentage_of_total = total_value > 0 ? (v.total_value / total_value) * 100 : 0;
+      v.percentage_of_total =
+        total_value > 0 ? (v.total_value / total_value) * 100 : 0;
     });
 
     return valuations.sort((a, b) => b.total_value - a.total_value);

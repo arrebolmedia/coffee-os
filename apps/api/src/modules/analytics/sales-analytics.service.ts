@@ -1,63 +1,138 @@
 import { Injectable } from '@nestjs/common';
 import { QueryAnalyticsDto, TimeGranularity } from './dto';
 import { SalesMetrics, HourlyMetric, DailyMetric } from './interfaces';
+import { PrismaService } from '../database/prisma.service';
 
 @Injectable()
 export class SalesAnalyticsService {
-  // Mock data - in production would query from Transactions/Orders
-  private mockOrders: Map<string, any> = new Map();
+  constructor(private readonly prisma: PrismaService) {}
 
   async getSalesMetrics(query: QueryAnalyticsDto): Promise<SalesMetrics> {
     const startDate = new Date(query.start_date);
     const endDate = new Date(query.end_date);
 
-    // In production, query actual transactions
-    // For now, generate mock metrics
-    const grossSales = 450000;
-    const discounts = 22500; // 5%
-    const refunds = 9000; // 2%
-    const netSales = grossSales - discounts - refunds;
-    const taxes = netSales * 0.16; // IVA 16%
+    // Build where clause for tickets in the period
+    const where: any = {
+      status: 'CLOSED',
+      closedAt: { gte: startDate, lte: endDate },
+    };
 
-    const totalOrders = 1500;
-    const avgOrderValue = netSales / totalOrders;
+    if (query.location_id) {
+      where.locationId = query.location_id;
+    } else if (query.organization_id) {
+      where.location = { organizationId: query.organization_id };
+    }
 
-    const totalCustomers = 1200;
-    const newCustomers = 300;
-    const returningCustomers = totalCustomers - newCustomers;
+    const tickets = await this.prisma.ticket.findMany({
+      where,
+      include: {
+        lines: true,
+        customer: { select: { id: true } },
+      },
+    });
 
-    // Peak analysis
-    const peakHour = '14:00-15:00'; // 2-3 PM
-    const peakDay = 'Sábado';
+    // Aggregate metrics
+    const grossSales = tickets.reduce((sum, t) => sum + t.total, 0);
+    const discounts = tickets.reduce((sum, t) => sum + (t.discount || 0), 0);
+    const taxes = tickets.reduce((sum, t) => sum + (t.tax || 0), 0);
+    const netSales = grossSales - discounts;
+    const totalOrders = tickets.length;
+    const avgOrderValue = totalOrders > 0 ? grossSales / totalOrders : 0;
 
-    // Hourly breakdown (7 AM - 10 PM)
-    const hourlyBreakdown: HourlyMetric[] = this.generateHourlyBreakdown();
+    // Customer metrics
+    const customerIds = new Set(tickets.map((t) => t.customerId).filter(Boolean));
+    const totalCustomers = customerIds.size;
+
+    // Hourly breakdown
+    const hourlyMap = new Map<number, { sales: number; orders: number }>();
+    for (const ticket of tickets) {
+      const hour = new Date(ticket.closedAt!).getHours();
+      const existing = hourlyMap.get(hour) || { sales: 0, orders: 0 };
+      hourlyMap.set(hour, {
+        sales: existing.sales + ticket.total,
+        orders: existing.orders + 1,
+      });
+    }
+
+    const hourlyBreakdown: HourlyMetric[] = Array.from(hourlyMap.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([hour, data]) => ({
+        hour,
+        sales: data.sales,
+        orders: data.orders,
+        avg_order_value: data.orders > 0 ? data.sales / data.orders : 0,
+      }));
+
+    // Peak hour / day
+    const peakHourEntry = hourlyBreakdown.reduce(
+      (max, h) => (h.orders > (max?.orders ?? 0) ? h : max),
+      null as HourlyMetric | null,
+    );
+    const peakHour = peakHourEntry ? `${peakHourEntry.hour}:00` : 'N/A';
 
     // Daily breakdown
-    const dailyBreakdown: DailyMetric[] = this.generateDailyBreakdown(
-      startDate,
-      endDate,
-    );
+    const dayMap = new Map<
+      string,
+      { sales: number; orders: number; customerIds: Set<string> }
+    >();
+    for (const ticket of tickets) {
+      const dayKey = new Date(ticket.closedAt!).toISOString().split('T')[0];
+      const existing = dayMap.get(dayKey) || {
+        sales: 0,
+        orders: 0,
+        customerIds: new Set<string>(),
+      };
+      existing.sales += ticket.total;
+      existing.orders += 1;
+      if (ticket.customerId) existing.customerIds.add(ticket.customerId);
+      dayMap.set(dayKey, existing);
+    }
 
-    // Comparison with previous period
-    const periodDays = Math.ceil(
-      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+    const dailyBreakdown: DailyMetric[] = Array.from(dayMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, data]) => ({
+        date: new Date(date),
+        sales: data.sales,
+        orders: data.orders,
+        customers: data.customerIds.size,
+        avg_order_value: data.orders > 0 ? data.sales / data.orders : 0,
+      }));
+
+    const peakDayEntry = dailyBreakdown.reduce(
+      (max, d) => (d.orders > (max?.orders ?? 0) ? d : max),
+      null as DailyMetric | null,
     );
-    const prevPeriodGrossSales = 420000;
-    const prevPeriodOrders = 1400;
-    const prevPeriodAvgOrderValue = prevPeriodGrossSales / prevPeriodOrders;
+    const peakDay = peakDayEntry
+      ? peakDayEntry.date.toLocaleDateString('es-MX', { weekday: 'long' })
+      : 'N/A';
+
+    // Average items per order
+    const totalItems = tickets.reduce((sum, t) => sum + (t.lines?.length ?? 0), 0);
+    const avgItemsPerOrder = totalOrders > 0 ? totalItems / totalOrders : 0;
+
+    // Compare with previous period
+    const periodDuration = endDate.getTime() - startDate.getTime();
+    const prevStart = new Date(startDate.getTime() - periodDuration);
+    const prevEnd = new Date(startDate.getTime() - 1);
+
+    const prevWhere = { ...where, closedAt: { gte: prevStart, lte: prevEnd } };
+    const prevTickets = await this.prisma.ticket.findMany({ where: prevWhere });
+
+    const prevGrossSales = prevTickets.reduce((sum, t) => sum + t.total, 0);
+    const prevTotalOrders = prevTickets.length;
+    const prevAvgOrderValue =
+      prevTotalOrders > 0 ? prevGrossSales / prevTotalOrders : 0;
+
+    const pctChange = (current: number, previous: number) =>
+      previous === 0 ? 0 : ((current - previous) / previous) * 100;
 
     const vsPreviousPeriod = {
-      gross_sales_change: grossSales - prevPeriodGrossSales,
-      gross_sales_change_percent:
-        ((grossSales - prevPeriodGrossSales) / prevPeriodGrossSales) * 100,
-      orders_change: totalOrders - prevPeriodOrders,
-      orders_change_percent:
-        ((totalOrders - prevPeriodOrders) / prevPeriodOrders) * 100,
-      avg_order_value_change: avgOrderValue - prevPeriodAvgOrderValue,
-      avg_order_value_change_percent:
-        ((avgOrderValue - prevPeriodAvgOrderValue) / prevPeriodAvgOrderValue) *
-        100,
+      gross_sales_change: grossSales - prevGrossSales,
+      gross_sales_change_percent: pctChange(grossSales, prevGrossSales),
+      orders_change: totalOrders - prevTotalOrders,
+      orders_change_percent: pctChange(totalOrders, prevTotalOrders),
+      avg_order_value_change: avgOrderValue - prevAvgOrderValue,
+      avg_order_value_change_percent: pctChange(avgOrderValue, prevAvgOrderValue),
     };
 
     return {
@@ -65,17 +140,17 @@ export class SalesAnalyticsService {
       period_end: endDate,
       organization_id: query.organization_id,
       location_id: query.location_id,
-      gross_sales: grossSales,
-      net_sales: netSales,
-      discounts: discounts,
-      refunds: refunds,
-      taxes: taxes,
+      gross_sales: Math.round(grossSales * 100) / 100,
+      net_sales: Math.round(netSales * 100) / 100,
+      discounts: Math.round(discounts * 100) / 100,
+      refunds: 0, // Not tracked separately in current schema
+      taxes: Math.round(taxes * 100) / 100,
       total_orders: totalOrders,
       avg_order_value: Math.round(avgOrderValue * 100) / 100,
-      avg_items_per_order: 2.3,
+      avg_items_per_order: Math.round(avgItemsPerOrder * 100) / 100,
       total_customers: totalCustomers,
-      new_customers: newCustomers,
-      returning_customers: returningCustomers,
+      new_customers: 0, // Would require joining with customer.createdAt
+      returning_customers: totalCustomers,
       peak_hour: peakHour,
       peak_day: peakDay,
       hourly_breakdown: hourlyBreakdown,
@@ -84,136 +159,112 @@ export class SalesAnalyticsService {
     };
   }
 
-  private generateHourlyBreakdown(): HourlyMetric[] {
-    const breakdown: HourlyMetric[] = [];
-    const hourlyPatterns = [
-      { hour: 7, factor: 0.3 }, // Morning opening
-      { hour: 8, factor: 0.8 },
-      { hour: 9, factor: 1.2 },
-      { hour: 10, factor: 1.0 },
-      { hour: 11, factor: 0.9 },
-      { hour: 12, factor: 1.1 }, // Lunch
-      { hour: 13, factor: 1.3 },
-      { hour: 14, factor: 1.5 }, // Peak
-      { hour: 15, factor: 1.4 },
-      { hour: 16, factor: 1.0 },
-      { hour: 17, factor: 1.2 },
-      { hour: 18, factor: 1.1 },
-      { hour: 19, factor: 0.8 },
-      { hour: 20, factor: 0.6 },
-      { hour: 21, factor: 0.4 },
-      { hour: 22, factor: 0.2 }, // Closing
-    ];
-
-    const baseOrders = 100;
-    const baseAvgValue = 300;
-
-    for (const pattern of hourlyPatterns) {
-      const orders = Math.round(baseOrders * pattern.factor);
-      const sales = orders * baseAvgValue * pattern.factor;
-      breakdown.push({
-        hour: pattern.hour,
-        sales: Math.round(sales),
-        orders: orders,
-        avg_order_value: Math.round((sales / orders) * 100) / 100,
-      });
-    }
-
-    return breakdown;
-  }
-
-  private generateDailyBreakdown(
-    startDate: Date,
-    endDate: Date,
-  ): DailyMetric[] {
-    const breakdown: DailyMetric[] = [];
-    const currentDate = new Date(startDate);
-
-    while (currentDate <= endDate) {
-      const dayOfWeek = currentDate.getDay();
-      
-      // Weekend boost
-      const weekendFactor = dayOfWeek === 0 || dayOfWeek === 6 ? 1.3 : 1.0;
-      
-      const baseSales = 15000 * weekendFactor;
-      const baseOrders = 50 * weekendFactor;
-      const baseCustomers = 40 * weekendFactor;
-
-      breakdown.push({
-        date: new Date(currentDate),
-        sales: Math.round(baseSales),
-        orders: Math.round(baseOrders),
-        customers: Math.round(baseCustomers),
-        avg_order_value: Math.round((baseSales / baseOrders) * 100) / 100,
-      });
-
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-
-    return breakdown;
-  }
-
   async getTopSellingProducts(
     query: QueryAnalyticsDto,
     limit: number = 10,
   ): Promise<any[]> {
-    // Mock top products
-    return [
-      {
-        product_id: 'prod_1',
-        product_name: 'Café Americano',
-        category: 'Café Caliente',
-        quantity_sold: 450,
-        revenue: 22500,
-        rank: 1,
+    const startDate = new Date(query.start_date);
+    const endDate = new Date(query.end_date);
+
+    const ticketWhere: any = {
+      status: 'CLOSED',
+      closedAt: { gte: startDate, lte: endDate },
+    };
+
+    if (query.location_id) {
+      ticketWhere.locationId = query.location_id;
+    } else if (query.organization_id) {
+      ticketWhere.location = { organizationId: query.organization_id };
+    }
+
+    const lines = await this.prisma.ticketLine.findMany({
+      where: { ticket: ticketWhere },
+      include: {
+        product: { select: { id: true, name: true, categoryId: true } },
       },
-      {
-        product_id: 'prod_2',
-        product_name: 'Cappuccino',
-        category: 'Café Caliente',
-        quantity_sold: 380,
-        revenue: 24700,
-        rank: 2,
-      },
-      {
-        product_id: 'prod_3',
-        product_name: 'Latte',
-        category: 'Café Caliente',
-        quantity_sold: 350,
-        revenue: 24500,
-        rank: 3,
-      },
-    ].slice(0, limit);
+    });
+
+    // Group by product
+    const productMap = new Map<
+      string,
+      { name: string; quantity: number; revenue: number }
+    >();
+
+    for (const line of lines) {
+      const existing = productMap.get(line.productId) || {
+        name: line.product.name,
+        quantity: 0,
+        revenue: 0,
+      };
+      existing.quantity += line.quantity;
+      existing.revenue += line.total;
+      productMap.set(line.productId, existing);
+    }
+
+    return Array.from(productMap.entries())
+      .map(([id, data]) => ({
+        product_id: id,
+        product_name: data.name,
+        quantity_sold: data.quantity,
+        revenue: Math.round(data.revenue * 100) / 100,
+      }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, limit);
   }
 
   async getSalesByCategory(query: QueryAnalyticsDto): Promise<any[]> {
-    // Mock category breakdown
-    return [
-      {
-        category: 'Café Caliente',
-        total_sold: 1200,
-        revenue: 72000,
-        percent_of_total: 48,
+    const startDate = new Date(query.start_date);
+    const endDate = new Date(query.end_date);
+
+    const ticketWhere: any = {
+      status: 'CLOSED',
+      closedAt: { gte: startDate, lte: endDate },
+    };
+
+    if (query.location_id) {
+      ticketWhere.locationId = query.location_id;
+    } else if (query.organization_id) {
+      ticketWhere.location = { organizationId: query.organization_id };
+    }
+
+    const lines = await this.prisma.ticketLine.findMany({
+      where: { ticket: ticketWhere },
+      include: {
+        product: {
+          select: {
+            categoryId: true,
+            category: { select: { id: true, name: true } },
+          },
+        },
       },
-      {
-        category: 'Café Frío',
-        total_sold: 800,
-        revenue: 56000,
-        percent_of_total: 37,
-      },
-      {
-        category: 'Alimentos',
-        total_sold: 400,
-        revenue: 20000,
-        percent_of_total: 13,
-      },
-      {
-        category: 'Otros',
-        total_sold: 100,
-        revenue: 3000,
-        percent_of_total: 2,
-      },
-    ];
+    });
+
+    const categoryMap = new Map<
+      string,
+      { name: string; quantity: number; revenue: number }
+    >();
+
+    for (const line of lines) {
+      const catId = line.product.categoryId;
+      const catName = line.product.category?.name ?? 'Sin Categoría';
+      const existing = categoryMap.get(catId) || {
+        name: catName,
+        quantity: 0,
+        revenue: 0,
+      };
+      existing.quantity += line.quantity;
+      existing.revenue += line.total;
+      categoryMap.set(catId, existing);
+    }
+
+    return Array.from(categoryMap.entries())
+      .map(([id, data]) => ({
+        category_id: id,
+        category_name: data.name,
+        quantity_sold: data.quantity,
+        revenue: Math.round(data.revenue * 100) / 100,
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
   }
 
   async getSalesTrend(
@@ -223,11 +274,59 @@ export class SalesAnalyticsService {
     const startDate = new Date(query.start_date);
     const endDate = new Date(query.end_date);
 
-    if (granularity === TimeGranularity.DAILY) {
-      return this.generateDailyBreakdown(startDate, endDate);
+    const ticketWhere: any = {
+      status: 'CLOSED',
+      closedAt: { gte: startDate, lte: endDate },
+    };
+
+    if (query.location_id) {
+      ticketWhere.locationId = query.location_id;
+    } else if (query.organization_id) {
+      ticketWhere.location = { organizationId: query.organization_id };
     }
 
-    // For other granularities, aggregate daily data
-    return this.generateDailyBreakdown(startDate, endDate);
+    const tickets = await this.prisma.ticket.findMany({
+      where: ticketWhere,
+      select: { total: true, closedAt: true },
+    });
+
+    const bucketMap = new Map<string, { sales: number; orders: number }>();
+
+    for (const ticket of tickets) {
+      const date = new Date(ticket.closedAt!);
+      let key: string;
+
+      if (granularity === TimeGranularity.HOURLY) {
+        key = `${date.toISOString().split('T')[0]}T${String(date.getHours()).padStart(2, '0')}:00`;
+      } else if (granularity === TimeGranularity.WEEKLY) {
+        // Get Monday of the week
+        const day = date.getDay();
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+        const monday = new Date(date.setDate(diff));
+        key = monday.toISOString().split('T')[0];
+      } else if (granularity === TimeGranularity.MONTHLY) {
+        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      } else {
+        key = date.toISOString().split('T')[0];
+      }
+
+      const existing = bucketMap.get(key) || { sales: 0, orders: 0 };
+      bucketMap.set(key, {
+        sales: existing.sales + ticket.total,
+        orders: existing.orders + 1,
+      });
+    }
+
+    return Array.from(bucketMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([period, data]) => ({
+        period,
+        sales: Math.round(data.sales * 100) / 100,
+        orders: data.orders,
+        avg_order_value:
+          data.orders > 0
+            ? Math.round((data.sales / data.orders) * 100) / 100
+            : 0,
+      }));
   }
 }

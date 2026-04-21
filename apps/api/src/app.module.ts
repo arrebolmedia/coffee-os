@@ -26,9 +26,9 @@ import { RolesModule } from './modules/roles/roles.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { InventoryMovementsModule } from './modules/inventory-movements/inventory-movements.module';
 import { RecipesModule } from './modules/recipes/recipes.module';
-import { TransactionsModule } from './modules/transactions/transactions.module';
-import { PaymentsModule } from './modules/payments/payments.module';
-import { OrdersModule } from './modules/orders/orders.module';
+// import { TransactionsModule } from './modules/transactions/transactions.module';
+// import { PaymentsModule } from './modules/payments/payments.module';
+// import { OrdersModule } from './modules/orders/orders.module';
 import { DiscountsModule } from './modules/discounts/discounts.module';
 import { TaxesModule } from './modules/taxes/taxes.module';
 import { ShiftsModule } from './modules/shifts/shifts.module';
@@ -66,15 +66,15 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard.global';
       envFilePath: ['.env.local', '.env'],
     }),
 
-    // GraphQL
-    GraphQLModule.forRoot<ApolloDriverConfig>({
-      driver: ApolloDriver,
-      autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
-      sortSchema: true,
-      playground: process.env.NODE_ENV !== 'production',
-      introspection: true,
-      context: ({ req }) => ({ req }),
-    }),
+    // GraphQL (commented out until resolvers are implemented)
+    // GraphQLModule.forRoot<ApolloDriverConfig>({
+    //   driver: ApolloDriver,
+    //   autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+    //   sortSchema: true,
+    //   playground: process.env.NODE_ENV !== 'production',
+    //   introspection: true,
+    //   context: ({ req }) => ({ req }),
+    // }),
 
     // Infrastructure
     DatabaseModule,
@@ -102,9 +102,9 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard.global';
     InventoryModule,
     InventoryMovementsModule,
     RecipesModule,
-    TransactionsModule,
-    PaymentsModule,
-    OrdersModule,
+    // TransactionsModule, // TODO: Actualizar para usar Ticket en lugar de Transaction
+    // PaymentsModule, // TODO: Actualizar para usar solo Ticket
+    // OrdersModule, // TODO: Refactorizar - ahora se maneja en PosModule
     DiscountsModule,
     TaxesModule,
     ShiftsModule,

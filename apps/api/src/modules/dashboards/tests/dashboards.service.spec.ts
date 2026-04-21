@@ -342,8 +342,8 @@ describe('DashboardsService', () => {
 
         const result = await service.updateWidget(dto);
         const updatedWidget = result.widgets.find((w) => w.id === 'widget-1');
-        expect(updatedWidget.title).toBe('Updated Title');
-        expect(updatedWidget.size).toBe(WidgetSize.MEDIUM);
+        expect(updatedWidget!.title).toBe('Updated Title');
+        expect(updatedWidget!.size).toBe(WidgetSize.MEDIUM);
       });
 
       it('should throw NotFoundException for non-existent widget', async () => {
@@ -403,8 +403,8 @@ describe('DashboardsService', () => {
 
         const result = await service.reorderWidgets(dashboardId, newPositions);
         const widget = result.widgets.find((w) => w.id === 'widget-1');
-        expect(widget.position.x).toBe(2);
-        expect(widget.position.y).toBe(1);
+        expect(widget!.position.x).toBe(2);
+        expect(widget!.position.y).toBe(1);
       });
     });
   });
@@ -830,7 +830,7 @@ describe('DashboardsService', () => {
           (w) => w.type === WidgetType.KPI,
         );
         expect(kpiWidget).toBeDefined();
-        expect(kpiWidget.count).toBeGreaterThan(0);
+        expect(kpiWidget!.count).toBeGreaterThan(0);
       });
     });
   });

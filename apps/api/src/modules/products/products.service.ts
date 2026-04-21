@@ -22,9 +22,10 @@ export class ProductsService {
    * Crear un nuevo producto
    */
   async create(createProductDto: CreateProductDto) {
-    // Verificar SKU único
+    // Verificar SKU único en la organización
     const existingBySku = await this.prisma.product.findFirst({
       where: {
+        organizationId: createProductDto.organization_id,
         sku: createProductDto.sku,
       },
     });
@@ -37,6 +38,7 @@ export class ProductsService {
 
     const product = await this.prisma.product.create({
       data: {
+        organizationId: createProductDto.organization_id,
         categoryId: createProductDto.category_id,
         sku: createProductDto.sku,
         name: createProductDto.name,

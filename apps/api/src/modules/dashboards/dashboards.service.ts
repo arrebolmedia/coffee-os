@@ -335,11 +335,7 @@ export class DashboardsService {
         case WidgetType.RANKING:
           return {
             ...baseData,
-            rows: [
-              { rank: 1, name: 'Espresso', count: 145, revenue: 2900 },
-              { rank: 2, name: 'Latte', count: 98, revenue: 3920 },
-              { rank: 3, name: 'Cappuccino', count: 87, revenue: 3480 },
-            ],
+            rows: [],
           };
 
         case WidgetType.GAUGE_CHART:

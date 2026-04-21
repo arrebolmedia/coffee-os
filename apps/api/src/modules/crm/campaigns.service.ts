@@ -1,266 +1,293 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateCampaignDto, QueryCampaignsDto, CampaignStatus, CampaignType, CampaignChannel } from './dto';
 import { Campaign, CampaignRecipient } from './interfaces';
+import { PrismaService } from '../database/prisma.service';
 
 @Injectable()
 export class CampaignsService {
-  private campaigns: Map<string, Campaign> = new Map();
-  private recipients: Map<string, CampaignRecipient> = new Map();
+  constructor(private readonly prisma: PrismaService) {}
+
+  private mapCampaign(c: any): Campaign {
+    return {
+      id: c.id,
+      organization_id: c.organizationId,
+      name: c.name,
+      description: c.description ?? undefined,
+      type: c.type as CampaignType,
+      status: c.status as CampaignStatus,
+      channels: c.channels as CampaignChannel[],
+      segment_id: c.segmentId ?? undefined,
+      start_date: c.startDate ?? undefined,
+      end_date: c.endDate ?? undefined,
+      is_automated: c.isAutomated,
+      email_subject: c.emailSubject ?? undefined,
+      email_body: c.emailBody ?? undefined,
+      whatsapp_template_id: c.whatsappTemplateId ?? undefined,
+      sms_message: c.smsMessage ?? undefined,
+      push_title: c.pushTitle ?? undefined,
+      push_body: c.pushBody ?? undefined,
+      offer_code: c.offerCode ?? undefined,
+      offer_description: c.offerDescription ?? undefined,
+      offer_discount_percent: c.offerDiscountPercent ?? undefined,
+      offer_discount_amount: c.offerDiscountAmount ?? undefined,
+      total_recipients: c.totalRecipients,
+      sent_count: c.sentCount,
+      delivered_count: c.deliveredCount,
+      opened_count: c.openedCount,
+      clicked_count: c.clickedCount,
+      converted_count: c.convertedCount,
+      unsubscribed_count: c.unsubscribedCount,
+      created_by_user_id: c.createdByUserId ?? undefined,
+      created_at: c.createdAt,
+      updated_at: c.updatedAt,
+    };
+  }
+
+  private mapRecipient(r: any): CampaignRecipient {
+    return {
+      id: r.id,
+      campaign_id: r.campaignId,
+      customer_id: r.customerId,
+      channel: r.channel as CampaignChannel,
+      sent_at: r.sentAt ?? undefined,
+      delivered_at: r.deliveredAt ?? undefined,
+      opened_at: r.openedAt ?? undefined,
+      clicked_at: r.clickedAt ?? undefined,
+      converted_at: r.convertedAt ?? undefined,
+      unsubscribed_at: r.unsubscribedAt ?? undefined,
+      error_message: r.errorMessage ?? undefined,
+    };
+  }
 
   async create(createDto: CreateCampaignDto, createdByUserId?: string): Promise<Campaign> {
-    const id = this.generateId();
-    const now = new Date();
-
-    const campaign: Campaign = {
-      id,
-      organization_id: createDto.organization_id,
-      name: createDto.name,
-      description: createDto.description,
-      type: createDto.type,
-      status: CampaignStatus.DRAFT,
-      channels: createDto.channels,
-      segment_id: createDto.segment_id,
-      start_date: createDto.start_date ? new Date(createDto.start_date) : undefined,
-      end_date: createDto.end_date ? new Date(createDto.end_date) : undefined,
-      is_automated: createDto.is_automated,
-
-      // Message content
-      email_subject: createDto.email_subject,
-      email_body: createDto.email_body,
-      whatsapp_template_id: createDto.whatsapp_template_id,
-      sms_message: createDto.sms_message,
-      push_title: createDto.push_title,
-      push_body: createDto.push_body,
-
-      // Offer
-      offer_code: createDto.offer_code,
-      offer_description: createDto.offer_description,
-      offer_discount_percent: createDto.offer_discount_percent,
-      offer_discount_amount: createDto.offer_discount_amount,
-
-      // Metrics
-      sent_count: 0,
-      delivered_count: 0,
-      opened_count: 0,
-      clicked_count: 0,
-      converted_count: 0,
-      unsubscribed_count: 0,
-
-      created_by_user_id: createdByUserId,
-      created_at: now,
-      updated_at: now,
-    };
-
-    this.campaigns.set(id, campaign);
-    return campaign;
+    const campaign = await this.prisma.campaign.create({
+      data: {
+        organizationId: createDto.organization_id,
+        name: createDto.name,
+        description: createDto.description,
+        type: createDto.type,
+        status: 'DRAFT',
+        channels: createDto.channels,
+        segmentId: createDto.segment_id,
+        startDate: createDto.start_date ? new Date(createDto.start_date) : null,
+        endDate: createDto.end_date ? new Date(createDto.end_date) : null,
+        isAutomated: createDto.is_automated,
+        emailSubject: createDto.email_subject,
+        emailBody: createDto.email_body,
+        whatsappTemplateId: createDto.whatsapp_template_id,
+        smsMessage: createDto.sms_message,
+        pushTitle: createDto.push_title,
+        pushBody: createDto.push_body,
+        offerCode: createDto.offer_code,
+        offerDescription: createDto.offer_description,
+        offerDiscountPercent: createDto.offer_discount_percent,
+        offerDiscountAmount: createDto.offer_discount_amount,
+        createdByUserId,
+      },
+    });
+    return this.mapCampaign(campaign);
   }
 
   async findAll(query: QueryCampaignsDto): Promise<Campaign[]> {
-    let campaigns = Array.from(this.campaigns.values());
-
-    if (query.organization_id) {
-      campaigns = campaigns.filter((c) => c.organization_id === query.organization_id);
-    }
-
-    if (query.type) {
-      campaigns = campaigns.filter((c) => c.type === query.type);
-    }
-
-    if (query.status) {
-      campaigns = campaigns.filter((c) => c.status === query.status);
-    }
-
+    const where: any = {};
+    if (query.organization_id) where.organizationId = query.organization_id;
+    if (query.type) where.type = query.type;
+    if (query.status) where.status = query.status;
     if (query.search) {
-      const search = query.search.toLowerCase();
-      campaigns = campaigns.filter(
-        (c) =>
-          c.name.toLowerCase().includes(search) ||
-          c.description?.toLowerCase().includes(search),
-      );
+      where.OR = [
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { description: { contains: query.search, mode: 'insensitive' } },
+      ];
     }
 
-    return campaigns.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+    const campaigns = await this.prisma.campaign.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return campaigns.map(this.mapCampaign.bind(this));
   }
 
   async findOne(id: string): Promise<Campaign | null> {
-    return this.campaigns.get(id) || null;
+    const c = await this.prisma.campaign.findUnique({ where: { id } });
+    return c ? this.mapCampaign(c) : null;
   }
 
   async updateStatus(id: string, status: CampaignStatus): Promise<Campaign> {
-    const campaign = this.campaigns.get(id);
-    if (!campaign) {
-      throw new Error('Campaign not found');
-    }
+    const existing = await this.prisma.campaign.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException(`Campaign ${id} not found`);
 
-    campaign.status = status;
-    campaign.updated_at = new Date();
-
-    this.campaigns.set(id, campaign);
-    return campaign;
+    const updated = await this.prisma.campaign.update({
+      where: { id },
+      data: { status },
+    });
+    return this.mapCampaign(updated);
   }
 
   async delete(id: string): Promise<void> {
-    this.campaigns.delete(id);
+    await this.prisma.campaign.delete({ where: { id } });
   }
 
   async addRecipient(campaignId: string, customerId: string, channel: CampaignChannel): Promise<CampaignRecipient> {
-    const id = this.generateId();
-
-    const recipient: CampaignRecipient = {
-      id,
-      campaign_id: campaignId,
-      customer_id: customerId,
-      channel,
-    };
-
-    this.recipients.set(id, recipient);
-
-    // Update campaign total_recipients
-    const campaign = this.campaigns.get(campaignId);
-    if (campaign) {
-      campaign.total_recipients = (campaign.total_recipients || 0) + 1;
-      this.campaigns.set(campaignId, campaign);
-    }
-
-    return recipient;
+    const [recipient] = await this.prisma.$transaction([
+      this.prisma.campaignRecipient.create({
+        data: { campaignId, customerId, channel },
+      }),
+      this.prisma.campaign.update({
+        where: { id: campaignId },
+        data: { totalRecipients: { increment: 1 } },
+      }),
+    ]);
+    return this.mapRecipient(recipient);
   }
 
   async markSent(recipientId: string): Promise<void> {
-    const recipient = this.recipients.get(recipientId);
-    if (!recipient) return;
-
-    recipient.sent_at = new Date();
-    this.recipients.set(recipientId, recipient);
-
-    // Update campaign sent_count
-    const campaign = this.campaigns.get(recipient.campaign_id);
-    if (campaign) {
-      campaign.sent_count += 1;
-      this.campaigns.set(recipient.campaign_id, campaign);
-    }
+    const r = await this.prisma.campaignRecipient.findUnique({ where: { id: recipientId } });
+    if (!r) return;
+    await this.prisma.$transaction([
+      this.prisma.campaignRecipient.update({
+        where: { id: recipientId },
+        data: { sentAt: new Date() },
+      }),
+      this.prisma.campaign.update({
+        where: { id: r.campaignId },
+        data: { sentCount: { increment: 1 } },
+      }),
+    ]);
   }
 
   async markDelivered(recipientId: string): Promise<void> {
-    const recipient = this.recipients.get(recipientId);
-    if (!recipient) return;
-
-    recipient.delivered_at = new Date();
-    this.recipients.set(recipientId, recipient);
-
-    // Update campaign delivered_count
-    const campaign = this.campaigns.get(recipient.campaign_id);
-    if (campaign) {
-      campaign.delivered_count += 1;
-      this.campaigns.set(recipient.campaign_id, campaign);
-    }
+    const r = await this.prisma.campaignRecipient.findUnique({ where: { id: recipientId } });
+    if (!r) return;
+    await this.prisma.$transaction([
+      this.prisma.campaignRecipient.update({
+        where: { id: recipientId },
+        data: { deliveredAt: new Date() },
+      }),
+      this.prisma.campaign.update({
+        where: { id: r.campaignId },
+        data: { deliveredCount: { increment: 1 } },
+      }),
+    ]);
   }
 
   async markOpened(recipientId: string): Promise<void> {
-    const recipient = this.recipients.get(recipientId);
-    if (!recipient) return;
-
-    if (!recipient.opened_at) {
-      recipient.opened_at = new Date();
-      this.recipients.set(recipientId, recipient);
-
-      // Update campaign opened_count
-      const campaign = this.campaigns.get(recipient.campaign_id);
-      if (campaign) {
-        campaign.opened_count += 1;
-        this.campaigns.set(recipient.campaign_id, campaign);
-      }
-    }
+    const r = await this.prisma.campaignRecipient.findUnique({ where: { id: recipientId } });
+    if (!r || r.openedAt) return; // no double-count
+    await this.prisma.$transaction([
+      this.prisma.campaignRecipient.update({
+        where: { id: recipientId },
+        data: { openedAt: new Date() },
+      }),
+      this.prisma.campaign.update({
+        where: { id: r.campaignId },
+        data: { openedCount: { increment: 1 } },
+      }),
+    ]);
   }
 
   async markClicked(recipientId: string): Promise<void> {
-    const recipient = this.recipients.get(recipientId);
-    if (!recipient) return;
-
-    if (!recipient.clicked_at) {
-      recipient.clicked_at = new Date();
-      this.recipients.set(recipientId, recipient);
-
-      // Update campaign clicked_count
-      const campaign = this.campaigns.get(recipient.campaign_id);
-      if (campaign) {
-        campaign.clicked_count += 1;
-        this.campaigns.set(recipient.campaign_id, campaign);
-      }
-    }
+    const r = await this.prisma.campaignRecipient.findUnique({ where: { id: recipientId } });
+    if (!r || r.clickedAt) return;
+    await this.prisma.$transaction([
+      this.prisma.campaignRecipient.update({
+        where: { id: recipientId },
+        data: { clickedAt: new Date() },
+      }),
+      this.prisma.campaign.update({
+        where: { id: r.campaignId },
+        data: { clickedCount: { increment: 1 } },
+      }),
+    ]);
   }
 
   async markConverted(recipientId: string): Promise<void> {
-    const recipient = this.recipients.get(recipientId);
-    if (!recipient) return;
-
-    if (!recipient.converted_at) {
-      recipient.converted_at = new Date();
-      this.recipients.set(recipientId, recipient);
-
-      // Update campaign converted_count
-      const campaign = this.campaigns.get(recipient.campaign_id);
-      if (campaign) {
-        campaign.converted_count += 1;
-        this.campaigns.set(recipient.campaign_id, campaign);
-      }
-    }
+    const r = await this.prisma.campaignRecipient.findUnique({ where: { id: recipientId } });
+    if (!r || r.convertedAt) return;
+    await this.prisma.$transaction([
+      this.prisma.campaignRecipient.update({
+        where: { id: recipientId },
+        data: { convertedAt: new Date() },
+      }),
+      this.prisma.campaign.update({
+        where: { id: r.campaignId },
+        data: { convertedCount: { increment: 1 } },
+      }),
+    ]);
   }
 
   async markUnsubscribed(recipientId: string): Promise<void> {
-    const recipient = this.recipients.get(recipientId);
-    if (!recipient) return;
-
-    if (!recipient.unsubscribed_at) {
-      recipient.unsubscribed_at = new Date();
-      this.recipients.set(recipientId, recipient);
-
-      // Update campaign unsubscribed_count
-      const campaign = this.campaigns.get(recipient.campaign_id);
-      if (campaign) {
-        campaign.unsubscribed_count += 1;
-        this.campaigns.set(recipient.campaign_id, campaign);
-      }
-    }
+    const r = await this.prisma.campaignRecipient.findUnique({ where: { id: recipientId } });
+    if (!r || r.unsubscribedAt) return;
+    await this.prisma.$transaction([
+      this.prisma.campaignRecipient.update({
+        where: { id: recipientId },
+        data: { unsubscribedAt: new Date() },
+      }),
+      this.prisma.campaign.update({
+        where: { id: r.campaignId },
+        data: { unsubscribedCount: { increment: 1 } },
+      }),
+    ]);
   }
 
   async getCampaignRecipients(campaignId: string): Promise<CampaignRecipient[]> {
-    return Array.from(this.recipients.values()).filter((r) => r.campaign_id === campaignId);
+    const recipients = await this.prisma.campaignRecipient.findMany({
+      where: { campaignId },
+    });
+    return recipients.map(this.mapRecipient.bind(this));
   }
 
   async getStats(organizationId: string): Promise<any> {
-    const campaigns = Array.from(this.campaigns.values()).filter(
-      (c) => c.organization_id === organizationId,
+    const where = { organizationId };
+
+    const [total, active, draft, completed, paused, byTypeRaw, metricsAgg] = await Promise.all([
+      this.prisma.campaign.count({ where }),
+      this.prisma.campaign.count({ where: { ...where, status: 'ACTIVE' } }),
+      this.prisma.campaign.count({ where: { ...where, status: 'DRAFT' } }),
+      this.prisma.campaign.count({ where: { ...where, status: 'COMPLETED' } }),
+      this.prisma.campaign.count({ where: { ...where, status: 'PAUSED' } }),
+      this.prisma.campaign.groupBy({
+        by: ['type'],
+        where,
+        _count: { type: true },
+      }),
+      this.prisma.campaign.aggregate({
+        where,
+        _sum: {
+          sentCount: true,
+          deliveredCount: true,
+          openedCount: true,
+          clickedCount: true,
+          convertedCount: true,
+        },
+      }),
+    ]);
+
+    const byType = byTypeRaw.reduce(
+      (acc, g) => { acc[g.type] = g._count.type; return acc; },
+      {} as Record<string, number>,
     );
 
-    const total = campaigns.length;
-    const active = campaigns.filter((c) => c.status === CampaignStatus.ACTIVE).length;
-    const draft = campaigns.filter((c) => c.status === CampaignStatus.DRAFT).length;
-    const completed = campaigns.filter((c) => c.status === CampaignStatus.COMPLETED).length;
-    const paused = campaigns.filter((c) => c.status === CampaignStatus.PAUSED).length;
+    const totalSent = metricsAgg._sum.sentCount ?? 0;
+    const totalDelivered = metricsAgg._sum.deliveredCount ?? 0;
+    const totalOpened = metricsAgg._sum.openedCount ?? 0;
+    const totalClicked = metricsAgg._sum.clickedCount ?? 0;
+    const totalConverted = metricsAgg._sum.convertedCount ?? 0;
 
-    const byType = campaigns.reduce((acc, c) => {
-      acc[c.type] = (acc[c.type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const byChannel = campaigns.reduce((acc, c) => {
-      c.channels.forEach((channel) => {
-        acc[channel] = (acc[channel] || 0) + 1;
-      });
-      return acc;
-    }, {} as Record<string, number>);
-
-    // Overall metrics
-    const totalSent = campaigns.reduce((sum, c) => sum + c.sent_count, 0);
-    const totalDelivered = campaigns.reduce((sum, c) => sum + c.delivered_count, 0);
-    const totalOpened = campaigns.reduce((sum, c) => sum + c.opened_count, 0);
-    const totalClicked = campaigns.reduce((sum, c) => sum + c.clicked_count, 0);
-    const totalConverted = campaigns.reduce((sum, c) => sum + c.converted_count, 0);
-
-    const deliveryRate = totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0;
-    const openRate = totalDelivered > 0 ? Math.round((totalOpened / totalDelivered) * 100) : 0;
-    const clickRate = totalOpened > 0 ? Math.round((totalClicked / totalOpened) * 100) : 0;
-    const conversionRate = totalSent > 0 ? Math.round((totalConverted / totalSent) * 100) : 0;
+    // by_channel: fetch campaigns and aggregate channels in JS
+    // (Prisma arrays can't be groupBy'd natively)
+    const campaigns = await this.prisma.campaign.findMany({
+      where,
+      select: { channels: true },
+    });
+    const byChannel = campaigns.reduce(
+      (acc, c) => {
+        (c.channels as string[]).forEach((ch) => { acc[ch] = (acc[ch] || 0) + 1; });
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     return {
       total,
@@ -276,15 +303,16 @@ export class CampaignsService {
         total_opened: totalOpened,
         total_clicked: totalClicked,
         total_converted: totalConverted,
-        delivery_rate: deliveryRate,
-        open_rate: openRate,
-        click_rate: clickRate,
-        conversion_rate: conversionRate,
+        delivery_rate: totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0,
+        open_rate: totalDelivered > 0 ? Math.round((totalOpened / totalDelivered) * 100) : 0,
+        click_rate: totalOpened > 0 ? Math.round((totalClicked / totalOpened) * 100) : 0,
+        conversion_rate: totalSent > 0 ? Math.round((totalConverted / totalSent) * 100) : 0,
       },
     };
   }
 
-  // Automated campaign helpers
+  // ── Automated campaign helpers ───────────────────────────────────────────
+
   async createBirthdayCampaign(organizationId: string): Promise<Campaign> {
     return this.create({
       organization_id: organizationId,
@@ -314,9 +342,5 @@ export class CampaignsService {
       offer_code: 'WELCOME10',
       offer_discount_percent: 10,
     });
-  }
-
-  private generateId(): string {
-    return `campaign_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 }

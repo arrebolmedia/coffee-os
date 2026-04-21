@@ -1,92 +1,138 @@
 import { Injectable } from '@nestjs/common';
 import { QueryAnalyticsDto } from './dto';
 import { ProductPerformance, CategoryPerformance } from './interfaces';
+import { PrismaService } from '../database/prisma.service';
 
 @Injectable()
 export class ProductAnalyticsService {
+  constructor(private readonly prisma: PrismaService) {}
+
   async getProductPerformance(
     query: QueryAnalyticsDto,
   ): Promise<ProductPerformance[]> {
-    // Mock product data
-    const products: ProductPerformance[] = [
-      {
-        product_id: 'prod_1',
-        product_name: 'Café Americano',
-        category: 'Café Caliente',
-        total_sold: 450,
-        revenue: 22500,
-        profit: 15750, // 70% margin
-        profit_margin_percent: 70,
-        rank_by_quantity: 1,
-        rank_by_revenue: 3,
-        rank_by_profit: 2,
-        trend: 'UP',
-        vs_previous_period_percent: 12.5,
-      },
-      {
-        product_id: 'prod_2',
-        product_name: 'Cappuccino',
-        category: 'Café Caliente',
-        total_sold: 380,
-        revenue: 24700,
-        profit: 16190, // 65.5% margin
-        profit_margin_percent: 65.5,
-        rank_by_quantity: 2,
-        rank_by_revenue: 2,
-        rank_by_profit: 1,
-        trend: 'UP',
-        vs_previous_period_percent: 8.3,
-      },
-      {
-        product_id: 'prod_3',
-        product_name: 'Latte',
-        category: 'Café Caliente',
-        total_sold: 350,
-        revenue: 24500,
-        profit: 15680, // 64% margin
-        profit_margin_percent: 64,
-        rank_by_quantity: 3,
-        rank_by_revenue: 1,
-        rank_by_profit: 3,
-        trend: 'STABLE',
-        vs_previous_period_percent: 2.1,
-      },
-      {
-        product_id: 'prod_4',
-        product_name: 'Espresso',
-        category: 'Café Caliente',
-        total_sold: 220,
-        revenue: 11000,
-        profit: 8250, // 75% margin
-        profit_margin_percent: 75,
-        rank_by_quantity: 4,
-        rank_by_revenue: 5,
-        rank_by_profit: 4,
-        trend: 'DOWN',
-        vs_previous_period_percent: -5.2,
-      },
-      {
-        product_id: 'prod_5',
-        product_name: 'Frappé de Vainilla',
-        category: 'Café Frío',
-        total_sold: 320,
-        revenue: 22400,
-        profit: 13440, // 60% margin
-        profit_margin_percent: 60,
-        rank_by_quantity: 5,
-        rank_by_revenue: 4,
-        rank_by_profit: 5,
-        trend: 'UP',
-        vs_previous_period_percent: 18.5,
-      },
-    ];
+    const startDate = new Date(query.start_date);
+    const endDate = new Date(query.end_date);
 
-    // Filter by location if provided
+    const ticketWhere: any = {
+      status: 'CLOSED',
+      closedAt: { gte: startDate, lte: endDate },
+    };
+
     if (query.location_id) {
-      // In production, filter by location
+      ticketWhere.locationId = query.location_id;
+    } else if (query.organization_id) {
+      ticketWhere.location = { organizationId: query.organization_id };
     }
 
-    return products;
+    // Current period lines
+    const lines = await this.prisma.ticketLine.findMany({
+      where: { ticket: ticketWhere },
+      include: {
+        product: {
+          select: {
+            id: true,
+            name: true,
+            cost: true,
+            category: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    // Previous period for trend calculation
+    const periodDuration = endDate.getTime() - startDate.getTime();
+    const prevStart = new Date(startDate.getTime() - periodDuration);
+    const prevEnd = new Date(startDate.getTime() - 1);
+    const prevTicketWhere = { ...ticketWhere, closedAt: { gte: prevStart, lte: prevEnd } };
+
+    const prevLines = await this.prisma.ticketLine.findMany({
+      where: { ticket: prevTicketWhere },
+      select: { productId: true, quantity: true, total: true },
+    });
+
+    // Build previous period map
+    const prevMap = new Map<string, { quantity: number; revenue: number }>();
+    for (const line of prevLines) {
+      const existing = prevMap.get(line.productId) || { quantity: 0, revenue: 0 };
+      prevMap.set(line.productId, {
+        quantity: existing.quantity + line.quantity,
+        revenue: existing.revenue + line.total,
+      });
+    }
+
+    // Aggregate current period by product
+    const productMap = new Map<
+      string,
+      { name: string; category: string; quantity: number; revenue: number; cost: number }
+    >();
+
+    for (const line of lines) {
+      const existing = productMap.get(line.productId) || {
+        name: line.product.name,
+        category: line.product.category?.name ?? 'Sin Categoría',
+        quantity: 0,
+        revenue: 0,
+        cost: line.product.cost ?? 0,
+      };
+      existing.quantity += line.quantity;
+      existing.revenue += line.total;
+      productMap.set(line.productId, existing);
+    }
+
+    // Build performance array
+    const performances = Array.from(productMap.entries()).map(([id, data]) => {
+      const totalCost = data.cost * data.quantity;
+      const profit = data.revenue - totalCost;
+      const profitMarginPercent =
+        data.revenue > 0 ? (profit / data.revenue) * 100 : 0;
+
+      const prev = prevMap.get(id);
+      const prevRevenue = prev?.revenue ?? 0;
+      const vsPrevPeriodPercent =
+        prevRevenue === 0
+          ? 0
+          : ((data.revenue - prevRevenue) / prevRevenue) * 100;
+
+      const trend: 'UP' | 'DOWN' | 'STABLE' =
+        vsPrevPeriodPercent > 5
+          ? 'UP'
+          : vsPrevPeriodPercent < -5
+            ? 'DOWN'
+            : 'STABLE';
+
+      return {
+        product_id: id,
+        product_name: data.name,
+        category: data.category,
+        total_sold: data.quantity,
+        revenue: Math.round(data.revenue * 100) / 100,
+        profit: Math.round(profit * 100) / 100,
+        profit_margin_percent: Math.round(profitMarginPercent * 100) / 100,
+        rank_by_quantity: 0, // assigned below
+        rank_by_revenue: 0,
+        rank_by_profit: 0,
+        trend,
+        vs_previous_period_percent: Math.round(vsPrevPeriodPercent * 100) / 100,
+      };
+    });
+
+    // Assign ranks
+    const byQuantity = [...performances].sort(
+      (a, b) => b.total_sold - a.total_sold,
+    );
+    const byRevenue = [...performances].sort((a, b) => b.revenue - a.revenue);
+    const byProfit = [...performances].sort((a, b) => b.profit - a.profit);
+
+    for (const p of performances) {
+      p.rank_by_quantity =
+        byQuantity.findIndex((x) => x.product_id === p.product_id) + 1;
+      p.rank_by_revenue =
+        byRevenue.findIndex((x) => x.product_id === p.product_id) + 1;
+      p.rank_by_profit =
+        byProfit.findIndex((x) => x.product_id === p.product_id) + 1;
+    }
+
+    return performances.sort((a, b) => a.rank_by_revenue - b.rank_by_revenue);
   }
 
   async getCategoryPerformance(
@@ -114,7 +160,7 @@ export class ProductAnalyticsService {
         0,
       );
       const revenue = categoryProducts.reduce((sum, p) => sum + p.revenue, 0);
-      const avgPrice = revenue / totalSold;
+      const avgPrice = totalSold > 0 ? revenue / totalSold : 0;
 
       // Top 3 products in category
       const topProducts = categoryProducts
@@ -125,13 +171,12 @@ export class ProductAnalyticsService {
         category,
         total_products: categoryProducts.length,
         total_sold: totalSold,
-        revenue: revenue,
+        revenue: Math.round(revenue * 100) / 100,
         avg_price: Math.round(avgPrice * 100) / 100,
         top_products: topProducts,
       });
     }
 
-    // Sort by revenue
     return categories.sort((a, b) => b.revenue - a.revenue);
   }
 
@@ -160,10 +205,12 @@ export class ProductAnalyticsService {
   ): Promise<ProductPerformance[]> {
     const products = await this.getProductPerformance(query);
 
-    // Find products with declining trend or low sales
     return products
       .filter((p) => p.trend === 'DOWN' || p.vs_previous_period_percent < -10)
-      .sort((a, b) => a.vs_previous_period_percent - b.vs_previous_period_percent)
+      .sort(
+        (a, b) =>
+          a.vs_previous_period_percent - b.vs_previous_period_percent,
+      )
       .slice(0, limit);
   }
 
@@ -174,7 +221,10 @@ export class ProductAnalyticsService {
     return categories.map((category) => ({
       category: category.category,
       revenue: category.revenue,
-      percent_of_total: Math.round((category.revenue / totalRevenue) * 100 * 10) / 10,
+      percent_of_total:
+        totalRevenue > 0
+          ? Math.round((category.revenue / totalRevenue) * 100 * 10) / 10
+          : 0,
       total_sold: category.total_sold,
     }));
   }

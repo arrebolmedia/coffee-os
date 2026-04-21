@@ -16,7 +16,15 @@ import {
   FileTypeValidator,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
+import { Public } from '../auth/decorators/public.decorator';
 import { ProductsService } from './products.service';
 import { FileUploadService } from '../upload/file-upload.service';
 import {
@@ -34,7 +42,7 @@ import {
 
 /**
  * Controlador para gestión de productos
- * 
+ *
  * Endpoints:
  * - POST / - Crear producto
  * - GET / - Listar productos con filtros
@@ -74,6 +82,7 @@ export class ProductsController {
   /**
    * Obtener todos los productos con filtros
    */
+  @Public() // Permitir acceso sin autenticación para desarrollo
   @Get()
   @HttpCode(HttpStatus.OK)
   async findAll(@Query() query: QueryProductsDto) {
@@ -188,10 +197,15 @@ export class ProductsController {
   @Post('bulk-delete')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Eliminar múltiples productos' })
-  @ApiResponse({ status: 200, description: 'Productos eliminados exitosamente' })
+  @ApiResponse({
+    status: 200,
+    description: 'Productos eliminados exitosamente',
+  })
   @ApiResponse({ status: 400, description: 'Solicitud inválida' })
   async bulkDelete(@Body() bulkDeleteDto: BulkDeleteDto) {
-    const result = await this.productsService.bulkDelete(bulkDeleteDto.productIds);
+    const result = await this.productsService.bulkDelete(
+      bulkDeleteDto.productIds,
+    );
     return {
       success: true,
       data: result,
@@ -205,7 +219,10 @@ export class ProductsController {
   @Post('bulk-update-status')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Actualizar estado de múltiples productos' })
-  @ApiResponse({ status: 200, description: 'Estados actualizados exitosamente' })
+  @ApiResponse({
+    status: 200,
+    description: 'Estados actualizados exitosamente',
+  })
   @ApiResponse({ status: 400, description: 'Solicitud inválida' })
   async bulkUpdateStatus(@Body() bulkUpdateStatusDto: BulkUpdateStatusDto) {
     const result = await this.productsService.bulkUpdateStatus(
@@ -225,9 +242,14 @@ export class ProductsController {
   @Post('bulk-update-category')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Actualizar categoría de múltiples productos' })
-  @ApiResponse({ status: 200, description: 'Categorías actualizadas exitosamente' })
+  @ApiResponse({
+    status: 200,
+    description: 'Categorías actualizadas exitosamente',
+  })
   @ApiResponse({ status: 400, description: 'Solicitud inválida' })
-  async bulkUpdateCategory(@Body() bulkUpdateCategoryDto: BulkUpdateCategoryDto) {
+  async bulkUpdateCategory(
+    @Body() bulkUpdateCategoryDto: BulkUpdateCategoryDto,
+  ) {
     const result = await this.productsService.bulkUpdateCategory(
       bulkUpdateCategoryDto.productIds,
       bulkUpdateCategoryDto.categoryId,
@@ -300,9 +322,18 @@ export class ProductsController {
         image: {
           url: uploadedFile.url,
           thumbnails: {
-            small: this.fileUploadService.getThumbnailUrl(uploadedFile.filename, 'small'),
-            medium: this.fileUploadService.getThumbnailUrl(uploadedFile.filename, 'medium'),
-            large: this.fileUploadService.getThumbnailUrl(uploadedFile.filename, 'large'),
+            small: this.fileUploadService.getThumbnailUrl(
+              uploadedFile.filename,
+              'small',
+            ),
+            medium: this.fileUploadService.getThumbnailUrl(
+              uploadedFile.filename,
+              'medium',
+            ),
+            large: this.fileUploadService.getThumbnailUrl(
+              uploadedFile.filename,
+              'large',
+            ),
           },
         },
       },

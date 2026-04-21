@@ -21,10 +21,11 @@ export class QueryDiscountsDto {
   @IsOptional()
   @Type(() => Boolean)
   @IsBoolean()
-  isActive?: boolean;
+  active?: boolean;
 
   @ApiPropertyOptional({ description: 'Filter by discount type' })
   @IsOptional()
   @IsString()
   type?: string;
 }
+

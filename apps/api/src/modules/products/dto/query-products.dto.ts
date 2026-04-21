@@ -12,11 +12,11 @@ import { ProductType, ProductStatus } from './create-product.dto';
 
 export class QueryProductsDto {
   @IsOptional()
-  @IsUUID()
+  @IsString()
   organization_id?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   category_id?: string;
 
   @IsOptional()

@@ -56,17 +56,50 @@ export class DiscountsService {
       }
     }
 
-    return this.prisma.discount.create({
-      data: createDiscountDto,
-    });
+    // Map incoming DTO to database fields
+    const data: any = {
+      code: createDiscountDto.code,
+      name: createDiscountDto.name,
+      description: createDiscountDto.description,
+      type: createDiscountDto.type,
+      percentage:
+        createDiscountDto.type === DiscountType.PERCENTAGE
+          ? createDiscountDto.value
+          : undefined,
+      fixedAmount:
+        createDiscountDto.type === DiscountType.FIXED_AMOUNT
+          ? createDiscountDto.value
+          : undefined,
+      buyQuantity:
+        createDiscountDto.type === DiscountType.BUY_X_GET_Y
+          ? (createDiscountDto as any).buyQuantity
+          : undefined,
+      getQuantity:
+        createDiscountDto.type === DiscountType.BUY_X_GET_Y
+          ? (createDiscountDto as any).getQuantity
+          : undefined,
+      applicableTo: (createDiscountDto as any).applicableTo || 'total',
+      productIds: (createDiscountDto as any).productIds || [],
+      categoryIds: (createDiscountDto as any).categoryIds || [],
+      minPurchase: createDiscountDto.minPurchaseAmount,
+      maxUses: createDiscountDto.usageLimit,
+      currentUses: createDiscountDto.usageCount || 0,
+      validFrom: createDiscountDto.validFrom,
+      validUntil: createDiscountDto.validUntil,
+      stackable: (createDiscountDto as any).stackable || false,
+      active: createDiscountDto.active ?? true,
+      organizationId: createDiscountDto.organizationId,
+    };
+
+    return this.prisma.discount.create({ data });
   }
 
   async findAll(query: QueryDiscountsDto) {
-    const { skip, take, isActive, type } = query;
+    const { skip, take, active, type } = query;
 
     const where: any = {};
-    if (isActive !== undefined) where.isActive = isActive;
-    if (type) where.type = type;
+    if (active !== undefined) where.active = active;
+    if (type) where.type = type as DiscountType;
 
     return this.prisma.discount.findMany({
       where,
@@ -81,7 +114,7 @@ export class DiscountsService {
 
     return this.prisma.discount.findMany({
       where: {
-        isActive: true,
+        active: true,
         OR: [
           {
             AND: [{ validFrom: { lte: now } }, { validUntil: { gte: now } }],
@@ -103,7 +136,7 @@ export class DiscountsService {
 
   async findByType(type: string) {
     return this.prisma.discount.findMany({
-      where: { type },
+      where: { type: type as DiscountType },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -176,10 +209,36 @@ export class DiscountsService {
       }
     }
 
-    return this.prisma.discount.update({
-      where: { id },
-      data: updateDiscountDto,
-    });
+    const data: any = {
+      ...(updateDiscountDto.name !== undefined && {
+        name: updateDiscountDto.name,
+      }),
+      ...(updateDiscountDto.description !== undefined && {
+        description: updateDiscountDto.description,
+      }),
+      ...(updateDiscountDto.type !== undefined && {
+        type: updateDiscountDto.type,
+      }),
+      ...(updateDiscountDto.type === DiscountType.PERCENTAGE &&
+        updateDiscountDto.value !== undefined && {
+          percentage: updateDiscountDto.value,
+        }),
+      ...(updateDiscountDto.type === DiscountType.FIXED_AMOUNT &&
+        updateDiscountDto.value !== undefined && {
+          fixedAmount: updateDiscountDto.value,
+        }),
+      minPurchase: (updateDiscountDto as any).minPurchaseAmount ?? undefined,
+      maxUses: (updateDiscountDto as any).usageLimit ?? undefined,
+      // don't overwrite currentUses unless explicitly provided
+      ...((updateDiscountDto as any).usageCount !== undefined && {
+        currentUses: (updateDiscountDto as any).usageCount,
+      }),
+      validFrom: updateDiscountDto.validFrom ?? undefined,
+      validUntil: updateDiscountDto.validUntil ?? undefined,
+      active: updateDiscountDto.active ?? undefined,
+    };
+
+    return this.prisma.discount.update({ where: { id }, data });
   }
 
   async activate(id: string) {
@@ -187,7 +246,7 @@ export class DiscountsService {
 
     return this.prisma.discount.update({
       where: { id },
-      data: { isActive: true },
+      data: { active: true },
     });
   }
 
@@ -196,7 +255,7 @@ export class DiscountsService {
 
     return this.prisma.discount.update({
       where: { id },
-      data: { isActive: false },
+      data: { active: false },
     });
   }
 
@@ -214,7 +273,7 @@ export class DiscountsService {
   ): Promise<number> {
     const discount = await this.findOne(discountId);
 
-    if (!discount.isActive) {
+    if (!discount.active) {
       throw new BadRequestException('Discount is not active');
     }
 
@@ -227,15 +286,19 @@ export class DiscountsService {
       throw new BadRequestException('Discount has expired');
     }
 
-    // Check minimum purchase
-    if (discount.minPurchaseAmount && subtotal < discount.minPurchaseAmount) {
+    // Check minimum purchase (schema uses minPurchase)
+    if (
+      discount.minPurchase !== null &&
+      discount.minPurchase !== undefined &&
+      subtotal < discount.minPurchase
+    ) {
       throw new BadRequestException(
-        `Minimum purchase amount of ${discount.minPurchaseAmount} not met`,
+        `Minimum purchase amount of ${discount.minPurchase} not met`,
       );
     }
 
-    // Check usage limit
-    if (discount.usageLimit && discount.usageCount >= discount.usageLimit) {
+    // Check usage limit (schema uses maxUses and currentUses)
+    if (discount.maxUses && discount.currentUses >= discount.maxUses) {
       throw new BadRequestException('Discount usage limit reached');
     }
 
@@ -243,17 +306,9 @@ export class DiscountsService {
     let discountAmount = 0;
 
     if (discount.type === DiscountType.PERCENTAGE) {
-      discountAmount = (subtotal * discount.value) / 100;
+      discountAmount = (subtotal * (discount.percentage || 0)) / 100;
     } else if (discount.type === DiscountType.FIXED_AMOUNT) {
-      discountAmount = discount.value;
-    }
-
-    // Apply max discount amount
-    if (
-      discount.maxDiscountAmount &&
-      discountAmount > discount.maxDiscountAmount
-    ) {
-      discountAmount = discount.maxDiscountAmount;
+      discountAmount = discount.fixedAmount || 0;
     }
 
     // Don't allow discount to exceed subtotal
@@ -267,7 +322,7 @@ export class DiscountsService {
   async incrementUsage(discountId: string) {
     return this.prisma.discount.update({
       where: { id: discountId },
-      data: { usageCount: { increment: 1 } },
+      data: { currentUses: { increment: 1 } },
     });
   }
 }

@@ -70,7 +70,7 @@ describe('DiscountsController', () => {
 
   describe('findActive', () => {
     it('should return active discounts', async () => {
-      const result = [{ id: '1', code: 'SUMMER2024', isActive: true }];
+      const result = [{ id: '1', code: 'SUMMER2024', active: true }];
 
       mockDiscountsService.findActive.mockResolvedValue(result);
 
@@ -131,7 +131,7 @@ describe('DiscountsController', () => {
   describe('activate', () => {
     it('should activate a discount', async () => {
       const id = '1';
-      const result = { id, isActive: true };
+      const result = { id, active: true };
 
       mockDiscountsService.activate.mockResolvedValue(result);
 
@@ -143,7 +143,7 @@ describe('DiscountsController', () => {
   describe('deactivate', () => {
     it('should deactivate a discount', async () => {
       const id = '1';
-      const result = { id, isActive: false };
+      const result = { id, active: false };
 
       mockDiscountsService.deactivate.mockResolvedValue(result);
 
@@ -164,3 +164,4 @@ describe('DiscountsController', () => {
     });
   });
 });
+

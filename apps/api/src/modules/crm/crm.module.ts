@@ -7,8 +7,10 @@ import { CustomersService } from './customers.service';
 import { LoyaltyService } from './loyalty.service';
 import { CampaignsService } from './campaigns.service';
 import { RFMService } from './rfm.service';
+import { DatabaseModule } from '../database/database.module';
 
 @Module({
+  imports: [DatabaseModule],
   controllers: [CustomersController, LoyaltyController, CampaignsController, RFMController],
   providers: [CustomersService, LoyaltyService, CampaignsService, RFMService],
   exports: [CustomersService, LoyaltyService, CampaignsService, RFMService],

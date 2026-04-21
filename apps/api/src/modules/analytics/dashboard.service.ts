@@ -45,18 +45,24 @@ export class DashboardService {
     };
 
     const salesTrend = await this.salesAnalyticsService.getSalesTrend(trendQuery);
-    const salesTrendData: TrendData[] = salesTrend.map((day: any) => ({
-      date: day.date,
-      value: day.sales,
-      label: day.date.toLocaleDateString('es-MX', { weekday: 'short' }),
-    }));
+    const salesTrendData: TrendData[] = salesTrend.map((day: any) => {
+      const date = new Date(day.period ?? day.date);
+      return {
+        date,
+        value: day.sales,
+        label: date.toLocaleDateString('es-MX', { weekday: 'short' }),
+      };
+    });
 
     // Customer trend
-    const customerTrendData: TrendData[] = salesTrend.map((day: any) => ({
-      date: day.date,
-      value: day.customers,
-      label: day.date.toLocaleDateString('es-MX', { weekday: 'short' }),
-    }));
+    const customerTrendData: TrendData[] = salesTrend.map((day: any) => {
+      const date = new Date(day.period ?? day.date);
+      return {
+        date,
+        value: day.customers ?? 0,
+        label: date.toLocaleDateString('es-MX', { weekday: 'short' }),
+      };
+    });
 
     return {
       organization_id: query.organization_id,
@@ -128,35 +134,8 @@ export class DashboardService {
   }
 
   private getTopEmployees(): EmployeePerformance[] {
-    return [
-      {
-        employee_id: 'emp_1',
-        employee_name: 'María González',
-        position: 'Barista Senior',
-        sales_generated: 45000,
-        orders_served: 150,
-        avg_order_value: 300,
-        customer_rating: 4.8,
-      },
-      {
-        employee_id: 'emp_2',
-        employee_name: 'Carlos Ramírez',
-        position: 'Barista',
-        sales_generated: 38000,
-        orders_served: 130,
-        avg_order_value: 292,
-        customer_rating: 4.6,
-      },
-      {
-        employee_id: 'emp_3',
-        employee_name: 'Ana Martínez',
-        position: 'Líder de Barra',
-        sales_generated: 42000,
-        orders_served: 125,
-        avg_order_value: 336,
-        customer_rating: 4.9,
-      },
-    ];
+    // TODO: Query actual employee performance data
+    return [];
   }
 
   async getKPIDashboard(query: QueryAnalyticsDto): Promise<any> {

@@ -36,9 +36,10 @@ export class CategoriesService {
    * Crear categoría
    */
   async create(createCategoryDto: CreateCategoryDto): Promise<any> {
-    // Validar nombre único
+    // Validar nombre único en la organización
     const existing = await this.prisma.category.findFirst({
       where: {
+        organizationId: createCategoryDto.organization_id,
         name: {
           equals: createCategoryDto.name,
           mode: 'insensitive',
@@ -55,6 +56,7 @@ export class CategoriesService {
     // Crear categoría
     const category = await this.prisma.category.create({
       data: {
+        organizationId: createCategoryDto.organization_id,
         name: createCategoryDto.name,
         description: createCategoryDto.description,
         icon: createCategoryDto.icon,
@@ -234,10 +236,12 @@ export class CategoriesService {
   }
 
   /**
-   * Reordenar categorías
+   * Reordenar categorías (nuevo)
    */
-  async reorder(reorderDto: ReorderCategoriesDto): Promise<any> {
-    const updates = reorderDto.items.map((item) =>
+  async reorderCategories(dto: ReorderCategoriesDto): Promise<any> {
+    const { orders } = dto;
+
+    const updates = orders.map((item) =>
       this.prisma.category.update({
         where: { id: item.id },
         data: { sortOrder: item.sortOrder },
@@ -246,12 +250,12 @@ export class CategoriesService {
 
     await Promise.all(updates);
 
-    this.logger.log(`Reordenadas ${reorderDto.items.length} categorías`);
+    this.logger.log(`Reordenadas ${orders.length} categorías`);
 
     return {
       success: true,
       data: {
-        count: reorderDto.items.length,
+        count: orders.length,
       },
       message: 'Categories reordered successfully',
     };
@@ -362,4 +366,32 @@ export class CategoriesService {
     const category = await this.findById(id);
     return [category]; // Solo la categoría misma
   }
+
+  /**
+   * Obtener hijos directos
+   * Nota: El schema no tiene parent_id para jerarquías
+   */
+  async getChildren(id: string): Promise<any[]> {
+    this.logger.warn('getChildren not implemented: schema has no parent_id field');
+    return []; // Sin jerarquía, no hay hijos
+  }
+
+  /**
+   * Obtener descendientes
+   * Nota: El schema no tiene parent_id para jerarquías
+   */
+  async getDescendants(id: string): Promise<any[]> {
+    this.logger.warn('getDescendants not implemented: schema has no parent_id field');
+    return []; // Sin jerarquía, no hay descendientes
+  }
+
+  /**
+   * Mover categoría en la jerarquía
+   * Nota: El schema no tiene parent_id para jerarquías
+   */
+  async move(id: string, newParentId: string | null): Promise<any> {
+    this.logger.warn('move not implemented: schema has no parent_id field');
+    throw new BadRequestException('Category hierarchy not supported in current schema');
+  }
+
 }

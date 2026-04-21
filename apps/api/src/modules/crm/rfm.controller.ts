@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { RFMService } from './rfm.service';
 
 @Controller('crm/rfm')
@@ -6,7 +6,7 @@ export class RFMController {
   constructor(private readonly rfmService: RFMService) {}
 
   @Get('calculate/:customerId')
-  async calculateCustomerRFM(@Query('customerId') customerId: string) {
+  async calculateCustomerRFM(@Param('customerId') customerId: string) {
     return this.rfmService.calculateCustomerRFM(customerId);
   }
 

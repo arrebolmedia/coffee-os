@@ -9,9 +9,19 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
-import { CreateInventoryItemDto, UpdateInventoryItemDto, QueryInventoryItemsDto } from './dto';
+import {
+  CreateInventoryItemDto,
+  UpdateInventoryItemDto,
+  QueryInventoryItemsDto,
+} from './dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import {
+  CurrentUser,
+  CurrentUserType,
+} from '../auth/decorators/current-user.decorator';
 
 @Controller('inventory')
 export class InventoryController {
@@ -23,10 +33,14 @@ export class InventoryController {
     return this.inventoryService.create(createDto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   @HttpCode(HttpStatus.OK)
-  async findAll(@Query() query: QueryInventoryItemsDto) {
-    return this.inventoryService.findAll(query);
+  async findAll(
+    @Query() query: QueryInventoryItemsDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.inventoryService.findAll(query, user);
   }
 
   @Get(':id')
@@ -46,7 +60,10 @@ export class InventoryController {
 
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
-  async update(@Param('id') id: string, @Body() updateDto: UpdateInventoryItemDto) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateInventoryItemDto,
+  ) {
     return this.inventoryService.update(id, updateDto);
   }
 

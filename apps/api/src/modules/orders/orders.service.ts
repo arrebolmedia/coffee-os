@@ -1,537 +1,231 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
+import { OrderPriority, OrderStatus, OrderType, Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
-import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
-import { QueryOrdersDto } from './dto/query-orders.dto';
-
-export enum OrderStatus {
-  PENDING = 'PENDING', // Order created, waiting to be prepared
-  IN_PROGRESS = 'IN_PROGRESS', // Being prepared in kitchen
-  READY = 'READY', // Ready for pickup/serving
-  SERVED = 'SERVED', // Delivered to customer
-  CANCELLED = 'CANCELLED', // Cancelled
-}
-
-export enum OrderType {
-  DINE_IN = 'DINE_IN', // Eat in restaurant
-  TAKE_OUT = 'TAKE_OUT', // Take away
-  DELIVERY = 'DELIVERY', // Delivery
-}
+import { CreateOrderDto, UpdateOrderStatusDto } from './dto';
 
 @Injectable()
 export class OrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createOrderDto: CreateOrderDto) {
-    // Verify transaction exists if provided
-    if (createOrderDto.transactionId) {
-      const transaction = await this.prisma.transaction.findUnique({
-        where: { id: createOrderDto.transactionId },
-      });
+  async findAll(params: {
+    page?: number;
+    perPage?: number;
+    search?: string;
+    status?: string;
+    date?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }) {
+    const page = params.page && params.page > 0 ? params.page : 1;
+    const perPage = params.perPage && params.perPage > 0 ? params.perPage : 10;
+    const skip = (page - 1) * perPage;
+    const take = perPage;
 
-      if (!transaction) {
-        throw new BadRequestException(
-          `Transaction with ID ${createOrderDto.transactionId} not found`,
-        );
+    const where: Prisma.OrderWhereInput = {};
+
+    if (params.status) {
+      if (Object.values(OrderStatus).includes(params.status as OrderStatus)) {
+        where.status = params.status as OrderStatus;
+      } else {
+        throw new BadRequestException('Invalid status');
       }
     }
 
-    return this.prisma.order.create({
-      data: {
-        ...createOrderDto,
-        status: OrderStatus.PENDING,
-        orderNumber: await this.generateOrderNumber(),
-      },
-      include: {
-        transaction: {
-          select: {
-            id: true,
-            customerName: true,
-            status: true,
-          },
-        },
-      },
-    });
-  }
-
-  async findAll(query: QueryOrdersDto) {
-    const { skip = 0, take = 50, status, type, tableNumber } = query;
-
-    const where: any = {};
-
-    if (status) {
-      where.status = status;
+    if (params.search) {
+      where.OR = [
+        { orderNumber: { contains: params.search, mode: 'insensitive' } },
+        { customerName: { contains: params.search, mode: 'insensitive' } },
+        { notes: { contains: params.search, mode: 'insensitive' } },
+      ];
     }
 
-    if (type) {
-      where.type = type;
+    if (params.date) {
+      const parsed = new Date(params.date);
+      if (!isNaN(parsed.valueOf())) {
+        const start = new Date(parsed);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(parsed);
+        end.setHours(23, 59, 59, 999);
+        where.orderedAt = { gte: start, lte: end };
+      }
     }
 
-    if (tableNumber) {
-      where.tableNumber = tableNumber;
-    }
+    const allowedSortFields: Array<keyof Prisma.OrderOrderByWithRelationInput> =
+      ['orderedAt', 'createdAt', 'status', 'priority', 'orderNumber'];
+    const sortField = allowedSortFields.includes(params.sortBy as any)
+      ? (params.sortBy as keyof Prisma.OrderOrderByWithRelationInput)
+      : 'orderedAt';
+    const sortOrder: Prisma.SortOrder =
+      params.sortOrder === 'asc' ? 'asc' : 'desc';
 
-    const [items, total] = await Promise.all([
+    const [data, total] = await this.prisma.$transaction([
       this.prisma.order.findMany({
         where,
-        skip: Number(skip),
-        take: Number(take),
-        include: {
-          transaction: {
-            select: {
-              id: true,
-              customerName: true,
-              status: true,
-            },
-          },
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
+        skip,
+        take,
+        orderBy: { [sortField]: sortOrder },
+        include: { items: true, ticket: true },
       }),
       this.prisma.order.count({ where }),
     ]);
 
+    const totalPages = Math.ceil(total / perPage) || 0;
+
     return {
-      items,
-      total,
-      skip: Number(skip),
-      take: Number(take),
+      data,
+      meta: {
+        page,
+        perPage,
+        total,
+        totalPages,
+      },
     };
   }
 
-  async findByStatus(status: string) {
-    return this.prisma.order.findMany({
-      where: { status: status as OrderStatus },
-      include: {
-        transaction: {
-          select: {
-            id: true,
-            customerName: true,
-            status: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'asc', // Oldest first for kitchen
-      },
-    });
-  }
+  async getStats(startDate?: string, endDate?: string) {
+    const where: Prisma.OrderWhereInput = {};
 
-  async findByType(type: string) {
-    return this.prisma.order.findMany({
-      where: { type: type as OrderType },
-      include: {
-        transaction: {
-          select: {
-            id: true,
-            customerName: true,
-            status: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-  }
+    if (startDate || endDate) {
+      const gte = startDate ? new Date(startDate) : undefined;
+      const lte = endDate ? new Date(endDate) : undefined;
+      where.orderedAt = {
+        ...(gte ? { gte } : {}),
+        ...(lte ? { lte } : {}),
+      };
+    }
 
-  async findByTable(tableNumber: string) {
-    return this.prisma.order.findMany({
-      where: { tableNumber },
-      include: {
-        transaction: {
-          select: {
-            id: true,
-            customerName: true,
-            status: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+    const totalsByStatus: Record<OrderStatus, number> = {
+      [OrderStatus.PENDING]: 0,
+      [OrderStatus.IN_PROGRESS]: 0,
+      [OrderStatus.READY]: 0,
+      [OrderStatus.SERVED]: 0,
+      [OrderStatus.COMPLETED]: 0,
+      [OrderStatus.CANCELLED]: 0,
+    };
+
+    const statuses = await this.prisma.order.groupBy({
+      by: ['status'],
+      _count: { _all: true },
+      where,
     });
+
+    statuses.forEach((item) => {
+      totalsByStatus[item.status] = item._count._all;
+    });
+
+    const totalOrders = Object.values(totalsByStatus).reduce(
+      (sum, value) => sum + value,
+      0,
+    );
+
+    return {
+      total: totalOrders,
+      byStatus: totalsByStatus,
+    };
   }
 
   async findOne(id: string) {
     const order = await this.prisma.order.findUnique({
       where: { id },
-      include: {
-        transaction: true,
-      },
+      include: { items: true, ticket: true },
     });
 
     if (!order) {
-      throw new NotFoundException(`Order with ID ${id} not found`);
+      throw new NotFoundException(`Order with ID "${id}" not found`);
     }
 
     return order;
   }
 
-  async update(id: string, updateOrderDto: UpdateOrderDto) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
-    });
+  async create(createOrderDto: CreateOrderDto) {
+    const orderNumber =
+      createOrderDto.orderNumber ||
+      `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    if (!order) {
-      throw new NotFoundException(`Order with ID ${id} not found`);
-    }
-
-    if (order.status === OrderStatus.SERVED) {
-      throw new BadRequestException('Cannot update served order');
-    }
-
-    if (order.status === OrderStatus.CANCELLED) {
-      throw new BadRequestException('Cannot update cancelled order');
-    }
-
-    return this.prisma.order.update({
-      where: { id },
-      data: updateOrderDto,
-      include: {
-        transaction: {
-          select: {
-            id: true,
-            customerName: true,
-            status: true,
-          },
-        },
-      },
-    });
-  }
-
-  async startOrder(id: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
-    });
-
-    if (!order) {
-      throw new NotFoundException(`Order with ID ${id} not found`);
-    }
-
-    if (order.status !== OrderStatus.PENDING) {
-      throw new BadRequestException(
-        'Can only start orders with PENDING status',
-      );
-    }
-
-    return this.prisma.order.update({
-      where: { id },
+    return this.prisma.order.create({
       data: {
-        status: OrderStatus.IN_PROGRESS,
-        startedAt: new Date(),
+        orderNumber,
+        locationId: createOrderDto.locationId,
+        ticketId: createOrderDto.ticketId,
+        userId: createOrderDto.userId,
+        assignedToId: createOrderDto.assignedToId,
+        type: createOrderDto.type ?? OrderType.DINE_IN,
+        status: OrderStatus.PENDING,
+        priority: createOrderDto.priority ?? OrderPriority.NORMAL,
+        tableNumber: createOrderDto.tableNumber,
+        customerName: createOrderDto.customerName,
+        notes: createOrderDto.notes,
+        specialRequests: createOrderDto.specialRequests,
       },
-      include: {
-        transaction: {
-          select: {
-            id: true,
-            customerName: true,
-            status: true,
-          },
-        },
-      },
+      include: { items: true, ticket: true },
     });
   }
 
-  async markReady(id: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
-    });
+  async updateStatus(id: string, updateStatusDto: UpdateOrderStatusDto) {
+    await this.findOne(id);
 
-    if (!order) {
-      throw new NotFoundException(`Order with ID ${id} not found`);
+    const data: Prisma.OrderUpdateInput = {
+      status: updateStatusDto.status,
+    };
+
+    if (updateStatusDto.assignedToId !== undefined) {
+      data.assignedToId = updateStatusDto.assignedToId;
     }
 
-    if (order.status !== OrderStatus.IN_PROGRESS) {
-      throw new BadRequestException(
-        'Can only mark orders as ready when IN_PROGRESS',
-      );
+    if (updateStatusDto.notes !== undefined) {
+      data.notes = updateStatusDto.notes;
+    }
+
+    const now = new Date();
+    switch (updateStatusDto.status) {
+      case OrderStatus.IN_PROGRESS:
+        data.startedAt = now;
+        break;
+      case OrderStatus.READY:
+        data.readyAt = now;
+        break;
+      case OrderStatus.SERVED:
+        data.servedAt = now;
+        break;
+      case OrderStatus.CANCELLED:
+        data.canceledAt = now;
+        break;
+      default:
+        break;
     }
 
     return this.prisma.order.update({
       where: { id },
-      data: {
-        status: OrderStatus.READY,
-        readyAt: new Date(),
-      },
-      include: {
-        transaction: {
-          select: {
-            id: true,
-            customerName: true,
-            status: true,
-          },
-        },
-      },
+      data,
+      include: { items: true, ticket: true },
     });
   }
 
-  async markServed(id: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
-    });
-
-    if (!order) {
-      throw new NotFoundException(`Order with ID ${id} not found`);
-    }
-
-    if (order.status !== OrderStatus.READY) {
-      throw new BadRequestException(
-        'Can only mark orders as served when READY',
-      );
-    }
-
-    return this.prisma.order.update({
-      where: { id },
-      data: {
-        status: OrderStatus.SERVED,
-        servedAt: new Date(),
-      },
-      include: {
-        transaction: {
-          select: {
-            id: true,
-            customerName: true,
-            status: true,
-          },
-        },
-      },
-    });
-  }
-
-  async cancel(id: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
-    });
-
-    if (!order) {
-      throw new NotFoundException(`Order with ID ${id} not found`);
-    }
-
-    if (order.status === OrderStatus.SERVED) {
-      throw new BadRequestException('Cannot cancel served order');
-    }
-
-    if (order.status === OrderStatus.CANCELLED) {
-      throw new BadRequestException('Order is already cancelled');
-    }
+  async cancel(id: string, reason?: string) {
+    const existing = await this.findOne(id);
+    const notes = reason
+      ? [existing.notes, `Cancelled: ${reason}`].filter(Boolean).join('\n')
+      : existing.notes;
 
     return this.prisma.order.update({
       where: { id },
       data: {
         status: OrderStatus.CANCELLED,
-        cancelledAt: new Date(),
+        canceledAt: new Date(),
+        notes,
       },
-      include: {
-        transaction: {
-          select: {
-            id: true,
-            customerName: true,
-            status: true,
-          },
-        },
-      },
+      include: { items: true, ticket: true },
     });
   }
 
   async remove(id: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
-    });
+    await this.findOne(id);
 
-    if (!order) {
-      throw new NotFoundException(`Order with ID ${id} not found`);
-    }
-
-    if (order.status === OrderStatus.SERVED) {
-      throw new BadRequestException(
-        'Cannot delete served order. Use cancel instead.',
-      );
-    }
-
-    await this.prisma.order.delete({
-      where: { id },
-    });
-  }
-
-  private async generateOrderNumber(): Promise<string> {
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-
-    const count = await this.prisma.order.count({
-      where: {
-        createdAt: {
-          gte: new Date(today.setHours(0, 0, 0, 0)),
-        },
-      },
-    });
-
-    return `ORD-${dateStr}-${String(count + 1).padStart(4, '0')}`;
-  }
-
-  async getStats(
-    organizationId?: string,
-    locationId?: string,
-    startDate?: string,
-    endDate?: string,
-  ) {
-    const now = new Date();
-    const today = new Date(now.setHours(0, 0, 0, 0));
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    // Build where clause
-    const where: any = {};
-    if (organizationId) where.organizationId = organizationId;
-    if (locationId) where.locationId = locationId;
-    if (startDate && endDate) {
-      where.createdAt = {
-        gte: new Date(startDate),
-        lte: new Date(endDate),
-      };
-    }
-
-    const todayWhere = { ...where, createdAt: { gte: today } };
-    const yesterdayWhere = {
-      ...where,
-      createdAt: { gte: yesterday, lt: today },
-    };
-
-    // Get all orders in period
-    const orders = await this.prisma.order.findMany({
-      where,
-      include: {
-        orderItems: {
-          include: {
-            product: true,
-          },
-        },
-        transaction: true,
-      },
-    });
-
-    const todayOrders = await this.prisma.order.findMany({
-      where: todayWhere,
-      include: {
-        transaction: true,
-      },
-    });
-
-    const yesterdayOrders = await this.prisma.order.findMany({
-      where: yesterdayWhere,
-      include: {
-        transaction: true,
-      },
-    });
-
-    // Calculate totals
-    const totalOrders = orders.length;
-    const totalSales = orders.reduce((sum, order) => {
-      return sum + (order.transaction?.total || 0);
-    }, 0);
-    const averageTicket = totalOrders > 0 ? totalSales / totalOrders : 0;
-
-    const todayOrdersCount = todayOrders.length;
-    const todaySales = todayOrders.reduce((sum, order) => {
-      return sum + (order.transaction?.total || 0);
-    }, 0);
-
-    const yesterdaySales = yesterdayOrders.reduce((sum, order) => {
-      return sum + (order.transaction?.total || 0);
-    }, 0);
-
-    const growthPercentage =
-      yesterdaySales > 0
-        ? ((todaySales - yesterdaySales) / yesterdaySales) * 100
-        : todaySales > 0
-        ? 100
-        : 0;
-
-    // Count by status
-    const byStatus = {
-      PENDING: 0,
-      IN_PROGRESS: 0,
-      READY: 0,
-      SERVED: 0,
-      CANCELLED: 0,
-    };
-    orders.forEach((order) => {
-      if (byStatus[order.status] !== undefined) {
-        byStatus[order.status]++;
-      }
-    });
-
-    // Count by type
-    const byType = {
-      DINE_IN: 0,
-      TAKE_OUT: 0,
-      DELIVERY: 0,
-    };
-    orders.forEach((order) => {
-      if (byType[order.type] !== undefined) {
-        byType[order.type]++;
-      }
-    });
-
-    // Count by payment method
-    const byPaymentMethod = {
-      CASH: 0,
-      CARD: 0,
-      TRANSFER: 0,
-      MIXED: 0,
-    };
-    orders.forEach((order) => {
-      if (order.transaction?.paymentMethod) {
-        const method = order.transaction.paymentMethod;
-        if (byPaymentMethod[method] !== undefined) {
-          byPaymentMethod[method]++;
-        }
-      }
-    });
-
-    // Calculate top products
-    const productStats = new Map<
-      string,
-      { productId: string; productName: string; quantity: number; revenue: number }
-    >();
-
-    orders.forEach((order) => {
-      order.orderItems.forEach((item) => {
-        const existing = productStats.get(item.productId);
-        if (existing) {
-          existing.quantity += item.quantity;
-          existing.revenue += item.price * item.quantity;
-        } else {
-          productStats.set(item.productId, {
-            productId: item.productId,
-            productName: item.product?.name || 'Unknown',
-            quantity: item.quantity,
-            revenue: item.price * item.quantity,
-          });
-        }
-      });
-    });
-
-    const topProducts = Array.from(productStats.values())
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
-
-    return {
-      totalOrders,
-      totalSales: Math.round(totalSales * 100) / 100,
-      averageTicket: Math.round(averageTicket * 100) / 100,
-      todayOrders: todayOrdersCount,
-      todaySales: Math.round(todaySales * 100) / 100,
-      growthPercentage: Math.round(growthPercentage * 100) / 100,
-      byStatus,
-      byType,
-      byPaymentMethod,
-      topProducts,
-    };
+    await this.prisma.order.delete({ where: { id } });
+    return { id, deleted: true };
   }
 }

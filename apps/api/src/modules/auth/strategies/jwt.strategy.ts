@@ -9,6 +9,7 @@ export interface JwtPayload {
   email: string;
   organizationId?: string;
   role?: string;
+  isSuperAdmin?: boolean;
 }
 
 @Injectable()
@@ -20,7 +21,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET') || 'your-super-secret-jwt-key-change-this-in-production',
+      secretOrKey:
+        configService.get<string>('JWT_SECRET') ||
+        'your-super-secret-jwt-key-change-this-in-production',
     });
   }
 
@@ -31,9 +34,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       select: {
         id: true,
         email: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         active: true,
         organizationId: true,
+        isSuperAdmin: true,
       },
     });
 
@@ -49,8 +54,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       userId: user.id,
       email: user.email,
-      name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
       organizationId: user.organizationId,
+      isSuperAdmin: user.isSuperAdmin,
     };
   }
 }

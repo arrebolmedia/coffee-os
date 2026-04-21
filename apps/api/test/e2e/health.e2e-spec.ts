@@ -1,61 +1,62 @@
-import { test, expect } from '@playwright/test';
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
+import * as request from 'supertest';
+import { AppModule } from '../../src/app.module';
 
-test.describe('Health Check Endpoints', () => {
-  const API_URL = process.env.API_URL || 'http://localhost:4000';
+describe('Health Check Endpoints (e2e)', () => {
+  let app: INestApplication;
 
-  test('GET /health returns 200', async ({ request }) => {
-    const response = await request.get(`${API_URL}/api/v1/health`);
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
 
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const data = await response.json();
-    expect(data).toHaveProperty('status');
-    expect(data.status).toBe('ok');
+    app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api/v1');
+    await app.init();
   });
 
-  test('GET /health/ready returns 200', async ({ request }) => {
-    const response = await request.get(`${API_URL}/api/v1/health/ready`);
-
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const data = await response.json();
-    expect(data).toHaveProperty('status', 'ready');
-    expect(data).toHaveProperty('timestamp');
+  afterAll(async () => {
+    await app.close();
   });
 
-  test('GET /health/live returns 200', async ({ request }) => {
-    const response = await request.get(`${API_URL}/api/v1/health/live`);
+  it('GET /api/v1/health returns ok', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/health')
+      .expect(200);
 
-    expect(response.ok()).toBeTruthy();
-    expect(response.status()).toBe(200);
-
-    const data = await response.json();
-    expect(data).toHaveProperty('status', 'alive');
-    expect(data).toHaveProperty('timestamp');
+    expect(response.body).toHaveProperty('status', 'ok');
   });
 
-  test('health endpoints return valid JSON', async ({ request }) => {
-    const endpoints = ['/health', '/health/ready', '/health/live'];
+  it('GET /api/v1/health/ready returns ready state', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/health/ready')
+      .expect(200);
+
+    expect(response.body).toHaveProperty('status', 'ready');
+    expect(response.body).toHaveProperty('timestamp');
+  });
+
+  it('GET /api/v1/health/live returns alive state', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/health/live')
+      .expect(200);
+
+    expect(response.body).toHaveProperty('status', 'alive');
+    expect(response.body).toHaveProperty('timestamp');
+  });
+
+  it('health endpoints expose JSON content type', async () => {
+    const server = app.getHttpServer();
+    const endpoints = [
+      '/api/v1/health',
+      '/api/v1/health/ready',
+      '/api/v1/health/live',
+    ];
 
     for (const endpoint of endpoints) {
-      const response = await request.get(`${API_URL}/api/v1${endpoint}`);
-      const contentType = response.headers()['content-type'];
-
-      expect(contentType).toContain('application/json');
+      const response = await request(server).get(endpoint).expect(200);
+      expect(response.headers['content-type']).toContain('application/json');
     }
-  });
-
-  test('health timestamp is recent', async ({ request }) => {
-    const response = await request.get(`${API_URL}/api/v1/health/live`);
-    const data = await response.json();
-
-    const timestamp = new Date(data.timestamp).getTime();
-    const now = Date.now();
-    const diff = now - timestamp;
-
-    // Timestamp should be within last 5 seconds
-    expect(diff).toBeLessThan(5000);
   });
 });

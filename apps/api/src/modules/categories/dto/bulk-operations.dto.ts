@@ -12,7 +12,7 @@ export class ReorderCategoriesDto {
     type: 'array',
   })
   @IsArray()
-  items: ReorderItem[];
+  orders: ReorderItem[];
 }
 
 export class ReorderItem {

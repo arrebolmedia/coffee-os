@@ -1,21 +1,91 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
 import { CampaignsService } from '../campaigns.service';
-import { CampaignType, CampaignStatus, CampaignChannel } from '../dto';
+import { PrismaService } from '../../database/prisma.service';
+import { CampaignStatus, CampaignType, CampaignChannel } from '../dto';
 
 describe('CampaignsService', () => {
   let service: CampaignsService;
 
+  const mockPrismaService = {
+    campaign: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      count: jest.fn(),
+      aggregate: jest.fn(),
+      groupBy: jest.fn(),
+    },
+    campaignRecipient: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+    $transaction: jest.fn(),
+  };
+
+  const mockCampaign = {
+    id: 'camp-1',
+    organizationId: 'org-1',
+    name: 'Promo Verano',
+    description: 'Descuentos de verano',
+    type: 'PROMOTIONAL',
+    status: 'DRAFT',
+    channels: ['EMAIL', 'WHATSAPP'],
+    segmentId: null,
+    startDate: null,
+    endDate: null,
+    isAutomated: false,
+    emailSubject: null,
+    emailBody: null,
+    whatsappTemplateId: null,
+    smsMessage: null,
+    pushTitle: null,
+    pushBody: null,
+    offerCode: 'VERANO20',
+    offerDescription: null,
+    offerDiscountPercent: 20,
+    offerDiscountAmount: null,
+    totalRecipients: 0,
+    sentCount: 0,
+    deliveredCount: 0,
+    openedCount: 0,
+    clickedCount: 0,
+    convertedCount: 0,
+    unsubscribedCount: 0,
+    createdByUserId: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockRecipient = {
+    id: 'recip-1',
+    campaignId: 'camp-1',
+    customerId: 'cust-1',
+    channel: 'EMAIL',
+    sentAt: null,
+    deliveredAt: null,
+    openedAt: null,
+    clickedAt: null,
+    convertedAt: null,
+    unsubscribedAt: null,
+    errorMessage: null,
+    createdAt: new Date(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [CampaignsService],
+      providers: [
+        CampaignsService,
+        { provide: PrismaService, useValue: mockPrismaService },
+      ],
     }).compile();
 
     service = module.get<CampaignsService>(CampaignsService);
-  });
-
-  afterEach(() => {
-    service['campaigns'].clear();
-    service['recipients'].clear();
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -23,175 +93,181 @@ describe('CampaignsService', () => {
   });
 
   describe('create', () => {
-    it('should create a campaign', async () => {
-      const campaign = await service.create({
-        organization_id: 'org_1',
-        name: 'Birthday Campaign',
-        type: CampaignType.BIRTHDAY,
-        channels: [CampaignChannel.EMAIL, CampaignChannel.WHATSAPP],
-        start_date: '2024-03-01',
-        end_date: '2024-03-31',
-        is_automated: true,
-        email_subject: 'Happy Birthday!',
-        whatsapp_template_id: 'birthday_template',
-      }, 'user_1');
+    it('should create a campaign with DRAFT status', async () => {
+      mockPrismaService.campaign.create.mockResolvedValue(mockCampaign);
 
-      expect(campaign.name).toBe('Birthday Campaign');
-      expect(campaign.status).toBe(CampaignStatus.DRAFT);
-      expect(campaign.channels).toHaveLength(2);
-      expect(campaign.sent_count).toBe(0);
+      const result = await service.create({
+        organization_id: 'org-1',
+        name: 'Promo Verano',
+        type: CampaignType.PROMOTIONAL,
+        channels: [CampaignChannel.EMAIL, CampaignChannel.WHATSAPP],
+        is_automated: false,
+        offer_code: 'VERANO20',
+        offer_discount_percent: 20,
+      });
+
+      expect(result.status).toBe(CampaignStatus.DRAFT);
+      expect(result.name).toBe('Promo Verano');
+      expect(result.channels).toContain(CampaignChannel.EMAIL);
+    });
+  });
+
+  describe('findAll', () => {
+    it('should filter by organization_id', async () => {
+      mockPrismaService.campaign.findMany.mockResolvedValue([mockCampaign]);
+      await service.findAll({ organization_id: 'org-1' });
+      expect(mockPrismaService.campaign.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ organizationId: 'org-1' }),
+        }),
+      );
+    });
+
+    it('should return empty array when no campaigns', async () => {
+      mockPrismaService.campaign.findMany.mockResolvedValue([]);
+      const result = await service.findAll({});
+      expect(result).toHaveLength(0);
     });
   });
 
   describe('updateStatus', () => {
     it('should update campaign status', async () => {
-      const campaign = await service.create({
-        organization_id: 'org_1',
-        name: 'Test Campaign',
-        type: CampaignType.PROMOTIONAL,
-        channels: [CampaignChannel.EMAIL],
-        is_automated: false,
-      }, 'user_1');
+      const activeCampaign = { ...mockCampaign, status: 'ACTIVE' };
+      mockPrismaService.campaign.findUnique.mockResolvedValue(mockCampaign);
+      mockPrismaService.campaign.update.mockResolvedValue(activeCampaign);
 
-      const updated = await service.updateStatus(campaign.id, CampaignStatus.ACTIVE);
+      const result = await service.updateStatus('camp-1', CampaignStatus.ACTIVE);
+      expect(result.status).toBe(CampaignStatus.ACTIVE);
+    });
 
-      expect(updated.status).toBe(CampaignStatus.ACTIVE);
+    it('should throw NotFoundException when campaign not found', async () => {
+      mockPrismaService.campaign.findUnique.mockResolvedValue(null);
+      await expect(service.updateStatus('bad-id', CampaignStatus.ACTIVE)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('recipients', () => {
-    let campaignId: string;
-
-    beforeEach(async () => {
-      const campaign = await service.create({
-        organization_id: 'org_1',
-        name: 'Test Campaign',
-        type: CampaignType.PROMOTIONAL,
-        channels: [CampaignChannel.EMAIL],
-        is_automated: false,
-      }, 'user_1');
-      campaignId = campaign.id;
+    beforeEach(() => {
+      // $transaction mock: execute callback with prisma mock, return array
+      mockPrismaService.$transaction.mockImplementation((ops: any[]) =>
+        Promise.resolve(ops),
+      );
     });
 
-    it('should add a recipient', async () => {
-      const recipient = await service.addRecipient(campaignId, 'customer_1', CampaignChannel.EMAIL);
+    it('should add recipient and increment total_recipients', async () => {
+      mockPrismaService.campaignRecipient.create.mockResolvedValue(mockRecipient);
+      mockPrismaService.campaign.update.mockResolvedValue({
+        ...mockCampaign,
+        totalRecipients: 1,
+      });
 
-      expect(recipient.customer_id).toBe('customer_1');
-      expect(recipient.channel).toBe(CampaignChannel.EMAIL);
+      // $transaction returns [recipient, updatedCampaign]
+      mockPrismaService.$transaction.mockResolvedValue([
+        mockRecipient,
+        { ...mockCampaign, totalRecipients: 1 },
+      ]);
+
+      const result = await service.addRecipient('camp-1', 'cust-1', CampaignChannel.EMAIL);
+
+      expect(result.campaign_id).toBe('camp-1');
+      expect(result.customer_id).toBe('cust-1');
+      expect(result.channel).toBe(CampaignChannel.EMAIL);
     });
 
-    it('should track message sent', async () => {
-      const recipient = await service.addRecipient(campaignId, 'customer_1', CampaignChannel.EMAIL);
+    it('should mark sent and increment sent_count', async () => {
+      mockPrismaService.campaignRecipient.findUnique.mockResolvedValue(mockRecipient);
+      mockPrismaService.$transaction.mockResolvedValue([
+        { ...mockRecipient, sentAt: new Date() },
+        { ...mockCampaign, sentCount: 1 },
+      ]);
 
-      await service.markSent(recipient.id);
-      
-      const campaign = await service.findOne(campaignId);
-      expect(campaign.sent_count).toBe(1);
+      await service.markSent('recip-1');
+
+      expect(mockPrismaService.$transaction).toHaveBeenCalled();
     });
 
-    it('should track message delivered', async () => {
-      const recipient = await service.addRecipient(campaignId, 'customer_1', CampaignChannel.EMAIL);
+    it('should not double-count opened events', async () => {
+      const alreadyOpened = { ...mockRecipient, openedAt: new Date() };
+      mockPrismaService.campaignRecipient.findUnique.mockResolvedValue(alreadyOpened);
 
-      await service.markSent(recipient.id);
-      await service.markDelivered(recipient.id);
-      
-      const campaign = await service.findOne(campaignId);
-      expect(campaign.delivered_count).toBe(1);
+      await service.markOpened('recip-1');
+
+      // $transaction should NOT be called since openedAt already set
+      expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
     });
 
-    it('should track message opened', async () => {
-      const recipient = await service.addRecipient(campaignId, 'customer_1', CampaignChannel.EMAIL);
+    it('should not double-count clicked events', async () => {
+      const alreadyClicked = { ...mockRecipient, clickedAt: new Date() };
+      mockPrismaService.campaignRecipient.findUnique.mockResolvedValue(alreadyClicked);
 
-      await service.markOpened(recipient.id);
-      
-      const campaign = await service.findOne(campaignId);
-      expect(campaign.opened_count).toBe(1);
+      await service.markClicked('recip-1');
+      expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
     });
 
-    it('should track message clicked', async () => {
-      const recipient = await service.addRecipient(campaignId, 'customer_1', CampaignChannel.EMAIL);
+    it('should not double-count converted events', async () => {
+      const alreadyConverted = { ...mockRecipient, convertedAt: new Date() };
+      mockPrismaService.campaignRecipient.findUnique.mockResolvedValue(alreadyConverted);
 
-      await service.markClicked(recipient.id);
-      
-      const campaign = await service.findOne(campaignId);
-      expect(campaign.clicked_count).toBe(1);
+      await service.markConverted('recip-1');
+      expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
     });
 
-    it('should track conversion', async () => {
-      const recipient = await service.addRecipient(campaignId, 'customer_1', CampaignChannel.EMAIL);
+    it('should not double-count unsubscribed events', async () => {
+      const alreadyUnsub = { ...mockRecipient, unsubscribedAt: new Date() };
+      mockPrismaService.campaignRecipient.findUnique.mockResolvedValue(alreadyUnsub);
 
-      await service.markConverted(recipient.id);
-      
-      const campaign = await service.findOne(campaignId);
-      expect(campaign.converted_count).toBe(1);
+      await service.markUnsubscribed('recip-1');
+      expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
     });
 
-    it('should track unsubscribe', async () => {
-      const recipient = await service.addRecipient(campaignId, 'customer_1', CampaignChannel.EMAIL);
-
-      await service.markUnsubscribed(recipient.id);
-      
-      const campaign = await service.findOne(campaignId);
-      expect(campaign.unsubscribed_count).toBe(1);
-    });
-
-    it('should not double count opened', async () => {
-      const recipient = await service.addRecipient(campaignId, 'customer_1', CampaignChannel.EMAIL);
-
-      await service.markOpened(recipient.id);
-      await service.markOpened(recipient.id);
-      
-      const campaign = await service.findOne(campaignId);
-      expect(campaign.opened_count).toBe(1);
+    it('should return campaign recipients', async () => {
+      mockPrismaService.campaignRecipient.findMany.mockResolvedValue([mockRecipient]);
+      const result = await service.getCampaignRecipients('camp-1');
+      expect(result).toHaveLength(1);
+      expect(result[0].campaign_id).toBe('camp-1');
     });
   });
 
   describe('getStats', () => {
-    beforeEach(async () => {
-      const campaign = await service.create({
-        organization_id: 'org_1',
-        name: 'Test Campaign',
-        type: CampaignType.PROMOTIONAL,
-        channels: [CampaignChannel.EMAIL],
-        is_automated: false,
-      }, 'user_1');
+    it('should return campaign statistics with rates', async () => {
+      mockPrismaService.campaign.count
+        .mockResolvedValueOnce(5)  // total
+        .mockResolvedValueOnce(2)  // active
+        .mockResolvedValueOnce(2)  // draft
+        .mockResolvedValueOnce(1)  // completed
+        .mockResolvedValueOnce(0); // paused
 
-      const recipient1 = await service.addRecipient(campaign.id, 'customer_1', CampaignChannel.EMAIL);
-      const recipient2 = await service.addRecipient(campaign.id, 'customer_2', CampaignChannel.EMAIL);
-      const recipient3 = await service.addRecipient(campaign.id, 'customer_3', CampaignChannel.EMAIL);
+      mockPrismaService.campaign.groupBy.mockResolvedValue([
+        { type: 'PROMOTIONAL', _count: { type: 3 } },
+        { type: 'BIRTHDAY', _count: { type: 2 } },
+      ]);
 
-      // Simulate campaign execution
-      await service.markSent(recipient1.id);
-      await service.markSent(recipient2.id);
-      await service.markSent(recipient3.id);
+      mockPrismaService.campaign.aggregate.mockResolvedValue({
+        _sum: {
+          sentCount: 1000,
+          deliveredCount: 950,
+          openedCount: 400,
+          clickedCount: 100,
+          convertedCount: 50,
+        },
+      });
 
-      await service.markDelivered(recipient1.id);
-      await service.markDelivered(recipient2.id);
+      mockPrismaService.campaign.findMany.mockResolvedValue([
+        { channels: ['EMAIL', 'WHATSAPP'] },
+        { channels: ['EMAIL'] },
+      ]);
 
-      await service.markOpened(recipient1.id);
+      const stats = await service.getStats('org-1');
 
-      await service.markClicked(recipient1.id);
-      await service.markConverted(recipient1.id);
-    });
-
-    it('should return campaign statistics', async () => {
-      const stats = await service.getStats('org_1');
-
-      expect(stats.total).toBe(1);
-      expect(stats.metrics.total_sent).toBe(3);
-      expect(stats.metrics.total_delivered).toBe(2);
-      expect(stats.metrics.total_opened).toBe(1);
-      expect(stats.metrics.total_clicked).toBe(1);
-      expect(stats.metrics.total_converted).toBe(1);
-    });
-
-    it('should calculate campaign rates', async () => {
-      const stats = await service.getStats('org_1');
-
-      expect(stats.metrics.delivery_rate).toBe(67); // 2/3 * 100 = 66.67 -> 67
-      expect(stats.metrics.open_rate).toBe(50); // 1/2 * 100 = 50
-      expect(stats.metrics.click_rate).toBe(100); // 1/1 * 100 = 100
-      expect(stats.metrics.conversion_rate).toBe(33); // 1/3 * 100 = 33.33 -> 33
+      expect(stats.total).toBe(5);
+      expect(stats.active).toBe(2);
+      expect(stats.metrics.total_sent).toBe(1000);
+      expect(stats.metrics.delivery_rate).toBe(95); // 950/1000*100
+      expect(stats.metrics.open_rate).toBe(42); // 400/950*100
+      expect(stats.by_type.PROMOTIONAL).toBe(3);
+      expect(stats.by_channel.EMAIL).toBe(2);
     });
   });
 });

@@ -1,22 +1,94 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { LoyaltyService } from '../loyalty.service';
+import { PrismaService } from '../../database/prisma.service';
 import { LoyaltyTransactionType } from '../dto';
 
 describe('LoyaltyService', () => {
   let service: LoyaltyService;
 
+  const mockPrismaService = {
+    loyaltyTransaction: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      count: jest.fn(),
+      aggregate: jest.fn(),
+      groupBy: jest.fn(),
+    },
+    loyaltyReward: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    customer: {
+      update: jest.fn(),
+      aggregate: jest.fn(),
+    },
+  };
+
+  const mockTx = {
+    id: 'tx-id-1',
+    customerId: 'cust-1',
+    organizationId: 'org-1',
+    type: 'EARN',
+    points: 150,
+    orderId: 'order-1',
+    orderTotal: 150,
+    rewardId: null,
+    description: 'Earned 150 points from purchase',
+    processedByUserId: null,
+    balanceAfter: 150,
+    createdAt: new Date(),
+  };
+
+  const mockReward = {
+    id: 'reward-1',
+    organizationId: 'org-1',
+    name: 'Café Gratis',
+    description: null,
+    pointsRequired: 100,
+    isActive: true,
+    rewardType: 'FREE_ITEM',
+    rewardValue: null,
+    rewardItemId: null,
+    expiryDays: null,
+    maxRedemptionsPerCustomer: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  // Helper: mock getBalance returning 0 points
+  const mockZeroBalance = () => {
+    mockPrismaService.loyaltyTransaction.aggregate
+      .mockResolvedValueOnce({ _sum: { points: null, orderTotal: null } })
+      .mockResolvedValueOnce({ _sum: { points: null } })
+      .mockResolvedValueOnce({ _sum: { points: null } });
+    mockPrismaService.loyaltyTransaction.findFirst.mockResolvedValueOnce(null);
+  };
+
+  // Helper: mock getBalance returning N points
+  const mockBalance = (points: number) => {
+    mockPrismaService.loyaltyTransaction.aggregate
+      .mockResolvedValueOnce({ _sum: { points, orderTotal: points } })
+      .mockResolvedValueOnce({ _sum: { points: 0 } })
+      .mockResolvedValueOnce({ _sum: { points: 0 } });
+    mockPrismaService.loyaltyTransaction.findFirst.mockResolvedValueOnce({ createdAt: new Date() });
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [LoyaltyService],
+      providers: [
+        LoyaltyService,
+        { provide: PrismaService, useValue: mockPrismaService },
+      ],
     }).compile();
 
     service = module.get<LoyaltyService>(LoyaltyService);
-  });
-
-  afterEach(() => {
-    service['transactions'].clear();
-    service['rewards'].clear();
-    service['balances'].clear();
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -24,204 +96,176 @@ describe('LoyaltyService', () => {
   });
 
   describe('earnPoints', () => {
-    it('should earn points based on order total', async () => {
-      const result = await service.earnPoints('customer_1', 'org_1', 100, 'order_1');
+    it('should earn 1 point per peso spent', async () => {
+      mockZeroBalance();
+      mockPrismaService.loyaltyTransaction.create.mockResolvedValue(mockTx);
+      mockPrismaService.customer.update.mockResolvedValue({});
 
+      const result = await service.earnPoints('cust-1', 'org-1', 150, 'order-1');
+
+      expect(result.points).toBe(150);
       expect(result.type).toBe(LoyaltyTransactionType.EARN);
-      expect(result.points).toBe(100); // 1 point per peso
-      expect(result.order_total).toBe(100);
-      expect(result.balance_after).toBe(100);
+      expect(result.balance_after).toBe(150);
     });
 
     it('should accumulate points over multiple purchases', async () => {
-      await service.earnPoints('customer_1', 'org_1', 100);
-      await service.earnPoints('customer_1', 'org_1', 200);
-      const result = await service.earnPoints('customer_1', 'org_1', 150);
+      mockBalance(150);
+      const secondTx = { ...mockTx, points: 200, balanceAfter: 350 };
+      mockPrismaService.loyaltyTransaction.create.mockResolvedValue(secondTx);
+      mockPrismaService.customer.update.mockResolvedValue({});
 
-      expect(result.balance_after).toBe(450);
+      const result = await service.earnPoints('cust-1', 'org-1', 200);
+
+      expect(result.balance_after).toBe(350);
     });
   });
 
   describe('redeemPoints', () => {
-    beforeEach(async () => {
-      // Create a reward
-      await service.createReward('org_1', {
-        name: 'Free Coffee',
-        points_required: 100,
-        reward_type: 'FREE_ITEM',
-        reward_item_id: 'product_1',
-      });
-    });
-
     it('should redeem points for a reward', async () => {
-      // Earn points first
-      await service.earnPoints('customer_1', 'org_1', 150);
+      mockPrismaService.loyaltyReward.findUnique.mockResolvedValue(mockReward);
+      mockBalance(200);
+      const redeemTx = { ...mockTx, type: 'REDEEM', points: 100, balanceAfter: 100 };
+      mockPrismaService.loyaltyTransaction.create.mockResolvedValue(redeemTx);
+      mockPrismaService.customer.update.mockResolvedValue({});
 
-      const rewards = await service.findAllRewards('org_1');
-      const reward = rewards[0];
-
-      const result = await service.redeemPoints('customer_1', 'org_1', reward.id, 'user_1');
+      const result = await service.redeemPoints('cust-1', 'org-1', 'reward-1', 'user-1');
 
       expect(result.type).toBe(LoyaltyTransactionType.REDEEM);
       expect(result.points).toBe(100);
-      expect(result.balance_after).toBe(50);
     });
 
-    it('should throw error if insufficient points', async () => {
-      const rewards = await service.findAllRewards('org_1');
-      const reward = rewards[0];
+    it('should throw BadRequestException when insufficient points', async () => {
+      mockPrismaService.loyaltyReward.findUnique.mockResolvedValue(mockReward);
+      mockBalance(50); // only 50, reward needs 100
 
       await expect(
-        service.redeemPoints('customer_1', 'org_1', reward.id, 'user_1'),
-      ).rejects.toThrow('Insufficient loyalty points');
+        service.redeemPoints('cust-1', 'org-1', 'reward-1', 'user-1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw NotFoundException when reward not found', async () => {
+      mockPrismaService.loyaltyReward.findUnique.mockResolvedValue(null);
+      await expect(
+        service.redeemPoints('cust-1', 'org-1', 'nonexistent', 'user-1'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('checkLoyalty9Plus1', () => {
-    it('should detect 9+1 eligibility', async () => {
-      const customerId = 'customer_1';
-
-      // Make 9 purchases
-      for (let i = 0; i < 9; i++) {
-        await service.earnPoints(customerId, 'org_1', 100);
-      }
-
-      const result = await service.checkLoyalty9Plus1(customerId);
-
-      expect(result.visits).toBe(9);
+    it('should return eligible=true after 9 purchases', async () => {
+      mockPrismaService.loyaltyTransaction.count.mockResolvedValue(9);
+      const result = await service.checkLoyalty9Plus1('cust-1');
       expect(result.eligible).toBe(true);
+      expect(result.visits).toBe(9);
     });
 
-    it('should not be eligible before 9 visits', async () => {
-      const customerId = 'customer_1';
-
-      // Make 5 purchases
-      for (let i = 0; i < 5; i++) {
-        await service.earnPoints(customerId, 'org_1', 100);
-      }
-
-      const result = await service.checkLoyalty9Plus1(customerId);
-
-      expect(result.visits).toBe(5);
+    it('should return eligible=false before 9 purchases', async () => {
+      mockPrismaService.loyaltyTransaction.count.mockResolvedValue(5);
+      const result = await service.checkLoyalty9Plus1('cust-1');
       expect(result.eligible).toBe(false);
+    });
+
+    it('should return eligible=true at multiples of 9', async () => {
+      mockPrismaService.loyaltyTransaction.count.mockResolvedValue(18);
+      const result = await service.checkLoyalty9Plus1('cust-1');
+      expect(result.eligible).toBe(true);
     });
   });
 
   describe('getBalance', () => {
-    it('should return customer balance', async () => {
-      await service.earnPoints('customer_1', 'org_1', 500, 'order_1');
-      await service.earnPoints('customer_1', 'org_1', 300, 'order_2');
+    it('should calculate balance from aggregates', async () => {
+      mockPrismaService.loyaltyTransaction.aggregate
+        .mockResolvedValueOnce({ _sum: { points: 300, orderTotal: 300 } })
+        .mockResolvedValueOnce({ _sum: { points: 100 } })
+        .mockResolvedValueOnce({ _sum: { points: 0 } });
+      mockPrismaService.loyaltyTransaction.findFirst.mockResolvedValue({ createdAt: new Date() });
 
-      const balance = await service.getBalance('customer_1');
+      const balance = await service.getBalance('cust-1');
 
-      expect(balance.current_balance).toBe(800);
-      expect(balance.total_points_earned).toBe(800);
-      expect(balance.lifetime_value).toBe(800);
+      expect(balance.total_points_earned).toBe(300);
+      expect(balance.total_points_redeemed).toBe(100);
+      expect(balance.current_balance).toBe(200);
+      expect(balance.lifetime_value).toBe(300);
     });
 
-    it('should create balance if not exists', async () => {
-      const balance = await service.getBalance('new_customer');
-
+    it('should return zero balance for new customer', async () => {
+      mockZeroBalance();
+      const balance = await service.getBalance('new-cust');
       expect(balance.current_balance).toBe(0);
-      expect(balance.total_points_earned).toBe(0);
+      expect(balance.last_transaction_date).toBeUndefined();
     });
   });
 
   describe('getStats', () => {
-    beforeEach(async () => {
-      await service.earnPoints('customer_1', 'org_1', 1000);
-      await service.earnPoints('customer_2', 'org_1', 500);
-
-      // Create and redeem reward
-      await service.createReward('org_1', {
-        name: 'Free Coffee',
-        points_required: 200,
-        reward_type: 'FREE_ITEM',
+    it('should return loyalty statistics with redemption rate', async () => {
+      mockPrismaService.loyaltyTransaction.count.mockResolvedValue(10);
+      mockPrismaService.loyaltyTransaction.aggregate
+        .mockResolvedValueOnce({ _sum: { points: 1000 } })
+        .mockResolvedValueOnce({ _sum: { points: 200 } })
+        .mockResolvedValueOnce({ _sum: { points: 50 } });
+      mockPrismaService.loyaltyTransaction.groupBy.mockResolvedValue([
+        { type: 'EARN', _count: { type: 7 } },
+        { type: 'REDEEM', _count: { type: 3 } },
+      ]);
+      mockPrismaService.customer.aggregate.mockResolvedValue({
+        _sum: { loyaltyPoints: 750 },
+        _avg: { loyaltyPoints: 150 },
+        _count: { id: 5 },
       });
 
-      const rewards = await service.findAllRewards('org_1');
-      await service.redeemPoints('customer_1', 'org_1', rewards[0].id, 'user_1');
-    });
+      const stats = await service.getStats('org-1');
 
-    it('should return loyalty statistics', async () => {
-      const stats = await service.getStats('org_1');
-
-      expect(stats.total_transactions).toBe(3); // 2 earn + 1 redeem
-      expect(stats.total_points_earned).toBe(1500);
+      expect(stats.total_transactions).toBe(10);
+      expect(stats.total_points_earned).toBe(1000);
       expect(stats.total_points_redeemed).toBe(200);
-      expect(stats.total_active_points).toBe(1300);
-    });
-
-    it('should calculate redemption rate', async () => {
-      const stats = await service.getStats('org_1');
-
-      expect(stats.redemption_rate).toBe(13); // 200/1500 * 100 = 13.33 -> 13
+      expect(stats.redemption_rate).toBe(20); // 200/1000*100
+      expect(stats.total_active_points).toBe(750);
+      expect(stats.by_type.EARN).toBe(7);
     });
   });
 
   describe('rewards', () => {
     it('should create a reward', async () => {
-      const reward = await service.createReward('org_1', {
-        name: 'Free Latte',
-        description: 'Get a free latte',
-        points_required: 150,
-        reward_type: 'FREE_ITEM',
-        reward_item_id: 'product_latte',
-      });
+      mockPrismaService.loyaltyReward.create.mockResolvedValue(mockReward);
 
-      expect(reward.name).toBe('Free Latte');
-      expect(reward.points_required).toBe(150);
-      expect(reward.is_active).toBe(true);
-    });
-
-    it('should list rewards sorted by points', async () => {
-      await service.createReward('org_1', {
-        name: 'Expensive Reward',
-        points_required: 500,
-        reward_type: 'DISCOUNT_PERCENT',
-        reward_value: 50,
-      });
-
-      await service.createReward('org_1', {
-        name: 'Cheap Reward',
+      const result = await service.createReward('org-1', {
+        name: 'Café Gratis',
         points_required: 100,
-        reward_type: 'DISCOUNT_AMOUNT',
-        reward_value: 20,
-      });
-
-      const rewards = await service.findAllRewards('org_1');
-
-      expect(rewards).toHaveLength(2);
-      expect(rewards[0].points_required).toBe(100);
-      expect(rewards[1].points_required).toBe(500);
-    });
-
-    it('should update reward', async () => {
-      const reward = await service.createReward('org_1', {
-        name: 'Test Reward',
-        points_required: 200,
+        is_active: true,
         reward_type: 'FREE_ITEM',
       });
 
-      const updated = await service.updateReward(reward.id, {
-        is_active: false,
-        points_required: 250,
-      });
-
-      expect(updated.is_active).toBe(false);
-      expect(updated.points_required).toBe(250);
+      expect(result.name).toBe('Café Gratis');
+      expect(result.points_required).toBe(100);
     });
 
-    it('should delete reward', async () => {
-      const reward = await service.createReward('org_1', {
-        name: 'Test Reward',
-        points_required: 200,
-        reward_type: 'FREE_ITEM',
-      });
+    it('should return rewards sorted by points ascending', async () => {
+      mockPrismaService.loyaltyReward.findMany.mockResolvedValue([mockReward]);
+      await service.findAllRewards('org-1');
+      expect(mockPrismaService.loyaltyReward.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { pointsRequired: 'asc' } }),
+      );
+    });
 
-      await service.deleteReward(reward.id);
-      const result = await service.findReward(reward.id);
-      expect(result).toBeNull();
+    it('should update a reward', async () => {
+      mockPrismaService.loyaltyReward.findUnique.mockResolvedValue(mockReward);
+      mockPrismaService.loyaltyReward.update.mockResolvedValue({ ...mockReward, isActive: false });
+
+      const result = await service.updateReward('reward-1', { is_active: false });
+      expect(result.is_active).toBe(false);
+    });
+
+    it('should throw NotFoundException when updating nonexistent reward', async () => {
+      mockPrismaService.loyaltyReward.findUnique.mockResolvedValue(null);
+      await expect(service.updateReward('bad-id', {})).rejects.toThrow(NotFoundException);
+    });
+
+    it('should delete a reward', async () => {
+      mockPrismaService.loyaltyReward.delete.mockResolvedValue(undefined);
+      await service.deleteReward('reward-1');
+      expect(mockPrismaService.loyaltyReward.delete).toHaveBeenCalledWith({
+        where: { id: 'reward-1' },
+      });
     });
   });
 });
