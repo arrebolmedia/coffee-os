@@ -1,0 +1,664 @@
+/**
+ * CoffeeOS POS Web - Products Page
+ * Página de gestión de productos del catálogo
+ */
+
+'use client';
+
+import { useState, useMemo } from 'react';
+import { MainLayout } from '@/components/layout/MainLayout';
+import {
+  useProducts,
+  useCategories,
+  useCreateProduct,
+  useUpdateProduct,
+  useDeleteProduct,
+  useCreateCategory,
+} from '@/hooks/use-products';
+import {
+  useProductCOGS,
+  useMarginBadge,
+  useFormatCurrency,
+} from '@/hooks/use-costing';
+import {
+  Package,
+  Search,
+  Plus,
+  AlertCircle,
+  Loader2,
+  Edit,
+  Trash2,
+  Eye,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Grid3x3,
+  Filter,
+  Download,
+  BarChart3,
+  Tag,
+  Image as ImageIcon,
+  Archive,
+  Calculator,
+} from 'lucide-react';
+
+// ============================================================================
+// INTERFACES
+// ============================================================================
+
+interface ProductDisplay {
+  id: string;
+  sku: string;
+  name: string;
+  description: string;
+  category: string;
+  categoryId: string;
+  price: number;
+  cost: number;
+  margin: number;
+  status: 'active' | 'inactive' | 'draft' | 'archived';
+  imageUrl: string;
+  barcode: string;
+  trackInventory: boolean;
+  currentStock: number;
+  type: string;
+  tags: string[];
+}
+
+export default function ProductsPage() {
+  // ============================================================================
+  // STATE
+  // ============================================================================
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterStock, setFilterStock] = useState<string>('all');
+
+  // ============================================================================
+  // DATA FETCHING
+  // ============================================================================
+
+  const { data: productsData, isLoading, error } = useProducts();
+  const { data: categoriesData, isLoading: loadingCategories } =
+    useCategories();
+
+  // ============================================================================
+  // DATA TRANSFORMATION
+  // ============================================================================
+
+  const products: ProductDisplay[] = useMemo(() => {
+    if (!productsData?.data) return [];
+
+    return productsData.data.map((product) => ({
+      id: product.id,
+      sku: product.sku || '',
+      name: product.name,
+      description: product.description || '',
+      category: product.category?.name || 'Sin categoría',
+      categoryId: product.category_id,
+      price: product.price || 0,
+      cost: product.cost || 0,
+      margin:
+        product.cost && product.price
+          ? ((product.price - product.cost) / product.price) * 100
+          : 0,
+      status: product.status,
+      imageUrl: product.image_url || '',
+      barcode: product.barcode || '',
+      trackInventory: product.track_inventory || false,
+      currentStock: product.current_stock || 0,
+      type: product.type || 'SIMPLE',
+      tags: product.tags || [],
+    }));
+  }, [productsData]);
+
+  const categories = useMemo(() => {
+    if (!categoriesData) return [];
+    return categoriesData;
+  }, [categoriesData]);
+
+  // ============================================================================
+  // FILTERING
+  // ============================================================================
+
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => {
+      // Search filter
+      const matchesSearch = searchQuery
+        ? product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          product.description.toLowerCase().includes(searchQuery.toLowerCase())
+        : true;
+
+      // Category filter
+      const matchesCategory =
+        filterCategory === 'all' || product.categoryId === filterCategory;
+
+      // Status filter
+      const matchesStatus =
+        filterStatus === 'all' || product.status === filterStatus;
+
+      // Stock filter
+      const matchesStock =
+        filterStock === 'all' ||
+        (filterStock === 'in-stock' && product.currentStock > 0) ||
+        (filterStock === 'low-stock' &&
+          product.currentStock > 0 &&
+          product.currentStock <= 10) ||
+        (filterStock === 'out-of-stock' && product.currentStock === 0) ||
+        (filterStock === 'no-tracking' && !product.trackInventory);
+
+      return matchesSearch && matchesCategory && matchesStatus && matchesStock;
+    });
+  }, [products, searchQuery, filterCategory, filterStatus, filterStock]);
+
+  // ============================================================================
+  // LOCAL STATS
+  // ============================================================================
+
+  const localStats = useMemo(() => {
+    const activeProducts = products.filter((p) => p.status === 'active');
+    const totalValue = products.reduce(
+      (sum, p) => sum + p.cost * p.currentStock,
+      0,
+    );
+    const avgMargin =
+      products.length > 0
+        ? products.reduce((sum, p) => sum + p.margin, 0) / products.length
+        : 0;
+
+    return {
+      total: products.length,
+      active: activeProducts.length,
+      inactive: products.filter((p) => p.status === 'inactive').length,
+      draft: products.filter((p) => p.status === 'draft').length,
+      outOfStock: products.filter(
+        (p) => p.trackInventory && p.currentStock === 0,
+      ).length,
+      lowStock: products.filter(
+        (p) => p.trackInventory && p.currentStock > 0 && p.currentStock <= 10,
+      ).length,
+      totalValue,
+      avgMargin,
+    };
+  }, [products]);
+
+  // ============================================================================
+  // HELPER FUNCTIONS
+  // ============================================================================
+
+  const getStatusBadge = (status: string) => {
+    const badges = {
+      active: 'bg-green-100 text-green-800 border-green-300',
+      inactive: 'bg-gray-100 text-gray-800 border-gray-300',
+      draft: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+      archived: 'bg-red-100 text-red-800 border-red-300',
+    };
+    return badges[status as keyof typeof badges] || badges.draft;
+  };
+
+  const getStockBadge = (product: ProductDisplay) => {
+    if (!product.trackInventory) {
+      return <span className="text-xs text-gray-500">No rastreado</span>;
+    }
+
+    if (product.currentStock === 0) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+          <TrendingDown className="w-3 h-3" />
+          Agotado
+        </span>
+      );
+    }
+
+    if (product.currentStock <= 10) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
+          <AlertCircle className="w-3 h-3" />
+          Stock bajo
+        </span>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+        <TrendingUp className="w-3 h-3" />
+        En stock
+      </span>
+    );
+  };
+
+  const formatMargin = (margin: number) => {
+    if (margin < 40) {
+      return (
+        <span className="text-red-600 font-semibold">{margin.toFixed(1)}%</span>
+      );
+    }
+    if (margin < 60) {
+      return (
+        <span className="text-yellow-600 font-semibold">
+          {margin.toFixed(1)}%
+        </span>
+      );
+    }
+    return (
+      <span className="text-green-600 font-semibold">{margin.toFixed(1)}%</span>
+    );
+  };
+
+  // ============================================================================
+  // PRODUCT COGS CELL COMPONENT
+  // ============================================================================
+
+  const ProductCOGSCell = ({ productId }: { productId: string }) => {
+    const { data: cogsData, isLoading: cogsLoading } = useProductCOGS(
+      productId,
+      true,
+    );
+    const marginBadge = useMarginBadge(cogsData?.margin_percentage || 0);
+
+    if (cogsLoading) {
+      return (
+        <div className="flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+          <span className="text-xs text-gray-500">Calculando...</span>
+        </div>
+      );
+    }
+
+    if (!cogsData || !cogsData.has_recipe) {
+      return (
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-gray-500 flex items-center gap-1">
+            <AlertCircle className="w-3 h-3" />
+            Sin receta
+          </span>
+          <span className="text-xs text-gray-400">COGS no disponible</span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <Calculator className="w-3 h-3 text-gray-400" />
+          <span className="text-sm font-semibold text-gray-900">
+            ${cogsData.total_cost.toFixed(2)}
+          </span>
+        </div>
+        <span
+          className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${marginBadge.bgClass}`}
+        >
+          {cogsData.margin_percentage.toFixed(1)}% {marginBadge.text}
+        </span>
+        {cogsData.margin_percentage < 60 && (
+          <div className="flex items-center gap-1 mt-1">
+            <AlertCircle className="w-3 h-3 text-yellow-600" />
+            <span className="text-xs text-yellow-700">Margen bajo</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ============================================================================
+  // LOADING & ERROR STATES
+  // ============================================================================
+
+  if (isLoading || loadingCategories) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mx-auto mb-4" />
+            <p className="text-gray-600">Cargando productos...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <MainLayout>
+        <div className="flex flex-col items-center justify-center h-screen text-red-600">
+          <AlertCircle className="w-12 h-12 mb-4" />
+          <p className="text-lg font-semibold">Error al cargar productos</p>
+          <p className="text-sm text-gray-600 mt-2">
+            {error instanceof Error ? error.message : 'Error desconocido'}
+          </p>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
+
+  return (
+    <MainLayout>
+      <div className="p-6 max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                <Package className="w-8 h-8 text-indigo-600" />
+                Productos
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Gestiona tu catálogo de productos y categorías
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2">
+                <Download className="w-4 h-4" />
+                Exportar
+              </button>
+              <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 font-medium">
+                <Plus className="w-5 h-5" />
+                Nuevo Producto
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {/* Total Products */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Total Productos</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {localStats.total}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {localStats.active} activos
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <Package className="w-6 h-6 text-gray-600" />
+              </div>
+            </div>
+          </div>
+
+          {/* Average Margin */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Margen Promedio</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {localStats.avgMargin.toFixed(1)}%
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {localStats.avgMargin >= 60 ? 'Saludable' : 'Mejorar'}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </div>
+
+          {/* Inventory Value */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Valor Inventario</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  ${localStats.totalValue.toLocaleString('es-MX')}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">Costo total</p>
+              </div>
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </div>
+
+          {/* Stock Alerts */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Alertas Stock</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {localStats.lowStock + localStats.outOfStock}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {localStats.outOfStock} agotados
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-yellow-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Search */}
+            <div className="md:col-span-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar producto, SKU..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            {/* Category Filter */}
+            <div>
+              <div className="relative">
+                <Grid3x3 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white"
+                >
+                  <option value="all">Todas las categorías</option>
+                  {categories.map((cat: any) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Status Filter */}
+            <div>
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white"
+                >
+                  <option value="all">Todos los estados</option>
+                  <option value="active">Activo</option>
+                  <option value="inactive">Inactivo</option>
+                  <option value="draft">Borrador</option>
+                  <option value="archived">Archivado</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Stock Filter */}
+            <div>
+              <div className="relative">
+                <BarChart3 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <select
+                  value={filterStock}
+                  onChange={(e) => setFilterStock(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white"
+                >
+                  <option value="all">Todo el stock</option>
+                  <option value="in-stock">En stock</option>
+                  <option value="low-stock">Stock bajo</option>
+                  <option value="out-of-stock">Agotado</option>
+                  <option value="no-tracking">No rastreado</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Products Table */}
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Producto
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Categoría
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Precio
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    COGS / Margen
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Margen
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Stock
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Estado
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredProducts.map((product) => (
+                  <tr
+                    key={product.id}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg overflow-hidden">
+                          {product.imageUrl ? (
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <ImageIcon className="w-6 h-6" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {product.name}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            SKU: {product.sku}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <Tag className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm text-gray-700">
+                          {product.category}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">
+                          ${product.price.toFixed(2)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Costo: ${product.cost.toFixed(2)}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <ProductCOGSCell productId={product.id} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {formatMargin(product.margin)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col gap-1">
+                        {getStockBadge(product)}
+                        {product.trackInventory && (
+                          <span className="text-xs text-gray-500">
+                            {product.currentStock} unidades
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusBadge(
+                          product.status,
+                        )}`}
+                      >
+                        {product.status === 'active' && 'Activo'}
+                        {product.status === 'inactive' && 'Inactivo'}
+                        {product.status === 'draft' && 'Borrador'}
+                        {product.status === 'archived' && 'Archivado'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Empty State */}
+            {filteredProducts.length === 0 && (
+              <div className="text-center py-12">
+                <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 font-medium">
+                  No se encontraron productos
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Intenta ajustar los filtros o crear un nuevo producto
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Results Summary */}
+        {filteredProducts.length > 0 && (
+          <div className="mt-4 text-sm text-gray-600 text-center">
+            Mostrando {filteredProducts.length} de {products.length} productos
+          </div>
+        )}
+      </div>
+    </MainLayout>
+  );
+}

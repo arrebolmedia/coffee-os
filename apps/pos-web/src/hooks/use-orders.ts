@@ -5,10 +5,16 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ordersService } from '@/services/orders.service';
-import { useAuthStore } from '@/store/auth.store';
+import { useAuth } from '@/hooks/use-auth';
 import { useUIStore } from '@/store/ui.store';
 import { useOfflineStore } from '@/store/offline.store';
-import { Order, Cart, OrderFilters, PaginationParams, PaymentMethod } from '@/types';
+import {
+  Order,
+  Cart,
+  OrderFilters,
+  PaginationParams,
+  PaymentMethod,
+} from '@/types';
 
 // ============================================================================
 // QUERY KEYS
@@ -17,8 +23,11 @@ import { Order, Cart, OrderFilters, PaginationParams, PaymentMethod } from '@/ty
 export const orderKeys = {
   all: ['orders'] as const,
   lists: () => [...orderKeys.all, 'list'] as const,
-  list: (orgId: string, filters?: OrderFilters, pagination?: PaginationParams) =>
-    [...orderKeys.lists(), { orgId, filters, pagination }] as const,
+  list: (
+    orgId: string,
+    filters?: OrderFilters,
+    pagination?: PaginationParams,
+  ) => [...orderKeys.lists(), { orgId, filters, pagination }] as const,
   details: () => [...orderKeys.all, 'detail'] as const,
   detail: (id: string) => [...orderKeys.details(), id] as const,
   receipt: (id: string) => [...orderKeys.all, 'receipt', id] as const,
@@ -30,13 +39,17 @@ export const orderKeys = {
 // ORDERS HOOKS
 // ============================================================================
 
-export function useOrders(filters?: OrderFilters, pagination?: PaginationParams) {
-  const context = useAuthStore((state) => state.context);
+export function useOrders(
+  filters?: OrderFilters,
+  pagination?: PaginationParams,
+) {
+  const { user } = useAuth();
 
   return useQuery({
-    queryKey: orderKeys.list(context?.organization_id || '', filters, pagination),
-    queryFn: () => ordersService.getOrders(context?.organization_id || '', filters, pagination),
-    enabled: !!context?.organization_id,
+    queryKey: orderKeys.list(user?.organizationId || '', filters, pagination),
+    queryFn: () =>
+      ordersService.getOrders(user?.organizationId || '', filters, pagination),
+    enabled: !!user?.organizationId,
     staleTime: 1 * 60 * 1000, // 1 minute
   });
 }
@@ -52,7 +65,7 @@ export function useOrder(id: string, enabled = true) {
 export function useCreateOrder() {
   const queryClient = useQueryClient();
   const showToast = useUIStore((state) => state.showToast);
-  const context = useAuthStore((state) => state.context);
+  const { user } = useAuth();
   const isOnline = useOfflineStore((state) => state.isOnline);
   const addToSyncQueue = useOfflineStore((state) => state.addToSyncQueue);
 
@@ -63,11 +76,13 @@ export function useCreateOrder() {
       payment_method?: PaymentMethod;
       notes?: string;
     }) => {
-      if (!context) throw new Error('No context available');
+      if (!user?.organizationId)
+        throw new Error('No user organization available');
 
       const orderData = {
-        organization_id: context.organization_id,
-        location_id: context.location_id,
+        organization_id: user.organizationId,
+        location_id: user.locationId || '',
+        cashier_id: user.id,
         ...data,
       };
 
@@ -78,8 +93,8 @@ export function useCreateOrder() {
         // Offline: Add to sync queue and return optimistic response
         const optimisticOrder: Order = {
           id: `offline-${Date.now()}`,
-          organization_id: context.organization_id,
-          location_id: context.location_id,
+          organization_id: user.organizationId,
+          location_id: user.locationId || '',
           order_number: `OFF-${Date.now()}`,
           status: 'PENDING' as any,
           customer_id: data.customer_id,
@@ -101,8 +116,8 @@ export function useCreateOrder() {
           payment_method: data.payment_method,
           payment_status: 'PENDING' as any,
           payments: [],
-          cashier_id: 'offline',
-          cashier_name: 'Offline User',
+          cashier_id: user?.id || 'offline',
+          cashier_name: user?.name || 'Offline User',
           notes: data.notes,
           created_at: new Date(),
           updated_at: new Date(),
@@ -112,15 +127,15 @@ export function useCreateOrder() {
         return optimisticOrder;
       }
     },
-    onSuccess: (order) => {
+    onSuccess: (order: Order) => {
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
       showToast('success', `Orden ${order.order_number} creada exitosamente`);
-      
+
       if (!isOnline) {
         showToast(
           'info',
           'Orden guardada offline. Se sincronizará cuando haya conexión.',
-          7000
+          7000,
         );
       }
     },
@@ -137,7 +152,7 @@ export function useUpdateOrderStatus() {
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: Order['status'] }) =>
       ordersService.updateOrderStatus(id, status),
-    onSuccess: (order) => {
+    onSuccess: (order: Order) => {
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
       queryClient.invalidateQueries({ queryKey: orderKeys.detail(order.id) });
       showToast('success', 'Estado actualizado exitosamente');
@@ -155,7 +170,7 @@ export function useCancelOrder() {
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
       ordersService.cancelOrder(id, reason),
-    onSuccess: (order) => {
+    onSuccess: (order: Order) => {
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
       queryClient.invalidateQueries({ queryKey: orderKeys.detail(order.id) });
       showToast('success', 'Orden cancelada exitosamente');
@@ -178,7 +193,7 @@ export function useAddPayment() {
       orderId: string;
       payment: { method: PaymentMethod; amount: number; reference?: string };
     }) => ordersService.addPayment(orderId, payment),
-    onSuccess: (order) => {
+    onSuccess: (order: Order) => {
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
       queryClient.invalidateQueries({ queryKey: orderKeys.detail(order.id) });
       showToast('success', 'Pago registrado exitosamente');
@@ -250,16 +265,17 @@ export function useWhatsAppReceipt() {
 // ============================================================================
 
 export function useDailySales(date: Date) {
-  const context = useAuthStore((state) => state.context);
+  const { user } = useAuth();
 
   return useQuery({
     queryKey: orderKeys.stats(
-      context?.organization_id || '',
+      user?.organizationId || '',
       'daily',
-      date.toISOString().split('T')[0]
+      date.toISOString().split('T')[0],
     ),
-    queryFn: () => ordersService.getDailySales(context?.organization_id || '', date),
-    enabled: !!context?.organization_id,
+    queryFn: () =>
+      ordersService.getDailySales(user?.organizationId || '', date),
+    enabled: !!user?.organizationId,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

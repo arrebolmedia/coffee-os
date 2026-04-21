@@ -7,7 +7,10 @@ import { useEffect, useState } from 'react';
 import { useOfflineStore } from '@/store/offline.store';
 import { syncService } from '@/lib/sync.service';
 import { initDB, getDatabaseStats } from '@/lib/db';
-import { registerServiceWorker, requestBackgroundSync } from '@/lib/sw-registration';
+import {
+  registerServiceWorker,
+  requestBackgroundSync,
+} from '@/lib/sw-registration';
 
 export function useOffline() {
   const [dbStats, setDbStats] = useState<{
@@ -23,6 +26,24 @@ export function useOffline() {
   const isSyncing = useOfflineStore((state) => state.isSyncing);
   const syncError = useOfflineStore((state) => state.syncError);
   const setOnlineStatus = useOfflineStore((state) => state.setOnlineStatus);
+
+  // Actualizar estado online cuando el componente se monte en el cliente
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setOnlineStatus(navigator.onLine);
+
+      const handleOnline = () => setOnlineStatus(true);
+      const handleOffline = () => setOnlineStatus(false);
+
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }
+  }, [setOnlineStatus]);
 
   // Initialize IndexedDB and Service Worker
   useEffect(() => {

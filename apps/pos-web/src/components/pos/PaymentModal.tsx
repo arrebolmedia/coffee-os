@@ -9,24 +9,57 @@ import { useState } from 'react';
 import { useCartStore } from '@/store/cart.store';
 import { useCreateOrder } from '@/hooks/use-orders';
 import { PaymentMethod, Cart } from '@/types';
-import { X, CreditCard, Banknote, ArrowLeftRight, Check, Loader2 } from 'lucide-react';
+import {
+  X,
+  CreditCard,
+  Banknote,
+  ArrowLeftRight,
+  Check,
+  Loader2,
+  Gift,
+} from 'lucide-react';
 import { NumPad } from './NumPad';
+
+interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  loyaltyPoints: number;
+  segment: 'vip' | 'frequent' | 'regular' | 'new';
+  totalPurchases: number;
+  lastVisit: string;
+}
 
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (orderId: string) => void;
+  customer?: Customer | null;
 }
 
-export function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) {
+export function PaymentModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  customer,
+}: PaymentModalProps) {
   const cart = useCartStore((state) => state.cart);
   const clearCart = useCartStore((state) => state.clearCart);
   const createOrderMutation = useCreateOrder();
 
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(
+    null,
+  );
   const [cashReceived, setCashReceived] = useState<string>('');
   const [cardAmount, setCardAmount] = useState<string>('');
   const [cashAmount, setCashAmount] = useState<string>('');
+  const [applyLoyaltyDiscount, setApplyLoyaltyDiscount] = useState(false);
+
+  // Calcular si se puede aplicar descuento de lealtad
+  const canApplyLoyalty = customer && customer.loyaltyPoints >= 9;
+  const loyaltyDiscount = canApplyLoyalty && applyLoyaltyDiscount ? 50 : 0; // $50 de descuento
+  const finalTotal = cart.total - loyaltyDiscount;
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-MX', {
@@ -41,11 +74,11 @@ export function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) 
 
   const calculateChange = (): number => {
     if (paymentMethod === PaymentMethod.CASH) {
-      return parseAmount(cashReceived) - cart.total;
+      return parseAmount(cashReceived) - finalTotal;
     }
     if (paymentMethod === PaymentMethod.MIXED) {
       const totalReceived = parseAmount(cardAmount) + parseAmount(cashAmount);
-      return totalReceived - cart.total;
+      return totalReceived - finalTotal;
     }
     return 0;
   };
@@ -54,7 +87,7 @@ export function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) 
     if (!paymentMethod) return false;
 
     if (paymentMethod === PaymentMethod.CASH) {
-      return parseAmount(cashReceived) >= cart.total;
+      return parseAmount(cashReceived) >= finalTotal;
     }
 
     if (paymentMethod === PaymentMethod.CARD) {
@@ -63,7 +96,7 @@ export function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) 
 
     if (paymentMethod === PaymentMethod.MIXED) {
       const totalReceived = parseAmount(cardAmount) + parseAmount(cashAmount);
-      return totalReceived >= cart.total;
+      return totalReceived >= finalTotal;
     }
 
     return false;
@@ -95,9 +128,47 @@ export function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) 
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Procesar Pago</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Total a cobrar: <span className="font-bold text-amber-600">{formatPrice(cart.total)}</span>
-            </p>
+            <div className="mt-1 space-y-1">
+              {customer && (
+                <p className="text-sm text-purple-600 font-medium">
+                  Cliente: {customer.name} ({customer.phone})
+                </p>
+              )}
+              {canApplyLoyalty && (
+                <div className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg border border-purple-200">
+                  <Gift className="w-4 h-4 text-purple-600" />
+                  <span className="text-xs font-medium text-purple-800">
+                    {applyLoyaltyDiscount
+                      ? '¡Descuento 9+1 aplicado!'
+                      : 'Descuento 9+1 disponible'}
+                  </span>
+                  <button
+                    onClick={() =>
+                      setApplyLoyaltyDiscount(!applyLoyaltyDiscount)
+                    }
+                    className="ml-auto px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700"
+                  >
+                    {applyLoyaltyDiscount ? 'Quitar' : 'Aplicar'}
+                  </button>
+                </div>
+              )}
+              <p className="text-sm text-gray-500">
+                Total a cobrar:{' '}
+                {loyaltyDiscount > 0 && (
+                  <span className="line-through text-gray-400">
+                    {formatPrice(cart.total)}
+                  </span>
+                )}{' '}
+                <span className="font-bold text-amber-600">
+                  {formatPrice(finalTotal)}
+                </span>
+                {loyaltyDiscount > 0 && (
+                  <span className="ml-2 text-xs text-green-600 font-semibold">
+                    (Ahorro: {formatPrice(loyaltyDiscount)})
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -142,7 +213,9 @@ export function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) 
                 <div className="bg-gray-50 rounded-lg p-4 space-y-3 mb-6">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Subtotal:</span>
-                    <span className="font-medium">{formatPrice(cart.subtotal)}</span>
+                    <span className="font-medium">
+                      {formatPrice(cart.subtotal)}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">IVA:</span>
@@ -151,41 +224,54 @@ export function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) 
                   {cart.discount > 0 && (
                     <div className="flex justify-between text-sm text-red-600">
                       <span>Descuento:</span>
-                      <span className="font-medium">-{formatPrice(cart.discount)}</span>
+                      <span className="font-medium">
+                        -{formatPrice(cart.discount)}
+                      </span>
                     </div>
                   )}
                   <div className="flex justify-between text-xl font-bold pt-3 border-t border-gray-200">
                     <span>Total:</span>
-                    <span className="text-amber-600">{formatPrice(cart.total)}</span>
+                    <span className="text-amber-600">
+                      {formatPrice(cart.total)}
+                    </span>
                   </div>
                 </div>
 
-                {paymentMethod === PaymentMethod.CASH && parseAmount(cashReceived) >= cart.total && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <p className="text-sm text-green-800 font-medium mb-2">Cambio:</p>
-                    <p className="text-3xl font-bold text-green-600">
-                      {formatPrice(calculateChange())}
-                    </p>
-                  </div>
-                )}
+                {paymentMethod === PaymentMethod.CASH &&
+                  parseAmount(cashReceived) >= cart.total && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <p className="text-sm text-green-800 font-medium mb-2">
+                        Cambio:
+                      </p>
+                      <p className="text-3xl font-bold text-green-600">
+                        {formatPrice(calculateChange())}
+                      </p>
+                    </div>
+                  )}
 
                 {paymentMethod === PaymentMethod.MIXED && (
                   <div className="space-y-4">
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <p className="text-sm text-blue-800 font-medium mb-1">Tarjeta:</p>
+                      <p className="text-sm text-blue-800 font-medium mb-1">
+                        Tarjeta:
+                      </p>
                       <p className="text-xl font-bold text-blue-600">
                         {formatPrice(parseAmount(cardAmount))}
                       </p>
                     </div>
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <p className="text-sm text-green-800 font-medium mb-1">Efectivo:</p>
+                      <p className="text-sm text-green-800 font-medium mb-1">
+                        Efectivo:
+                      </p>
                       <p className="text-xl font-bold text-green-600">
                         {formatPrice(parseAmount(cashAmount))}
                       </p>
                     </div>
                     {isPaymentValid() && calculateChange() > 0 && (
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                        <p className="text-sm text-amber-800 font-medium mb-1">Cambio:</p>
+                        <p className="text-sm text-amber-800 font-medium mb-1">
+                          Cambio:
+                        </p>
                         <p className="text-2xl font-bold text-amber-600">
                           {formatPrice(calculateChange())}
                         </p>
@@ -311,11 +397,19 @@ interface PaymentMethodButtonProps {
   color: 'green' | 'blue' | 'purple';
 }
 
-function PaymentMethodButton({ icon, label, description, onClick, color }: PaymentMethodButtonProps) {
+function PaymentMethodButton({
+  icon,
+  label,
+  description,
+  onClick,
+  color,
+}: PaymentMethodButtonProps) {
   const colorClasses = {
-    green: 'border-green-200 hover:bg-green-50 hover:border-green-300 text-green-600',
+    green:
+      'border-green-200 hover:bg-green-50 hover:border-green-300 text-green-600',
     blue: 'border-blue-200 hover:bg-blue-50 hover:border-blue-300 text-blue-600',
-    purple: 'border-purple-200 hover:bg-purple-50 hover:border-purple-300 text-purple-600',
+    purple:
+      'border-purple-200 hover:bg-purple-50 hover:border-purple-300 text-purple-600',
   };
 
   return (

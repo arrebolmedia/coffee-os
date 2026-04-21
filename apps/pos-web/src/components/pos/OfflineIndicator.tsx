@@ -6,8 +6,15 @@
 'use client';
 
 import { useOffline } from '@/hooks/use-offline';
-import { Wifi, WifiOff, RefreshCw, AlertCircle, Check, Database } from 'lucide-react';
-import { useState } from 'react';
+import {
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  AlertCircle,
+  Check,
+  Database,
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 export function OfflineIndicator() {
   const {
@@ -20,12 +27,31 @@ export function OfflineIndicator() {
   } = useOffline();
 
   const [showDetails, setShowDetails] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Evitar error de hidratación - solo renderizar después del montaje del cliente
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    // Renderizado del servidor - mostrar estado por defecto
+    return (
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500">
+        <Wifi className="w-4 h-4" />
+        <span className="text-sm font-medium hidden sm:inline">
+          Conectando...
+        </span>
+      </div>
+    );
+  }
 
   return (
     <>
       {/* Main Indicator */}
       <button
         onClick={() => setShowDetails(true)}
+        aria-label={`Estado de conexión: ${isOnline ? 'En línea' : 'Sin conexión'}`}
         className={`
           flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors
           ${isOnline ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'}
@@ -36,7 +62,7 @@ export function OfflineIndicator() {
         ) : (
           <WifiOff className="w-4 h-4" />
         )}
-        
+
         <span className="text-sm font-medium hidden sm:inline">
           {isOnline ? 'En línea' : 'Sin conexión'}
         </span>
@@ -47,9 +73,7 @@ export function OfflineIndicator() {
           </span>
         )}
 
-        {isSyncing && (
-          <RefreshCw className="w-3 h-3 animate-spin" />
-        )}
+        {isSyncing && <RefreshCw className="w-3 h-3 animate-spin" />}
       </button>
 
       {/* Details Modal */}
@@ -73,7 +97,9 @@ export function OfflineIndicator() {
                     Estado de Conexión
                   </h2>
                   <p className="text-sm text-gray-500">
-                    {isOnline ? 'Conectado al servidor' : 'Modo offline activado'}
+                    {isOnline
+                      ? 'Conectado al servidor'
+                      : 'Modo offline activado'}
                   </p>
                 </div>
               </div>
@@ -92,12 +118,14 @@ export function OfflineIndicator() {
                 <h3 className="text-sm font-semibold text-gray-900 mb-3">
                   Estado de Sincronización
                 </h3>
-                
+
                 {syncError && (
                   <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg mb-3">
                     <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium text-red-900">Error de sincronización</p>
+                      <p className="text-sm font-medium text-red-900">
+                        Error de sincronización
+                      </p>
                       <p className="text-xs text-red-700 mt-1">{syncError}</p>
                     </div>
                   </div>
@@ -105,13 +133,19 @@ export function OfflineIndicator() {
 
                 {syncQueueSize > 0 ? (
                   <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <RefreshCw className={`w-5 h-5 text-amber-600 ${isSyncing ? 'animate-spin' : ''}`} />
+                    <RefreshCw
+                      className={`w-5 h-5 text-amber-600 ${isSyncing ? 'animate-spin' : ''}`}
+                    />
                     <div className="flex-1">
                       <p className="text-sm font-medium text-amber-900">
-                        {syncQueueSize} {syncQueueSize === 1 ? 'elemento' : 'elementos'} pendiente{syncQueueSize === 1 ? '' : 's'}
+                        {syncQueueSize}{' '}
+                        {syncQueueSize === 1 ? 'elemento' : 'elementos'}{' '}
+                        pendiente{syncQueueSize === 1 ? '' : 's'}
                       </p>
                       <p className="text-xs text-amber-700 mt-1">
-                        {isSyncing ? 'Sincronizando...' : 'Se sincronizarán al reconectar'}
+                        {isSyncing
+                          ? 'Sincronizando...'
+                          : 'Se sincronizarán al reconectar'}
                       </p>
                     </div>
                   </div>
@@ -119,8 +153,12 @@ export function OfflineIndicator() {
                   <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
                     <Check className="w-5 h-5 text-green-600" />
                     <div>
-                      <p className="text-sm font-medium text-green-900">Todo sincronizado</p>
-                      <p className="text-xs text-green-700 mt-1">No hay cambios pendientes</p>
+                      <p className="text-sm font-medium text-green-900">
+                        Todo sincronizado
+                      </p>
+                      <p className="text-xs text-green-700 mt-1">
+                        No hay cambios pendientes
+                      </p>
                     </div>
                   </div>
                 )}
@@ -155,7 +193,9 @@ export function OfflineIndicator() {
                     disabled={!isOnline || isSyncing}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-500 text-white rounded-lg font-semibold hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    <RefreshCw className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
+                    <RefreshCw
+                      className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`}
+                    />
                     {isSyncing ? 'Sincronizando...' : 'Sincronizar Ahora'}
                   </button>
                 </div>

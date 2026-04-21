@@ -6,7 +6,13 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { v4 as uuid } from 'uuid';
-import { SyncQueueItem, OfflineData, Product, Category, Modifier } from '@/types';
+import {
+  SyncQueueItem,
+  OfflineData,
+  Product,
+  Category,
+  Modifier,
+} from '@/types';
 
 interface OfflineState {
   isOnline: boolean;
@@ -17,7 +23,11 @@ interface OfflineState {
   syncError: string | null;
   // Actions
   setOnlineStatus: (isOnline: boolean) => void;
-  addToSyncQueue: (type: SyncQueueItem['type'], action: SyncQueueItem['action'], data: any) => void;
+  addToSyncQueue: (
+    type: SyncQueueItem['type'],
+    action: SyncQueueItem['action'],
+    data: any,
+  ) => void;
   removeFromSyncQueue: (id: string) => void;
   updateSyncQueueItem: (id: string, updates: Partial<SyncQueueItem>) => void;
   clearSyncQueue: () => void;
@@ -34,7 +44,8 @@ interface OfflineState {
 export const useOfflineStore = create<OfflineState>()(
   persist(
     (set, get) => ({
-      isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+      // Evitar acceso a navigator durante SSR - usar true como valor por defecto
+      isOnline: true,
       offlineData: {
         products: [],
         categories: [],
@@ -51,7 +62,7 @@ export const useOfflineStore = create<OfflineState>()(
       // ============================================================================
       setOnlineStatus: (isOnline) => {
         set({ isOnline });
-        
+
         // If going online, trigger sync
         if (isOnline && get().syncQueue.length > 0) {
           // Trigger sync process (will be handled by background sync service)
@@ -89,7 +100,7 @@ export const useOfflineStore = create<OfflineState>()(
       updateSyncQueueItem: (id, updates) => {
         set((state) => ({
           syncQueue: state.syncQueue.map((item) =>
-            item.id === id ? { ...item, ...updates } : item
+            item.id === id ? { ...item, ...updates } : item,
           ),
         }));
       },
@@ -174,8 +185,8 @@ export const useOfflineStore = create<OfflineState>()(
         syncQueue: state.syncQueue,
         lastSyncAttempt: state.lastSyncAttempt,
       }),
-    }
-  )
+    },
+  ),
 );
 
 // Setup online/offline listeners

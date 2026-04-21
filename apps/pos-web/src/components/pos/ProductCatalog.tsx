@@ -10,11 +10,13 @@ import { useProducts } from '@/hooks/use-products';
 import { useCartStore } from '@/store/cart.store';
 import { ProductCard } from './ProductCard';
 import { CategoryFilter } from './CategoryFilter';
-import { Product, ProductStatus } from '@/types';
-import { Search, Loader2, AlertCircle } from 'lucide-react';
+import { Product, ProductStatus, ProductType } from '@/types';
+import { Search, Loader2, AlertCircle, Package } from 'lucide-react';
 
 export function ProductCatalog() {
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>();
+  const [selectedCategoryId, setSelectedCategoryId] = useState<
+    string | undefined
+  >();
   const [searchQuery, setSearchQuery] = useState('');
 
   const addItem = useCartStore((state) => state.addItem);
@@ -24,16 +26,51 @@ export function ProductCatalog() {
     data: productsData,
     isLoading,
     error,
-  } = useProducts({
-    category_id: selectedCategoryId,
-    status: ProductStatus.ACTIVE,
-  });
+  } = useProducts(undefined, undefined);
 
-  // Filter products by search query
+  // Use API data only - no mock data
+  const activeProductsData = productsData;
+
+  // Filter products by search query and status
   const filteredProducts = useMemo(() => {
-    if (!productsData?.data) return [];
+    if (!activeProductsData?.data) return [];
 
-    const products = productsData.data;
+    let products: Product[] = activeProductsData.data;
+
+    if (selectedCategoryId) {
+      const normalizedCategory = selectedCategoryId.toLowerCase();
+      products = products.filter((product) => {
+        const productCategoryId =
+          typeof product.category_id === 'string'
+            ? product.category_id.toLowerCase()
+            : undefined;
+        const categoryRef: any = product.category;
+        const categoryId =
+          categoryRef && typeof categoryRef.id === 'string'
+            ? categoryRef.id.toLowerCase()
+            : undefined;
+        const categorySlug =
+          categoryRef && typeof categoryRef.slug === 'string'
+            ? categoryRef.slug.toLowerCase()
+            : undefined;
+        const categoryName =
+          categoryRef && typeof categoryRef.name === 'string'
+            ? categoryRef.name.toLowerCase()
+            : undefined;
+
+        return (
+          productCategoryId === normalizedCategory ||
+          categoryId === normalizedCategory ||
+          categorySlug === normalizedCategory ||
+          categoryName === normalizedCategory
+        );
+      });
+    }
+
+    // Filter only ACTIVE products (case-insensitive)
+    products = products.filter(
+      (product) => product.status.toUpperCase() === 'ACTIVE',
+    );
 
     if (!searchQuery.trim()) return products;
 
@@ -43,12 +80,13 @@ export function ProductCatalog() {
         product.name.toLowerCase().includes(query) ||
         product.sku.toLowerCase().includes(query) ||
         product.description?.toLowerCase().includes(query) ||
-        product.barcode?.toLowerCase().includes(query)
+        product.barcode?.toLowerCase().includes(query),
     );
-  }, [productsData, searchQuery]);
+  }, [activeProductsData, searchQuery, selectedCategoryId]);
 
-  const handleProductSelect = (product: Product) => {
-    addItem(product);
+  const handleProductSelect = (product: any) => {
+    // Cast to Product since cart only needs the basic fields that all variations have
+    addItem(product as Product);
   };
 
   return (
@@ -101,12 +139,12 @@ export function ProductCatalog() {
         {!isLoading && !error && filteredProducts.length === 0 && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center text-gray-400">
-              <AlertCircle className="w-12 h-12 mx-auto mb-4" />
-              <p className="font-medium">No se encontraron productos</p>
+              <Package className="w-12 h-12 mx-auto mb-4" />
+              <p className="font-medium text-gray-900">No hay productos</p>
               <p className="text-sm mt-2">
-                {searchQuery
+                {searchQuery || selectedCategoryId
                   ? 'Intente con otros términos de búsqueda'
-                  : 'No hay productos en esta categoría'}
+                  : 'Los productos aparecerán aquí cuando se creen en el catálogo'}
               </p>
             </div>
           </div>
@@ -126,7 +164,8 @@ export function ProductCatalog() {
 
             {/* Results Count */}
             <div className="text-center mt-6 text-sm text-gray-500">
-              Mostrando {filteredProducts.length} de {productsData?.total || 0} productos
+              Mostrando {filteredProducts.length} de{' '}
+              {activeProductsData?.total || 0} productos
             </div>
           </>
         )}

@@ -5,9 +5,15 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productsService } from '@/services/products.service';
-import { useAuthStore } from '@/store/auth.store';
-import { useUIStore } from '@/store/ui.store';
-import { Product, Category, Modifier, ProductFilters, PaginationParams } from '@/types';
+import { useAuth } from '@/hooks/use-auth';
+import toast from 'react-hot-toast';
+import {
+  Product,
+  Category,
+  Modifier,
+  ProductFilters,
+  PaginationParams,
+} from '@/types';
 
 // ============================================================================
 // QUERY KEYS
@@ -16,11 +22,15 @@ import { Product, Category, Modifier, ProductFilters, PaginationParams } from '@
 export const productKeys = {
   all: ['products'] as const,
   lists: () => [...productKeys.all, 'list'] as const,
-  list: (orgId: string, filters?: ProductFilters, pagination?: PaginationParams) =>
-    [...productKeys.lists(), { orgId, filters, pagination }] as const,
+  list: (
+    orgId: string,
+    filters?: ProductFilters,
+    pagination?: PaginationParams,
+  ) => [...productKeys.lists(), { orgId, filters, pagination }] as const,
   details: () => [...productKeys.all, 'detail'] as const,
   detail: (id: string) => [...productKeys.details(), id] as const,
-  bySku: (sku: string, orgId: string) => [...productKeys.all, 'sku', sku, orgId] as const,
+  bySku: (sku: string, orgId: string) =>
+    [...productKeys.all, 'sku', sku, orgId] as const,
   byBarcode: (barcode: string, orgId: string) =>
     [...productKeys.all, 'barcode', barcode, orgId] as const,
 };
@@ -45,14 +55,21 @@ export const modifierKeys = {
 // PRODUCTS HOOKS
 // ============================================================================
 
-export function useProducts(filters?: ProductFilters, pagination?: PaginationParams) {
-  const context = useAuthStore((state) => state.context);
+export function useProducts(
+  filters?: ProductFilters,
+  pagination?: PaginationParams,
+) {
+  const { user } = useAuth();
 
   return useQuery({
-    queryKey: productKeys.list(context?.organization_id || '', filters, pagination),
+    queryKey: productKeys.list(user?.organizationId || '', filters, pagination),
     queryFn: () =>
-      productsService.getProducts(context?.organization_id || '', filters, pagination),
-    enabled: !!context?.organization_id,
+      productsService.getProducts(
+        user?.organizationId || '',
+        filters,
+        pagination,
+      ),
+    enabled: !!user?.organizationId,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
@@ -66,71 +83,72 @@ export function useProduct(id: string, enabled = true) {
 }
 
 export function useProductBySku(sku: string) {
-  const context = useAuthStore((state) => state.context);
+  const { user } = useAuth();
 
   return useQuery({
-    queryKey: productKeys.bySku(sku, context?.organization_id || ''),
-    queryFn: () => productsService.getProductBySku(sku, context?.organization_id || ''),
-    enabled: !!sku && !!context?.organization_id,
+    queryKey: productKeys.bySku(sku, user?.organizationId || ''),
+    queryFn: () =>
+      productsService.getProductBySku(sku, user?.organizationId || ''),
+    enabled: !!sku && !!user?.organizationId,
   });
 }
 
 export function useProductByBarcode(barcode: string) {
-  const context = useAuthStore((state) => state.context);
+  const { user } = useAuth();
 
   return useQuery({
-    queryKey: productKeys.byBarcode(barcode, context?.organization_id || ''),
-    queryFn: () => productsService.getProductByBarcode(barcode, context?.organization_id || ''),
-    enabled: !!barcode && !!context?.organization_id,
+    queryKey: productKeys.byBarcode(barcode, user?.organizationId || ''),
+    queryFn: () =>
+      productsService.getProductByBarcode(barcode, user?.organizationId || ''),
+    enabled: !!barcode && !!user?.organizationId,
   });
 }
 
 export function useCreateProduct() {
   const queryClient = useQueryClient();
-  const showToast = useUIStore((state) => state.showToast);
 
   return useMutation({
     mutationFn: (data: Partial<Product>) => productsService.createProduct(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: productKeys.lists() });
-      showToast('success', 'Producto creado exitosamente');
+      toast.success('Producto creado exitosamente');
     },
     onError: (error: any) => {
-      showToast('error', error.message || 'Error al crear producto');
+      toast.error(error.message || 'Error al crear producto');
     },
   });
 }
 
 export function useUpdateProduct() {
   const queryClient = useQueryClient();
-  const showToast = useUIStore((state) => state.showToast);
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Product> }) =>
       productsService.updateProduct(id, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: productKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: productKeys.detail(variables.id) });
-      showToast('success', 'Producto actualizado exitosamente');
+      queryClient.invalidateQueries({
+        queryKey: productKeys.detail(variables.id),
+      });
+      toast.success('Producto actualizado exitosamente');
     },
     onError: (error: any) => {
-      showToast('error', error.message || 'Error al actualizar producto');
+      toast.error(error.message || 'Error al actualizar producto');
     },
   });
 }
 
 export function useDeleteProduct() {
   const queryClient = useQueryClient();
-  const showToast = useUIStore((state) => state.showToast);
 
   return useMutation({
     mutationFn: (id: string) => productsService.deleteProduct(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: productKeys.lists() });
-      showToast('success', 'Producto eliminado exitosamente');
+      toast.success('Producto eliminado exitosamente');
     },
     onError: (error: any) => {
-      showToast('error', error.message || 'Error al eliminar producto');
+      toast.error(error.message || 'Error al eliminar producto');
     },
   });
 }
@@ -140,12 +158,12 @@ export function useDeleteProduct() {
 // ============================================================================
 
 export function useCategories() {
-  const context = useAuthStore((state) => state.context);
+  const { user } = useAuth();
 
   return useQuery({
-    queryKey: categoryKeys.list(context?.organization_id || ''),
-    queryFn: () => productsService.getCategories(context?.organization_id || ''),
-    enabled: !!context?.organization_id,
+    queryKey: categoryKeys.list(user?.organizationId || ''),
+    queryFn: () => productsService.getCategories(user?.organizationId || ''),
+    enabled: !!user?.organizationId,
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
 }
@@ -160,16 +178,16 @@ export function useCategory(id: string, enabled = true) {
 
 export function useCreateCategory() {
   const queryClient = useQueryClient();
-  const showToast = useUIStore((state) => state.showToast);
 
   return useMutation({
-    mutationFn: (data: Partial<Category>) => productsService.createCategory(data),
+    mutationFn: (data: Partial<Category>) =>
+      productsService.createCategory(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: categoryKeys.lists() });
-      showToast('success', 'Categoría creada exitosamente');
+      toast.success('Categoría creada exitosamente');
     },
     onError: (error: any) => {
-      showToast('error', error.message || 'Error al crear categoría');
+      toast.error(error.message || 'Error al crear categoría');
     },
   });
 }
@@ -179,12 +197,12 @@ export function useCreateCategory() {
 // ============================================================================
 
 export function useModifiers() {
-  const context = useAuthStore((state) => state.context);
+  const { user } = useAuth();
 
   return useQuery({
-    queryKey: modifierKeys.list(context?.organization_id || ''),
-    queryFn: () => productsService.getModifiers(context?.organization_id || ''),
-    enabled: !!context?.organization_id,
+    queryKey: modifierKeys.list(user?.organizationId || ''),
+    queryFn: () => productsService.getModifiers(user?.organizationId || ''),
+    enabled: !!user?.organizationId,
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
 }

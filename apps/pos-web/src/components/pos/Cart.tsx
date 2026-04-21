@@ -5,6 +5,7 @@
 
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useCartStore } from '@/store/cart.store';
 import { Trash2, Plus, Minus, ShoppingCart, X } from 'lucide-react';
 import { CartItem } from '@/types';
@@ -16,6 +17,12 @@ export function Cart() {
   const clearCart = useCartStore((state) => state.clearCart);
   const getItemCount = useCartStore((state) => state.getItemCount);
 
+  const [hasHydrated, setHasHydrated] = useState(false);
+
+  useEffect(() => {
+    setHasHydrated(true);
+  }, []);
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
@@ -23,11 +30,14 @@ export function Cart() {
     }).format(price);
   };
 
-  const itemCount = getItemCount();
+  const itemCount = hasHydrated ? getItemCount() : 0;
 
-  if (itemCount === 0) {
+  if (!hasHydrated || itemCount === 0) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-gray-400">
+      <div
+        data-testid="cart-empty"
+        className="h-full flex flex-col items-center justify-center text-gray-400"
+      >
         <ShoppingCart className="w-24 h-24 mb-4" strokeWidth={1} />
         <p className="text-lg font-medium">Carrito vacío</p>
         <p className="text-sm">Agrega productos para comenzar</p>
@@ -116,14 +126,26 @@ interface CartItemRowProps {
   formatPrice: (price: number) => string;
 }
 
-function CartItemRow({ item, onUpdateQuantity, onRemove, formatPrice }: CartItemRowProps) {
+function CartItemRow({
+  item,
+  onUpdateQuantity,
+  onRemove,
+  formatPrice,
+}: CartItemRowProps) {
+  const IVA_RATE = 0.16;
+  const unitPriceWithTax = item.unit_price * (1 + IVA_RATE);
+  const lineTotalWithTax = item.subtotal * (1 + IVA_RATE);
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-3">
       {/* Product Info */}
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1">
-          <h4 className="font-semibold text-gray-900 text-sm">{item.product.name}</h4>
-          <p className="text-xs text-gray-500">{formatPrice(item.unit_price)} c/u</p>
+          <h4 className="font-semibold text-gray-900 text-sm">
+            {item.product.name}
+          </h4>
+          <p className="text-xs text-gray-500">
+            {formatPrice(unitPriceWithTax)} c/u (IVA incl.)
+          </p>
         </div>
         <button
           onClick={onRemove}
@@ -138,11 +160,14 @@ function CartItemRow({ item, onUpdateQuantity, onRemove, formatPrice }: CartItem
       {item.selected_modifiers.length > 0 && (
         <div className="mb-2 pl-2 border-l-2 border-amber-200">
           {item.selected_modifiers.map((mod, idx) => (
-            <div key={idx} className="text-xs text-gray-600 flex justify-between">
+            <div
+              key={idx}
+              className="text-xs text-gray-600 flex justify-between"
+            >
               <span>+ {mod.option_name}</span>
               {mod.price_adjustment > 0 && (
                 <span className="text-amber-600">
-                  +{formatPrice(mod.price_adjustment)}
+                  +{formatPrice(mod.price_adjustment * (1 + IVA_RATE))}
                 </span>
               )}
             </div>
@@ -180,7 +205,9 @@ function CartItemRow({ item, onUpdateQuantity, onRemove, formatPrice }: CartItem
           </button>
         </div>
 
-        <span className="font-bold text-gray-900">{formatPrice(item.subtotal)}</span>
+        <span className="font-bold text-gray-900">
+          {formatPrice(lineTotalWithTax)}
+        </span>
       </div>
     </div>
   );

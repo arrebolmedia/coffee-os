@@ -1,22 +1,12 @@
 /** @type {import('next').NextConfig} */
-const withPWA = require('next-pwa')({
-  dest: 'public',
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development',
-});
-
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  experimental: {
-    appDir: true,
-  },
   env: {
     NEXT_PUBLIC_API_URL:
-      process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
+      process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1',
     NEXT_PUBLIC_APP_NAME: 'CoffeeOS POS',
-    NEXT_PUBLIC_APP_VERSION: require('./package.json').version,
+    NEXT_PUBLIC_APP_VERSION: '1.0.0',
   },
   async headers() {
     return [
@@ -33,4 +23,4 @@ const nextConfig = {
   },
 };
 
-module.exports = withPWA(nextConfig);
+module.exports = nextConfig;

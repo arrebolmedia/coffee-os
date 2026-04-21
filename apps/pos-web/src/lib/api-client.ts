@@ -6,7 +6,8 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
 import { ApiResponse, ApiError } from '@/types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 const API_TIMEOUT = 30000; // 30 seconds
 
 class ApiClient {
@@ -40,14 +41,16 @@ class ApiClient {
         }
         return config;
       },
-      (error) => Promise.reject(error)
+      (error) => Promise.reject(error),
     );
 
     // Response interceptor - Handle errors and token refresh
     this.client.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
-        const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+        const originalRequest = error.config as AxiosRequestConfig & {
+          _retry?: boolean;
+        };
 
         // Handle 401 - Try to refresh token
         if (error.response?.status === 401 && !originalRequest._retry) {
@@ -66,7 +69,7 @@ class ApiClient {
         }
 
         return Promise.reject(this.handleError(error));
-      }
+      },
     );
   }
 
@@ -101,8 +104,9 @@ class ApiClient {
 
   async login(email: string, password: string): Promise<ApiResponse<any>> {
     const response = await this.client.post('/auth/login', { email, password });
-    const { access_token, refresh_token } = response.data.data;
-    this.saveTokensToStorage(access_token, refresh_token);
+    // API devuelve camelCase (accessToken) no snake_case (access_token)
+    const { accessToken, refreshToken } = response.data;
+    this.saveTokensToStorage(accessToken, refreshToken);
     return response.data;
   }
 
@@ -120,11 +124,11 @@ class ApiClient {
     }
 
     const response = await this.client.post('/auth/refresh', {
-      refresh_token: this.refreshToken,
+      refreshToken: this.refreshToken,
     });
 
-    const { access_token, refresh_token } = response.data.data;
-    this.saveTokensToStorage(access_token, refresh_token);
+    const { accessToken, refreshToken } = response.data;
+    this.saveTokensToStorage(accessToken, refreshToken);
   }
 
   isAuthenticated(): boolean {
@@ -135,29 +139,47 @@ class ApiClient {
   // HTTP METHODS
   // ============================================================================
 
-  async get<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.client.get<ApiResponse<T>>(url, config);
-    return response.data;
+  async get<T>(
+    url: string,
+    config?: AxiosRequestConfig,
+  ): Promise<ApiResponse<T> & Record<string, any>> {
+    const response = await this.client.get(url, config);
+    return this.normalizeResponse<T>(response.data);
   }
 
-  async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.client.post<ApiResponse<T>>(url, data, config);
-    return response.data;
+  async post<T>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig,
+  ): Promise<ApiResponse<T> & Record<string, any>> {
+    const response = await this.client.post(url, data, config);
+    return this.normalizeResponse<T>(response.data);
   }
 
-  async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.client.put<ApiResponse<T>>(url, data, config);
-    return response.data;
+  async put<T>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig,
+  ): Promise<ApiResponse<T> & Record<string, any>> {
+    const response = await this.client.put(url, data, config);
+    return this.normalizeResponse<T>(response.data);
   }
 
-  async patch<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.client.patch<ApiResponse<T>>(url, data, config);
-    return response.data;
+  async patch<T>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig,
+  ): Promise<ApiResponse<T> & Record<string, any>> {
+    const response = await this.client.patch(url, data, config);
+    return this.normalizeResponse<T>(response.data);
   }
 
-  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.client.delete<ApiResponse<T>>(url, config);
-    return response.data;
+  async delete<T>(
+    url: string,
+    config?: AxiosRequestConfig,
+  ): Promise<ApiResponse<T> & Record<string, any>> {
+    const response = await this.client.delete(url, config);
+    return this.normalizeResponse<T>(response.data);
   }
 
   // ============================================================================
@@ -208,6 +230,43 @@ class ApiClient {
 
   getAccessToken(): string | null {
     return this.accessToken;
+  }
+
+  private normalizeResponse<T>(
+    payload: any,
+  ): ApiResponse<T> & Record<string, any> {
+    if (Array.isArray(payload)) {
+      return {
+        data: payload as unknown as T,
+        success: true,
+      };
+    }
+
+    if (payload && typeof payload === 'object') {
+      const { data, message, success, ...rest } = payload as Record<
+        string,
+        any
+      >;
+
+      if (data !== undefined) {
+        return {
+          data: data as T,
+          message,
+          success: typeof success === 'boolean' ? success : true,
+          ...rest,
+        };
+      }
+
+      return {
+        data: payload as T,
+        success: true,
+      };
+    }
+
+    return {
+      data: payload as T,
+      success: true,
+    };
   }
 }
 
