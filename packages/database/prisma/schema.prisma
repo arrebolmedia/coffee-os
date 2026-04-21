@@ -25,8 +25,14 @@ model Organization {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  locations Location[]
-  users     User[]
+  locations      Location[]
+  users          User[]
+  categories     Category[]
+  products       Product[]
+  recipes        Recipe[]
+  inventoryItems InventoryItem[]
+  suppliers      Supplier[]
+  customers      Customer[]
 
   @@map("organizations")
 }
@@ -96,6 +102,9 @@ model User {
   twoFactorEnabled Boolean   @default(false) @map("two_factor_enabled")
   lastLoginAt      DateTime? @map("last_login_at")
 
+  // Super Admin flag - can access all organizations
+  isSuperAdmin Boolean @default(false) @map("is_super_admin")
+
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -128,51 +137,110 @@ model UserLocation {
 // ========================================
 
 model Category {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  color       String?
-  icon        String?
-  sortOrder   Int      @default(0) @map("sort_order")
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  name           String
+  description    String?
+  color          String?
+  icon           String?
+  sortOrder      Int      @default(0) @map("sort_order")
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   // Relations
-  products Product[]
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  products     Product[]
 
   @@map("categories")
 }
 
 model Product {
-  id         String @id @default(cuid())
-  categoryId String @map("category_id")
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  categoryId     String @map("category_id")
 
   sku         String  @unique
   name        String
   description String?
   image       String?
+  barcode     String?
+
+  // Type and status
+  type   ProductType   @default(SIMPLE)
+  status ProductStatus @default(ACTIVE)
 
   // Pricing
-  price   Float
-  cost    Float @default(0)
-  taxRate Float @default(0.16) @map("tax_rate")
+  price           Float // Current selling price
+  cost            Float           @default(0)
+  basePrice       Float?          @map("base_price") // Original price before modifiers
+  pricingStrategy PricingStrategy @default(FIXED) @map("pricing_strategy")
+  taxRate         Float           @default(0.16) @map("tax_rate")
+  taxIncluded     Boolean         @default(false) @map("tax_included")
 
-  // Settings
+  // Inventory
+  stockQuantity  Int?     @map("stock_quantity")
+  minimumStock   Int?     @map("minimum_stock")
+  reorderPoint   Int?     @map("reorder_point")
+  trackInventory Boolean  @default(false) @map("track_inventory")
+
+  // Features
   allowModifiers Boolean @default(true) @map("allow_modifiers")
-  trackInventory Boolean @default(true) @map("track_inventory")
+  allowDiscounts Boolean @default(true) @map("allow_discounts")
+  
+  // Display
+  displayOrder Int?     @map("display_order")
+  isFeatured   Boolean  @default(false) @map("is_featured")
+  isAvailable  Boolean  @default(true) @map("is_available")
+
+  // Metadata
+  tags                    String[] // JSON array
+  preparationTimeMinutes  Int?     @map("preparation_time_minutes")
+  calories                Int?
 
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  category         Category          @relation(fields: [categoryId], references: [id])
-  recipes          Recipe[]
-  ticketLines      TicketLine[]
-  productModifiers ProductModifier[]
+  organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category              Category               @relation(fields: [categoryId], references: [id])
+  recipes               Recipe[]
+  ticketLines           TicketLine[]
+  productModifiers      ProductModifier[]
+  inventory             Inventory[]
 
   @@map("products")
+}
+
+// Product inventory tracking by location
+model Inventory {
+  id             String  @id @default(cuid())
+  productId      String  @map("product_id")
+  organizationId String  @map("organization_id")
+  locationId     String  @map("location_id")
+  
+  // Stock levels
+  currentStock  Float   @default(0) @map("current_stock")
+  minStock      Float   @default(0) @map("min_stock")
+  maxStock      Float   @default(0) @map("max_stock")
+  reorderPoint  Float   @default(0) @map("reorder_point")
+  
+  // Costing
+  unitCost      Float   @default(0) @map("unit_cost")
+  totalValue    Float   @default(0) @map("total_value")
+  
+  // Tracking
+  lastRestockDate DateTime? @map("last_restock_date")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, organizationId, locationId])
+  @@map("inventory")
 }
 
 model Modifier {
@@ -205,8 +273,9 @@ model ProductModifier {
 }
 
 model Recipe {
-  id        String @id @default(cuid())
-  productId String @map("product_id")
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  productId      String @map("product_id")
 
   name         String
   description  String?
@@ -215,9 +284,15 @@ model Recipe {
   yieldUnit    String  @default("unit") @map("yield_unit")
 
   // Preparation details
-  prepTime  Int?     @map("prep_time") // seconds
+  prepTime  Int?     @map("prep_time") // minutes
   allergens String[] // JSON array
   videoUrl  String?  @map("video_url")
+
+  // 🆕 Costing and POS readiness
+  totalCost       Float        @default(0) @map("total_cost") // Auto-calculated from ingredients
+  costingStatus   CostingStatus @default(PENDING) @map("costing_status") // PENDING, PARTIAL, COMPLETE
+  readyForPos     Boolean      @default(false) @map("ready_for_pos") // Manual approval
+  lastCostedAt    DateTime?    @map("last_costed_at")
 
   version   Int      @default(1)
   active    Boolean  @default(true)
@@ -225,17 +300,19 @@ model Recipe {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  product     Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
-  ingredients RecipeIngredient[]
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product      Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ingredients  RecipeIngredient[]
 
   @@map("recipes")
 }
 
 model InventoryItem {
-  id          String  @id @default(cuid())
-  code        String  @unique
-  name        String
-  description String?
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  code           String
+  name           String
+  description    String?
 
   // Units and costing
   unitOfMeasure String @map("unit_of_measure") // ml, g, unit, kg, l
@@ -249,16 +326,24 @@ model InventoryItem {
   category   String?
   supplierId String? @map("supplier_id")
 
+  // 🆕 Costing status workflow
+  costingStatus CostingStatus @default(PENDING) @map("costing_status")
+  
+  // 🆕 Current stock tracking (aggregated from movements)
+  currentStock Float @default(0) @map("current_stock")
+
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   supplier           Supplier?           @relation(fields: [supplierId], references: [id])
   recipeIngredients  RecipeIngredient[]
   inventoryMovements InventoryMovement[]
   goodsReceipts      GoodsReceipt[]
 
+  @@unique([code, organizationId])
   @@map("inventory_items")
 }
 
@@ -270,6 +355,14 @@ model RecipeIngredient {
   quantity Float
   unit     String
   notes    String?
+  
+  // 🆕 Costing tracking per ingredient
+  unitCost    Float?    @map("unit_cost") // Cost at time of recipe creation
+  totalCost   Float?    @map("total_cost") // quantity * unitCost
+  isCosted    Boolean   @default(false) @map("is_costed")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   recipe        Recipe        @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
@@ -308,12 +401,13 @@ model InventoryMovement {
 }
 
 model Supplier {
-  id          String  @id @default(cuid())
-  name        String
-  contactName String? @map("contact_name")
-  email       String?
-  phone       String?
-  address     String?
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  name           String
+  contactName    String? @map("contact_name")
+  email          String?
+  phone          String?
+  address        String?
 
   // Terms
   paymentTerms String? @map("payment_terms")
@@ -324,6 +418,7 @@ model Supplier {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   inventoryItems InventoryItem[]
   purchaseOrders PurchaseOrder[]
 
@@ -429,6 +524,7 @@ model Ticket {
   lines    TicketLine[]
   payments Payment[]
   invoices InvoiceCfdi[]
+  orders   Order[]       // Kitchen orders for this ticket
 
   @@map("tickets")
 }
@@ -473,6 +569,7 @@ model Payment {
 
   method PaymentMethod
   amount Float
+  status PaymentStatus @default(PENDING)
 
   // Payment processor data
   reference     String?
@@ -481,7 +578,7 @@ model Payment {
   processedAt DateTime @default(now()) @map("processed_at")
 
   // Relations
-  ticket Ticket @relation(fields: [ticketId], references: [id])
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@map("payments")
 }
@@ -491,35 +588,181 @@ model Payment {
 // ========================================
 
 model Customer {
-  id    String  @id @default(cuid())
-  email String? @unique
-  phone String? @unique
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
 
-  firstName String?   @map("first_name")
-  lastName  String?   @map("last_name")
-  birthday  DateTime?
+  // Identity
+  email     String?  @unique
+  phone     String?  @unique
+  firstName String?  @map("first_name")
+  lastName  String?  @map("last_name")
+  dateOfBirth DateTime? @map("date_of_birth")
+  gender    String?
+  preferredLanguage String @default("es") @map("preferred_language")
+  notes     String?
 
-  // Loyalty
-  loyaltyPoints Int   @default(0) @map("loyalty_points")
-  totalSpent    Float @default(0) @map("total_spent")
-  visitCount    Int   @default(0) @map("visit_count")
-
-  // RFM Segmentation
-  rfmBucket String?   @map("rfm_bucket")
-  lastVisit DateTime? @map("last_visit")
+  // LFPDPPP Consent (flat for fast queries)
+  consentMarketing Boolean   @default(false) @map("consent_marketing")
+  consentWhatsapp  Boolean   @default(false) @map("consent_whatsapp")
+  consentEmail     Boolean   @default(false) @map("consent_email")
+  consentSms       Boolean   @default(false) @map("consent_sms")
+  consentDate      DateTime? @map("consent_date")
+  consentIpAddress String?   @map("consent_ip_address")
 
   // Preferences
-  preferences Json?
+  favoriteDrink       String? @map("favorite_drink")
+  dietaryRestrictions String? @map("dietary_restrictions")
+  allergies           String?
+
+  // Status
+  status        CustomerStatus @default(ACTIVE)
+  blockedReason String?        @map("blocked_reason")
+
+  // Loyalty
+  loyaltyPoints Int      @default(0)   @map("loyalty_points")
+  totalVisits   Int      @default(0)   @map("total_visits")
+  totalSpent    Float    @default(0)   @map("total_spent")
+  lastVisitDate DateTime? @map("last_visit_date")
+
+  // RFM Segmentation (stored for query performance)
+  rfmSegment     String? @map("rfm_segment")
+  recencyScore   Int?    @map("recency_score")
+  frequencyScore Int?    @map("frequency_score")
+  monetaryScore  Int?    @map("monetary_score")
 
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  tickets  Ticket[]
-  consents Consent[]
+  organization         Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tickets              Ticket[]
+  consents             Consent[]
+  loyaltyTransactions  LoyaltyTransaction[]
+  campaignRecipients   CampaignRecipient[]
 
   @@map("customers")
+}
+
+// ========================================
+// LOYALTY
+// ========================================
+
+model LoyaltyTransaction {
+  id             String                 @id @default(cuid())
+  customerId     String                 @map("customer_id")
+  organizationId String                 @map("organization_id")
+  type           LoyaltyTransactionType
+  points         Int
+  orderId        String?                @map("order_id")
+  orderTotal     Float?                 @map("order_total")
+  rewardId       String?                @map("reward_id")
+  description    String?
+  processedByUserId String?             @map("processed_by_user_id")
+  balanceAfter   Int                    @map("balance_after")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  customer Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  reward   LoyaltyReward? @relation(fields: [rewardId], references: [id])
+
+  @@map("loyalty_transactions")
+}
+
+model LoyaltyReward {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  name           String
+  description    String?
+  pointsRequired Int     @map("points_required")
+  isActive       Boolean @default(true) @map("is_active")
+  rewardType     String  @map("reward_type") // FREE_ITEM | DISCOUNT_PERCENT | DISCOUNT_AMOUNT
+  rewardValue    Float?  @map("reward_value")
+  rewardItemId   String? @map("reward_item_id")
+  expiryDays     Int?    @map("expiry_days")
+  maxRedemptionsPerCustomer Int? @map("max_redemptions_per_customer")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  transactions LoyaltyTransaction[]
+
+  @@map("loyalty_rewards")
+}
+
+// ========================================
+// CAMPAIGNS
+// ========================================
+
+model Campaign {
+  id             String          @id @default(cuid())
+  organizationId String          @map("organization_id")
+  name           String
+  description    String?
+  type           CampaignType
+  status         CampaignStatus  @default(DRAFT)
+  channels       String[]        // stored as array of CampaignChannel strings
+  segmentId      String?         @map("segment_id")
+  startDate      DateTime?       @map("start_date")
+  endDate        DateTime?       @map("end_date")
+  isAutomated    Boolean         @default(false) @map("is_automated")
+
+  // Message content
+  emailSubject         String? @map("email_subject")
+  emailBody            String? @map("email_body")
+  whatsappTemplateId   String? @map("whatsapp_template_id")
+  smsMessage           String? @map("sms_message")
+  pushTitle            String? @map("push_title")
+  pushBody             String? @map("push_body")
+
+  // Offer/discount
+  offerCode             String? @map("offer_code")
+  offerDescription      String? @map("offer_description")
+  offerDiscountPercent  Float?  @map("offer_discount_percent")
+  offerDiscountAmount   Float?  @map("offer_discount_amount")
+
+  // Metrics (denormalized for fast queries)
+  totalRecipients   Int @default(0) @map("total_recipients")
+  sentCount         Int @default(0) @map("sent_count")
+  deliveredCount    Int @default(0) @map("delivered_count")
+  openedCount       Int @default(0) @map("opened_count")
+  clickedCount      Int @default(0) @map("clicked_count")
+  convertedCount    Int @default(0) @map("converted_count")
+  unsubscribedCount Int @default(0) @map("unsubscribed_count")
+
+  createdByUserId String? @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  recipients CampaignRecipient[]
+
+  @@map("campaigns")
+}
+
+model CampaignRecipient {
+  id         String   @id @default(cuid())
+  campaignId String   @map("campaign_id")
+  customerId String   @map("customer_id")
+  channel    String   // CampaignChannel string
+
+  sentAt          DateTime? @map("sent_at")
+  deliveredAt     DateTime? @map("delivered_at")
+  openedAt        DateTime? @map("opened_at")
+  clickedAt       DateTime? @map("clicked_at")
+  convertedAt     DateTime? @map("converted_at")
+  unsubscribedAt  DateTime? @map("unsubscribed_at")
+  errorMessage    String?   @map("error_message")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("campaign_recipients")
 }
 
 model Consent {
@@ -751,10 +994,10 @@ model InvoiceCfdi {
 // ========================================
 
 model Order {
-  id           String  @id @default(cuid())
-  locationId   String  @map("location_id")
-  ticketId     String? @map("ticket_id")
-  userId       String  @map("user_id")
+  id           String @id @default(cuid())
+  locationId   String @map("location_id")
+  ticketId     String @map("ticket_id")
+  userId       String @map("user_id")
   assignedToId String? @map("assigned_to_id")
 
   orderNumber String        @unique @map("order_number")
@@ -785,11 +1028,13 @@ model Order {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  items OrderItem[]
+  ticket Ticket      @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  items  OrderItem[]
 
   @@index([locationId])
   @@index([status])
   @@index([orderedAt])
+  @@index([ticketId])
   @@map("orders")
 }
 
@@ -904,9 +1149,15 @@ model Shift {
 
   // Cash float
   openingFloat Float  @map("opening_float")
+  openingCash  Float  @map("opening_cash") // Alias for compatibility
+  closingCash  Float? @map("closing_cash")
   expectedCash Float? @map("expected_cash")
   countedCash  Float? @map("counted_cash")
   variance     Float? // countedCash - expectedCash
+  
+  // Totals
+  totalExpected Float? @map("total_expected")
+  totalClosing  Float? @map("total_closing")
 
   // Notes
   openingNotes String? @map("opening_notes")
@@ -998,6 +1249,34 @@ model CashExpense {
 // ENUMS
 // ========================================
 
+enum ProductType {
+  SIMPLE
+  VARIABLE
+  BUNDLE
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  DRAFT
+  ARCHIVED
+}
+
+enum PricingStrategy {
+  FIXED
+  DYNAMIC
+  COST_PLUS
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELED
+}
+
 enum OrderType {
   DINE_IN
   TAKE_OUT
@@ -1009,6 +1288,7 @@ enum OrderStatus {
   IN_PROGRESS
   READY
   SERVED
+  COMPLETED
   CANCELLED
 }
 
@@ -1091,6 +1371,12 @@ enum ConsentType {
   COOKIES
 }
 
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
 enum ChecklistScope {
   OPENING
   CLOSING
@@ -1140,4 +1426,36 @@ enum InvoiceStatus {
   PAID
   CANCELED
   ERROR
+}
+
+enum CostingStatus {
+  PENDING    // Ingredient created, no cost assigned
+  PARTIAL    // Some ingredients costed, some pending
+  COMPLETE   // All ingredients have costs
+}
+
+enum LoyaltyTransactionType {
+  EARN
+  REDEEM
+  ADJUST
+  EXPIRE
+  BONUS
+}
+
+enum CampaignType {
+  BIRTHDAY
+  WELCOME
+  WINBACK
+  PROMOTIONAL
+  LOYALTY_MILESTONE
+  NPS
+  CUSTOM
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
 }
