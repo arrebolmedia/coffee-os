@@ -89,18 +89,22 @@
   "customCommands": [
     {
       "name": "test",
+      "description": "Generate comprehensive unit tests with Jest",
       "prompt": "Write comprehensive unit tests for the selected code using Jest. Follow these guidelines:\n- Use describe/it blocks\n- Mock external dependencies\n- Cover edge cases\n- Aim for >90% coverage\n- Use TypeScript types\n\nCode: {{{ input }}}"
     },
     {
       "name": "nestjs",
+      "description": "Get expert NestJS development help",
       "prompt": "You are an expert NestJS developer. Help me with this NestJS-related question or code. Follow NestJS best practices:\n- Use dependency injection\n- Implement proper DTOs with class-validator\n- Use Guards for authentication\n- Implement proper exception filters\n- Follow module structure\n\nQuestion: {{{ input }}}"
     },
     {
       "name": "nextjs",
+      "description": "Get expert Next.js 13+ development help",
       "prompt": "You are an expert Next.js 13+ developer. Help me with this Next.js question or code. Follow Next.js App Router best practices:\n- Use Server Components by default\n- Client Components only when needed (add 'use client')\n- Implement proper loading and error states\n- Use TypeScript strictly\n- Follow accessibility standards\n\nQuestion: {{{ input }}}"
     },
     {
       "name": "prisma",
+      "description": "Get expert Prisma ORM development help",
       "prompt": "You are an expert Prisma ORM developer. Help me with this Prisma-related question. Follow best practices:\n- Use transactions for multiple operations\n- Implement proper error handling\n- Use select to optimize queries\n- Consider N+1 query problems\n- Use proper indexes\n\nQuestion: {{{ input }}}"
     }
   ],

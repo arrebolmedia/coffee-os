@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -143,7 +143,7 @@ async function main() {
 
   const owner = await prisma.user.upsert({
     where: { email: 'owner@coffeedemo.mx' },
-    update: { isSuperAdmin: true }, // Ensure super admin flag is set
+    update: {},
     create: {
       email: 'owner@coffeedemo.mx',
       password: passwordHash,
@@ -152,7 +152,6 @@ async function main() {
       organizationId: org.id,
       roleId: ownerRole!.id,
       emailVerified: new Date(),
-      isSuperAdmin: true, // Mark as super admin
     },
   });
 
@@ -212,7 +211,6 @@ async function main() {
       data: {
         ...cat,
         sortOrder: categories.indexOf(cat),
-        organizationId: org.id,
       },
     });
     createdCategories.push(category);
@@ -229,7 +227,7 @@ async function main() {
       price: 35,
       categoryId: createdCategories[0].id,
       image: '/products/espresso.jpg',
-      isFeatured: true,
+      featured: true,
     },
     {
       sku: 'ESP-002',
@@ -237,7 +235,7 @@ async function main() {
       price: 45,
       categoryId: createdCategories[0].id,
       image: '/products/americano.jpg',
-      isFeatured: true,
+      featured: true,
     },
     {
       sku: 'ESP-003',
@@ -245,7 +243,7 @@ async function main() {
       price: 55,
       categoryId: createdCategories[0].id,
       image: '/products/capuccino.jpg',
-      isFeatured: true,
+      featured: true,
     },
     {
       sku: 'ESP-004',
@@ -253,7 +251,6 @@ async function main() {
       price: 55,
       categoryId: createdCategories[0].id,
       image: '/products/latte.jpg',
-      isFeatured: false,
     },
     {
       sku: 'FIL-001',
@@ -261,7 +258,7 @@ async function main() {
       price: 65,
       categoryId: createdCategories[1].id,
       image: '/products/chemex.jpg',
-      isFeatured: true,
+      featured: true,
     },
     {
       sku: 'FIL-002',
@@ -269,7 +266,6 @@ async function main() {
       price: 65,
       categoryId: createdCategories[1].id,
       image: '/products/v60.jpg',
-      isFeatured: false,
     },
     {
       sku: 'COL-001',
@@ -277,7 +273,7 @@ async function main() {
       price: 55,
       categoryId: createdCategories[2].id,
       image: '/products/cold-brew.jpg',
-      isFeatured: true,
+      featured: true,
     },
     {
       sku: 'COL-002',
@@ -285,7 +281,6 @@ async function main() {
       price: 60,
       categoryId: createdCategories[2].id,
       image: '/products/iced-latte.jpg',
-      isFeatured: false,
     },
     {
       sku: 'PAS-001',
@@ -293,7 +288,6 @@ async function main() {
       price: 35,
       categoryId: createdCategories[3].id,
       image: '/products/croissant.jpg',
-      isFeatured: false,
     },
     {
       sku: 'PAS-002',
@@ -301,7 +295,6 @@ async function main() {
       price: 40,
       categoryId: createdCategories[3].id,
       image: '/products/pain-chocolat.jpg',
-      isFeatured: false,
     },
     {
       sku: 'SAN-001',
@@ -309,18 +302,14 @@ async function main() {
       price: 65,
       categoryId: createdCategories[4].id,
       image: '/products/sandwich-jamon.jpg',
-      isFeatured: false,
     },
   ];
 
   for (const prod of products) {
-    await prisma.product.upsert({
-      where: { sku: prod.sku },
-      update: {},
-      create: {
+    await prisma.product.create({
+      data: {
         ...prod,
         taxRate: 0.16,
-        organizationId: org.id,
       },
     });
   }
@@ -330,9 +319,6 @@ async function main() {
   // 7. Crear modificadores
   console.log('🔧 Creating modifiers...');
 
-  // TODO: ModifierGroup model no existe en schema.prisma
-  // Descomentar cuando se implemente el modelo completo de modifiers
-  /*
   // Grupo de leches
   const milkGroup = await prisma.modifierGroup.create({
     data: {
@@ -420,325 +406,8 @@ async function main() {
       },
     });
   }
-  */
 
-  console.log('✅ Modifiers created (skipped - ModifierGroup not in schema)');
-
-  // 8. Crear proveedores demo
-  console.log('📦 Creating demo suppliers...');
-  const suppliers = [
-    {
-      name: 'Café Tostadores Premium',
-      contactName: 'Carlos Rodríguez',
-      email: 'ventas@tostadorespremium.mx',
-      phone: '55-1234-5678',
-      address: 'Av. Reforma 123, Ciudad de México, CDMX 06600',
-      paymentTerms: '30 días',
-      leadTime: 3,
-      active: true,
-    },
-    {
-      name: 'Lácteos del Valle',
-      contactName: 'María González',
-      email: 'pedidos@lacteosdelva lle.mx',
-      phone: '55-2345-6789',
-      address: 'Calle Industria 45, Toluca, EDOMEX 50000',
-      paymentTerms: '15 días',
-      leadTime: 1,
-      active: true,
-    },
-    {
-      name: 'Panadería Artesanal',
-      contactName: 'Juan Pérez',
-      email: 'contacto@panartesanal.mx',
-      phone: '55-3456-7890',
-      address: 'Calle Hornos 89, Ciudad de México, CDMX 03100',
-      paymentTerms: 'Contado',
-      leadTime: 1,
-      active: true,
-    },
-  ];
-
-  for (const supplier of suppliers) {
-    await prisma.supplier.create({
-      data: {
-        ...supplier,
-        organizationId: org.id,
-      },
-    });
-  }
-
-  console.log('✅ Suppliers created');
-
-  // 9. Crear items de inventario
-  console.log('📦 Creating inventory items...');
-  const inventoryItems = [
-    {
-      code: 'INV-001',
-      name: 'Café en Grano Premium',
-      description: 'Café arábica 100%, origen Colombia',
-      unitOfMeasure: 'kg',
-      costPerUnit: 280,
-      parLevel: 50,
-      reorderPoint: 20,
-      category: 'COFFEE_BEANS',
-      active: true,
-    },
-    {
-      code: 'INV-002',
-      name: 'Leche Entera',
-      description: 'Leche entera pasteurizada',
-      unitOfMeasure: 'l',
-      costPerUnit: 18,
-      parLevel: 100,
-      reorderPoint: 40,
-      category: 'DAIRY',
-      active: true,
-    },
-    {
-      code: 'INV-003',
-      name: 'Azúcar Blanca',
-      description: 'Azúcar refinada',
-      unitOfMeasure: 'kg',
-      costPerUnit: 22,
-      parLevel: 30,
-      reorderPoint: 10,
-      category: 'SWEETENERS',
-      active: true,
-    },
-    {
-      code: 'INV-004',
-      name: 'Jarabe Vainilla',
-      description: 'Jarabe sabor vainilla',
-      unitOfMeasure: 'ml',
-      costPerUnit: 0.12,
-      parLevel: 5000,
-      reorderPoint: 2000,
-      category: 'SYRUPS',
-      active: true,
-    },
-    {
-      code: 'INV-005',
-      name: 'Crema Batida',
-      description: 'Crema para batir',
-      unitOfMeasure: 'ml',
-      costPerUnit: 0.08,
-      parLevel: 10000,
-      reorderPoint: 3000,
-      category: 'DAIRY',
-      active: true,
-    },
-  ];
-
-  const createdInventoryItems = [];
-  for (const item of inventoryItems) {
-    const created = await prisma.inventoryItem.upsert({
-      where: {
-        code_organizationId: {
-          code: item.code,
-          organizationId: org.id,
-        },
-      },
-      update: {},
-      create: {
-        ...item,
-        organizationId: org.id,
-      },
-    });
-    createdInventoryItems.push(created);
-  }
-  console.log('✅ Inventory items created');
-
-  // 10. Crear recetas
-  console.log('📝 Creating recipes...');
-
-  // Buscar productos para asociar recetas
-  const espresso = await prisma.product.findFirst({
-    where: { sku: 'ESP-001' },
-  });
-  const americano = await prisma.product.findFirst({
-    where: { sku: 'ESP-002' },
-  });
-  const cappuccino = await prisma.product.findFirst({
-    where: { sku: 'ESP-003' },
-  });
-  const latte = await prisma.product.findFirst({
-    where: { sku: 'ESP-004' },
-  });
-
-  if (espresso) {
-    const espressoRecipe = await prisma.recipe.create({
-      data: {
-        organizationId: org.id,
-        productId: espresso.id,
-        name: 'Espresso Clásico',
-        description: 'Shot doble de espresso',
-        instructions:
-          '1. Moler 18g de café\n2. Prensar con 30 lbs de presión\n3. Extraer 36ml en 25-30 segundos',
-        yield: 1,
-        yieldUnit: 'serving',
-        prepTime: 60,
-        allergens: [],
-        version: 1,
-        active: true,
-      },
-    });
-
-    await prisma.recipeIngredient.create({
-      data: {
-        recipeId: espressoRecipe.id,
-        inventoryItemId: createdInventoryItems[0].id,
-        quantity: 0.018,
-        unit: 'kg',
-        notes: 'Molienda fina',
-      },
-    });
-  }
-
-  if (americano) {
-    const americanoRecipe = await prisma.recipe.create({
-      data: {
-        organizationId: org.id,
-        productId: americano.id,
-        name: 'Americano Tradicional',
-        description: 'Espresso con agua caliente',
-        instructions:
-          '1. Preparar espresso doble\n2. Agregar 180ml de agua caliente\n3. Servir inmediatamente',
-        yield: 1,
-        yieldUnit: 'serving',
-        prepTime: 90,
-        allergens: [],
-        version: 1,
-        active: true,
-      },
-    });
-
-    await prisma.recipeIngredient.create({
-      data: {
-        recipeId: americanoRecipe.id,
-        inventoryItemId: createdInventoryItems[0].id,
-        quantity: 0.018,
-        unit: 'kg',
-        notes: 'Shot doble',
-      },
-    });
-  }
-
-  if (latte) {
-    const latteRecipe = await prisma.recipe.create({
-      data: {
-        organizationId: org.id,
-        productId: latte.id,
-        name: 'Latte Cremoso',
-        description: 'Espresso con leche vaporizada',
-        instructions:
-          '1. Preparar espresso doble\n2. Vaporizar 240ml de leche a 65°C\n3. Verter leche creando arte latte\n4. Opcional: agregar jarabe',
-        yield: 1,
-        yieldUnit: 'serving',
-        prepTime: 120,
-        allergens: ['dairy'],
-        version: 1,
-        active: true,
-      },
-    });
-
-    await prisma.recipeIngredient.createMany({
-      data: [
-        {
-          recipeId: latteRecipe.id,
-          inventoryItemId: createdInventoryItems[0].id,
-          quantity: 0.018,
-          unit: 'kg',
-          notes: 'Shot doble',
-        },
-        {
-          recipeId: latteRecipe.id,
-          inventoryItemId: createdInventoryItems[1].id,
-          quantity: 0.24,
-          unit: 'l',
-          notes: 'Leche vaporizada',
-        },
-      ],
-    });
-  }
-
-  if (cappuccino) {
-    const cappuccinoRecipe = await prisma.recipe.create({
-      data: {
-        organizationId: org.id,
-        productId: cappuccino.id,
-        name: 'Cappuccino Italiano',
-        description: 'Espresso con leche y espuma',
-        instructions:
-          '1. Preparar espresso doble\n2. Vaporizar 120ml de leche\n3. Crear microespuma abundante\n4. Verter en tercios: espresso, leche, espuma\n5. Espolvorear canela opcional',
-        yield: 1,
-        yieldUnit: 'serving',
-        prepTime: 120,
-        allergens: ['dairy'],
-        version: 1,
-        active: true,
-      },
-    });
-
-    await prisma.recipeIngredient.createMany({
-      data: [
-        {
-          recipeId: cappuccinoRecipe.id,
-          inventoryItemId: createdInventoryItems[0].id,
-          quantity: 0.018,
-          unit: 'kg',
-          notes: 'Shot doble',
-        },
-        {
-          recipeId: cappuccinoRecipe.id,
-          inventoryItemId: createdInventoryItems[1].id,
-          quantity: 0.12,
-          unit: 'l',
-          notes: 'Leche para espuma',
-        },
-      ],
-    });
-  }
-
-  console.log('✅ Recipes created');
-
-  // 11. Crear registros de inventario para productos
-  console.log('📦 Creating product inventory records...');
-
-  // Obtener todos los productos creados
-  const allProducts = await prisma.product.findMany({
-    where: { organizationId: org.id },
-  });
-
-  // Crear inventario para cada producto en la ubicación demo
-  for (const product of allProducts) {
-    const currentStock = Math.floor(Math.random() * 50) + 10;
-    const unitCost = product.cost || product.price * 0.3;
-
-    await prisma.inventory.upsert({
-      where: {
-        productId_organizationId_locationId: {
-          productId: product.id,
-          organizationId: org.id,
-          locationId: location.id,
-        },
-      },
-      update: {},
-      create: {
-        productId: product.id,
-        organizationId: org.id,
-        locationId: location.id,
-        currentStock: currentStock,
-        minStock: 5,
-        maxStock: 100,
-        reorderPoint: 15,
-        unitCost: unitCost,
-        totalValue: currentStock * unitCost,
-      },
-    });
-  }
-
-  console.log('✅ Product inventory records created');
+  console.log('✅ Modifiers created');
 
   console.log('');
   console.log('🎉 Database seeded successfully!');
