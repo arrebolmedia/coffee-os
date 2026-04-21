@@ -56,19 +56,32 @@ export class InventoryMovementsService {
       }
     }
 
-    return this.prisma.inventoryMovement.create({
-      data: createInventoryMovementDto,
+    // Map DTO to schema fields
+    const created = await this.prisma.inventoryMovement.create({
+      data: {
+        locationId: createInventoryMovementDto.location || 'default-loc', // Schema needs locationId
+        inventoryItemId: createInventoryMovementDto.inventoryItemId,
+        type: createInventoryMovementDto.type,
+        quantity: createInventoryMovementDto.quantity,
+        unitCost: createInventoryMovementDto.unitCost,
+        reason: createInventoryMovementDto.reason,
+        reference: createInventoryMovementDto.referenceNumber,
+        notes: createInventoryMovementDto.notes,
+      },
       include: {
         inventoryItem: {
           select: {
             id: true,
             name: true,
-            sku: true,
-            currentStock: true,
+            code: true,
           },
         },
       },
     });
+
+    // Attach computed currentStock
+    const currentStock = await this.getCurrentStock(createInventoryMovementDto.inventoryItemId);
+    return { ...created, inventoryItem: { ...created.inventoryItem, currentStock } };
   }
 
   async findAll(query: QueryInventoryMovementsDto) {
@@ -98,8 +111,7 @@ export class InventoryMovementsService {
             select: {
               id: true,
               name: true,
-              sku: true,
-              currentStock: true,
+              code: true,
             },
           },
         },
@@ -122,14 +134,13 @@ export class InventoryMovementsService {
     return this.prisma.inventoryMovement.findMany({
       where: { type: type as MovementType },
       include: {
-        inventoryItem: {
-          select: {
-            id: true,
-            name: true,
-            sku: true,
-            currentStock: true,
+          inventoryItem: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
           },
-        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -145,8 +156,7 @@ export class InventoryMovementsService {
           select: {
             id: true,
             name: true,
-            sku: true,
-            currentStock: true,
+            code: true,
           },
         },
       },
@@ -173,8 +183,7 @@ export class InventoryMovementsService {
           select: {
             id: true,
             name: true,
-            sku: true,
-            currentStock: true,
+            code: true,
           },
         },
       },
@@ -211,20 +220,31 @@ export class InventoryMovementsService {
       throw new NotFoundException(`Inventory movement with ID ${id} not found`);
     }
 
-    return this.prisma.inventoryMovement.update({
+    // Map DTO to schema fields
+    const updateData: any = {};
+    if (updateInventoryMovementDto.type) updateData.type = updateInventoryMovementDto.type;
+    if (updateInventoryMovementDto.quantity !== undefined) updateData.quantity = updateInventoryMovementDto.quantity;
+    if (updateInventoryMovementDto.unitCost !== undefined) updateData.unitCost = updateInventoryMovementDto.unitCost;
+    if (updateInventoryMovementDto.reason) updateData.reason = updateInventoryMovementDto.reason;
+    if (updateInventoryMovementDto.referenceNumber) updateData.reference = updateInventoryMovementDto.referenceNumber;
+    if (updateInventoryMovementDto.notes) updateData.notes = updateInventoryMovementDto.notes;
+
+    const updated = await this.prisma.inventoryMovement.update({
       where: { id },
-      data: updateInventoryMovementDto,
+      data: updateData,
       include: {
         inventoryItem: {
           select: {
             id: true,
             name: true,
-            sku: true,
-            currentStock: true,
+            code: true,
           },
         },
       },
     });
+
+    const currentStock = await this.getCurrentStock(updated.inventoryItemId);
+    return { ...updated, inventoryItem: { ...updated.inventoryItem, currentStock } };
   }
 
   async remove(id: string) {
@@ -242,11 +262,15 @@ export class InventoryMovementsService {
   }
 
   private async getCurrentStock(inventoryItemId: string): Promise<number> {
-    const item = await this.prisma.inventoryItem.findUnique({
-      where: { id: inventoryItemId },
-      select: { currentStock: true },
+    // Sum movements to compute current stock: IN increases, OUT decreases
+    const result = await this.prisma.inventoryMovement.aggregate({
+      where: { inventoryItemId },
+      _sum: {
+        quantity: true,
+      },
     });
 
-    return item?.currentStock || 0;
+    // If there are no movements, stock is 0
+    return result._sum.quantity ?? 0;
   }
 }

@@ -79,6 +79,7 @@ describe('InventoryItemsService', () => {
 
   describe('create', () => {
     const createDto: CreateInventoryItemDto = {
+      organizationId: 'org-1',
       code: 'MILK-WHOLE-001',
       name: 'Whole Milk',
       description: '1 Liter whole milk',
@@ -139,6 +140,7 @@ describe('InventoryItemsService', () => {
 
     it('should create without supplierId', async () => {
       const dtoWithoutSupplier: CreateInventoryItemDto = {
+        organizationId: 'org-1',
         code: 'COFFEE-BEAN-001',
         name: 'Coffee Beans',
         unitOfMeasure: 'g',
@@ -400,7 +402,7 @@ describe('InventoryItemsService', () => {
         mockInventoryItem,
       );
 
-      const result = await service.findByCode('MILK-WHOLE-001');
+      const result = await service.findByCode('MILK-WHOLE-001', 'org-1');
 
       expect(result).toEqual(mockInventoryItem);
     });
@@ -408,7 +410,7 @@ describe('InventoryItemsService', () => {
     it('should throw NotFoundException if item not found', async () => {
       mockPrismaService.inventoryItem.findUnique.mockResolvedValue(null);
 
-      await expect(service.findByCode('NON-EXISTENT')).rejects.toThrow(
+      await expect(service.findByCode('NON-EXISTENT', 'org-1')).rejects.toThrow(
         NotFoundException,
       );
     });

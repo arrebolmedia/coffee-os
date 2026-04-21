@@ -14,11 +14,14 @@ import {
 import { Type } from 'class-transformer';
 
 export enum RecipeCategory {
+  BEBIDAS_FRIAS = 'Bebidas Frías',
+  BEBIDAS_CALIENTES = 'Bebidas Calientes',
+  BEBIDAS_SIN_CAFE = 'Bebidas Sin Café',
+  // Legacy categories (mantener por compatibilidad)
   ESPRESSO = 'espresso',
   FILTRADO = 'filtrado',
   COLD_BREW = 'cold_brew',
   LECHE = 'leche',
-  BEBIDAS_FRIAS = 'bebidas_frias',
   POSTRES = 'postres',
   ALIMENTOS = 'alimentos',
   OTROS = 'otros',
@@ -203,6 +206,10 @@ export class CreateRecipeDto {
   @IsString()
   organization_id: string;
 
+  @IsOptional()
+  @IsString()
+  product_id?: string;
+
   @IsNotEmpty()
   @IsString()
   @Length(1, 200)
@@ -212,6 +219,10 @@ export class CreateRecipeDto {
   @IsString()
   @Length(1, 1000)
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  instructions?: string;
 
   @IsNotEmpty()
   @IsEnum(RecipeCategory)
@@ -229,6 +240,10 @@ export class CreateRecipeDto {
   @IsNumber()
   @Min(1)
   servings: number;
+
+  @IsOptional()
+  @IsString()
+  yield_unit?: string;
 
   @IsOptional()
   @IsNumber()
@@ -276,6 +291,10 @@ export class CreateRecipeDto {
   @IsOptional()
   @IsString()
   image_url?: string;
+
+  @IsOptional()
+  @IsString()
+  video_url?: string;
 
   @IsOptional()
   @IsBoolean()

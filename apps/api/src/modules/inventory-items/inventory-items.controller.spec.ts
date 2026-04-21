@@ -72,6 +72,7 @@ describe('InventoryItemsController', () => {
   describe('create', () => {
     it('should create an inventory item', async () => {
       const createDto: CreateInventoryItemDto = {
+        organizationId: 'org-1',
         code: 'MILK-WHOLE-001',
         name: 'Whole Milk',
         description: '1 Liter whole milk',
@@ -166,12 +167,19 @@ describe('InventoryItemsController', () => {
 
   describe('findByCode', () => {
     it('should return an inventory item by code', async () => {
+      const mockUser = {
+        userId: 'user-1',
+        email: 'test@test.com',
+        name: 'Test User',
+        organizationId: 'org-1',
+      };
+
       mockInventoryItemsService.findByCode.mockResolvedValue(mockInventoryItem);
 
-      const result = await controller.findByCode('MILK-WHOLE-001');
+      const result = await controller.findByCode('MILK-WHOLE-001', mockUser.organizationId);
 
       expect(result).toEqual(mockInventoryItem);
-      expect(service.findByCode).toHaveBeenCalledWith('MILK-WHOLE-001');
+      expect(service.findByCode).toHaveBeenCalledWith('MILK-WHOLE-001', mockUser.organizationId);
     });
   });
 

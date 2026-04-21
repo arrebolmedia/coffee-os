@@ -22,11 +22,11 @@ export class TaxesService {
   }
 
   async findAll(query: QueryTaxesDto) {
-    const { skip, take, isActive, category } = query;
+    const { skip, take, active, category } = query;
 
     const where: any = {};
-    if (isActive !== undefined) where.isActive = isActive;
-    if (category) where.category = category;
+    if (active !== undefined) where.active = active;
+    if (category) where.category = category as TaxCategory;
 
     return this.prisma.tax.findMany({
       where,
@@ -38,14 +38,15 @@ export class TaxesService {
 
   async findActive() {
     return this.prisma.tax.findMany({
-      where: { isActive: true },
+      where: { active: true },
       orderBy: { name: 'asc' },
     });
   }
 
   async findByCategory(category: string) {
+    const where: any = { category: category as TaxCategory };
     return this.prisma.tax.findMany({
-      where: { category },
+      where,
       orderBy: { name: 'asc' },
     });
   }
@@ -82,7 +83,7 @@ export class TaxesService {
   async calculateTax(taxId: string, subtotal: number): Promise<number> {
     const tax = await this.findOne(taxId);
 
-    if (!tax.isActive) {
+    if (!tax.active) {
       return 0;
     }
 
@@ -99,7 +100,7 @@ export class TaxesService {
     const taxes = await this.prisma.tax.findMany({
       where: {
         id: { in: taxIds },
-        isActive: true,
+        active: true,
       },
     });
 

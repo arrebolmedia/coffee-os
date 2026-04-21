@@ -222,7 +222,7 @@ describe('SettingsService', () => {
       );
 
       expect(result).toBeDefined();
-      expect(result.key).toBe('timezone');
+      expect(result!.key).toBe('timezone');
     });
 
     it('should update setting', async () => {
@@ -387,7 +387,7 @@ describe('SettingsService', () => {
       });
 
       expect(updated.validation_rules).toHaveLength(1);
-      expect(updated.validation_rules[0].type).toBe(ValidationRuleType.RANGE);
+      expect(updated.validation_rules![0].type).toBe(ValidationRuleType.RANGE);
     });
 
     it('should validate against REGEX rule', async () => {
@@ -688,7 +688,7 @@ describe('SettingsService', () => {
         SettingCategory.GENERAL,
         'timezone',
       );
-      expect(setting.value).toBe('America/New_York');
+      expect(setting!.value).toBe('America/New_York');
     });
   });
 

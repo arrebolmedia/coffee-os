@@ -16,7 +16,12 @@ export class InventoryItemsService {
   async create(createInventoryItemDto: CreateInventoryItemDto) {
     // Check if code already exists
     const existingItem = await this.prisma.inventoryItem.findUnique({
-      where: { code: createInventoryItemDto.code },
+      where: {
+        code_organizationId: {
+          code: createInventoryItemDto.code,
+          organizationId: createInventoryItemDto.organizationId,
+        },
+      },
     });
 
     if (existingItem) {
@@ -216,9 +221,14 @@ export class InventoryItemsService {
     return item;
   }
 
-  async findByCode(code: string) {
+  async findByCode(code: string, organizationId: string) {
     const item = await this.prisma.inventoryItem.findUnique({
-      where: { code },
+      where: {
+        code_organizationId: {
+          code,
+          organizationId,
+        },
+      },
       include: {
         supplier: true,
       },
@@ -247,7 +257,12 @@ export class InventoryItemsService {
       updateInventoryItemDto.code !== item.code
     ) {
       const existingItem = await this.prisma.inventoryItem.findUnique({
-        where: { code: updateInventoryItemDto.code },
+        where: {
+          code_organizationId: {
+            code: updateInventoryItemDto.code,
+            organizationId: item.organizationId,
+          },
+        },
       });
 
       if (existingItem) {

@@ -9,7 +9,14 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
+import { Public } from '../auth/decorators/public.decorator';
+import {
+  CurrentUser,
+  CurrentUserType,
+} from '../auth/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RecipesService } from './recipes.service';
 import {
   CreateRecipeDto,
@@ -20,11 +27,12 @@ import {
 
 /**
  * Controlador para gestión de recetas y costeo
- * 
+ *
  * Endpoints:
  * - POST / - Crear nueva receta
  * - GET / - Listar recetas con filtros
  * - GET /:id - Obtener receta por ID
+ * - GET /product/:productId - Obtener receta por ID de producto
  * - GET /:id/cost - Calcular costo detallado
  * - POST /:id/scale - Escalar receta a diferentes porciones
  * - PATCH /:id - Actualizar receta
@@ -46,12 +54,25 @@ export class RecipesController {
   }
 
   /**
+   * Obtener categorías disponibles
+   */
+  @Get('categories')
+  @HttpCode(HttpStatus.OK)
+  async getCategories() {
+    return this.recipesService.getCategories();
+  }
+
+  /**
    * Obtener todas las recetas con filtros
    */
+  @UseGuards(JwtAuthGuard)
   @Get()
   @HttpCode(HttpStatus.OK)
-  async findAll(@Query() query: QueryRecipesDto) {
-    return this.recipesService.findAll(query);
+  async findAll(
+    @Query() query: QueryRecipesDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.recipesService.findAll(query, user);
   }
 
   /**
@@ -61,6 +82,16 @@ export class RecipesController {
   @HttpCode(HttpStatus.OK)
   async findById(@Param('id') id: string) {
     return this.recipesService.findById(id);
+  }
+
+  /**
+   * Obtener receta por ID de producto
+   */
+  @Public() // Permitir acceso sin autenticación para desarrollo
+  @Get('product/:productId')
+  @HttpCode(HttpStatus.OK)
+  async findByProductId(@Param('productId') productId: string) {
+    return this.recipesService.findByProductId(productId);
   }
 
   /**
@@ -77,10 +108,7 @@ export class RecipesController {
    */
   @Post(':id/scale')
   @HttpCode(HttpStatus.OK)
-  async scaleRecipe(
-    @Param('id') id: string,
-    @Body() scaleDto: ScaleRecipeDto,
-  ) {
+  async scaleRecipe(@Param('id') id: string, @Body() scaleDto: ScaleRecipeDto) {
     return this.recipesService.scaleRecipe(id, scaleDto);
   }
 

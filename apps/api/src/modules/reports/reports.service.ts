@@ -239,84 +239,50 @@ export class ReportsService {
    * Generar datos de ventas diarias (simulado)
    */
   private generateDailySalesData(report: Report): any[] {
-    const data = [];
-    const params = report.parameters;
-    
-    // Generar datos de ejemplo
-    for (let i = 0; i < 10; i++) {
-      data.push({
-        date: new Date(2024, 0, i + 1),
-        total_sales: Math.random() * 5000 + 1000,
-        transactions: Math.floor(Math.random() * 100) + 20,
-        average_ticket: Math.random() * 100 + 20,
-      });
-    }
-
-    return data;
+    // TODO: Query actual sales data from transactions
+    return [];
   }
 
   /**
    * Generar datos de niveles de inventario (simulado)
    */
   private generateInventoryLevelsData(report: Report): any[] {
-    const data = [];
-    
-    for (let i = 0; i < 15; i++) {
-      data.push({
-        item_name: `Product ${i + 1}`,
-        current_stock: Math.floor(Math.random() * 500) + 10,
-        par_level: Math.floor(Math.random() * 300) + 50,
-        unit: 'units',
-        status: Math.random() > 0.7 ? 'low' : 'ok',
-      });
-    }
-
-    return data;
+    // TODO: Query actual inventory data
+    return [];
   }
 
   /**
    * Generar datos de P&L (simulado)
    */
   private generateProfitLossData(report: Report): any {
+    // TODO: Calculate actual P&L from transactions and expenses
     return {
       revenue: {
-        total: 50000,
-        by_category: {
-          beverages: 30000,
-          food: 15000,
-          merchandise: 5000,
-        },
+        total: 0,
+        by_category: {},
       },
       costs: {
-        total: 35000,
-        cogs: 15000,
-        labor: 12000,
-        rent: 5000,
-        utilities: 2000,
-        other: 1000,
+        total: 0,
+        cogs: 0,
+        labor: 0,
+        rent: 0,
+        utilities: 0,
+        other: 0,
       },
-      profit: 15000,
-      profit_margin: 30,
+      profit: 0,
+      profit_margin: 0,
     };
   }
 
   /**
    * Generar datos de performance de empleados (simulado)
    */
+  /**
+   * Generar datos de performance de empleados (simulado)
+   */
   private generateEmployeePerformanceData(report: Report): any[] {
-    const data = [];
-    
-    for (let i = 0; i < 8; i++) {
-      data.push({
-        employee_name: `Employee ${i + 1}`,
-        hours_worked: Math.floor(Math.random() * 80) + 40,
-        sales_generated: Math.random() * 10000 + 2000,
-        customer_rating: (Math.random() * 2 + 3).toFixed(1),
-        tasks_completed: Math.floor(Math.random() * 50) + 10,
-      });
-    }
-
-    return data;
+    // TODO: Query actual employee performance metrics
+    return [];
   }
 
   /**

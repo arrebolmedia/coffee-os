@@ -12,6 +12,10 @@ import { Type } from 'class-transformer';
 export class CreateInventoryItemDto {
   @IsString()
   @IsNotEmpty()
+  organizationId: string;
+
+  @IsString()
+  @IsNotEmpty()
   @Matches(/^[A-Z0-9-]+$/, {
     message: 'Code must contain only uppercase letters, numbers, and hyphens',
   })

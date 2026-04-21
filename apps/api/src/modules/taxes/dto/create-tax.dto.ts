@@ -49,7 +49,7 @@ export class CreateTaxDto {
   @ApiPropertyOptional({ description: 'Is tax active', default: true })
   @IsOptional()
   @IsBoolean()
-  isActive?: boolean;
+  active?: boolean;
 
   @ApiProperty({ description: 'Organization ID' })
   @IsString()

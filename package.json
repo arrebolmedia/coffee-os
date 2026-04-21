@@ -22,10 +22,13 @@
     "prepare": "husky",
     "validate": "npm run format:check && npm run lint && npm run type-check && npm run test",
     "clean": "turbo run clean && rm -rf node_modules",
+    "db:setup": "pwsh -File ./scripts/setup-database.ps1",
     "db:migrate": "cd packages/database && npx prisma migrate dev",
+    "db:migrate:deploy": "cd packages/database && npx prisma migrate deploy",
     "db:generate": "cd packages/database && npx prisma generate",
-    "db:seed": "cd packages/database && npx tsx seed.ts",
+    "db:seed": "cd packages/database && npx tsx seed-simple.ts",
     "db:studio": "cd packages/database && npx prisma studio",
+    "db:reset": "cd packages/database && npx prisma migrate reset",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
@@ -66,6 +69,5 @@
     "react-native"
   ],
   "license": "MIT",
-  "author": "CoffeeOS Team",
-  "packageManager": "npm@9.8.1"
+  "author": "CoffeeOS Team"
 }

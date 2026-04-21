@@ -12,12 +12,15 @@ import {
 export interface Recipe {
   id: string;
   organization_id: string;
+  product_id?: string; // ID del producto asociado
   name: string;
   description?: string;
+  instructions?: string; // Instrucciones de preparación
   category: RecipeCategory;
   preparation_method?: PreparationMethod;
   difficulty?: DifficultyLevel;
   servings: number;
+  yield_unit?: string; // Unidad de medida del rendimiento (unit, serving, ml, etc.)
   serving_size_ml?: number;
   ingredients: RecipeIngredient[];
   steps?: RecipeStep[];
@@ -27,6 +30,7 @@ export interface Recipe {
   estimated_time_minutes?: number;
   target_margin_percentage?: number;
   image_url?: string;
+  video_url?: string; // URL del video de preparación
   is_active: boolean;
   notes?: string;
 

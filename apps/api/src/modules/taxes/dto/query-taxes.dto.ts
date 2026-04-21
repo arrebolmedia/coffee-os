@@ -21,7 +21,7 @@ export class QueryTaxesDto {
   @IsOptional()
   @Type(() => Boolean)
   @IsBoolean()
-  isActive?: boolean;
+  active?: boolean;
 
   @ApiPropertyOptional({ description: 'Filter by tax category' })
   @IsOptional()

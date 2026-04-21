@@ -51,8 +51,11 @@ export class InventoryItemsController {
   }
 
   @Get('code/:code')
-  async findByCode(@Param('code') code: string) {
-    return this.inventoryItemsService.findByCode(code);
+  async findByCode(
+    @Param('code') code: string,
+    @Query('organizationId') organizationId: string,
+  ) {
+    return this.inventoryItemsService.findByCode(code, organizationId);
   }
 
   @Put(':id')

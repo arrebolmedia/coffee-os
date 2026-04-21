@@ -97,14 +97,21 @@ describe('RecipesController', () => {
         organization_id: 'org-1',
       };
 
+      const mockUser = {
+        userId: 'user-1',
+        email: 'test@test.com',
+        name: 'Test User',
+        organizationId: 'org-1',
+      };
+
       const recipes = [mockRecipe];
 
       mockRecipesService.findAll.mockResolvedValue(recipes);
 
-      const result = await controller.findAll(query);
+      const result = await controller.findAll(query, mockUser);
 
       expect(result).toEqual(recipes);
-      expect(service.findAll).toHaveBeenCalledWith(query);
+      expect(service.findAll).toHaveBeenCalledWith(query, mockUser);
     });
   });
 

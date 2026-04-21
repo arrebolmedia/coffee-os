@@ -17,7 +17,7 @@ import {
 
 export class QueryRecipesDto {
   @IsOptional()
-  @IsUUID()
+  @IsString()
   organization_id?: string;
 
   @IsOptional()

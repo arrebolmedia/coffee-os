@@ -116,7 +116,7 @@ describe('OnboardingService', () => {
 
       const result = await service.findOne(plan.id);
 
-      expect(result.completion_percentage).toBe(50);
+      expect(result!.completion_percentage).toBe(50);
     });
   });
 

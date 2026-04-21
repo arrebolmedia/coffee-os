@@ -76,14 +76,14 @@ describe('TaxesService', () => {
     });
 
     it('should filter by active status', async () => {
-      const query = { isActive: true };
+      const query = { active: true }; // DTO field is 'active', not 'isActive'
 
       mockPrismaService.tax.findMany.mockResolvedValue([]);
 
       await service.findAll(query);
 
       expect(prisma.tax.findMany).toHaveBeenCalledWith({
-        where: { isActive: true },
+        where: { active: true },
         skip: undefined,
         take: undefined,
         orderBy: { name: 'asc' },
@@ -116,7 +116,7 @@ describe('TaxesService', () => {
 
       expect(result).toEqual(taxes);
       expect(prisma.tax.findMany).toHaveBeenCalledWith({
-        where: { isActive: true },
+        where: { active: true },
         orderBy: { name: 'asc' },
       });
     });
@@ -213,7 +213,7 @@ describe('TaxesService', () => {
       const tax = {
         id: '1',
         rate: 16,
-        isActive: true,
+        active: true,
       };
 
       mockPrismaService.tax.findUnique.mockResolvedValue(tax);
@@ -227,7 +227,7 @@ describe('TaxesService', () => {
       const tax = {
         id: '1',
         rate: 16,
-        isActive: false,
+        active: false,
       };
 
       mockPrismaService.tax.findUnique.mockResolvedValue(tax);
@@ -241,8 +241,8 @@ describe('TaxesService', () => {
   describe('calculateMultipleTaxes', () => {
     it('should calculate multiple taxes', async () => {
       const taxes = [
-        { id: '1', rate: 16, isActive: true },
-        { id: '2', rate: 8, isActive: true },
+        { id: "1", rate: 16, active: true },
+        { id: "2", rate: 8, active: true },
       ];
 
       mockPrismaService.tax.findMany.mockResolvedValue(taxes);
@@ -256,7 +256,7 @@ describe('TaxesService', () => {
     });
 
     it('should only calculate active taxes', async () => {
-      const taxes = [{ id: '1', rate: 16, isActive: true }];
+      const taxes = [{ id: "1", rate: 16, active: true }];
 
       mockPrismaService.tax.findMany.mockResolvedValue(taxes);
 

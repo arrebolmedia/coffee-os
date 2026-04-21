@@ -159,8 +159,8 @@ describe('TwilioService', () => {
       const status = await service.getMessageStatus(sentMessage.sid);
 
       expect(status).toBeDefined();
-      expect(status.sid).toBe(sentMessage.sid);
-      expect(status.status).toBe('sent');
+      expect(status!.sid).toBe(sentMessage.sid);
+      expect(status!.status).toBe('sent');
     });
 
     it('should return null for non-existent message', async () => {

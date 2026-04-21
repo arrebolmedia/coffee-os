@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SuppliersService } from '../suppliers.service';
+import { PrismaService } from '../../database/prisma.service';
 import {
   SupplierStatus,
   PaymentTerms,
@@ -36,9 +37,26 @@ describe('SuppliersService', () => {
     notes: 'Proveedor principal de café',
   };
 
+  // The service uses a try/catch hybrid: tries Prisma first, falls back to in-memory Map.
+  // We simulate DB unavailability so tests exercise the Map path (unit test behavior).
+  const mockPrismaService = {
+    supplier: {
+      findMany: jest.fn().mockRejectedValue(new Error('DB not available in unit tests')),
+      findFirst: jest.fn().mockRejectedValue(new Error('DB not available in unit tests')),
+      findUnique: jest.fn().mockRejectedValue(new Error('DB not available in unit tests')),
+      create: jest.fn().mockRejectedValue(new Error('DB not available in unit tests')),
+      update: jest.fn().mockRejectedValue(new Error('DB not available in unit tests')),
+      delete: jest.fn().mockRejectedValue(new Error('DB not available in unit tests')),
+      count: jest.fn().mockRejectedValue(new Error('DB not available in unit tests')),
+    },
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [SuppliersService],
+      providers: [
+        SuppliersService,
+        { provide: PrismaService, useValue: mockPrismaService },
+      ],
     }).compile();
 
     service = module.get<SuppliersService>(SuppliersService);

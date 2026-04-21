@@ -4,6 +4,7 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
+import { PrismaService } from '../database/prisma.service';
 import { CreateSupplierDto, SupplierStatus } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 import { QuerySuppliersDto } from './dto/query-suppliers.dto';
@@ -12,6 +13,8 @@ import { Supplier, SupplierStats } from './interfaces';
 @Injectable()
 export class SuppliersService {
   private readonly suppliers = new Map<string, Supplier>();
+
+  constructor(private prisma: PrismaService) {}
 
   async create(createSupplierDto: CreateSupplierDto): Promise<Supplier> {
     const existing = Array.from(this.suppliers.values()).find(
@@ -39,7 +42,63 @@ export class SuppliersService {
     return supplier;
   }
 
-  async findAll(query: QuerySuppliersDto): Promise<Supplier[]> {
+  async findAll(query: QuerySuppliersDto, user?: any): Promise<Supplier[]> {
+    // Primero intentar cargar de base de datos
+    try {
+      const suppliers = await this.prisma.supplier.findMany({
+        where: {
+          ...(query.search && {
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' } },
+              { contactName: { contains: query.search, mode: 'insensitive' } },
+              { email: { contains: query.search, mode: 'insensitive' } },
+            ],
+          }),
+        },
+        orderBy: {
+          name: 'asc',
+        },
+      });
+
+      // Mapear a formato Supplier
+      return suppliers.map((s) => ({
+        id: s.id,
+        organization_id: query.organization_id || '', // Los suppliers no tienen org_id en schema
+        code: s.id.substring(0, 8), // Generar código de los primeros 8 chars del ID
+        name: s.name,
+        legal_name: s.name,
+        tax_id: undefined,
+        contact_person: s.contactName || undefined,
+        email: s.email || undefined,
+        phone: s.phone || undefined,
+        mobile: s.phone || undefined,
+        website: undefined,
+        address: s.address || undefined,
+        city: undefined,
+        state: undefined,
+        postal_code: undefined,
+        country: 'MX',
+        payment_terms: (s.paymentTerms as any) || undefined,
+        credit_days: s.leadTime || 0,
+        credit_limit: undefined,
+        lead_time_days: s.leadTime || 0,
+        min_order_amount: undefined,
+        rating: undefined,
+        is_preferred: false,
+        status: s.active ? SupplierStatus.ACTIVE : SupplierStatus.INACTIVE,
+        notes: undefined,
+        categories: [],
+        certifications: [],
+        on_time_delivery_rate: undefined,
+        quality_score: undefined,
+        created_at: s.createdAt,
+        updated_at: s.updatedAt,
+      }));
+    } catch (error) {
+      console.error('Error cargando suppliers de DB:', error);
+    }
+
+    // Fallback a Map en memoria
     let suppliers = Array.from(this.suppliers.values());
 
     if (query.organization_id) {
@@ -83,8 +142,10 @@ export class SuppliersService {
       let aValue: any = a[sortBy as keyof Supplier];
       let bValue: any = b[sortBy as keyof Supplier];
 
-      if (aValue === undefined) aValue = order === 'asc' ? '' : Number.MIN_VALUE;
-      if (bValue === undefined) bValue = order === 'asc' ? '' : Number.MIN_VALUE;
+      if (aValue === undefined)
+        aValue = order === 'asc' ? '' : Number.MIN_VALUE;
+      if (bValue === undefined)
+        bValue = order === 'asc' ? '' : Number.MIN_VALUE;
 
       if (typeof aValue === 'string' && typeof bValue === 'string') {
         return order === 'asc'
@@ -119,13 +180,13 @@ export class SuppliersService {
     );
   }
 
-  async update(id: string, updateSupplierDto: UpdateSupplierDto): Promise<Supplier> {
+  async update(
+    id: string,
+    updateSupplierDto: UpdateSupplierDto,
+  ): Promise<Supplier> {
     const supplier = await this.findById(id);
 
-    if (
-      updateSupplierDto.code &&
-      updateSupplierDto.code !== supplier.code
-    ) {
+    if (updateSupplierDto.code && updateSupplierDto.code !== supplier.code) {
       const existing = await this.findByCode(
         supplier.organization_id,
         updateSupplierDto.code,

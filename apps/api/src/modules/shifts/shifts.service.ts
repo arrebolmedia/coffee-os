@@ -19,10 +19,9 @@ export class ShiftsService {
   constructor(private prisma: PrismaService) {}
 
   async create(createShiftDto: CreateShiftDto) {
-    // Check if there's an active shift for this location
+    // Check if there's an active shift for this location (schema doesn't have organizationId)
     const activeShift = await this.prisma.shift.findFirst({
       where: {
-        organizationId: createShiftDto.organizationId,
         locationId: createShiftDto.locationId,
         status: ShiftStatus.OPEN,
       },
@@ -34,11 +33,16 @@ export class ShiftsService {
       );
     }
 
+    // Map to schema fields: schema uses openingFloat, not openingCash
     return this.prisma.shift.create({
       data: {
-        ...createShiftDto,
+        locationId: createShiftDto.locationId,
+        userId: createShiftDto.userId,
+        shiftNumber: `SHIFT-${Date.now()}`,
         status: ShiftStatus.OPEN,
-        openedAt: new Date(),
+        openingFloat: createShiftDto.openingCash,
+        openingCash: createShiftDto.openingCash,
+        openingNotes: createShiftDto.openingNotes,
       },
     });
   }
@@ -68,7 +72,7 @@ export class ShiftsService {
 
   async findByStatus(status: string) {
     return this.prisma.shift.findMany({
-      where: { status },
+      where: { status: status as ShiftStatus },
       orderBy: { openedAt: 'desc' },
     });
   }
@@ -101,11 +105,11 @@ export class ShiftsService {
       throw new BadRequestException('Shift is already closed');
     }
 
-    const { closingCash, closingCard, closingTransfers, closingOther, notes } =
-      closeShiftDto;
+    // Schema has closingCash, totalClosing, totalExpected, variance, closingNotes
+    // but not closingCard/closingTransfers/closingOther — simplified to just closingCash
+    const { closingCash, notes } = closeShiftDto;
 
-    const totalClosing =
-      closingCash + closingCard + closingTransfers + closingOther;
+    const totalClosing = closingCash;
     const totalExpected = shift.openingCash; // Simplified - in real app would calculate from transactions
 
     const variance = totalClosing - totalExpected;
@@ -116,9 +120,6 @@ export class ShiftsService {
         status: ShiftStatus.CLOSED,
         closedAt: new Date(),
         closingCash,
-        closingCard,
-        closingTransfers,
-        closingOther,
         totalClosing,
         totalExpected,
         variance,

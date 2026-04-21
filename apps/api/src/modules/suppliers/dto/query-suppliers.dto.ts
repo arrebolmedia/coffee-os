@@ -13,7 +13,7 @@ import { SupplierStatus } from './create-supplier.dto';
 
 export class QuerySuppliersDto {
   @IsOptional()
-  @IsUUID()
+  @IsString()
   organization_id?: string;
 
   @IsOptional()
