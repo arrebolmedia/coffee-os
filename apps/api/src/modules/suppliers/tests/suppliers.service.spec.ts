@@ -143,9 +143,19 @@ describe('SuppliersService', () => {
       expect(result).toHaveLength(3);
     });
 
-    it('should filter by organization_id', async () => {
-      const result = await service.findAll({ organization_id: orgId });
+    it('should filter by the authenticated organizationId (query org ignored)', async () => {
+      const result = await service.findAll({}, orgId);
       expect(result).toHaveLength(2);
+    });
+
+    it('should ignore organization_id coming from the query string', async () => {
+      // El organization_id del query NO debe filtrar: solo el del JWT.
+      const result = await service.findAll(
+        { organization_id: 'org-456' },
+        orgId,
+      );
+      expect(result).toHaveLength(2);
+      expect(result.every((s) => s.organization_id === orgId)).toBe(true);
     });
 
     it('should filter by active', async () => {

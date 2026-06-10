@@ -113,7 +113,7 @@ export class ProductsService {
   /**
    * Obtener un producto por ID
    */
-  async findById(id: string) {
+  async findById(id: string, organizationId?: string) {
     const product = await this.prisma.product.findUnique({
       where: { id },
       include: {
@@ -126,7 +126,11 @@ export class ProductsService {
       },
     });
 
-    if (!product) {
+    // Ownership: a product from another org is reported as not found (404).
+    if (
+      !product ||
+      (organizationId && product.organizationId !== organizationId)
+    ) {
       throw new NotFoundException(`Producto ${id} no encontrado`);
     }
 

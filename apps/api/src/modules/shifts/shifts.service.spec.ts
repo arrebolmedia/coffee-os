@@ -256,6 +256,36 @@ describe('ShiftsService', () => {
 
       await expect(service.close(id, dto)).rejects.toThrow(BadRequestException);
     });
+
+    it('should propagate aggregation errors instead of silently recording 0', async () => {
+      const id = '1';
+      const dto = {
+        closingCash: 1200,
+        closingCard: 0,
+        closingTransfers: 0,
+        closingOther: 0,
+      };
+      const shift = {
+        id,
+        status: ShiftStatus.OPEN,
+        openingCash: 1000,
+        openingFloat: 1000,
+        locationId: 'loc-1',
+        openedAt: new Date(),
+      };
+
+      mockPrismaService.shift.update.mockClear();
+      mockPrismaService.shift.findUnique.mockResolvedValue(shift);
+      mockPrismaService.payment.aggregate.mockRejectedValue(
+        new Error('aggregation failed'),
+      );
+
+      await expect(service.close(id, dto)).rejects.toThrow(
+        'aggregation failed',
+      );
+      // The shift must NOT be closed with a bogus totalExpected.
+      expect(mockPrismaService.shift.update).not.toHaveBeenCalled();
+    });
   });
 
   describe('remove', () => {

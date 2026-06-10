@@ -7,6 +7,7 @@ import {
   Post,
   Put,
   Query,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { SuppliersService } from './suppliers.service';
@@ -19,76 +20,98 @@ import {
   CurrentUserType,
 } from '../auth/decorators/current-user.decorator';
 
+@UseGuards(JwtAuthGuard)
 @Controller('suppliers')
 export class SuppliersController {
   constructor(private readonly suppliersService: SuppliersService) {}
 
-  @Post()
-  create(@Body() createSupplierDto: CreateSupplierDto) {
-    return this.suppliersService.create(createSupplierDto);
+  private requireOrg(user: CurrentUserType): string {
+    if (!user?.organizationId) {
+      throw new UnauthorizedException(
+        'Authenticated user does not belong to any organization',
+      );
+    }
+    return user.organizationId;
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Post()
+  create(
+    @Body() createSupplierDto: CreateSupplierDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    // Always create within the caller's organization (ignore body org).
+    return this.suppliersService.create({
+      ...createSupplierDto,
+      organization_id: this.requireOrg(user),
+    });
+  }
+
   @Get()
   findAll(
     @Query() query: QuerySuppliersDto,
     @CurrentUser() user: CurrentUserType,
   ) {
-    return this.suppliersService.findAll(query, user);
+    return this.suppliersService.findAll(query, this.requireOrg(user));
   }
 
-  @UseGuards(JwtAuthGuard)
+  // El organizationId del path se ignora; siempre se usa el del JWT.
   @Get('organization/:organizationId')
   findByOrganization(
-    @Param('organizationId') organizationId: string,
+    @Param('organizationId') _organizationId: string,
     @Query() query: QuerySuppliersDto,
     @CurrentUser() user: CurrentUserType,
   ) {
-    return this.suppliersService.findAll(
-      {
-        ...query,
-        organization_id: organizationId,
-      },
-      user,
-    );
+    return this.suppliersService.findAll(query, this.requireOrg(user));
   }
 
   @Get('organization/:organizationId/stats')
-  getStats(@Param('organizationId') organizationId: string) {
-    return this.suppliersService.getStats(organizationId);
+  getStats(
+    @Param('organizationId') _organizationId: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.suppliersService.getStats(this.requireOrg(user));
   }
 
   @Get('organization/:organizationId/search')
   search(
-    @Param('organizationId') organizationId: string,
+    @Param('organizationId') _organizationId: string,
     @Query('q') searchQuery: string,
+    @CurrentUser() user: CurrentUserType,
   ) {
-    return this.suppliersService.findAll({
-      organization_id: organizationId,
-      search: searchQuery,
-    });
+    return this.suppliersService.findAll(
+      { search: searchQuery },
+      this.requireOrg(user),
+    );
   }
 
   @Get('stats/:organizationId')
-  getStatsLegacy(@Param('organizationId') organizationId: string) {
-    return this.suppliersService.getStats(organizationId);
+  getStatsLegacy(
+    @Param('organizationId') _organizationId: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.suppliersService.getStats(this.requireOrg(user));
   }
 
   @Get(':id')
-  findById(@Param('id') id: string) {
-    return this.suppliersService.findById(id);
+  findById(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
+    return this.suppliersService.findById(id, this.requireOrg(user));
   }
 
   @Put(':id')
   update(
     @Param('id') id: string,
     @Body() updateSupplierDto: UpdateSupplierDto,
+    @CurrentUser() user: CurrentUserType,
   ) {
-    return this.suppliersService.update(id, updateSupplierDto);
+    return this.suppliersService.update(
+      id,
+      updateSupplierDto,
+      this.requireOrg(user),
+    );
   }
 
   @Delete(':id')
-  delete(@Param('id') id: string) {
-    return this.suppliersService.delete(id);
+  delete(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
+    return this.suppliersService.delete(id, this.requireOrg(user));
   }
 }

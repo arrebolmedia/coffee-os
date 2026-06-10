@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { PosService } from './pos.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
+import { CloseTicketDto } from './dto/close-ticket.dto';
 
 @Controller('pos/tickets')
 export class TicketController {
@@ -34,7 +35,11 @@ export class TicketController {
   }
 
   @Patch(':id/close')
-  async close(@Param('id') id: string) {
-    return this.posService.closeTicket(id);
+  async close(
+    @Param('id') id: string,
+    @Body(new ValidationPipe({ whitelist: true, transform: true }))
+    data: CloseTicketDto,
+  ) {
+    return this.posService.closeTicket(id, data.payments);
   }
 }

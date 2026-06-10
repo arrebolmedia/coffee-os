@@ -126,7 +126,7 @@ export class CategoriesService {
   /**
    * Obtener categoría por ID
    */
-  async findById(id: string): Promise<any> {
+  async findById(id: string, organizationId?: string): Promise<any> {
     const category = await this.prisma.category.findUnique({
       where: { id },
       include: {
@@ -134,7 +134,11 @@ export class CategoriesService {
       },
     });
 
-    if (!category) {
+    // Ownership: a category from another org is reported as not found (404).
+    if (
+      !category ||
+      (organizationId && category.organizationId !== organizationId)
+    ) {
       throw new NotFoundException(`Category with ID ${id} not found`);
     }
 

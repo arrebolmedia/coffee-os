@@ -98,7 +98,7 @@ describe('IndexedDB Manager', () => {
 
       expect(openDB).toHaveBeenCalledWith(
         'coffeeos-pos',
-        1,
+        2,
         expect.any(Object),
       );
     });

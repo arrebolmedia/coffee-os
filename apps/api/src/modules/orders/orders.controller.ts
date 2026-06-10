@@ -9,19 +9,36 @@ import {
   Patch,
   Post,
   Query,
+  UnauthorizedException,
 } from '@nestjs/common';
+import { ApiBearerAuth } from '@nestjs/swagger';
+import {
+  CurrentUser,
+  CurrentUserType,
+} from '../auth/decorators/current-user.decorator';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto, UpdateOrderStatusDto } from './dto/index';
 
+@ApiBearerAuth()
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
+  private requireOrg(user: CurrentUserType): string {
+    if (!user?.organizationId) {
+      throw new UnauthorizedException(
+        'Authenticated user does not belong to any organization',
+      );
+    }
+    return user.organizationId;
+  }
+
   /**
-   * Get paginated list of orders
+   * Get paginated list of orders (scoped to the caller's organization)
    */
   @Get()
   async findAll(
+    @CurrentUser() user: CurrentUserType,
     @Query('page') page?: number,
     @Query('per_page') perPage?: number,
     @Query('search') search?: string,
@@ -38,18 +55,24 @@ export class OrdersController {
       date,
       sortBy,
       sortOrder,
+      organizationId: this.requireOrg(user),
     });
   }
 
   /**
-   * Get order statistics
+   * Get order statistics (scoped to the caller's organization)
    */
   @Get('stats')
   async getStats(
+    @CurrentUser() user: CurrentUserType,
     @Query('start_date') startDate?: string,
     @Query('end_date') endDate?: string,
   ) {
-    return this.ordersService.getStats(startDate, endDate);
+    return this.ordersService.getStats(
+      startDate,
+      endDate,
+      this.requireOrg(user),
+    );
   }
 
   /**

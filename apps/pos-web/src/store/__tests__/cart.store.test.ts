@@ -13,7 +13,7 @@ describe('Cart Store', () => {
     status: ProductStatus.ACTIVE,
     image: '/espresso.jpg',
     type: ProductType.SIMPLE,
-    track_inventory: true,
+    trackInventory: true,
     organization_id: 'org1',
     location_id: 'loc1',
     createdAt: new Date().toISOString(),

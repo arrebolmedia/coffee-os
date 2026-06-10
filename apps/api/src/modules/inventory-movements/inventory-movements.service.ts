@@ -32,28 +32,22 @@ export enum MovementReason {
 export class InventoryMovementsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createInventoryMovementDto: CreateInventoryMovementDto) {
-    // Verify inventory item exists
+  async create(
+    createInventoryMovementDto: CreateInventoryMovementDto,
+    organizationId?: string,
+  ) {
+    // Verify inventory item exists (and belongs to the caller's org).
     const inventoryItem = await this.prisma.inventoryItem.findUnique({
       where: { id: createInventoryMovementDto.inventoryItemId },
     });
 
-    if (!inventoryItem) {
+    if (
+      !inventoryItem ||
+      (organizationId && inventoryItem.organizationId !== organizationId)
+    ) {
       throw new BadRequestException(
         `Inventory item with ID ${createInventoryMovementDto.inventoryItemId} not found`,
       );
-    }
-
-    // Validate quantity based on movement type
-    if (createInventoryMovementDto.type === MovementType.OUT) {
-      const currentStock = await this.getCurrentStock(
-        createInventoryMovementDto.inventoryItemId,
-      );
-      if (currentStock < createInventoryMovementDto.quantity) {
-        throw new BadRequestException(
-          `Insufficient stock. Available: ${currentStock}, Requested: ${createInventoryMovementDto.quantity}`,
-        );
-      }
     }
 
     // Map DTO to schema fields
@@ -64,6 +58,22 @@ export class InventoryMovementsService {
     // Transactionally create movement + update InventoryItem.currentStock so
     // stock is always consistent with movement history.
     const created = await this.prisma.$transaction(async (tx) => {
+      // Stock check for OUT movements happens INSIDE the transaction (reading
+      // InventoryItem.currentStock, which is kept up-to-date transactionally)
+      // to avoid TOCTOU races between the check and the decrement.
+      if (createInventoryMovementDto.type === MovementType.OUT) {
+        const item = await tx.inventoryItem.findUnique({
+          where: { id: createInventoryMovementDto.inventoryItemId },
+          select: { currentStock: true },
+        });
+        const currentStock = item?.currentStock ?? 0;
+        if (currentStock < createInventoryMovementDto.quantity) {
+          throw new BadRequestException(
+            `Insufficient stock. Available: ${currentStock}, Requested: ${createInventoryMovementDto.quantity}`,
+          );
+        }
+      }
+
       const movement = await tx.inventoryMovement.create({
         data: {
           ...(locationId !== undefined && { locationId }),
@@ -85,8 +95,8 @@ export class InventoryMovementsService {
       // Persist currentStock based on movement type.
       // IN  → increment by quantity
       // OUT → decrement by quantity
-      // ADJUSTMENT → set absolute (quantity is the new value if non-negative);
-      //              if a signed delta semantic is desired, this can change.
+      // ADJUSTMENT → quantity is the ABSOLUTE final stock value (see
+      //              getCurrentStock for the matching read-side semantics).
       // TRANSFER → no current-stock change for the receiving end here; treated
       //              as net-zero for the item (out-of-scope without to/from).
       const type = createInventoryMovementDto.type;
@@ -122,10 +132,16 @@ export class InventoryMovementsService {
     };
   }
 
-  async findAll(query: QueryInventoryMovementsDto) {
+  async findAll(query: QueryInventoryMovementsDto, organizationId?: string) {
     const { skip = 0, take = 50, type, reason, inventoryItemId } = query;
 
     const where: any = {};
+
+    // Multi-tenant filter via inventoryItem.organizationId (the movement
+    // itself has no organizationId column).
+    if (organizationId) {
+      where.inventoryItem = { organizationId };
+    }
 
     if (type) {
       where.type = type;
@@ -162,9 +178,12 @@ export class InventoryMovementsService {
     };
   }
 
-  async findByType(type: string) {
+  async findByType(type: string, organizationId?: string) {
     return this.prisma.inventoryMovement.findMany({
-      where: { type: type as MovementType },
+      where: {
+        type: type as MovementType,
+        ...(organizationId ? { inventoryItem: { organizationId } } : {}),
+      },
       include: {
         inventoryItem: {
           select: { id: true, name: true, code: true },
@@ -174,9 +193,12 @@ export class InventoryMovementsService {
     });
   }
 
-  async findByItem(itemId: string) {
+  async findByItem(itemId: string, organizationId?: string) {
     return this.prisma.inventoryMovement.findMany({
-      where: { inventoryItemId: itemId },
+      where: {
+        inventoryItemId: itemId,
+        ...(organizationId ? { inventoryItem: { organizationId } } : {}),
+      },
       include: {
         inventoryItem: {
           select: { id: true, name: true, code: true },
@@ -186,7 +208,11 @@ export class InventoryMovementsService {
     });
   }
 
-  async findByDateRange(startDate: string, endDate: string) {
+  async findByDateRange(
+    startDate: string,
+    endDate: string,
+    organizationId?: string,
+  ) {
     if (!startDate || !endDate) {
       throw new BadRequestException('Start date and end date are required');
     }
@@ -197,6 +223,7 @@ export class InventoryMovementsService {
           gte: new Date(startDate),
           lte: new Date(endDate),
         },
+        ...(organizationId ? { inventoryItem: { organizationId } } : {}),
       },
       include: {
         inventoryItem: {
@@ -207,13 +234,19 @@ export class InventoryMovementsService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, organizationId?: string) {
     const movement = await this.prisma.inventoryMovement.findUnique({
       where: { id },
       include: { inventoryItem: true },
     });
 
-    if (!movement) {
+    // Ownership via inventoryItem.organizationId: movements from another org
+    // are reported as not found (404).
+    if (
+      !movement ||
+      (organizationId &&
+        movement.inventoryItem?.organizationId !== organizationId)
+    ) {
       throw new NotFoundException(`Inventory movement with ID ${id} not found`);
     }
 
@@ -341,33 +374,44 @@ export class InventoryMovementsService {
   }
 
   /**
-   * Compute current stock by summing movements with signed semantics:
-   *   IN          → +quantity
-   *   OUT         → -quantity
-   *   ADJUSTMENT  → +quantity (treated as the absolute new amount delta;
-   *                 historical adjustments were not stored as net deltas, so
-   *                 we sum the raw values consistently)
+   * Compute current stock from movement history.
+   *
+   * Movement semantics (single source of truth, mirrored by `create()`):
+   *   IN          → +quantity (delta)
+   *   OUT         → -quantity (delta)
+   *   ADJUSTMENT  → quantity is the ABSOLUTE final stock value at that moment.
+   *                 The most recent ADJUSTMENT RESETS the base; only IN/OUT
+   *                 movements created AFTER it are applied on top:
+   *                 stock = lastAdjustment.quantity + sum(IN after) - sum(OUT after)
    *   TRANSFER    → ignored (no from/to fields on schema)
+   *
+   * With no ADJUSTMENT present, stock = sum(IN) - sum(OUT).
    */
   private async getCurrentStock(inventoryItemId: string): Promise<number> {
-    const [inResult, outResult, adjResult] = await Promise.all([
+    const lastAdjustment = await this.prisma.inventoryMovement.findFirst({
+      where: { inventoryItemId, type: 'ADJUSTMENT' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const afterAdjustment = lastAdjustment
+      ? { createdAt: { gt: lastAdjustment.createdAt } }
+      : {};
+
+    const [inResult, outResult] = await Promise.all([
       this.prisma.inventoryMovement.aggregate({
-        where: { inventoryItemId, type: 'IN' },
+        where: { inventoryItemId, type: 'IN', ...afterAdjustment },
         _sum: { quantity: true },
       }),
       this.prisma.inventoryMovement.aggregate({
-        where: { inventoryItemId, type: 'OUT' },
-        _sum: { quantity: true },
-      }),
-      this.prisma.inventoryMovement.aggregate({
-        where: { inventoryItemId, type: 'ADJUSTMENT' },
+        where: { inventoryItemId, type: 'OUT', ...afterAdjustment },
         _sum: { quantity: true },
       }),
     ]);
+
     return (
+      (lastAdjustment?.quantity ?? 0) +
       (inResult._sum.quantity ?? 0) -
-      (outResult._sum.quantity ?? 0) +
-      (adjResult._sum.quantity ?? 0)
+      (outResult._sum.quantity ?? 0)
     );
   }
 }

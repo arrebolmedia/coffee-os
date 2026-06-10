@@ -155,10 +155,10 @@ export class InventoryService {
   ): Promise<InventoryItem[]> {
     const where: any = {};
 
+    // Multi-tenant: only the authenticated user's organizationId is trusted.
+    // The query.organization_id fallback was removed (cross-tenant leak).
     if (user?.organizationId) {
       where.organizationId = user.organizationId;
-    } else if (query?.organization_id) {
-      where.organizationId = query.organization_id;
     }
 
     if (query?.search) {
@@ -339,11 +339,15 @@ export class InventoryService {
         if (newStock < 0) {
           throw new BadRequestException('Insufficient stock');
         }
+        // OUT movements always carry POSITIVE quantities (the sign is implied
+        // by the type), consistent with the rest of the system.
         movementType = 'OUT';
-        movementQuantity = -quantity;
+        movementQuantity = quantity;
         break;
       case 'set':
-        movementQuantity = quantity - item.currentStock;
+        // ADJUSTMENT quantity is the ABSOLUTE final stock value (see
+        // InventoryMovementsService.getCurrentStock semantics).
+        movementQuantity = quantity;
         newStock = quantity;
         movementType = 'ADJUSTMENT';
         break;

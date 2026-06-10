@@ -16,10 +16,12 @@ export class CashRegistersService {
     });
   }
 
-  async findAll(query: QueryCashRegistersDto) {
+  async findAll(query: QueryCashRegistersDto, organizationId?: string) {
     const { skip, take, shiftId, locationId } = query;
 
     const where: any = {};
+    // Multi-tenant filter (CashRegister stores organizationId directly).
+    if (organizationId) where.organizationId = organizationId;
     if (shiftId) where.shiftId = shiftId;
     if (locationId) where.locationId = locationId;
 
@@ -35,9 +37,12 @@ export class CashRegistersService {
     });
   }
 
-  async findByShift(shiftId: string) {
+  async findByShift(shiftId: string, organizationId?: string) {
     const register = await this.prisma.cashRegister.findFirst({
-      where: { shiftId },
+      where: {
+        shiftId,
+        ...(organizationId ? { organizationId } : {}),
+      },
       include: {
         denominations: true,
         expenses: true,
@@ -53,7 +58,7 @@ export class CashRegistersService {
     return register;
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, organizationId?: string) {
     const register = await this.prisma.cashRegister.findUnique({
       where: { id },
       include: {
@@ -62,15 +67,23 @@ export class CashRegistersService {
       },
     });
 
-    if (!register) {
+    // Ownership: a register from another org is reported as not found (404).
+    if (
+      !register ||
+      (organizationId && register.organizationId !== organizationId)
+    ) {
       throw new NotFoundException(`Cash register with ID "${id}" not found`);
     }
 
     return register;
   }
 
-  async update(id: string, updateCashRegisterDto: UpdateCashRegisterDto) {
-    await this.findOne(id);
+  async update(
+    id: string,
+    updateCashRegisterDto: UpdateCashRegisterDto,
+    organizationId?: string,
+  ) {
+    await this.findOne(id, organizationId);
 
     return this.prisma.cashRegister.update({
       where: { id },
@@ -100,8 +113,9 @@ export class CashRegistersService {
   async recordDenominations(
     id: string,
     denominationDto: RecordDenominationDto,
+    organizationId?: string,
   ) {
-    await this.findOne(id);
+    await this.findOne(id, organizationId);
 
     // Filter entries to whitelisted denominations and coerce numeric counts
     // safely (NaN / negative / invalid → skipped).
@@ -149,8 +163,12 @@ export class CashRegistersService {
     return this.findOne(id);
   }
 
-  async recordExpense(id: string, expenseDto: RecordExpenseDto) {
-    await this.findOne(id);
+  async recordExpense(
+    id: string,
+    expenseDto: RecordExpenseDto,
+    organizationId?: string,
+  ) {
+    await this.findOne(id, organizationId);
 
     // Atomic increment of totalExpenses + creation of the expense record so
     // concurrent recordExpense calls can't race the sum.
@@ -170,8 +188,8 @@ export class CashRegistersService {
     return this.findOne(id);
   }
 
-  async getSummary(id: string) {
-    const register = await this.findOne(id);
+  async getSummary(id: string, organizationId?: string) {
+    const register = await this.findOne(id, organizationId);
 
     // Calculate totals
     const denominationsTotal =
@@ -200,8 +218,8 @@ export class CashRegistersService {
     };
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, organizationId?: string) {
+    await this.findOne(id, organizationId);
 
     // Delete related records first
     await this.prisma.cashDenomination.deleteMany({

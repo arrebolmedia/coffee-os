@@ -123,8 +123,11 @@ export class ProductsController {
    */
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  async findById(@Param('id') id: string) {
-    return this.productsService.findById(id);
+  async findById(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.productsService.findById(id, user.organizationId);
   }
 
   /**

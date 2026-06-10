@@ -326,7 +326,7 @@ export function PaymentModal({
                         Terminal de pago
                       </p>
                       <p className="text-sm text-gray-500">
-                        Procesar pago por {formatPrice(cart.total)}
+                        Procesar pago por {formatPrice(finalTotal)}
                       </p>
                     </div>
                   </div>

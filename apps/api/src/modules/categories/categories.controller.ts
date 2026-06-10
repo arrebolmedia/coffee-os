@@ -65,8 +65,11 @@ export class CategoriesController {
    */
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  async findById(@Param('id') id: string) {
-    return this.categoriesService.findById(id);
+  async findById(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.categoriesService.findById(id, user.organizationId);
   }
 
   /**

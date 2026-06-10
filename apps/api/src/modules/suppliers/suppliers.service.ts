@@ -66,11 +66,16 @@ export class SuppliersService {
     return this.toSupplier(created);
   }
 
-  async findAll(query: QuerySuppliersDto, _user?: any): Promise<Supplier[]> {
+  async findAll(
+    query: QuerySuppliersDto,
+    organizationId?: string,
+  ): Promise<Supplier[]> {
     const where: any = {};
 
-    if (query.organization_id) {
-      where.organizationId = query.organization_id;
+    // Multi-tenant: the caller's organizationId (from JWT) takes precedence;
+    // query.organization_id from the request is intentionally ignored.
+    if (organizationId) {
+      where.organizationId = organizationId;
     }
     if (query.active !== undefined) {
       where.active = query.active;
@@ -91,9 +96,10 @@ export class SuppliersService {
     return rows.map((r) => this.toSupplier(r));
   }
 
-  async findById(id: string): Promise<Supplier> {
+  async findById(id: string, organizationId?: string): Promise<Supplier> {
     const row = await this.prisma.supplier.findUnique({ where: { id } });
-    if (!row) {
+    // Ownership: a supplier from another org is reported as not found (404).
+    if (!row || (organizationId && row.organizationId !== organizationId)) {
       throw new NotFoundException(`Supplier with ID ${id} not found`);
     }
     return this.toSupplier(row);
@@ -102,8 +108,9 @@ export class SuppliersService {
   async update(
     id: string,
     updateSupplierDto: UpdateSupplierDto,
+    organizationId?: string,
   ): Promise<Supplier> {
-    await this.findById(id);
+    await this.findById(id, organizationId);
 
     const data: any = {};
     if (updateSupplierDto.name !== undefined)
@@ -131,8 +138,8 @@ export class SuppliersService {
   }
 
   /** Soft delete: marca active=false. */
-  async delete(id: string): Promise<void> {
-    await this.findById(id);
+  async delete(id: string, organizationId?: string): Promise<void> {
+    await this.findById(id, organizationId);
     await this.prisma.supplier.update({
       where: { id },
       data: { active: false },

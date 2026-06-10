@@ -1,6 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CashRegistersController } from './cash-registers.controller';
 import { CashRegistersService } from './cash-registers.service';
+import { CurrentUserType } from '../auth/decorators/current-user.decorator';
+
+const mockUser: CurrentUserType = {
+  userId: 'user-1',
+  email: 'test@example.com',
+  firstName: 'Test',
+  lastName: 'User',
+  organizationId: 'org-1',
+};
 
 describe('CashRegistersController', () => {
   let controller: CashRegistersController;
@@ -38,31 +47,35 @@ describe('CashRegistersController', () => {
   });
 
   describe('create', () => {
-    it('should create a cash register', async () => {
+    it('should create a cash register scoped to the user organization', async () => {
       const dto = {
         shiftId: 'shift-1',
         expectedCash: 5000,
         locationId: 'loc-1',
-        organizationId: 'org-1',
+        organizationId: 'other-org',
       };
-      const result = { id: '1', ...dto };
+      const result = { id: '1', ...dto, organizationId: 'org-1' };
 
       mockService.create.mockResolvedValue(result);
 
-      expect(await controller.create(dto)).toEqual(result);
-      expect(service.create).toHaveBeenCalledWith(dto);
+      expect(await controller.create(dto, mockUser)).toEqual(result);
+      // El organizationId del body se sobrescribe con el del JWT
+      expect(service.create).toHaveBeenCalledWith({
+        ...dto,
+        organizationId: 'org-1',
+      });
     });
   });
 
   describe('findAll', () => {
-    it('should return all cash registers', async () => {
+    it('should return all cash registers for the user organization', async () => {
       const query = { skip: 0, take: 10 };
       const result = [{ id: '1', expectedCash: 5000 }];
 
       mockService.findAll.mockResolvedValue(result);
 
-      expect(await controller.findAll(query)).toEqual(result);
-      expect(service.findAll).toHaveBeenCalledWith(query);
+      expect(await controller.findAll(query, mockUser)).toEqual(result);
+      expect(service.findAll).toHaveBeenCalledWith(query, 'org-1');
     });
   });
 
@@ -73,8 +86,8 @@ describe('CashRegistersController', () => {
 
       mockService.findByShift.mockResolvedValue(result);
 
-      expect(await controller.findByShift(shiftId)).toEqual(result);
-      expect(service.findByShift).toHaveBeenCalledWith(shiftId);
+      expect(await controller.findByShift(shiftId, mockUser)).toEqual(result);
+      expect(service.findByShift).toHaveBeenCalledWith(shiftId, 'org-1');
     });
   });
 
@@ -85,8 +98,8 @@ describe('CashRegistersController', () => {
 
       mockService.findOne.mockResolvedValue(result);
 
-      expect(await controller.findOne(id)).toEqual(result);
-      expect(service.findOne).toHaveBeenCalledWith(id);
+      expect(await controller.findOne(id, mockUser)).toEqual(result);
+      expect(service.findOne).toHaveBeenCalledWith(id, 'org-1');
     });
   });
 
@@ -98,8 +111,8 @@ describe('CashRegistersController', () => {
 
       mockService.update.mockResolvedValue(result);
 
-      expect(await controller.update(id, dto)).toEqual(result);
-      expect(service.update).toHaveBeenCalledWith(id, dto);
+      expect(await controller.update(id, dto, mockUser)).toEqual(result);
+      expect(service.update).toHaveBeenCalledWith(id, dto, 'org-1');
     });
   });
 
@@ -123,8 +136,14 @@ describe('CashRegistersController', () => {
 
       mockService.recordDenominations.mockResolvedValue(result);
 
-      expect(await controller.recordDenominations(id, dto)).toEqual(result);
-      expect(service.recordDenominations).toHaveBeenCalledWith(id, dto);
+      expect(await controller.recordDenominations(id, dto, mockUser)).toEqual(
+        result,
+      );
+      expect(service.recordDenominations).toHaveBeenCalledWith(
+        id,
+        dto,
+        'org-1',
+      );
     });
   });
 
@@ -136,8 +155,8 @@ describe('CashRegistersController', () => {
 
       mockService.recordExpense.mockResolvedValue(result);
 
-      expect(await controller.recordExpense(id, dto)).toEqual(result);
-      expect(service.recordExpense).toHaveBeenCalledWith(id, dto);
+      expect(await controller.recordExpense(id, dto, mockUser)).toEqual(result);
+      expect(service.recordExpense).toHaveBeenCalledWith(id, dto, 'org-1');
     });
   });
 
@@ -153,8 +172,8 @@ describe('CashRegistersController', () => {
 
       mockService.getSummary.mockResolvedValue(result);
 
-      expect(await controller.getSummary(id)).toEqual(result);
-      expect(service.getSummary).toHaveBeenCalledWith(id);
+      expect(await controller.getSummary(id, mockUser)).toEqual(result);
+      expect(service.getSummary).toHaveBeenCalledWith(id, 'org-1');
     });
   });
 
@@ -165,8 +184,8 @@ describe('CashRegistersController', () => {
 
       mockService.remove.mockResolvedValue(result);
 
-      expect(await controller.remove(id)).toEqual(result);
-      expect(service.remove).toHaveBeenCalledWith(id);
+      expect(await controller.remove(id, mockUser)).toEqual(result);
+      expect(service.remove).toHaveBeenCalledWith(id, 'org-1');
     });
   });
 });

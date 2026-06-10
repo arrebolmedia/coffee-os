@@ -18,7 +18,7 @@ type ProductCardProduct = Pick<
   status: ProductStatus | string;
   image?: string | null;
   category?: { name: string };
-  track_inventory?: boolean;
+  trackInventory?: boolean;
   currentStock?: number;
 };
 
@@ -139,7 +139,7 @@ export function ProductCard({
           </div>
         )}
         {!isLowStock &&
-          product.track_inventory &&
+          product.trackInventory &&
           product.currentStock !== undefined &&
           !isOutOfStock && (
             <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm text-gray-700 text-xs px-2 py-1 rounded-lg flex items-center gap-1">

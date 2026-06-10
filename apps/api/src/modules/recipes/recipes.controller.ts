@@ -79,8 +79,11 @@ export class RecipesController {
    */
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  async findById(@Param('id') id: string) {
-    return this.recipesService.findById(id);
+  async findById(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.recipesService.findById(id, user.organizationId);
   }
 
   /**
@@ -88,8 +91,11 @@ export class RecipesController {
    */
   @Get('product/:productId')
   @HttpCode(HttpStatus.OK)
-  async findByProductId(@Param('productId') productId: string) {
-    return this.recipesService.findByProductId(productId);
+  async findByProductId(
+    @Param('productId') productId: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.recipesService.findByProductId(productId, user.organizationId);
   }
 
   /**

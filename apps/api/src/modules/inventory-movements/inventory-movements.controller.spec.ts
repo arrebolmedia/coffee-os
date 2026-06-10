@@ -1,6 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { InventoryMovementsController } from './inventory-movements.controller';
 import { InventoryMovementsService } from './inventory-movements.service';
+import { CurrentUserType } from '../auth/decorators/current-user.decorator';
+
+const mockUser: CurrentUserType = {
+  userId: 'user-1',
+  email: 'test@example.com',
+  firstName: 'Test',
+  lastName: 'User',
+  organizationId: 'org-1',
+};
 
 describe('InventoryMovementsController', () => {
   let controller: InventoryMovementsController;
@@ -55,9 +64,9 @@ describe('InventoryMovementsController', () => {
 
       mockInventoryMovementsService.create.mockResolvedValue(expectedResult);
 
-      const result = await controller.create(createDto);
+      const result = await controller.create(createDto, mockUser);
 
-      expect(service.create).toHaveBeenCalledWith(createDto);
+      expect(service.create).toHaveBeenCalledWith(createDto, 'org-1');
       expect(result).toEqual(expectedResult);
     });
   });
@@ -74,9 +83,9 @@ describe('InventoryMovementsController', () => {
 
       mockInventoryMovementsService.findAll.mockResolvedValue(expectedResult);
 
-      const result = await controller.findAll(query);
+      const result = await controller.findAll(query, mockUser);
 
-      expect(service.findAll).toHaveBeenCalledWith(query);
+      expect(service.findAll).toHaveBeenCalledWith(query, 'org-1');
       expect(result).toEqual(expectedResult);
     });
   });
@@ -90,9 +99,9 @@ describe('InventoryMovementsController', () => {
         expectedResult,
       );
 
-      const result = await controller.findByType(type);
+      const result = await controller.findByType(type, mockUser);
 
-      expect(service.findByType).toHaveBeenCalledWith(type);
+      expect(service.findByType).toHaveBeenCalledWith(type, 'org-1');
       expect(result).toEqual(expectedResult);
     });
   });
@@ -106,9 +115,9 @@ describe('InventoryMovementsController', () => {
         expectedResult,
       );
 
-      const result = await controller.findByItem(itemId);
+      const result = await controller.findByItem(itemId, mockUser);
 
-      expect(service.findByItem).toHaveBeenCalledWith(itemId);
+      expect(service.findByItem).toHaveBeenCalledWith(itemId, 'org-1');
       expect(result).toEqual(expectedResult);
     });
   });
@@ -125,11 +134,12 @@ describe('InventoryMovementsController', () => {
         expectedResult,
       );
 
-      const result = await controller.findByDateRange(query);
+      const result = await controller.findByDateRange(query, mockUser);
 
       expect(service.findByDateRange).toHaveBeenCalledWith(
         query.startDate,
         query.endDate,
+        'org-1',
       );
       expect(result).toEqual(expectedResult);
     });
@@ -142,36 +152,40 @@ describe('InventoryMovementsController', () => {
 
       mockInventoryMovementsService.findOne.mockResolvedValue(expectedResult);
 
-      const result = await controller.findOne(id);
+      const result = await controller.findOne(id, mockUser);
 
-      expect(service.findOne).toHaveBeenCalledWith(id);
+      expect(service.findOne).toHaveBeenCalledWith(id, 'org-1');
       expect(result).toEqual(expectedResult);
     });
   });
 
   describe('update', () => {
-    it('should update a movement', async () => {
+    it('should verify ownership and update a movement', async () => {
       const id = '1';
       const updateDto = { notes: 'Updated notes' };
       const expectedResult = { id, ...updateDto };
 
+      mockInventoryMovementsService.findOne.mockResolvedValue({ id });
       mockInventoryMovementsService.update.mockResolvedValue(expectedResult);
 
-      const result = await controller.update(id, updateDto);
+      const result = await controller.update(id, updateDto, mockUser);
 
+      expect(service.findOne).toHaveBeenCalledWith(id, 'org-1');
       expect(service.update).toHaveBeenCalledWith(id, updateDto);
       expect(result).toEqual(expectedResult);
     });
   });
 
   describe('remove', () => {
-    it('should delete a movement', async () => {
+    it('should verify ownership and delete a movement', async () => {
       const id = '1';
 
+      mockInventoryMovementsService.findOne.mockResolvedValue({ id });
       mockInventoryMovementsService.remove.mockResolvedValue(undefined);
 
-      await controller.remove(id);
+      await controller.remove(id, mockUser);
 
+      expect(service.findOne).toHaveBeenCalledWith(id, 'org-1');
       expect(service.remove).toHaveBeenCalledWith(id);
     });
   });

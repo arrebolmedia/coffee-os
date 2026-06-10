@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { OrderPriority, OrderStatus, OrderType, Prisma } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../database/prisma.service';
 import { CreateOrderDto, UpdateOrderStatusDto } from './dto';
 
@@ -19,6 +20,7 @@ export class OrdersService {
     date?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    organizationId?: string;
   }) {
     const page = params.page && params.page > 0 ? params.page : 1;
     const perPage = params.perPage && params.perPage > 0 ? params.perPage : 10;
@@ -26,6 +28,14 @@ export class OrdersService {
     const take = perPage;
 
     const where: Prisma.OrderWhereInput = {};
+
+    // Multi-tenant filter: Order has no organizationId column, so scope via
+    // the required ticket -> location -> organization relation chain.
+    if (params.organizationId) {
+      where.ticket = {
+        location: { organizationId: params.organizationId },
+      };
+    }
 
     if (params.status) {
       if (Object.values(OrderStatus).includes(params.status as OrderStatus)) {
@@ -86,8 +96,17 @@ export class OrdersService {
     };
   }
 
-  async getStats(startDate?: string, endDate?: string) {
+  async getStats(
+    startDate?: string,
+    endDate?: string,
+    organizationId?: string,
+  ) {
     const where: Prisma.OrderWhereInput = {};
+
+    // Multi-tenant filter via ticket -> location (Order has no organizationId).
+    if (organizationId) {
+      where.ticket = { location: { organizationId } };
+    }
 
     if (startDate || endDate) {
       const gte = startDate ? new Date(startDate) : undefined;
@@ -188,9 +207,9 @@ export class OrdersService {
       }
     }
 
+    // Race-free order number (matches PosService.generateOrderNumber).
     const orderNumber =
-      createOrderDto.orderNumber ||
-      `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      createOrderDto.orderNumber || this.generateOrderNumber();
 
     return this.prisma.order.create({
       data: {
@@ -282,8 +301,23 @@ export class OrdersService {
     });
   }
 
+  private generateOrderNumber(): string {
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    return `ORD-${date}-${randomUUID().replace(/-/g, '').slice(0, 8)}`;
+  }
+
   async cancel(id: string, reason?: string) {
     const existing = await this.findOne(id);
+
+    // Enforce the state machine: terminal states (COMPLETED, CANCELLED) are
+    // not cancellable.
+    const allowed = OrdersService.ORDER_TRANSITIONS[existing.status] ?? [];
+    if (!allowed.includes(OrderStatus.CANCELLED)) {
+      throw new BadRequestException(
+        `Invalid status transition: ${existing.status} -> ${OrderStatus.CANCELLED}`,
+      );
+    }
+
     const notes = reason
       ? [existing.notes, `Cancelled: ${reason}`].filter(Boolean).join('\n')
       : existing.notes;

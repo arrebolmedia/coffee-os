@@ -26,6 +26,19 @@ export class OrderController {
     return this.posService.findTodayOrdersByOrg(orgId);
   }
 
+  @Get('organization/:orgId')
+  async findByOrgAndDateRange(
+    @Param('orgId') orgId: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.posService.findOrdersByOrgAndDateRange(
+      orgId,
+      startDate,
+      endDate,
+    );
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.posService.findOneOrder(id);

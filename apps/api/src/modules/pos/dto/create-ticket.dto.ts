@@ -58,6 +58,11 @@ export class CreateTicketDto {
   lines!: CreateTicketLineDto[];
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  discount?: number;
+
+  @IsOptional()
   @IsString()
   notes?: string;
 }

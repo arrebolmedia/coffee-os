@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { MovementType } from '@prisma/client';
+import { MovementType, PaymentMethod, PaymentStatus } from '@prisma/client';
 import { randomUUID } from 'crypto';
 
 @Injectable()
@@ -109,6 +109,7 @@ export class PosService {
       modifiers?: Array<{ modifierId: string; priceDelta: number }>;
       notes?: string;
     }>;
+    discount?: number;
     notes?: string;
   }) {
     // Fetch taxRate per product to compute tax correctly
@@ -142,7 +143,8 @@ export class PosService {
       };
     });
 
-    const total = subtotal + tax;
+    const discount = data.discount ?? 0;
+    const total = Math.max(0, subtotal + tax - discount);
 
     // Race-free ticket number (no count+1).
     const ticketNumber = this.generateTicketNumber();
@@ -158,6 +160,7 @@ export class PosService {
           status: 'OPEN',
           subtotal,
           tax,
+          discount,
           total,
           notes: data.notes,
           lines: {
@@ -199,7 +202,14 @@ export class PosService {
     return this.findOneTicket(createdTicket.id);
   }
 
-  async closeTicket(id: string) {
+  async closeTicket(
+    id: string,
+    payments?: Array<{
+      method: PaymentMethod;
+      amount: number;
+      reference?: string;
+    }>,
+  ) {
     return this.prisma.$transaction(async (tx) => {
       const ticket = await tx.ticket.findUnique({
         where: { id },
@@ -210,9 +220,25 @@ export class PosService {
         throw new NotFoundException('Ticket not found');
       }
 
-      // Idempotency guard — can't re-close a CLOSED ticket.
-      if (ticket.status === 'CLOSED') {
-        throw new BadRequestException('Ticket ya cerrado');
+      // Only OPEN tickets can be closed (blocks re-closing CLOSED tickets and
+      // closing VOIDED/REFUNDED tickets, which would corrupt inventory).
+      if (ticket.status !== 'OPEN') {
+        throw new BadRequestException(
+          `Cannot close ticket with status ${ticket.status}; only OPEN tickets can be closed`,
+        );
+      }
+
+      // Register payments (breakdown comes from the POS frontend).
+      if (payments && payments.length > 0) {
+        await tx.payment.createMany({
+          data: payments.map((p) => ({
+            ticketId: ticket.id,
+            method: p.method,
+            amount: p.amount,
+            reference: p.reference,
+            status: PaymentStatus.COMPLETED,
+          })),
+        });
       }
 
       // Decrement inventory and record movements inside the transaction.
@@ -461,6 +487,47 @@ export class PosService {
     });
   }
 
+  async findOrdersByOrgAndDateRange(
+    organizationId: string,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    const dateOnly = /^\d{4}-\d{2}-\d{2}$/;
+
+    let start: Date;
+    if (startDate) {
+      start = new Date(startDate);
+    } else {
+      start = new Date();
+      start.setHours(0, 0, 0, 0);
+    }
+
+    let end: Date;
+    if (endDate) {
+      end = new Date(endDate);
+      // Date-only strings parse to midnight UTC — extend to end of that day.
+      if (dateOnly.test(endDate)) {
+        end.setUTCHours(23, 59, 59, 999);
+      }
+    } else {
+      end = new Date();
+      end.setHours(23, 59, 59, 999);
+    }
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      throw new BadRequestException('Invalid startDate or endDate');
+    }
+
+    return this.prisma.ticket.findMany({
+      where: {
+        location: { organizationId },
+        openedAt: { gte: start, lte: end },
+      },
+      include: { lines: true, payments: true },
+      orderBy: { openedAt: 'desc' },
+    });
+  }
+
   // ========================================
   // CANCEL / REFUND TICKET
   // ========================================
@@ -524,8 +591,12 @@ export class PosService {
         include: { lines: { include: { product: true } } },
       });
       if (!ticket) throw new NotFoundException(`Ticket ${id} not found`);
-      if (ticket.status === 'VOIDED' || ticket.status === 'REFUNDED') {
-        throw new BadRequestException(`Ticket is already ${ticket.status}`);
+      // Only CLOSED tickets can be refunded: an OPEN ticket never decremented
+      // inventory (closing does that), so refunding it would inflate stock.
+      if (ticket.status !== 'CLOSED') {
+        throw new BadRequestException(
+          `Cannot refund ticket with status ${ticket.status}; only CLOSED tickets can be refunded`,
+        );
       }
 
       if (amount === undefined || amount === null) {
@@ -540,33 +611,40 @@ export class PosService {
         );
       }
 
+      // Inventory reversal policy: ONLY a TOTAL refund (amount === total)
+      // restores inventory. A partial refund does NOT revert inventory because
+      // we cannot attribute the refunded amount to specific lines/ingredients.
+      const isTotalRefund = amount === ticket.total;
+
       // Revert inventory via InventoryMovement (IN, reason=REFUND).
       // TODO: persist Refund records in a dedicated Refund table once added to
       // the Prisma schema. For now we capture the refund event in the ticket's
       // notes field plus IN movements.
-      for (const line of ticket.lines) {
-        const recipe = await tx.recipe.findFirst({
-          where: { productId: line.productId, active: true },
-          include: { ingredients: true },
-          orderBy: { version: 'desc' },
-        });
-        if (!recipe) continue;
-        for (const ingredient of recipe.ingredients) {
-          const quantityToRestore = ingredient.quantity * line.quantity;
-          await tx.inventoryItem.update({
-            where: { id: ingredient.inventoryItemId },
-            data: { currentStock: { increment: quantityToRestore } },
+      if (isTotalRefund) {
+        for (const line of ticket.lines) {
+          const recipe = await tx.recipe.findFirst({
+            where: { productId: line.productId, active: true },
+            include: { ingredients: true },
+            orderBy: { version: 'desc' },
           });
-          await tx.inventoryMovement.create({
-            data: {
-              locationId: ticket.locationId,
-              inventoryItemId: ingredient.inventoryItemId,
-              type: MovementType.IN,
-              quantity: quantityToRestore,
-              reason: 'REFUND',
-              reference: ticket.id,
-            },
-          });
+          if (!recipe) continue;
+          for (const ingredient of recipe.ingredients) {
+            const quantityToRestore = ingredient.quantity * line.quantity;
+            await tx.inventoryItem.update({
+              where: { id: ingredient.inventoryItemId },
+              data: { currentStock: { increment: quantityToRestore } },
+            });
+            await tx.inventoryMovement.create({
+              data: {
+                locationId: ticket.locationId,
+                inventoryItemId: ingredient.inventoryItemId,
+                type: MovementType.IN,
+                quantity: quantityToRestore,
+                reason: 'REFUND',
+                reference: ticket.id,
+              },
+            });
+          }
         }
       }
 
@@ -590,7 +668,9 @@ export class PosService {
       (ticket as any)?.lines
         ?.map(
           (l: any) =>
-            `${this.escapeHtml(l.quantity)}x — $${this.escapeHtml(l.total)}`,
+            `${this.escapeHtml(l.quantity)}x ${this.escapeHtml(
+              l.product?.name ?? 'Item',
+            )} — $${this.escapeHtml(l.total)}`,
         )
         .join('\n') ?? '';
     const ticketNumber = this.escapeHtml((ticket as any)?.ticketNumber);
@@ -716,22 +796,45 @@ export class PosService {
     finalAmount: number,
     notes?: string,
   ) {
-    const register = await this.prisma.cashRegister.update({
-      where: { id: registerId },
-      data: {
-        countedCash: finalAmount,
-        notes,
-      },
-      include: { shift: true },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.cashRegister.findUnique({
+        where: { id: registerId },
+        include: { shift: true },
+      });
+      if (!existing) {
+        throw new NotFoundException(`Cash register ${registerId} not found`);
+      }
 
-    await this.prisma.shift.update({
-      where: { id: register.shiftId },
-      data: { closedAt: new Date(), countedCash: finalAmount },
-    });
+      // Double-close guard: the associated shift must still be open.
+      if (
+        existing.shift?.status === 'CLOSED' ||
+        existing.shift?.closedAt != null
+      ) {
+        throw new BadRequestException('Cash register is already closed');
+      }
 
-    const difference = finalAmount - (register.expectedCash || 0);
-    return { id: register.id, closed_at: new Date(), difference };
+      const closedAt = new Date();
+
+      const register = await tx.cashRegister.update({
+        where: { id: registerId },
+        data: {
+          countedCash: finalAmount,
+          notes,
+        },
+      });
+
+      await tx.shift.update({
+        where: { id: register.shiftId },
+        data: {
+          status: 'CLOSED',
+          closedAt,
+          countedCash: finalAmount,
+        },
+      });
+
+      const difference = finalAmount - (register.expectedCash || 0);
+      return { id: register.id, closed_at: closedAt, difference };
+    });
   }
 
   async getCurrentCashRegister(organizationId: string) {

@@ -94,7 +94,7 @@ export default function ProductsPage() {
       status: product.status,
       imageUrl: product.image || '',
       barcode: product.barcode || '',
-      trackInventory: product.track_inventory || false,
+      trackInventory: product.trackInventory || false,
       currentStock: product.currentStock || 0,
       type: product.type || 'SIMPLE',
       tags: product.tags || [],

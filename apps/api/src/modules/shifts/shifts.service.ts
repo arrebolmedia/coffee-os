@@ -20,7 +20,38 @@ export enum ShiftStatus {
 export class ShiftsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createShiftDto: CreateShiftDto) {
+  /**
+   * Multi-tenant guard: validates that a location belongs to the given
+   * organization. Shift has no organizationId column, so org scoping is
+   * derived via Location.organizationId. 404 on mismatch (don't leak).
+   */
+  private async assertLocationInOrg(
+    locationId: string,
+    organizationId: string,
+  ): Promise<void> {
+    const location = await this.prisma.location.findUnique({
+      where: { id: locationId },
+      select: { id: true, organizationId: true },
+    });
+    if (!location || location.organizationId !== organizationId) {
+      throw new NotFoundException(`Location ${locationId} not found`);
+    }
+  }
+
+  /** Location ids belonging to an organization (for list filtering). */
+  private async getOrgLocationIds(organizationId: string): Promise<string[]> {
+    const locations = await this.prisma.location.findMany({
+      where: { organizationId },
+      select: { id: true },
+    });
+    return locations.map((l) => l.id);
+  }
+
+  async create(createShiftDto: CreateShiftDto, organizationId?: string) {
+    if (organizationId) {
+      await this.assertLocationInOrg(createShiftDto.locationId, organizationId);
+    }
+
     // Race-safe creation: re-check inside a transaction. If a parallel open
     // happens between the read and write, the second one will fail.
     try {
@@ -70,13 +101,26 @@ export class ShiftsService {
     }
   }
 
-  async findAll(query: QueryShiftsDto) {
+  async findAll(query: QueryShiftsDto, organizationId?: string) {
     const { skip, take, status, userId, locationId } = query;
 
     const where: any = {};
     if (status) where.status = status;
     if (userId) where.userId = userId;
     if (locationId) where.locationId = locationId;
+
+    // Multi-tenant filter: restrict to locations of the caller's org.
+    if (organizationId) {
+      const orgLocationIds = await this.getOrgLocationIds(organizationId);
+      if (locationId) {
+        // Requested location must belong to the org; otherwise return nothing.
+        if (!orgLocationIds.includes(locationId)) {
+          return [];
+        }
+      } else {
+        where.locationId = { in: orgLocationIds };
+      }
+    }
 
     return this.prisma.shift.findMany({
       where,
@@ -121,8 +165,17 @@ export class ShiftsService {
     });
   }
 
-  async close(id: string, closeShiftDto: CloseShiftDto) {
+  async close(
+    id: string,
+    closeShiftDto: CloseShiftDto,
+    organizationId?: string,
+  ) {
     const shift = await this.findOne(id);
+
+    // Ownership: the shift's location must belong to the caller's org.
+    if (organizationId) {
+      await this.assertLocationInOrg(shift.locationId, organizationId);
+    }
 
     if (shift.status === ShiftStatus.CLOSED) {
       throw new BadRequestException('Shift is already closed');
@@ -139,35 +192,27 @@ export class ShiftsService {
     // Expected cash = openingFloat + cash sales during shift - cash expenses.
     // Use Payment table to sum CASH payments tied to tickets closed at this
     // location during the shift window.
-    let cashSales = 0;
-    try {
-      const paymentAgg = await this.prisma.payment.aggregate({
-        where: {
-          method: 'CASH' as any,
-          ticket: {
-            locationId: shift.locationId,
-            status: 'CLOSED' as any,
-            closedAt: { gte: shift.openedAt, lte: new Date() },
-          },
+    // NOTE: aggregation errors intentionally propagate — silently defaulting
+    // to 0 would record a wrong totalExpected/variance with no signal.
+    const paymentAgg = await this.prisma.payment.aggregate({
+      where: {
+        method: 'CASH' as any,
+        ticket: {
+          locationId: shift.locationId,
+          status: 'CLOSED' as any,
+          closedAt: { gte: shift.openedAt, lte: new Date() },
         },
-        _sum: { amount: true },
-      });
-      cashSales = paymentAgg._sum.amount ?? 0;
-    } catch {
-      cashSales = 0;
-    }
+      },
+      _sum: { amount: true },
+    });
+    const cashSales = paymentAgg._sum.amount ?? 0;
 
     // Cash expenses tied to this shift via its CashRegister.
-    let cashExpenses = 0;
-    try {
-      const expenseAgg = await this.prisma.cashExpense.aggregate({
-        where: { cashRegister: { shiftId: id } },
-        _sum: { amount: true },
-      });
-      cashExpenses = expenseAgg._sum.amount ?? 0;
-    } catch {
-      cashExpenses = 0;
-    }
+    const expenseAgg = await this.prisma.cashExpense.aggregate({
+      where: { cashRegister: { shiftId: id } },
+      _sum: { amount: true },
+    });
+    const cashExpenses = expenseAgg._sum.amount ?? 0;
 
     const totalExpected =
       (shift.openingFloat ?? shift.openingCash ?? 0) + cashSales - cashExpenses;

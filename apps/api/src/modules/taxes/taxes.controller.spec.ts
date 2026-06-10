@@ -2,6 +2,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TaxesController } from './taxes.controller';
 import { TaxesService } from './taxes.service';
 import { TaxCategory } from './dto/create-tax.dto';
+import { CurrentUserType } from '../auth/decorators/current-user.decorator';
+
+const mockUser: CurrentUserType = {
+  userId: 'user-1',
+  email: 'test@example.com',
+  firstName: 'Test',
+  lastName: 'User',
+  organizationId: 'org-1',
+};
 
 describe('TaxesController', () => {
   let controller: TaxesController;
@@ -37,31 +46,35 @@ describe('TaxesController', () => {
   });
 
   describe('create', () => {
-    it('should create a tax', async () => {
+    it('should create a tax scoped to the user organization', async () => {
       const dto = {
         name: 'IVA 16%',
         category: TaxCategory.IVA,
-        rate: 16,
-        organizationId: 'org-1',
+        rate: 0.16,
+        organizationId: 'other-org',
       };
-      const result = { id: '1', ...dto };
+      const result = { id: '1', ...dto, organizationId: 'org-1' };
 
       mockTaxesService.create.mockResolvedValue(result);
 
-      expect(await controller.create(dto)).toEqual(result);
-      expect(service.create).toHaveBeenCalledWith(dto);
+      expect(await controller.create(dto, mockUser)).toEqual(result);
+      // El organizationId del body se sobrescribe con el del JWT
+      expect(service.create).toHaveBeenCalledWith({
+        ...dto,
+        organizationId: 'org-1',
+      });
     });
   });
 
   describe('findAll', () => {
-    it('should return all taxes', async () => {
+    it('should return all taxes for the user organization', async () => {
       const query = { skip: 0, take: 10 };
       const result = [{ id: '1', name: 'IVA 16%' }];
 
       mockTaxesService.findAll.mockResolvedValue(result);
 
-      expect(await controller.findAll(query)).toEqual(result);
-      expect(service.findAll).toHaveBeenCalledWith(query);
+      expect(await controller.findAll(query, mockUser)).toEqual(result);
+      expect(service.findAll).toHaveBeenCalledWith(query, 'org-1');
     });
   });
 
@@ -71,8 +84,8 @@ describe('TaxesController', () => {
 
       mockTaxesService.findActive.mockResolvedValue(result);
 
-      expect(await controller.findActive()).toEqual(result);
-      expect(service.findActive).toHaveBeenCalled();
+      expect(await controller.findActive(mockUser)).toEqual(result);
+      expect(service.findActive).toHaveBeenCalledWith('org-1');
     });
   });
 
@@ -83,8 +96,10 @@ describe('TaxesController', () => {
 
       mockTaxesService.findByCategory.mockResolvedValue(result);
 
-      expect(await controller.findByCategory(category)).toEqual(result);
-      expect(service.findByCategory).toHaveBeenCalledWith(category);
+      expect(await controller.findByCategory(category, mockUser)).toEqual(
+        result,
+      );
+      expect(service.findByCategory).toHaveBeenCalledWith(category, 'org-1');
     });
   });
 
@@ -95,8 +110,8 @@ describe('TaxesController', () => {
 
       mockTaxesService.findOne.mockResolvedValue(result);
 
-      expect(await controller.findOne(id)).toEqual(result);
-      expect(service.findOne).toHaveBeenCalledWith(id);
+      expect(await controller.findOne(id, mockUser)).toEqual(result);
+      expect(service.findOne).toHaveBeenCalledWith(id, 'org-1');
     });
   });
 
@@ -108,8 +123,8 @@ describe('TaxesController', () => {
 
       mockTaxesService.update.mockResolvedValue(result);
 
-      expect(await controller.update(id, dto)).toEqual(result);
-      expect(service.update).toHaveBeenCalledWith(id, dto);
+      expect(await controller.update(id, dto, mockUser)).toEqual(result);
+      expect(service.update).toHaveBeenCalledWith(id, dto, 'org-1');
     });
   });
 
@@ -120,8 +135,8 @@ describe('TaxesController', () => {
 
       mockTaxesService.remove.mockResolvedValue(result);
 
-      expect(await controller.remove(id)).toEqual(result);
-      expect(service.remove).toHaveBeenCalledWith(id);
+      expect(await controller.remove(id, mockUser)).toEqual(result);
+      expect(service.remove).toHaveBeenCalledWith(id, 'org-1');
     });
   });
 });

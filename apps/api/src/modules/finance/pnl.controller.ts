@@ -1,19 +1,34 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UnauthorizedException } from '@nestjs/common';
+import { ApiBearerAuth } from '@nestjs/swagger';
+import {
+  CurrentUser,
+  CurrentUserType,
+} from '../auth/decorators/current-user.decorator';
 import { PnLService } from './pnl.service';
 
+@ApiBearerAuth()
 @Controller('finance/pnl')
 export class PnLController {
   constructor(private readonly pnlService: PnLService) {}
 
+  private requireOrg(user: CurrentUserType): string {
+    if (!user?.organizationId) {
+      throw new UnauthorizedException(
+        'Authenticated user does not belong to any organization',
+      );
+    }
+    return user.organizationId;
+  }
+
   @Get()
   async calculatePnL(
-    @Query('organization_id') organizationId: string,
     @Query('start_date') startDate: string,
     @Query('end_date') endDate: string,
+    @CurrentUser() user: CurrentUserType,
     @Query('location_id') locationId?: string,
   ) {
     return this.pnlService.calculatePnL(
-      organizationId,
+      this.requireOrg(user),
       new Date(startDate),
       new Date(endDate),
       locationId,
@@ -22,13 +37,13 @@ export class PnLController {
 
   @Get('monthly')
   async calculateMonthlyPnL(
-    @Query('organization_id') organizationId: string,
     @Query('year') year: string,
     @Query('month') month: string,
+    @CurrentUser() user: CurrentUserType,
     @Query('location_id') locationId?: string,
   ) {
     return this.pnlService.calculateMonthlyPnL(
-      organizationId,
+      this.requireOrg(user),
       parseInt(year),
       parseInt(month),
       locationId,
@@ -37,24 +52,28 @@ export class PnLController {
 
   @Get('yearly')
   async calculateYearlyPnL(
-    @Query('organization_id') organizationId: string,
     @Query('year') year: string,
+    @CurrentUser() user: CurrentUserType,
     @Query('location_id') locationId?: string,
   ) {
-    return this.pnlService.calculateYearlyPnL(organizationId, parseInt(year), locationId);
+    return this.pnlService.calculateYearlyPnL(
+      this.requireOrg(user),
+      parseInt(year),
+      locationId,
+    );
   }
 
   @Get('compare')
   async comparePeriods(
-    @Query('organization_id') organizationId: string,
     @Query('period1_start') period1Start: string,
     @Query('period1_end') period1End: string,
     @Query('period2_start') period2Start: string,
     @Query('period2_end') period2End: string,
+    @CurrentUser() user: CurrentUserType,
     @Query('location_id') locationId?: string,
   ) {
     return this.pnlService.comparePeriods(
-      organizationId,
+      this.requireOrg(user),
       new Date(period1Start),
       new Date(period1End),
       new Date(period2Start),

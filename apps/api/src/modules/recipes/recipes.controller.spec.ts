@@ -117,13 +117,21 @@ describe('RecipesController', () => {
   });
 
   describe('findById', () => {
-    it('should return a recipe by id', async () => {
+    it('should return a recipe by id scoped to the user organization', async () => {
+      const mockUser = {
+        userId: 'user-1',
+        email: 'test@test.com',
+        firstName: 'Test',
+        lastName: 'User',
+        organizationId: 'org-1',
+      };
+
       mockRecipesService.findById.mockResolvedValue(mockRecipe);
 
-      const result = await controller.findById('recipe-1');
+      const result = await controller.findById('recipe-1', mockUser);
 
       expect(result).toEqual(mockRecipe);
-      expect(service.findById).toHaveBeenCalledWith('recipe-1');
+      expect(service.findById).toHaveBeenCalledWith('recipe-1', 'org-1');
     });
   });
 

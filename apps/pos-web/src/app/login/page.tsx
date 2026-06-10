@@ -12,11 +12,13 @@ import { Coffee, Eye, EyeOff, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // Only accept relative paths as callbackUrl to prevent open-redirect attacks
-// (e.g. ?callbackUrl=https://evil.com/phish or ?callbackUrl=//evil.com).
+// (e.g. ?callbackUrl=https://evil.com/phish, ?callbackUrl=//evil.com or
+// ?callbackUrl=/\evil.com — browsers treat "/\" like "//").
 function sanitizeCallbackUrl(raw: string | null): string {
   if (!raw) return '/dashboard';
-  if (raw.startsWith('/') && !raw.startsWith('//')) return raw;
-  return '/dashboard';
+  const ok =
+    raw.startsWith('/') && !raw.startsWith('//') && !raw.startsWith('/\\');
+  return ok ? raw : '/dashboard';
 }
 
 // In production we ship empty credentials; in dev we prefill demo creds for

@@ -10,11 +10,16 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
+import { ApiBearerAuth } from '@nestjs/swagger';
 import { ModifiersService } from './modifiers.service';
 import { CreateModifierDto } from './dto/create-modifier.dto';
 import { UpdateModifierDto } from './dto/update-modifier.dto';
 import { QueryModifiersDto } from './dto/query-modifiers.dto';
 
+// TODO(schema): Modifier necesita organizationId para multi-tenancy.
+// El modelo Modifier en schema.prisma no tiene organizationId, por lo que
+// este controller NO puede filtrar por organización todavía.
+@ApiBearerAuth()
 @Controller('modifiers')
 export class ModifiersController {
   constructor(private readonly modifiersService: ModifiersService) {}

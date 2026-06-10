@@ -16,6 +16,7 @@ describe('InventoryMovementsService', () => {
       create: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
       count: jest.fn(),
@@ -96,7 +97,9 @@ describe('InventoryMovementsService', () => {
       mockPrismaService.inventoryMovement.create.mockResolvedValue(
         expectedResult,
       );
-      // IN type: getCurrentStock only called once after create for response
+      // IN type: getCurrentStock only called once after create for response.
+      // No ADJUSTMENT in history → base 0 + IN - OUT.
+      mockPrismaService.inventoryMovement.findFirst.mockResolvedValue(null);
       mockPrismaService.inventoryMovement.aggregate.mockResolvedValue({
         _sum: { quantity: 100 },
       });
@@ -149,17 +152,16 @@ describe('InventoryMovementsService', () => {
         },
       };
 
+      // OUT stock check happens INSIDE the transaction reading
+      // InventoryItem.currentStock (50 ≥ 10 → allowed).
       mockPrismaService.inventoryItem.findUnique.mockResolvedValue(
         inventoryItem,
       );
-      // getCurrentStock: IN=50, OUT=0, ADJ=0 → stock=50, sufficient for qty=10
+      // getCurrentStock (post): no ADJUSTMENT → IN=50, OUT=10 → 40.
+      mockPrismaService.inventoryMovement.findFirst.mockResolvedValue(null);
       mockPrismaService.inventoryMovement.aggregate
-        .mockResolvedValueOnce({ _sum: { quantity: 50 } }) // IN (precheck)
-        .mockResolvedValueOnce({ _sum: { quantity: 0 } }) // OUT (precheck)
-        .mockResolvedValueOnce({ _sum: { quantity: 0 } }) // ADJ (precheck)
         .mockResolvedValueOnce({ _sum: { quantity: 50 } }) // IN (post)
-        .mockResolvedValueOnce({ _sum: { quantity: 10 } }) // OUT (post)
-        .mockResolvedValueOnce({ _sum: { quantity: 0 } }); // ADJ (post)
+        .mockResolvedValueOnce({ _sum: { quantity: 10 } }); // OUT (post)
       mockPrismaService.inventoryMovement.create.mockResolvedValue(
         expectedResult,
       );
@@ -168,6 +170,70 @@ describe('InventoryMovementsService', () => {
 
       expect(result).toBeDefined();
       expect(result.inventoryItemId).toBe('item-1');
+      expect(result.inventoryItem.currentStock).toBe(40);
+      // Decrement applied transactionally.
+      expect(mockPrismaService.inventoryItem.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'item-1' },
+          data: { currentStock: { decrement: 10 } },
+        }),
+      );
+    });
+
+    it('should compute stock with ADJUSTMENT as absolute base (last adjustment resets)', async () => {
+      const createDto = {
+        inventoryItemId: 'item-1',
+        type: MovementType.ADJUSTMENT,
+        reason: MovementReason.COUNT_ADJUSTMENT,
+        quantity: 80,
+      };
+
+      const adjustmentMovement = {
+        id: 'adj-1',
+        inventoryItemId: 'item-1',
+        type: MovementType.ADJUSTMENT,
+        quantity: 80,
+        createdAt: new Date(),
+        inventoryItem: { id: 'item-1', name: 'Coffee Beans', code: 'CB-001' },
+      };
+
+      mockPrismaService.inventoryItem.findUnique.mockResolvedValue({
+        id: 'item-1',
+        name: 'Coffee Beans',
+      });
+      mockPrismaService.inventoryMovement.create.mockResolvedValue(
+        adjustmentMovement,
+      );
+      // getCurrentStock: last ADJUSTMENT = 80, then IN=5 / OUT=3 after it
+      // → stock = 80 + 5 - 3 = 82.
+      mockPrismaService.inventoryMovement.findFirst.mockResolvedValue(
+        adjustmentMovement,
+      );
+      mockPrismaService.inventoryMovement.aggregate
+        .mockResolvedValueOnce({ _sum: { quantity: 5 } }) // IN after adj
+        .mockResolvedValueOnce({ _sum: { quantity: 3 } }); // OUT after adj
+
+      const result = await service.create(createDto);
+
+      // ADJUSTMENT persists the ABSOLUTE value on InventoryItem.currentStock.
+      expect(mockPrismaService.inventoryItem.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'item-1' },
+          data: { currentStock: 80 },
+        }),
+      );
+      expect(result.inventoryItem.currentStock).toBe(82);
+      // IN/OUT aggregates are restricted to movements AFTER the adjustment.
+      expect(
+        mockPrismaService.inventoryMovement.aggregate,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            type: 'IN',
+            createdAt: { gt: adjustmentMovement.createdAt },
+          }),
+        }),
+      );
     });
 
     it('should throw BadRequestException if inventory item not found', async () => {
@@ -202,18 +268,11 @@ describe('InventoryMovementsService', () => {
         currentStock: 50,
       };
 
+      // The check reads InventoryItem.currentStock INSIDE the transaction
+      // (currentStock=50 < requested 100 → reject).
       mockPrismaService.inventoryItem.findUnique.mockResolvedValue(
         inventoryItem,
       );
-      // getCurrentStock now calls aggregate 3 times (IN, OUT, ADJ)
-      // IN=50, OUT=0, ADJ=0 → currentStock=50, which is less than requested 100
-      mockPrismaService.inventoryMovement.aggregate
-        .mockResolvedValueOnce({ _sum: { quantity: 50 } }) // IN (1st call)
-        .mockResolvedValueOnce({ _sum: { quantity: 0 } }) // OUT
-        .mockResolvedValueOnce({ _sum: { quantity: 0 } }) // ADJ
-        .mockResolvedValueOnce({ _sum: { quantity: 50 } }) // IN (2nd call)
-        .mockResolvedValueOnce({ _sum: { quantity: 0 } }) // OUT
-        .mockResolvedValueOnce({ _sum: { quantity: 0 } }); // ADJ
 
       await expect(service.create(createDto)).rejects.toThrow(
         BadRequestException,
@@ -221,6 +280,8 @@ describe('InventoryMovementsService', () => {
       await expect(service.create(createDto)).rejects.toThrow(
         'Insufficient stock. Available: 50, Requested: 100',
       );
+      // No movement is created when the in-transaction check fails.
+      expect(mockPrismaService.inventoryMovement.create).not.toHaveBeenCalled();
     });
   });
 
@@ -440,6 +501,7 @@ describe('InventoryMovementsService', () => {
       mockPrismaService.inventoryMovement.update.mockResolvedValue(
         updatedMovement,
       );
+      mockPrismaService.inventoryMovement.findFirst.mockResolvedValue(null);
       mockPrismaService.inventoryMovement.aggregate.mockResolvedValue({
         _sum: { quantity: 100 },
       });

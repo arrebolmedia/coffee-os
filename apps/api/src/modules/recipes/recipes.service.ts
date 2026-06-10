@@ -229,7 +229,7 @@ export class RecipesService {
     }
   }
 
-  async findById(id: string): Promise<Recipe> {
+  async findById(id: string, organizationId?: string): Promise<Recipe> {
     const dbRecipe = await this.prisma.recipe.findUnique({
       where: { id },
       include: {
@@ -238,16 +238,26 @@ export class RecipesService {
       },
     });
 
-    if (!dbRecipe) {
+    // Ownership: a recipe from another org is reported as not found (404).
+    if (
+      !dbRecipe ||
+      (organizationId && dbRecipe.organizationId !== organizationId)
+    ) {
       throw new NotFoundException(`Receta ${id} no encontrada`);
     }
 
     return this.toRecipe(dbRecipe);
   }
 
-  async findByProductId(productId: string): Promise<Recipe | null> {
+  async findByProductId(
+    productId: string,
+    organizationId?: string,
+  ): Promise<Recipe | null> {
     const dbRecipe = await this.prisma.recipe.findFirst({
-      where: { productId },
+      where: {
+        productId,
+        ...(organizationId ? { organizationId } : {}),
+      },
       include: {
         ingredients: { include: { inventoryItem: true } },
         product: true,

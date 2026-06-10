@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Prisma } from '@prisma/client';
 import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../database/prisma.service';
@@ -137,37 +138,66 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(dto.password, this.saltRounds);
 
     // Crear org + user en una transacción para garantizar atomicidad.
-    const result = await this.prisma.$transaction(async (tx) => {
-      const org = await tx.organization.create({
-        data: {
-          name: dto.organizationName,
-          slug: dto.organizationSlug,
-        },
-        select: { id: true, name: true, slug: true },
-      });
+    let result: {
+      user: {
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        organizationId: string;
+        createdAt: Date;
+      };
+      org: { id: string; name: string; slug: string };
+    };
+    try {
+      result = await this.prisma.$transaction(async (tx) => {
+        const org = await tx.organization.create({
+          data: {
+            name: dto.organizationName,
+            slug: dto.organizationSlug,
+          },
+          select: { id: true, name: true, slug: true },
+        });
 
-      const user = await tx.user.create({
-        data: {
-          email: dto.email,
-          password: hashedPassword,
-          firstName: dto.firstName || '',
-          lastName: dto.lastName || '',
-          organizationId: org.id,
-          roleId: ownerRole.id,
-          active: true,
-        },
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          organizationId: true,
-          createdAt: true,
-        },
-      });
+        const user = await tx.user.create({
+          data: {
+            email: dto.email,
+            password: hashedPassword,
+            firstName: dto.firstName || '',
+            lastName: dto.lastName || '',
+            organizationId: org.id,
+            roleId: ownerRole.id,
+            active: true,
+          },
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            organizationId: true,
+            createdAt: true,
+          },
+        });
 
-      return { user, org };
-    });
+        return { user, org };
+      });
+    } catch (error) {
+      // P2002 = unique constraint violation (org slug or user email raced in).
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const target = error.meta?.target;
+        const targetStr = Array.isArray(target)
+          ? target.join(',')
+          : String(target ?? '');
+        if (targetStr.includes('email')) {
+          throw new ConflictException('Email already registered');
+        }
+        throw new ConflictException('Slug already in use');
+      }
+      throw error;
+    }
 
     this.logger.log(
       `Organization registered: ${result.org.slug} (admin: ${result.user.email})`,

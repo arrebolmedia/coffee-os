@@ -37,7 +37,8 @@ type CreateOrderInput =
     };
 
 /**
- * Hook to create order via POS transactional endpoint (/pos/orders).
+ * Hook to create order via the POS ticket flow
+ * (POST /pos/tickets + PATCH /pos/tickets/:id/close).
  * Accepts either a pre-built CreateOrderDTO or a shorthand { cart, payment_method } shape.
  */
 export function useCreateOrder() {
@@ -57,33 +58,13 @@ export function useCreateOrder() {
         const { cart, payment_method, customer_id, notes, payment_details } =
           input;
 
-        if (!isOnline) {
-          const optimisticOrder: Order = {
-            id: `offline-${Date.now()}`,
-            organization_id: user.organizationId,
-            customer_id,
-            order_number: `OFF-${Date.now()}`,
-            subtotal: cart.subtotal,
-            tax: cart.tax,
-            discount: cart.discount,
-            total: cart.total,
-            status: 'pending',
-            payment_method: payment_method ?? PaymentMethod.CASH,
-            payment_status: 'pending',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-          addToSyncQueue('ORDER', 'CREATE', {
-            cart,
-            payment_method,
-            customer_id,
-            notes,
-          });
-          return Promise.resolve(optimisticOrder);
-        }
+        if (!user.locationId)
+          throw new Error('El usuario no tiene una sucursal asignada');
 
         const dto: CreateOrderDTO = {
           organization_id: user.organizationId,
+          location_id: user.locationId,
+          user_id: user.id,
           customer_id,
           items: cart.items.map((item) => ({
             product_id: item.product.id,
@@ -104,6 +85,29 @@ export function useCreateOrder() {
           payment_details,
           notes: notes ?? cart.notes,
         };
+
+        if (!isOnline) {
+          const optimisticOrder: Order = {
+            id: `offline-${Date.now()}`,
+            organization_id: user.organizationId,
+            customer_id,
+            order_number: `OFF-${Date.now()}`,
+            subtotal: cart.subtotal,
+            tax: cart.tax,
+            discount: cart.discount,
+            total: cart.total,
+            status: 'pending',
+            payment_method: payment_method ?? PaymentMethod.CASH,
+            payment_status: 'pending',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          // Encolar el DTO completo (incluye organization/location/user) para
+          // que el replay offline use exactamente el mismo flujo de creación.
+          addToSyncQueue('ORDER', 'CREATE', dto);
+          return Promise.resolve(optimisticOrder);
+        }
+
         return POSService.createOrder(dto);
       }
 

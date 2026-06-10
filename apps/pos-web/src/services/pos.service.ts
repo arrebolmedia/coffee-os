@@ -20,6 +20,8 @@ export interface OrderItem {
 
 export interface CreateOrderDTO {
   organization_id: string;
+  location_id: string;
+  user_id: string;
   customer_id?: string;
   items: OrderItem[];
   subtotal: number;
@@ -34,6 +36,33 @@ export interface CreateOrderDTO {
     reference?: string;
   };
   notes?: string;
+}
+
+/**
+ * Backend contract: POST /pos/tickets (CreateTicketDto, camelCase)
+ */
+interface CreateTicketPayload {
+  locationId: string;
+  userId: string;
+  customerId?: string;
+  discount?: number;
+  notes?: string;
+  lines: Array<{
+    productId: string;
+    quantity: number;
+    unitPrice: number;
+    modifiers?: Array<{ modifierId: string; priceDelta: number }>;
+    notes?: string;
+  }>;
+}
+
+/**
+ * Backend contract: PATCH /pos/tickets/:id/close (CloseTicketDto)
+ */
+interface TicketPayment {
+  method: string; // Prisma PaymentMethod: CASH | CARD | DIGITAL_WALLET | BANK_TRANSFER | LOYALTY_POINTS
+  amount: number;
+  reference?: string;
 }
 
 export interface Order {
@@ -74,10 +103,92 @@ export interface DailySalesStats {
 
 export class POSService {
   /**
-   * Create new order
+   * Create new order.
+   *
+   * Flujo de cobro real del backend (no existe POST /pos/orders):
+   * 1. POST  /pos/tickets           → crea el ticket (CreateTicketDto camelCase)
+   * 2. PATCH /pos/tickets/:id/close → cierra el ticket y registra los pagos
    */
   static async createOrder(data: CreateOrderDTO): Promise<Order> {
-    return await api.post<Order>('/pos/orders', data);
+    const ticketPayload: CreateTicketPayload = {
+      locationId: data.location_id,
+      userId: data.user_id,
+      customerId: data.customer_id,
+      discount: data.discount > 0 ? data.discount : undefined,
+      notes: data.notes,
+      lines: data.items.map((item) => ({
+        productId: item.product_id,
+        quantity: item.quantity,
+        unitPrice: item.unit_price,
+        modifiers: item.modifiers?.map((m) => ({
+          modifierId: m.id,
+          priceDelta: m.price,
+        })),
+        notes: item.notes,
+      })),
+    };
+
+    const ticket = await api.post<any>('/pos/tickets', ticketPayload);
+
+    // Cobrar contra el total calculado por el backend (fuente de verdad).
+    const total = Number(ticket?.total ?? data.total);
+    const payments = POSService.buildTicketPayments(data, total);
+
+    const closed = await api.patch<any>(`/pos/tickets/${ticket.id}/close`, {
+      payments,
+    });
+
+    return POSService.mapTicketToOrder(closed ?? ticket, data);
+  }
+
+  /**
+   * Map frontend payment method + details to the backend payments breakdown.
+   */
+  private static buildTicketPayments(
+    data: CreateOrderDTO,
+    total: number,
+  ): TicketPayment[] {
+    const details = data.payment_details;
+
+    if (data.payment_method === PaymentMethod.MIXED) {
+      const card = Math.min(details?.card ?? 0, total);
+      const cash = Math.max(0, total - card);
+      const payments: TicketPayment[] = [];
+      if (card > 0) payments.push({ method: 'CARD', amount: card });
+      if (cash > 0) payments.push({ method: 'CASH', amount: cash });
+      return payments;
+    }
+
+    // CASH | CARD | DIGITAL_WALLET | BANK_TRANSFER | LOYALTY_POINTS map 1:1
+    // al enum del backend. El monto cobrado es el total (el cambio de un pago
+    // en efectivo no se registra como pago).
+    return [
+      {
+        method: data.payment_method,
+        amount: total,
+        reference: details?.reference,
+      },
+    ];
+  }
+
+  private static mapTicketToOrder(ticket: any, data: CreateOrderDTO): Order {
+    const isClosed = ticket?.status === 'CLOSED';
+    return {
+      id: ticket.id,
+      organization_id: data.organization_id,
+      customer_id: ticket.customerId ?? data.customer_id,
+      order_number: ticket.ticketNumber,
+      subtotal: Number(ticket.subtotal ?? data.subtotal),
+      tax: Number(ticket.tax ?? data.tax),
+      discount: Number(ticket.discount ?? data.discount ?? 0),
+      total: Number(ticket.total ?? data.total),
+      status: isClosed ? 'completed' : 'pending',
+      payment_method: data.payment_method,
+      payment_status: isClosed ? 'paid' : 'pending',
+      created_at: ticket.openedAt ?? new Date().toISOString(),
+      updated_at:
+        ticket.closedAt ?? ticket.openedAt ?? new Date().toISOString(),
+    };
   }
 
   /**

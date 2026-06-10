@@ -1,6 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ShiftsController } from './shifts.controller';
 import { ShiftsService, ShiftStatus } from './shifts.service';
+import { CurrentUserType } from '../auth/decorators/current-user.decorator';
+
+const mockUser: CurrentUserType = {
+  userId: 'user-1',
+  email: 'test@example.com',
+  firstName: 'Test',
+  lastName: 'User',
+  organizationId: 'org-1',
+};
 
 describe('ShiftsController', () => {
   let controller: ShiftsController;
@@ -48,8 +57,8 @@ describe('ShiftsController', () => {
 
       mockShiftsService.create.mockResolvedValue(result);
 
-      expect(await controller.create(dto)).toEqual(result);
-      expect(service.create).toHaveBeenCalledWith(dto);
+      expect(await controller.create(dto, mockUser)).toEqual(result);
+      expect(service.create).toHaveBeenCalledWith(dto, 'org-1');
     });
   });
 
@@ -60,8 +69,8 @@ describe('ShiftsController', () => {
 
       mockShiftsService.findAll.mockResolvedValue(result);
 
-      expect(await controller.findAll(query)).toEqual(result);
-      expect(service.findAll).toHaveBeenCalledWith(query);
+      expect(await controller.findAll(query, mockUser)).toEqual(result);
+      expect(service.findAll).toHaveBeenCalledWith(query, 'org-1');
     });
   });
 
@@ -126,8 +135,8 @@ describe('ShiftsController', () => {
 
       mockShiftsService.close.mockResolvedValue(result);
 
-      expect(await controller.close(id, dto)).toEqual(result);
-      expect(service.close).toHaveBeenCalledWith(id, dto);
+      expect(await controller.close(id, dto, mockUser)).toEqual(result);
+      expect(service.close).toHaveBeenCalledWith(id, dto, 'org-1');
     });
   });
 

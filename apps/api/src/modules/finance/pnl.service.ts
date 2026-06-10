@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { ProfitAndLoss } from './interfaces';
 
@@ -20,6 +20,18 @@ export class PnLService {
     endDate: Date,
     locationId?: string,
   ): Promise<ProfitAndLoss> {
+    // Multi-tenant guard: if a locationId is provided, it must belong to the
+    // caller's organization (404 otherwise — don't leak existence).
+    if (locationId) {
+      const location = await this.prisma.location.findUnique({
+        where: { id: locationId },
+        select: { id: true, organizationId: true },
+      });
+      if (!location || location.organizationId !== organizationId) {
+        throw new NotFoundException(`Location ${locationId} not found`);
+      }
+    }
+
     // Resolve locationIds for this org in range
     const locationWhere: any = { organizationId };
     if (locationId) locationWhere.id = locationId;
@@ -210,28 +222,15 @@ export class PnLService {
   }
 
   /**
-   * Resolve the corporate income-tax rate from organization settings if
-   * available; otherwise fall back to DEFAULT_TAX_RATE (0.30) and flag the
-   * response so callers know the default was used.
+   * Resolve the corporate income-tax rate. The Organization model has no
+   * settings column in the current schema, so we always use DEFAULT_TAX_RATE
+   * (0.30) and flag the response so callers know the default was used.
+   *
+   * TODO(schema): agregar Organization.settings Json para tax rate configurable
    */
   private async resolveTaxRate(
-    organizationId: string,
+    _organizationId: string,
   ): Promise<{ taxRate: number; taxRateDefaultUsed: boolean }> {
-    try {
-      const org = await this.prisma.organization.findUnique({
-        where: { id: organizationId },
-      });
-      const settings = (org as any)?.settings;
-      const rate =
-        settings && typeof settings === 'object'
-          ? Number(settings.corporate_tax_rate ?? settings.taxRate)
-          : NaN;
-      if (Number.isFinite(rate) && rate >= 0 && rate <= 1) {
-        return { taxRate: rate, taxRateDefaultUsed: false };
-      }
-    } catch {
-      // ignore; fall back to default
-    }
     return { taxRate: DEFAULT_TAX_RATE, taxRateDefaultUsed: true };
   }
 

@@ -3,12 +3,8 @@
  * Servicio para gestión de gastos operativos
  */
 
-import { getSession } from 'next-auth/react';
 import { api } from '@/lib/api';
 import { Expense, PaginatedResponse, PaginationParams } from '@/types';
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
 class ExpensesService {
   private readonly baseUrl = '/finance/expenses';
@@ -129,39 +125,12 @@ class ExpensesService {
   // ============================================================================
 
   async uploadAttachment(
-    expenseId: string,
-    file: File,
+    _expenseId: string,
+    _file: File,
   ): Promise<{ url: string }> {
-    // TODO: migrar a api.upload cuando esté soportado en lib/api.ts
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const session = await getSession();
-    const headers: Record<string, string> = {};
-    if (session?.accessToken)
-      headers['Authorization'] = `Bearer ${session.accessToken}`;
-    if (session?.user?.organizationId)
-      headers['X-Organization-Id'] = session.user.organizationId;
-    if (session?.user?.locationId)
-      headers['X-Location-Id'] = session.user.locationId;
-
-    const response = await fetch(
-      `${API_BASE_URL}${this.baseUrl}/${expenseId}/attachments`,
-      {
-        method: 'POST',
-        body: formData,
-        headers,
-      },
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => '');
-      throw new Error(
-        `Upload failed (${response.status}): ${errorText || response.statusText}`,
-      );
-    }
-
-    return (await response.json()) as { url: string };
+    // TODO: implementar cuando el backend exponga
+    // POST /finance/expenses/:id/attachments (hoy no existe → 404 garantizado).
+    throw new Error('Attachments no soportados aún');
   }
 }
 

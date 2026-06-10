@@ -4,67 +4,59 @@
 
 import { api } from '@/lib/api';
 
+/**
+ * Modelo real del backend (Prisma Category).
+ * El schema NO tiene slug, type, parent_id, is_featured, show_in_menu,
+ * allow_products, image_url ni tags — eran campos fantasma.
+ */
 export interface Category {
   id: string;
-  organization_id: string;
+  organizationId: string;
   name: string;
-  slug?: string;
   description?: string;
-  type: 'product' | 'inventory' | 'recipe' | 'expense';
-  status: 'active' | 'inactive' | 'archived';
-  parent_id?: string;
-  display_order: number;
-  icon?: string;
   color?: string;
-  image_url?: string;
-  is_featured: boolean;
-  show_in_menu: boolean;
-  allow_products: boolean;
-  tags?: string[];
-  created_at: string;
-  updated_at: string;
+  icon?: string;
+  sortOrder: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  products?: Array<{ id: string; name: string }>;
 }
 
+/**
+ * Filtros que el backend (QueryCategoriesDto + CategoriesService.findAll)
+ * realmente aplica. organization_id se infiere del usuario autenticado.
+ */
 export interface QueryCategoriesParams {
-  organization_id?: string;
-  type?: 'product' | 'inventory' | 'recipe' | 'expense';
-  status?: 'active' | 'inactive' | 'archived';
-  parent_id?: string | 'null';
+  status?: 'active' | 'inactive';
   search?: string;
-  page?: number;
-  limit?: number;
+  sort_by?: 'name' | 'display_order' | 'created_at';
+  order?: 'asc' | 'desc';
 }
 
+/**
+ * Campos del CreateCategoryDto del backend que el servicio Prisma usa.
+ * (El DTO backend es snake_case; display_order → sortOrder,
+ * status 'active' → active: true.)
+ */
 export interface CreateCategoryDto {
   organization_id: string;
   name: string;
-  slug?: string;
   description?: string;
-  type?: 'product' | 'inventory' | 'recipe' | 'expense';
-  status?: 'active' | 'inactive' | 'archived';
-  parent_id?: string;
+  status?: 'active' | 'inactive';
   display_order?: number;
   icon?: string;
   color?: string;
-  image_url?: string;
-  is_featured?: boolean;
-  show_in_menu?: boolean;
-  allow_products?: boolean;
-  tags?: string[];
 }
 
 class CategoriesService {
   private baseUrl = '/categories';
 
   /**
-   * Obtener lista de categorías
+   * Obtener lista de categorías.
+   * El backend devuelve un array plano (sin paginación).
    */
-  async getCategories(params?: QueryCategoriesParams): Promise<{
-    data: Category[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
+  async getCategories(params?: QueryCategoriesParams): Promise<Category[]> {
     const queryString = params
       ? new URLSearchParams(
           Object.entries(params).reduce(

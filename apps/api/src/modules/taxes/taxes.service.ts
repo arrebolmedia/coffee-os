@@ -14,10 +14,11 @@ export class TaxesService {
     });
   }
 
-  async findAll(query: QueryTaxesDto) {
+  async findAll(query: QueryTaxesDto, organizationId?: string) {
     const { skip, take, active, category } = query;
 
     const where: any = {};
+    if (organizationId) where.organizationId = organizationId;
     if (active !== undefined) where.active = active;
     if (category) where.category = category as TaxCategory;
 
@@ -29,35 +30,44 @@ export class TaxesService {
     });
   }
 
-  async findActive() {
+  async findActive(organizationId?: string) {
     return this.prisma.tax.findMany({
-      where: { active: true },
+      where: {
+        active: true,
+        ...(organizationId ? { organizationId } : {}),
+      },
       orderBy: { name: 'asc' },
     });
   }
 
-  async findByCategory(category: string) {
+  async findByCategory(category: string, organizationId?: string) {
     const where: any = { category: category as TaxCategory };
+    if (organizationId) where.organizationId = organizationId;
     return this.prisma.tax.findMany({
       where,
       orderBy: { name: 'asc' },
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, organizationId?: string) {
     const tax = await this.prisma.tax.findUnique({
       where: { id },
     });
 
-    if (!tax) {
+    // Ownership: a tax from another org is reported as not found (404).
+    if (!tax || (organizationId && tax.organizationId !== organizationId)) {
       throw new NotFoundException(`Tax with ID "${id}" not found`);
     }
 
     return tax;
   }
 
-  async update(id: string, updateTaxDto: UpdateTaxDto) {
-    await this.findOne(id);
+  async update(
+    id: string,
+    updateTaxDto: UpdateTaxDto,
+    organizationId?: string,
+  ) {
+    await this.findOne(id, organizationId);
 
     return this.prisma.tax.update({
       where: { id },
@@ -65,8 +75,8 @@ export class TaxesService {
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, organizationId?: string) {
+    await this.findOne(id, organizationId);
 
     return this.prisma.tax.delete({
       where: { id },

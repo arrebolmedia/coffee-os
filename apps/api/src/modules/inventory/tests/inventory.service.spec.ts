@@ -187,8 +187,14 @@ describe('InventoryService', () => {
       expect(items).toHaveLength(3);
     });
 
-    it('should filter by organization', async () => {
-      const items = await service.findAll({ organization_id: orgId });
+    it('should filter by the authenticated user organization', async () => {
+      const items = await service.findAll({}, { organizationId: orgId });
+      expect(items).toHaveLength(3);
+    });
+
+    it('should NOT filter by query.organization_id (fallback removed)', async () => {
+      // query.organization_id ya no se usa como filtro multi-tenant.
+      const items = await service.findAll({ organization_id: 'otra-org' });
       expect(items).toHaveLength(3);
     });
 
@@ -256,10 +262,28 @@ describe('InventoryService', () => {
       expect(updated.current_stock).toBe(70);
     });
 
+    it('should record subtract as an OUT movement with POSITIVE quantity', async () => {
+      const item = await service.create(mockItemDto);
+      await service.adjustStock(item.id, 30, 'subtract');
+      const movements = await service.getMovements(item.id);
+      expect(movements.length).toBe(1);
+      expect(movements[0].type).toBe('sale'); // OUT
+      expect(movements[0].quantity).toBe(30); // positive, sign implied by type
+    });
+
     it('should set stock', async () => {
       const item = await service.create(mockItemDto);
       const updated = await service.adjustStock(item.id, 200, 'set');
       expect(updated.current_stock).toBe(200);
+    });
+
+    it('should record set as an ADJUSTMENT movement with the ABSOLUTE value', async () => {
+      const item = await service.create(mockItemDto);
+      await service.adjustStock(item.id, 200, 'set');
+      const movements = await service.getMovements(item.id);
+      expect(movements.length).toBe(1);
+      expect(movements[0].type).toBe('adjustment');
+      expect(movements[0].quantity).toBe(200); // absolute final stock value
     });
 
     it('should throw if insufficient stock', async () => {

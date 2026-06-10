@@ -5,6 +5,7 @@
 
 import { useOfflineStore } from '@/store/offline.store';
 import { ordersService } from '@/services/orders.service';
+import { POSService } from '@/services/pos.service';
 import { productsService } from '@/services/products.service';
 import { customersService } from '@/services/customers.service';
 import {
@@ -241,12 +242,13 @@ export class SyncService {
 
   private async syncOrder(item: SyncQueueItem): Promise<void> {
     if (item.action === 'CREATE') {
-      const order = await ordersService.createOrder(item.data);
+      // El queue item guarda el CreateOrderDTO completo (incluye
+      // organization_id, location_id y user_id de la sesión que lo encoló),
+      // así el replay usa el mismo flujo de tickets que la venta online.
+      const order = await POSService.createOrder(item.data);
 
-      // Update local order with server ID
-      if (item.data.id?.startsWith('offline-')) {
-        await saveOrder(order);
-      }
+      // Persist server copy locally (replaces the optimistic offline order)
+      await saveOrder(order as any);
 
       console.log(`Order synced: ${order.order_number}`);
     } else if (item.action === 'UPDATE') {

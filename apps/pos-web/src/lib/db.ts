@@ -60,7 +60,10 @@ interface CoffeeOSDB extends DBSchema {
 }
 
 const DB_NAME = 'coffeeos-pos';
-const DB_VERSION = 1;
+// v2: índices 'by-category' (categoryId) y 'by-sort-order' (sortOrder)
+// recreados — antes apuntaban a keyPaths snake_case inexistentes
+// (category_id / sort_order) y los filtros offline retornaban vacío.
+const DB_VERSION = 2;
 
 // ============================================================================
 // DATABASE INITIALIZATION
@@ -74,7 +77,7 @@ export async function initDB(): Promise<IDBPDatabase<CoffeeOSDB>> {
   }
 
   dbInstance = await openDB<CoffeeOSDB>(DB_NAME, DB_VERSION, {
-    upgrade(db, oldVersion, newVersion, _transaction) {
+    upgrade(db, oldVersion, newVersion, transaction) {
       console.log(`Upgrading DB from version ${oldVersion} to ${newVersion}`);
 
       // Products store
@@ -82,7 +85,7 @@ export async function initDB(): Promise<IDBPDatabase<CoffeeOSDB>> {
         const productsStore = db.createObjectStore('products', {
           keyPath: 'id',
         });
-        productsStore.createIndex('by-category', 'category_id');
+        productsStore.createIndex('by-category', 'categoryId');
         productsStore.createIndex('by-sku', 'sku');
         productsStore.createIndex('by-status', 'status');
       }
@@ -92,7 +95,22 @@ export async function initDB(): Promise<IDBPDatabase<CoffeeOSDB>> {
         const categoriesStore = db.createObjectStore('categories', {
           keyPath: 'id',
         });
-        categoriesStore.createIndex('by-sort-order', 'sort_order');
+        categoriesStore.createIndex('by-sort-order', 'sortOrder');
+      }
+
+      // v1 → v2: recrear índices que apuntaban a keyPaths snake_case.
+      if (oldVersion >= 1 && oldVersion < 2) {
+        const productsStore = transaction.objectStore('products');
+        if (productsStore.indexNames.contains('by-category')) {
+          productsStore.deleteIndex('by-category');
+        }
+        productsStore.createIndex('by-category', 'categoryId');
+
+        const categoriesStore = transaction.objectStore('categories');
+        if (categoriesStore.indexNames.contains('by-sort-order')) {
+          categoriesStore.deleteIndex('by-sort-order');
+        }
+        categoriesStore.createIndex('by-sort-order', 'sortOrder');
       }
 
       // Modifiers store

@@ -49,10 +49,10 @@ export interface Product extends BaseEntity, OrganizationContext {
   status: ProductStatus;
   image?: string;
   barcode?: string;
-  track_inventory: boolean;
+  trackInventory?: boolean;
   currentStock?: number;
-  min_stock?: number;
-  max_stock?: number;
+  minStock?: number;
+  maxStock?: number;
   modifiers?: Modifier[];
   tags?: string[];
 }
