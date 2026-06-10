@@ -33,6 +33,8 @@ model Organization {
   inventoryItems InventoryItem[]
   suppliers      Supplier[]
   customers      Customer[]
+  permits        Permit[]
+  expenses       Expense[]
 
   @@map("organizations")
 }
@@ -66,6 +68,7 @@ model Location {
   qualityLogs        QualityLog[]
   taskRuns           TaskRun[]
   permits            Permit[]
+  expenses           Expense[]
 
   @@map("locations")
 }
@@ -273,9 +276,9 @@ model ProductModifier {
 }
 
 model Recipe {
-  id             String @id @default(cuid())
-  organizationId String @map("organization_id")
-  productId      String @map("product_id")
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  productId      String? @map("product_id")
 
   name         String
   description  String?
@@ -301,7 +304,7 @@ model Recipe {
 
   // Relations
   organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  product      Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product      Product?           @relation(fields: [productId], references: [id], onDelete: Cascade)
   ingredients  RecipeIngredient[]
 
   @@map("recipes")
@@ -376,9 +379,9 @@ model RecipeIngredient {
 // ========================================
 
 model InventoryMovement {
-  id              String @id @default(cuid())
-  locationId      String @map("location_id")
-  inventoryItemId String @map("inventory_item_id")
+  id              String  @id @default(cuid())
+  locationId      String? @map("location_id")
+  inventoryItemId String  @map("inventory_item_id")
 
   type     MovementType
   quantity Float
@@ -393,7 +396,7 @@ model InventoryMovement {
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
-  location      Location      @relation(fields: [locationId], references: [id])
+  location      Location?     @relation(fields: [locationId], references: [id])
   inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
   lot           Lot?          @relation(fields: [lotId], references: [id])
 
@@ -904,29 +907,44 @@ model QualityLog {
 // ========================================
 
 model Permit {
-  id         String @id @default(cuid())
-  locationId String @map("location_id")
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  locationId     String @map("location_id")
 
+  type         PermitType
   name         String
   authority    String // issuing authority
-  permitNumber String?      @map("permit_number")
-  status       PermitStatus
+  permitNumber String       @map("permit_number")
+  status       PermitStatus @default(ACTIVE)
 
   // Dates
-  issuedDate DateTime? @map("issued_date")
-  expiryDate DateTime? @map("expiry_date")
+  issuedDate      DateTime? @map("issued_date")
+  expiryDate      DateTime? @map("expiry_date")
+  lastRenewalDate DateTime? @map("last_renewal_date")
+
+  // Cost
+  cost           Float?
+  renewalCost    Float?  @map("renewal_cost")
+  renewalFrequency String? @map("renewal_frequency") // RRULE format
+
+  responsiblePerson String? @map("responsible_person")
 
   // Files
   documents String[] // JSON array of file URLs
+  documentUrl String? @map("document_url")
 
   notes     String?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  location Location        @relation(fields: [locationId], references: [id])
-  renewals PermitRenewal[]
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  location     Location        @relation(fields: [locationId], references: [id])
+  renewals     PermitRenewal[]
 
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([expiryDate])
   @@map("permits")
 }
 
@@ -952,6 +970,76 @@ model PermitRenewal {
 // ========================================
 // FINANCIAL & INVOICING
 // ========================================
+
+model Expense {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  locationId     String  @map("location_id")
+
+  category    ExpenseCategory
+  description String
+  amount      Float
+  taxAmount   Float?          @map("tax_amount")
+  totalAmount Float           @map("total_amount")
+
+  dueDate DateTime?     @map("due_date")
+  status  ExpenseStatus @default(PENDING)
+
+  vendorName    String? @map("vendor_name")
+  vendorRfc     String? @map("vendor_rfc")
+  invoiceNumber String? @map("invoice_number")
+
+  paymentMethod    ExpensePaymentMethod? @map("payment_method")
+  paidDate         DateTime?             @map("paid_date")
+  paymentReference String?               @map("payment_reference")
+
+  attachmentUrl   String? @map("attachment_url")
+  notes           String?
+  createdByUserId String? @map("created_by_user_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  location     Location     @relation(fields: [locationId], references: [id])
+
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("expenses")
+}
+
+enum ExpenseCategory {
+  RENT
+  UTILITIES
+  LABOR
+  SUPPLIES
+  MARKETING
+  EQUIPMENT
+  INSURANCE
+  TAXES
+  PROFESSIONAL_SERVICES
+  PERMITS_LICENSES
+  WASTE_MANAGEMENT
+  SECURITY
+  OTHER
+}
+
+enum ExpenseStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum ExpensePaymentMethod {
+  CASH
+  TRANSFER
+  CHECK
+  CARD
+  CREDIT
+}
 
 model InvoiceCfdi {
   id       String @id @default(cuid())
@@ -1411,12 +1499,29 @@ enum QualityLogType {
   CLEANING
 }
 
+enum PermitType {
+  USO_SUELO
+  FUNCIONAMIENTO
+  PROTECCION_CIVIL
+  ANUNCIO
+  SALUBRIDAD
+  BOMBEROS
+  ECOLOGIA
+  ALCOHOL
+  IMSS
+  SAT
+  INFONAVIT
+  STPS
+  OTHER
+}
+
 enum PermitStatus {
+  PENDING
   ACTIVE
   EXPIRED
-  PENDING_RENEWAL
+  RENEWAL_DUE
   SUSPENDED
-  CANCELED
+  CANCELLED
 }
 
 enum InvoiceStatus {

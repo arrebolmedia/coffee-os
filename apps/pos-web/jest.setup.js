@@ -1,5 +1,46 @@
+/* eslint-env jest */
+/* eslint-disable @typescript-eslint/no-require-imports */
 // Learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render as rtlRender } from '@testing-library/react';
+import React from 'react';
+
+// Wrap render with QueryClientProvider globally so components using React Query work in tests
+const originalRender = rtlRender;
+global.renderWithProviders = (ui, options) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const Wrapper = ({ children }) =>
+    React.createElement(QueryClientProvider, { client: queryClient }, children);
+  return originalRender(ui, { wrapper: Wrapper, ...options });
+};
+
+// Override the default render from @testing-library/react to include providers
+jest.mock('@testing-library/react', () => {
+  const actual = jest.requireActual('@testing-library/react');
+  const React = require('react');
+  const { QueryClient, QueryClientProvider } = require('@tanstack/react-query');
+
+  const renderWithQuery = (ui, options) => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const Wrapper = ({ children }) =>
+      React.createElement(
+        QueryClientProvider,
+        { client: queryClient },
+        children,
+      );
+    return actual.render(ui, { wrapper: Wrapper, ...options });
+  };
+
+  return { ...actual, render: renderWithQuery };
+});
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
@@ -111,3 +152,23 @@ global.console = {
 
 // Mock environment variables
 process.env.NEXT_PUBLIC_API_URL = 'http://localhost:3001/api';
+
+jest.mock('next-auth/react', () => ({
+  useSession: jest.fn(() => ({
+    data: {
+      user: {
+        id: 'test-user-id',
+        email: 'test@example.com',
+        name: 'Test User',
+        organizationId: 'org-123',
+        locationId: 'location-123',
+      },
+      accessToken: 'test-token',
+    },
+    status: 'authenticated',
+  })),
+  SessionProvider: ({ children }) => children,
+  signIn: jest.fn(),
+  signOut: jest.fn(),
+  getSession: jest.fn(),
+}));
