@@ -1,17 +1,26 @@
 import { Injectable } from '@nestjs/common';
-import { CreateCertificationDto, QueryCertificationsDto, CertificationStatus } from './dto';
+import {
+  CertificationStatus,
+  CreateCertificationDto,
+  QueryCertificationsDto,
+} from './dto';
 import { Certification } from './interfaces';
 
 @Injectable()
 export class CertificationsService {
   private certifications: Map<string, Certification> = new Map();
 
-  async create(createDto: CreateCertificationDto, organizationId: string): Promise<Certification> {
+  async create(
+    createDto: CreateCertificationDto,
+    organizationId: string,
+  ): Promise<Certification> {
     const id = this.generateId();
     const now = new Date();
 
     const issueDate = new Date(createDto.issue_date);
-    const expiryDate = createDto.expiry_date ? new Date(createDto.expiry_date) : undefined;
+    const expiryDate = createDto.expiry_date
+      ? new Date(createDto.expiry_date)
+      : undefined;
 
     // Calculate if expiring soon and days until expiry
     let isExpiringSoon = false;
@@ -20,7 +29,9 @@ export class CertificationsService {
 
     if (expiryDate) {
       const today = new Date();
-      const daysDiff = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const daysDiff = Math.ceil(
+        (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+      );
       daysUntilExpiry = daysDiff;
 
       if (daysDiff <= 0) {
@@ -84,7 +95,10 @@ export class CertificationsService {
     return this.certifications.get(id) || null;
   }
 
-  async updateStatus(id: string, status: CertificationStatus): Promise<Certification> {
+  async updateStatus(
+    id: string,
+    status: CertificationStatus,
+  ): Promise<Certification> {
     const cert = this.certifications.get(id);
     if (!cert) {
       throw new Error('Certification not found');
@@ -101,7 +115,10 @@ export class CertificationsService {
     this.certifications.delete(id);
   }
 
-  async getExpiring(organizationId: string, days: number = 30): Promise<Certification[]> {
+  async getExpiring(
+    organizationId: string,
+    days: number = 30,
+  ): Promise<Certification[]> {
     const certs = Array.from(this.certifications.values()).filter(
       (c) =>
         c.organization_id === organizationId &&
@@ -111,7 +128,9 @@ export class CertificationsService {
         c.days_until_expiry > 0,
     );
 
-    return certs.sort((a, b) => (a.days_until_expiry || 0) - (b.days_until_expiry || 0));
+    return certs.sort(
+      (a, b) => (a.days_until_expiry || 0) - (b.days_until_expiry || 0),
+    );
   }
 
   async getStats(organizationId: string): Promise<any> {
@@ -120,14 +139,21 @@ export class CertificationsService {
     );
 
     const total = certs.length;
-    const active = certs.filter((c) => c.status === CertificationStatus.ACTIVE).length;
-    const expired = certs.filter((c) => c.status === CertificationStatus.EXPIRED).length;
+    const active = certs.filter(
+      (c) => c.status === CertificationStatus.ACTIVE,
+    ).length;
+    const expired = certs.filter(
+      (c) => c.status === CertificationStatus.EXPIRED,
+    ).length;
     const expiringSoon = certs.filter((c) => c.is_expiring_soon).length;
 
-    const byType = certs.reduce((acc, c) => {
-      acc[c.type] = (acc[c.type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const byType = certs.reduce(
+      (acc, c) => {
+        acc[c.type] = (acc[c.type] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     return {
       total,

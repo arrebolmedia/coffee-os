@@ -1,13 +1,12 @@
 import {
-  IsString,
-  IsUUID,
-  IsOptional,
   IsEnum,
   IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
   MaxLength,
-  Matches,
 } from 'class-validator';
-import { Resource, Action, Effect } from '../interfaces';
+import { Action, Effect, Resource } from '../interfaces';
 
 export class CreatePermissionDto {
   @IsUUID()

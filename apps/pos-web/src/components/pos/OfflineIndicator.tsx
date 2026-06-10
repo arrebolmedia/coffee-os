@@ -7,14 +7,14 @@
 
 import { useOffline } from '@/hooks/use-offline';
 import {
-  Wifi,
-  WifiOff,
-  RefreshCw,
   AlertCircle,
   Check,
   Database,
+  RefreshCw,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export function OfflineIndicator() {
   const {

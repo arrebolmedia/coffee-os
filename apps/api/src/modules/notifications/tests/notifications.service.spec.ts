@@ -1,10 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { NotificationsService } from '../notifications.service';
 import {
   Channel,
-  NotificationStatus,
   NotificationPriority,
+  NotificationStatus,
   TemplateCategory,
 } from '../interfaces/notification.interface';
 import { CreateTemplateDto } from '../dto/create-template.dto';
@@ -356,9 +360,9 @@ describe('NotificationsService', () => {
           undefined,
           NotificationPriority.HIGH,
         );
-        expect(result.every((n) => n.priority === NotificationPriority.HIGH)).toBe(
-          true,
-        );
+        expect(
+          result.every((n) => n.priority === NotificationPriority.HIGH),
+        ).toBe(true);
       });
     });
 
@@ -389,9 +393,9 @@ describe('NotificationsService', () => {
 
         await service.sendNotification(notification.id);
 
-        await expect(
-          service.sendNotification(notification.id),
-        ).rejects.toThrow(BadRequestException);
+        await expect(service.sendNotification(notification.id)).rejects.toThrow(
+          BadRequestException,
+        );
       });
     });
 

@@ -1,17 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   InventoryMovementsService,
-  MovementType,
   MovementReason,
+  MovementType,
 } from './inventory-movements.service';
 import { PrismaService } from '../database/prisma.service';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('InventoryMovementsService', () => {
   let service: InventoryMovementsService;
   let prisma: PrismaService;
 
-  const mockPrismaService = {
+  const mockPrismaService: any = {
     inventoryMovement: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -23,7 +23,14 @@ describe('InventoryMovementsService', () => {
     },
     inventoryItem: {
       findUnique: jest.fn(),
+      update: jest.fn(),
     },
+    // Pass-through $transaction that just invokes the callback with the same
+    // mock client (so service tx code paths run against the same mocks).
+    $transaction: jest.fn(async (cbOrArr: any) => {
+      if (typeof cbOrArr === 'function') return cbOrArr(mockPrismaService);
+      return Promise.all(cbOrArr);
+    }),
   };
 
   beforeEach(async () => {
@@ -89,10 +96,9 @@ describe('InventoryMovementsService', () => {
       mockPrismaService.inventoryMovement.create.mockResolvedValue(
         expectedResult,
       );
+      // IN type: getCurrentStock only called once after create for response
       mockPrismaService.inventoryMovement.aggregate.mockResolvedValue({
-        _sum: {
-          quantity: 100,
-        },
+        _sum: { quantity: 100 },
       });
 
       const result = await service.create(createDto);
@@ -102,6 +108,13 @@ describe('InventoryMovementsService', () => {
       });
       expect(result).toBeDefined();
       expect(result.inventoryItemId).toBe('item-1');
+      // Should have updated currentStock on InventoryItem (IN → increment)
+      expect(mockPrismaService.inventoryItem.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'item-1' },
+          data: { currentStock: { increment: 50 } },
+        }),
+      );
     });
 
     it('should create an inventory movement (OUT) with sufficient stock', async () => {
@@ -139,11 +152,14 @@ describe('InventoryMovementsService', () => {
       mockPrismaService.inventoryItem.findUnique.mockResolvedValue(
         inventoryItem,
       );
-      mockPrismaService.inventoryMovement.aggregate.mockResolvedValue({
-        _sum: {
-          quantity: 50,
-        },
-      });
+      // getCurrentStock: IN=50, OUT=0, ADJ=0 → stock=50, sufficient for qty=10
+      mockPrismaService.inventoryMovement.aggregate
+        .mockResolvedValueOnce({ _sum: { quantity: 50 } }) // IN (precheck)
+        .mockResolvedValueOnce({ _sum: { quantity: 0 } }) // OUT (precheck)
+        .mockResolvedValueOnce({ _sum: { quantity: 0 } }) // ADJ (precheck)
+        .mockResolvedValueOnce({ _sum: { quantity: 50 } }) // IN (post)
+        .mockResolvedValueOnce({ _sum: { quantity: 10 } }) // OUT (post)
+        .mockResolvedValueOnce({ _sum: { quantity: 0 } }); // ADJ (post)
       mockPrismaService.inventoryMovement.create.mockResolvedValue(
         expectedResult,
       );
@@ -189,11 +205,15 @@ describe('InventoryMovementsService', () => {
       mockPrismaService.inventoryItem.findUnique.mockResolvedValue(
         inventoryItem,
       );
-      mockPrismaService.inventoryMovement.aggregate.mockResolvedValue({
-        _sum: {
-          quantity: 50,
-        },
-      });
+      // getCurrentStock now calls aggregate 3 times (IN, OUT, ADJ)
+      // IN=50, OUT=0, ADJ=0 → currentStock=50, which is less than requested 100
+      mockPrismaService.inventoryMovement.aggregate
+        .mockResolvedValueOnce({ _sum: { quantity: 50 } }) // IN (1st call)
+        .mockResolvedValueOnce({ _sum: { quantity: 0 } }) // OUT
+        .mockResolvedValueOnce({ _sum: { quantity: 0 } }) // ADJ
+        .mockResolvedValueOnce({ _sum: { quantity: 50 } }) // IN (2nd call)
+        .mockResolvedValueOnce({ _sum: { quantity: 0 } }) // OUT
+        .mockResolvedValueOnce({ _sum: { quantity: 0 } }); // ADJ
 
       await expect(service.create(createDto)).rejects.toThrow(
         BadRequestException,
@@ -398,10 +418,10 @@ describe('InventoryMovementsService', () => {
     it('should update a movement', async () => {
       const id = '1';
       const updateDto = { notes: 'Updated notes' };
-      const existingMovement = { 
-        id, 
+      const existingMovement = {
+        id,
         inventoryItemId: 'item-1',
-        quantity: 50, 
+        quantity: 50,
         type: MovementType.IN,
         inventoryItem: {
           id: 'item-1',
@@ -409,8 +429,8 @@ describe('InventoryMovementsService', () => {
           code: 'CB-001',
         },
       };
-      const updatedMovement = { 
-        ...existingMovement, 
+      const updatedMovement = {
+        ...existingMovement,
         notes: 'Updated notes',
       };
 
@@ -421,15 +441,47 @@ describe('InventoryMovementsService', () => {
         updatedMovement,
       );
       mockPrismaService.inventoryMovement.aggregate.mockResolvedValue({
-        _sum: {
-          quantity: 100,
-        },
+        _sum: { quantity: 100 },
       });
 
       const result = await service.update(id, updateDto);
 
       expect(result).toBeDefined();
       expect(result.notes).toBe('Updated notes');
+    });
+
+    it('should throw if attempting to change type', async () => {
+      const id = '1';
+      const existingMovement = {
+        id,
+        inventoryItemId: 'item-1',
+        quantity: 50,
+        type: MovementType.IN,
+      };
+      mockPrismaService.inventoryMovement.findUnique.mockResolvedValue(
+        existingMovement,
+      );
+
+      await expect(
+        service.update(id, { type: MovementType.OUT } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw if attempting to change quantity', async () => {
+      const id = '1';
+      const existingMovement = {
+        id,
+        inventoryItemId: 'item-1',
+        quantity: 50,
+        type: MovementType.IN,
+      };
+      mockPrismaService.inventoryMovement.findUnique.mockResolvedValue(
+        existingMovement,
+      );
+
+      await expect(service.update(id, { quantity: 99 } as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw NotFoundException if movement not found', async () => {
@@ -445,20 +497,49 @@ describe('InventoryMovementsService', () => {
   });
 
   describe('remove', () => {
-    it('should delete a movement', async () => {
+    it('should create a reversing movement instead of hard delete', async () => {
       const id = '1';
-      const movement = { id, quantity: 50, type: MovementType.IN };
+      const movement = {
+        id,
+        inventoryItemId: 'item-1',
+        quantity: 50,
+        type: MovementType.IN,
+        notes: null,
+        locationId: 'loc-1',
+      };
 
       mockPrismaService.inventoryMovement.findUnique.mockResolvedValue(
         movement,
       );
-      mockPrismaService.inventoryMovement.delete.mockResolvedValue(movement);
+      mockPrismaService.inventoryMovement.update.mockResolvedValue(movement);
+      mockPrismaService.inventoryMovement.create.mockResolvedValue({
+        ...movement,
+        id: 'rev-1',
+        type: MovementType.OUT,
+      });
 
       await service.remove(id);
 
-      expect(prisma.inventoryMovement.delete).toHaveBeenCalledWith({
-        where: { id },
-      });
+      // Original is annotated, not deleted
+      expect(prisma.inventoryMovement.delete).not.toHaveBeenCalled();
+      expect(prisma.inventoryMovement.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id },
+          data: expect.objectContaining({
+            notes: expect.stringContaining('VOIDED'),
+          }),
+        }),
+      );
+      // Reversal movement created with inverse type
+      expect(prisma.inventoryMovement.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: MovementType.OUT,
+            quantity: 50,
+            reason: 'REVERSAL',
+          }),
+        }),
+      );
     });
 
     it('should throw NotFoundException if movement not found', async () => {

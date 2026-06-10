@@ -54,7 +54,7 @@ export interface CreateCategoryDto {
 }
 
 class CategoriesService {
-  private baseUrl = '/api/v1/categories';
+  private baseUrl = '/categories';
 
   /**
    * Obtener lista de categorías

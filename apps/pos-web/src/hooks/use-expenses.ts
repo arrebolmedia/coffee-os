@@ -36,8 +36,8 @@ export function useExpenses(
   },
   pagination?: PaginationParams,
 ) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: expensesKeys.list(organizationId, { filters, pagination }),
@@ -65,8 +65,8 @@ export function useExpense(expenseId: string, enabled = true) {
  */
 export function useCreateExpense() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: (data: Partial<Expense>) =>
@@ -92,8 +92,8 @@ export function useCreateExpense() {
  */
 export function useUpdateExpense() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Expense> }) =>
@@ -121,8 +121,8 @@ export function useUpdateExpense() {
  */
 export function useDeleteExpense() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: (id: string) => expensesService.deleteExpense(id),
@@ -144,8 +144,8 @@ export function useDeleteExpense() {
  */
 export function useMarkExpenseAsPaid() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: ({
@@ -181,8 +181,8 @@ export function useMarkExpenseAsPaid() {
  */
 export function useCancelExpense() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
@@ -207,8 +207,8 @@ export function useCancelExpense() {
  * Hook to get expenses summary
  */
 export function useExpensesSummary(month?: string) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: expensesKeys.summary(organizationId, month),
@@ -222,8 +222,8 @@ export function useExpensesSummary(month?: string) {
  * Hook to get expenses by category
  */
 export function useExpensesByCategory(startDate?: string, endDate?: string) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: expensesKeys.byCategory(organizationId, startDate, endDate),

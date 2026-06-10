@@ -4,6 +4,15 @@ import { InventoryItemsService } from './inventory-items.service';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
 import { QueryInventoryItemsDto } from './dto/query-inventory-items.dto';
+import { CurrentUserType } from '../auth/decorators/current-user.decorator';
+
+const mockUser: CurrentUserType = {
+  userId: 'user-1',
+  email: 'test@test.com',
+  firstName: 'Test',
+  lastName: 'User',
+  organizationId: 'org-1',
+};
 
 describe('InventoryItemsController', () => {
   let controller: InventoryItemsController;
@@ -23,6 +32,7 @@ describe('InventoryItemsController', () => {
 
   const mockInventoryItem = {
     id: 'item-1',
+    organizationId: 'org-1',
     code: 'MILK-WHOLE-001',
     name: 'Whole Milk',
     description: '1 Liter whole milk',
@@ -85,10 +95,13 @@ describe('InventoryItemsController', () => {
 
       mockInventoryItemsService.create.mockResolvedValue(mockInventoryItem);
 
-      const result = await controller.create(createDto);
+      const result = await controller.create(createDto, mockUser);
 
       expect(result).toEqual(mockInventoryItem);
-      expect(service.create).toHaveBeenCalledWith(createDto);
+      expect(service.create).toHaveBeenCalledWith({
+        ...createDto,
+        organizationId: 'org-1',
+      });
     });
   });
 
@@ -108,10 +121,10 @@ describe('InventoryItemsController', () => {
 
       mockInventoryItemsService.findAll.mockResolvedValue(paginatedResult);
 
-      const result = await controller.findAll(query);
+      const result = await controller.findAll(query, mockUser);
 
       expect(result).toEqual(paginatedResult);
-      expect(service.findAll).toHaveBeenCalledWith(query);
+      expect(service.findAll).toHaveBeenCalledWith(query, 'org-1');
     });
   });
 
@@ -121,10 +134,10 @@ describe('InventoryItemsController', () => {
         mockInventoryItem,
       ]);
 
-      const result = await controller.findAllActive();
+      const result = await controller.findAllActive(mockUser);
 
       expect(result).toEqual([mockInventoryItem]);
-      expect(service.findAllActive).toHaveBeenCalled();
+      expect(service.findAllActive).toHaveBeenCalledWith('org-1');
     });
   });
 
@@ -134,10 +147,10 @@ describe('InventoryItemsController', () => {
         mockInventoryItem,
       ]);
 
-      const result = await controller.findLowStock();
+      const result = await controller.findLowStock(mockUser);
 
       expect(result).toEqual([mockInventoryItem]);
-      expect(service.findLowStock).toHaveBeenCalled();
+      expect(service.findLowStock).toHaveBeenCalledWith('org-1');
     });
   });
 
@@ -147,10 +160,10 @@ describe('InventoryItemsController', () => {
         mockInventoryItem,
       ]);
 
-      const result = await controller.findByCategory('Dairy');
+      const result = await controller.findByCategory('Dairy', mockUser);
 
       expect(result).toEqual([mockInventoryItem]);
-      expect(service.findByCategory).toHaveBeenCalledWith('Dairy');
+      expect(service.findByCategory).toHaveBeenCalledWith('Dairy', 'org-1');
     });
   });
 
@@ -158,7 +171,7 @@ describe('InventoryItemsController', () => {
     it('should return an inventory item by id', async () => {
       mockInventoryItemsService.findOne.mockResolvedValue(mockInventoryItem);
 
-      const result = await controller.findOne('item-1');
+      const result = await controller.findOne('item-1', mockUser);
 
       expect(result).toEqual(mockInventoryItem);
       expect(service.findOne).toHaveBeenCalledWith('item-1');
@@ -167,19 +180,15 @@ describe('InventoryItemsController', () => {
 
   describe('findByCode', () => {
     it('should return an inventory item by code', async () => {
-      const mockUser = {
-        userId: 'user-1',
-        email: 'test@test.com',
-        name: 'Test User',
-        organizationId: 'org-1',
-      };
-
       mockInventoryItemsService.findByCode.mockResolvedValue(mockInventoryItem);
 
-      const result = await controller.findByCode('MILK-WHOLE-001', mockUser.organizationId);
+      const result = await controller.findByCode('MILK-WHOLE-001', mockUser);
 
       expect(result).toEqual(mockInventoryItem);
-      expect(service.findByCode).toHaveBeenCalledWith('MILK-WHOLE-001', mockUser.organizationId);
+      expect(service.findByCode).toHaveBeenCalledWith(
+        'MILK-WHOLE-001',
+        'org-1',
+      );
     });
   });
 
@@ -190,9 +199,10 @@ describe('InventoryItemsController', () => {
       };
 
       const updatedItem = { ...mockInventoryItem, costPerUnit: 0.025 };
+      mockInventoryItemsService.findOne.mockResolvedValue(mockInventoryItem);
       mockInventoryItemsService.update.mockResolvedValue(updatedItem);
 
-      const result = await controller.update('item-1', updateDto);
+      const result = await controller.update('item-1', updateDto, mockUser);
 
       expect(result).toEqual(updatedItem);
       expect(service.update).toHaveBeenCalledWith('item-1', updateDto);
@@ -201,9 +211,10 @@ describe('InventoryItemsController', () => {
 
   describe('remove', () => {
     it('should remove an inventory item', async () => {
+      mockInventoryItemsService.findOne.mockResolvedValue(mockInventoryItem);
       mockInventoryItemsService.remove.mockResolvedValue(undefined);
 
-      await controller.remove('item-1');
+      await controller.remove('item-1', mockUser);
 
       expect(service.remove).toHaveBeenCalledWith('item-1');
     });

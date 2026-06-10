@@ -82,37 +82,68 @@ export class CashRegistersService {
     });
   }
 
+  // Whitelist of valid denomination values (MXN bills + coins).
+  private static readonly ALLOWED_DENOMINATIONS = new Set([
+    '1000',
+    '500',
+    '200',
+    '100',
+    '50',
+    '20',
+    '10',
+    '5',
+    '2',
+    '1',
+    '0.5',
+  ]);
+
   async recordDenominations(
     id: string,
     denominationDto: RecordDenominationDto,
   ) {
     await this.findOne(id);
 
-    // Create denomination records
-    const denominations = await Promise.all(
-      Object.entries(denominationDto).map(([denomination, count]) => {
-        if (count === 0) return null;
+    // Filter entries to whitelisted denominations and coerce numeric counts
+    // safely (NaN / negative / invalid → skipped).
+    const entries: Array<{
+      denomination: number;
+      count: number;
+      total: number;
+    }> = [];
+    for (const [keyRaw, rawCount] of Object.entries(denominationDto)) {
+      const key = String(keyRaw);
+      if (!CashRegistersService.ALLOWED_DENOMINATIONS.has(key)) continue;
+      const denomination = parseFloat(key);
+      if (!Number.isFinite(denomination) || denomination <= 0) continue;
+      const count = Number(rawCount);
+      if (!Number.isFinite(count) || isNaN(count) || count < 0) continue;
+      if (count === 0) continue;
+      entries.push({
+        denomination,
+        count,
+        total: denomination * count,
+      });
+    }
 
-        return this.prisma.cashDenomination.create({
+    const total = entries.reduce((sum, e) => sum + e.total, 0);
+
+    // Replace existing denominations atomically: delete previous and insert new.
+    await this.prisma.$transaction(async (tx) => {
+      await tx.cashDenomination.deleteMany({ where: { cashRegisterId: id } });
+      for (const e of entries) {
+        await tx.cashDenomination.create({
           data: {
             cashRegisterId: id,
-            denomination: parseFloat(denomination),
-            count,
-            total: parseFloat(denomination) * count,
+            denomination: e.denomination,
+            count: e.count,
+            total: e.total,
           },
         });
-      }),
-    );
-
-    // Calculate total from denominations
-    const total = denominations
-      .filter((d) => d !== null)
-      .reduce((sum, d) => sum + d.total, 0);
-
-    // Update cash register with counted total
-    await this.prisma.cashRegister.update({
-      where: { id },
-      data: { countedCash: total },
+      }
+      await tx.cashRegister.update({
+        where: { id },
+        data: { countedCash: total },
+      });
     });
 
     return this.findOne(id);
@@ -121,25 +152,19 @@ export class CashRegistersService {
   async recordExpense(id: string, expenseDto: RecordExpenseDto) {
     await this.findOne(id);
 
-    // Create expense record
-    await this.prisma.cashExpense.create({
-      data: {
-        cashRegisterId: id,
-        ...expenseDto,
-      },
-    });
-
-    // Get all expenses and update total
-    const expenses = await this.prisma.cashExpense.findMany({
-      where: { cashRegisterId: id },
-    });
-
-    const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-
-    // Update cash register
-    await this.prisma.cashRegister.update({
-      where: { id },
-      data: { totalExpenses },
+    // Atomic increment of totalExpenses + creation of the expense record so
+    // concurrent recordExpense calls can't race the sum.
+    await this.prisma.$transaction(async (tx) => {
+      await tx.cashExpense.create({
+        data: {
+          cashRegisterId: id,
+          ...expenseDto,
+        },
+      });
+      await tx.cashRegister.update({
+        where: { id },
+        data: { totalExpenses: { increment: expenseDto.amount } },
+      });
     });
 
     return this.findOne(id);
@@ -156,7 +181,9 @@ export class CashRegistersService {
       register.expenses?.reduce((sum, e) => sum + e.amount, 0) || 0;
 
     const expectedCash = register.expectedCash || 0;
-    const countedCash = register.countedCash || denominationsTotal;
+    // Use ?? so that a legitimate 0 countedCash is preserved rather than
+    // overridden by denominationsTotal.
+    const countedCash = register.countedCash ?? denominationsTotal;
     const variance = countedCash - expectedCash;
 
     return {

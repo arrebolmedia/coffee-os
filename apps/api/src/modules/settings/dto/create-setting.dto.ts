@@ -1,5 +1,12 @@
-import { IsUUID, IsEnum, IsString, IsBoolean, IsOptional, MaxLength } from 'class-validator';
-import { SettingType, SettingCategory } from '../interfaces';
+import {
+  IsBoolean,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
+import { SettingCategory, SettingType } from '../interfaces';
 
 export class CreateSettingDto {
   @IsUUID()

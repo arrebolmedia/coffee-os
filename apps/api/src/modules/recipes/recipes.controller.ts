@@ -1,17 +1,16 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
   Body,
-  Param,
-  Query,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
-import { Public } from '../auth/decorators/public.decorator';
 import {
   CurrentUser,
   CurrentUserType,
@@ -20,9 +19,9 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RecipesService } from './recipes.service';
 import {
   CreateRecipeDto,
-  UpdateRecipeDto,
   QueryRecipesDto,
   ScaleRecipeDto,
+  UpdateRecipeDto,
 } from './dto';
 
 /**
@@ -87,7 +86,6 @@ export class RecipesController {
   /**
    * Obtener receta por ID de producto
    */
-  @Public() // Permitir acceso sin autenticación para desarrollo
   @Get('product/:productId')
   @HttpCode(HttpStatus.OK)
   async findByProductId(@Param('productId') productId: string) {

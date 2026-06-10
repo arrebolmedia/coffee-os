@@ -1,24 +1,23 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 import {
   Asset,
-  AssetType,
   AssetStatus,
-  MaintenanceRecord,
-  MaintenanceType,
-  MaintenanceStatus,
-  MaintenancePriority,
-  MaintenanceStats,
+  AssetType,
   DepreciationReport,
+  MaintenanceRecord,
+  MaintenanceStats,
+  MaintenanceStatus,
+  MaintenanceType,
 } from './interfaces/maintenance.interface';
 import {
-  CreateAssetDto,
-  UpdateAssetDto,
-  CreateMaintenanceRecordDto,
   CompleteMaintenanceDto,
+  CreateAssetDto,
+  CreateMaintenanceRecordDto,
+  UpdateAssetDto,
 } from './dto';
 
 /**
@@ -122,10 +121,7 @@ export class MaintenanceService {
 
     // Recalculate warranty if needed
     let warranty_expires_at = asset.warranty_expires_at;
-    if (
-      dto.purchase_date !== undefined ||
-      dto.warranty_months !== undefined
-    ) {
+    if (dto.purchase_date !== undefined || dto.warranty_months !== undefined) {
       const purchase_date = dto.purchase_date || asset.purchase_date;
       const warranty_months = dto.warranty_months ?? asset.warranty_months;
       if (purchase_date && warranty_months) {
@@ -147,7 +143,8 @@ export class MaintenanceService {
     ) {
       const purchase_price = dto.purchase_price ?? asset.purchase_price;
       const purchase_date = dto.purchase_date || asset.purchase_date;
-      const useful_life_years = dto.useful_life_years ?? asset.useful_life_years;
+      const useful_life_years =
+        dto.useful_life_years ?? asset.useful_life_years;
       const depreciation_method =
         dto.depreciation_method || asset.depreciation_method;
       const residual_value = dto.residual_value ?? asset.residual_value ?? 0;
@@ -179,8 +176,8 @@ export class MaintenanceService {
    * Eliminar un activo
    */
   async deleteAsset(id: string): Promise<void> {
-    const asset = await this.findAssetById(id);
-    
+    await this.findAssetById(id);
+
     // Check if asset has maintenance records
     const records = await this.findMaintenanceRecordsByAsset(id);
     if (records.length > 0) {
@@ -188,7 +185,7 @@ export class MaintenanceService {
         'Cannot delete asset with existing maintenance records',
       );
     }
-    
+
     this.assets.delete(id);
   }
 
@@ -358,7 +355,10 @@ export class MaintenanceService {
   /**
    * Cancelar un mantenimiento
    */
-  async cancelMaintenance(id: string, reason?: string): Promise<MaintenanceRecord> {
+  async cancelMaintenance(
+    id: string,
+    reason?: string,
+  ): Promise<MaintenanceRecord> {
     const record = await this.findMaintenanceRecordById(id);
 
     if (
@@ -373,7 +373,9 @@ export class MaintenanceService {
     const updated: MaintenanceRecord = {
       ...record,
       status: MaintenanceStatus.CANCELLED,
-      notes: reason ? `${record.notes || ''}\nCancelled: ${reason}` : record.notes,
+      notes: reason
+        ? `${record.notes || ''}\nCancelled: ${reason}`
+        : record.notes,
       updated_at: new Date(),
     };
 
@@ -497,7 +499,7 @@ export class MaintenanceService {
 
     for (const record of records) {
       maintenance_by_type[record.type]++;
-      
+
       if (
         record.status === MaintenanceStatus.SCHEDULED &&
         record.scheduled_date < now

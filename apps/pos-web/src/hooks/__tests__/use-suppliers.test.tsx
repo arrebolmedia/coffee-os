@@ -1,10 +1,10 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
-  useSuppliers,
   useCreateSupplier,
-  useUpdateSupplier,
   useDeleteSupplier,
+  useSuppliers,
+  useUpdateSupplier,
 } from '../use-suppliers';
 import { SuppliersService } from '@/services/suppliers.service';
 

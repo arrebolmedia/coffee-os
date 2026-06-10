@@ -1,11 +1,11 @@
 import {
-  IsString,
-  IsUUID,
-  IsEnum,
-  IsOptional,
   IsArray,
   IsBoolean,
+  IsEnum,
   IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
   MaxLength,
 } from 'class-validator';
 import { Channel, TemplateCategory } from '../interfaces';

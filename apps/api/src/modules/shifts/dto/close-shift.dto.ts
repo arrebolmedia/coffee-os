@@ -2,8 +2,8 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  Min,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -13,20 +13,23 @@ export class CloseShiftDto {
   @Min(0)
   closingCash: number;
 
-  @ApiProperty({ description: 'Closing card amount' })
+  @ApiPropertyOptional({ description: 'Closing card amount' })
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  closingCard: number;
+  closingCard?: number;
 
-  @ApiProperty({ description: 'Closing transfers amount' })
+  @ApiPropertyOptional({ description: 'Closing transfers amount' })
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  closingTransfers: number;
+  closingTransfers?: number;
 
-  @ApiProperty({ description: 'Closing other payments amount' })
+  @ApiPropertyOptional({ description: 'Closing other payments amount' })
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  closingOther: number;
+  closingOther?: number;
 
   @ApiPropertyOptional({ description: 'Closing notes' })
   @IsOptional()

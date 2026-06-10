@@ -1,27 +1,30 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import {
-  TrainingModule,
-  TrainingCategory,
-  CompetencyLevel,
-  TrainingModuleStatus,
-  EmployeeModuleProgress,
-  OnboardingPlan,
-  Evaluation,
-  EvaluationType,
-  EvaluationStatus,
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
   Certification,
   CertificationStatus,
-  OnboardingStats,
+  CompetencyLevel,
+  EmployeeModuleProgress,
   EmployeeProgressReport,
+  Evaluation,
+  EvaluationStatus,
+  OnboardingPlan,
+  OnboardingStats,
+  TrainingCategory,
+  TrainingModule,
+  TrainingModuleStatus,
 } from './interfaces/onboarding.interface';
 import {
-  CreateTrainingModuleDto,
-  UpdateTrainingModuleDto,
-  CreateOnboardingPlanDto,
-  UpdateModuleProgressDto,
-  CreateEvaluationDto,
   CompleteEvaluationDto,
   CreateCertificationDto,
+  CreateEvaluationDto,
+  CreateOnboardingPlanDto,
+  CreateTrainingModuleDto,
+  UpdateModuleProgressDto,
+  UpdateTrainingModuleDto,
 } from './dto';
 
 @Injectable()
@@ -37,9 +40,11 @@ export class OnboardingService {
   /**
    * Crear módulo de entrenamiento
    */
-  async createTrainingModule(dto: CreateTrainingModuleDto): Promise<TrainingModule> {
+  async createTrainingModule(
+    dto: CreateTrainingModuleDto,
+  ): Promise<TrainingModule> {
     const id = `module-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
+
     const module: TrainingModule = {
       id,
       ...dto,
@@ -93,7 +98,10 @@ export class OnboardingService {
   /**
    * Actualizar módulo de entrenamiento
    */
-  async updateTrainingModule(id: string, dto: UpdateTrainingModuleDto): Promise<TrainingModule> {
+  async updateTrainingModule(
+    id: string,
+    dto: UpdateTrainingModuleDto,
+  ): Promise<TrainingModule> {
     const module = await this.findTrainingModuleById(id);
 
     const updated: TrainingModule = {
@@ -115,7 +123,9 @@ export class OnboardingService {
       (p) => p.module_id === id,
     );
     if (hasProgress) {
-      throw new BadRequestException('Cannot delete module with existing progress records');
+      throw new BadRequestException(
+        'Cannot delete module with existing progress records',
+      );
     }
 
     this.trainingModules.delete(id);
@@ -126,9 +136,11 @@ export class OnboardingService {
   /**
    * Crear plan de onboarding
    */
-  async createOnboardingPlan(dto: CreateOnboardingPlanDto): Promise<OnboardingPlan> {
+  async createOnboardingPlan(
+    dto: CreateOnboardingPlanDto,
+  ): Promise<OnboardingPlan> {
     const id = `plan-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Calcular target_completion_date (90 días después del start_date)
     const target_completion_date = new Date(dto.start_date);
     target_completion_date.setDate(target_completion_date.getDate() + 90);
@@ -176,7 +188,9 @@ export class OnboardingService {
       plans = plans.filter((p) => p.is_active === is_active);
     }
 
-    return plans.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+    return plans.sort(
+      (a, b) => b.created_at.getTime() - a.created_at.getTime(),
+    );
   }
 
   /**
@@ -193,7 +207,9 @@ export class OnboardingService {
   /**
    * Obtener plan por empleado
    */
-  async findOnboardingPlanByEmployee(employee_id: string): Promise<OnboardingPlan | null> {
+  async findOnboardingPlanByEmployee(
+    employee_id: string,
+  ): Promise<OnboardingPlan | null> {
     const plan = Array.from(this.onboardingPlans.values()).find(
       (p) => p.employee_id === employee_id && p.is_active,
     );
@@ -211,11 +227,13 @@ export class OnboardingService {
   ): Promise<EmployeeModuleProgress> {
     // Verificar que el módulo existe
     const module = await this.findTrainingModuleById(module_id);
-    
+
     // Verificar que el plan de onboarding existe
     const plan = await this.findOnboardingPlanByEmployee(employee_id);
     if (!plan) {
-      throw new BadRequestException('Employee does not have an active onboarding plan');
+      throw new BadRequestException(
+        'Employee does not have an active onboarding plan',
+      );
     }
 
     const id = `progress-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -261,13 +279,19 @@ export class OnboardingService {
     };
 
     // Si se marca como completado, establecer completed_at
-    if (dto.status === TrainingModuleStatus.COMPLETED && !progress.completed_at) {
+    if (
+      dto.status === TrainingModuleStatus.COMPLETED &&
+      !progress.completed_at
+    ) {
       updated.completed_at = new Date();
       updated.progress_percentage = 100;
     }
 
     // Si se está iniciando, establecer started_at
-    if (dto.status === TrainingModuleStatus.IN_PROGRESS && !progress.started_at) {
+    if (
+      dto.status === TrainingModuleStatus.IN_PROGRESS &&
+      !progress.started_at
+    ) {
       updated.started_at = new Date();
     }
 
@@ -285,12 +309,16 @@ export class OnboardingService {
   /**
    * Obtener progreso de módulos de un empleado
    */
-  async findEmployeeModuleProgress(employee_id: string): Promise<EmployeeModuleProgress[]> {
+  async findEmployeeModuleProgress(
+    employee_id: string,
+  ): Promise<EmployeeModuleProgress[]> {
     const progress = Array.from(this.moduleProgress.values()).filter(
       (p) => p.employee_id === employee_id,
     );
 
-    return progress.sort((a, b) => a.created_at.getTime() - b.created_at.getTime());
+    return progress.sort(
+      (a, b) => a.created_at.getTime() - b.created_at.getTime(),
+    );
   }
 
   /**
@@ -304,13 +332,15 @@ export class OnboardingService {
     const completed_modules = progress.filter(
       (p) => p.status === TrainingModuleStatus.COMPLETED,
     ).length;
-    const progress_percentage = total_modules > 0 
-      ? Math.round((completed_modules / total_modules) * 100)
-      : 0;
+    const progress_percentage =
+      total_modules > 0
+        ? Math.round((completed_modules / total_modules) * 100)
+        : 0;
 
     // Calcular días desde inicio
     const days_elapsed = Math.floor(
-      (new Date().getTime() - plan.start_date.getTime()) / (1000 * 60 * 60 * 24),
+      (new Date().getTime() - plan.start_date.getTime()) /
+        (1000 * 60 * 60 * 24),
     );
 
     // Actualizar milestones
@@ -328,10 +358,22 @@ export class OnboardingService {
       day_60_completed,
       day_90_completed,
       is_completed,
-      day_30_completed_at: day_30_completed && !plan.day_30_completed_at ? new Date() : plan.day_30_completed_at,
-      day_60_completed_at: day_60_completed && !plan.day_60_completed_at ? new Date() : plan.day_60_completed_at,
-      day_90_completed_at: day_90_completed && !plan.day_90_completed_at ? new Date() : plan.day_90_completed_at,
-      actual_completion_date: is_completed && !plan.actual_completion_date ? new Date() : plan.actual_completion_date,
+      day_30_completed_at:
+        day_30_completed && !plan.day_30_completed_at
+          ? new Date()
+          : plan.day_30_completed_at,
+      day_60_completed_at:
+        day_60_completed && !plan.day_60_completed_at
+          ? new Date()
+          : plan.day_60_completed_at,
+      day_90_completed_at:
+        day_90_completed && !plan.day_90_completed_at
+          ? new Date()
+          : plan.day_90_completed_at,
+      actual_completion_date:
+        is_completed && !plan.actual_completion_date
+          ? new Date()
+          : plan.actual_completion_date,
       updated_at: new Date(),
     };
 
@@ -398,14 +440,22 @@ export class OnboardingService {
   /**
    * Completar evaluación
    */
-  async completeEvaluation(id: string, dto: CompleteEvaluationDto): Promise<Evaluation> {
+  async completeEvaluation(
+    id: string,
+    dto: CompleteEvaluationDto,
+  ): Promise<Evaluation> {
     const evaluation = this.evaluations.get(id);
     if (!evaluation) {
       throw new NotFoundException(`Evaluation with ID ${id} not found`);
     }
 
-    if (evaluation.status !== EvaluationStatus.IN_PROGRESS && evaluation.status !== EvaluationStatus.PENDING) {
-      throw new BadRequestException('Can only complete in-progress or pending evaluations');
+    if (
+      evaluation.status !== EvaluationStatus.IN_PROGRESS &&
+      evaluation.status !== EvaluationStatus.PENDING
+    ) {
+      throw new BadRequestException(
+        'Can only complete in-progress or pending evaluations',
+      );
     }
 
     const passed = dto.score >= evaluation.passing_score;
@@ -428,9 +478,11 @@ export class OnboardingService {
     // Si es evaluación de módulo y pasó, actualizar progreso
     if (evaluation.module_id && passed) {
       const progress = Array.from(this.moduleProgress.values()).find(
-        (p) => p.employee_id === evaluation.employee_id && p.module_id === evaluation.module_id,
+        (p) =>
+          p.employee_id === evaluation.employee_id &&
+          p.module_id === evaluation.module_id,
       );
-      
+
       if (progress) {
         await this.updateModuleProgress(progress.id, {
           status: TrainingModuleStatus.COMPLETED,
@@ -453,7 +505,9 @@ export class OnboardingService {
     let evaluations = Array.from(this.evaluations.values());
 
     if (organization_id) {
-      evaluations = evaluations.filter((e) => e.organization_id === organization_id);
+      evaluations = evaluations.filter(
+        (e) => e.organization_id === organization_id,
+      );
     }
     if (employee_id) {
       evaluations = evaluations.filter((e) => e.employee_id === employee_id);
@@ -462,7 +516,9 @@ export class OnboardingService {
       evaluations = evaluations.filter((e) => e.status === status);
     }
 
-    return evaluations.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+    return evaluations.sort(
+      (a, b) => b.created_at.getTime() - a.created_at.getTime(),
+    );
   }
 
   // ==================== CERTIFICATIONS ====================
@@ -470,9 +526,11 @@ export class OnboardingService {
   /**
    * Crear certificación
    */
-  async createCertification(dto: CreateCertificationDto): Promise<Certification> {
+  async createCertification(
+    dto: CreateCertificationDto,
+  ): Promise<Certification> {
     const id = `cert-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Generar número de certificado único
     const certificate_number = `CERT-${dto.organization_id.substr(0, 8).toUpperCase()}-${Date.now()}`;
 
@@ -514,22 +572,31 @@ export class OnboardingService {
     let certifications = Array.from(this.certifications.values());
 
     if (organization_id) {
-      certifications = certifications.filter((c) => c.organization_id === organization_id);
+      certifications = certifications.filter(
+        (c) => c.organization_id === organization_id,
+      );
     }
     if (employee_id) {
-      certifications = certifications.filter((c) => c.employee_id === employee_id);
+      certifications = certifications.filter(
+        (c) => c.employee_id === employee_id,
+      );
     }
     if (status) {
       certifications = certifications.filter((c) => c.status === status);
     }
 
-    return certifications.sort((a, b) => b.issued_date.getTime() - a.issued_date.getTime());
+    return certifications.sort(
+      (a, b) => b.issued_date.getTime() - a.issued_date.getTime(),
+    );
   }
 
   /**
    * Obtener certificaciones que expiran pronto
    */
-  async findExpiringCertifications(organization_id: string, days: number = 30): Promise<Certification[]> {
+  async findExpiringCertifications(
+    organization_id: string,
+    days: number = 30,
+  ): Promise<Certification[]> {
     const now = new Date();
     const target_date = new Date();
     target_date.setDate(target_date.getDate() + days);
@@ -543,7 +610,9 @@ export class OnboardingService {
         c.expiry_date <= target_date,
     );
 
-    return certifications.sort((a, b) => a.expiry_date!.getTime() - b.expiry_date!.getTime());
+    return certifications.sort(
+      (a, b) => a.expiry_date!.getTime() - b.expiry_date!.getTime(),
+    );
   }
 
   // ==================== REPORTS & STATS ====================
@@ -565,15 +634,21 @@ export class OnboardingService {
     // Calcular fase actual de cada plan activo
     const now = new Date();
     const in_day_30 = active_plans.filter((p) => {
-      const days = Math.floor((now.getTime() - p.start_date.getTime()) / (1000 * 60 * 60 * 24));
+      const days = Math.floor(
+        (now.getTime() - p.start_date.getTime()) / (1000 * 60 * 60 * 24),
+      );
       return days <= 30;
     }).length;
     const in_day_60 = active_plans.filter((p) => {
-      const days = Math.floor((now.getTime() - p.start_date.getTime()) / (1000 * 60 * 60 * 24));
+      const days = Math.floor(
+        (now.getTime() - p.start_date.getTime()) / (1000 * 60 * 60 * 24),
+      );
       return days > 30 && days <= 60;
     }).length;
     const in_day_90 = active_plans.filter((p) => {
-      const days = Math.floor((now.getTime() - p.start_date.getTime()) / (1000 * 60 * 60 * 24));
+      const days = Math.floor(
+        (now.getTime() - p.start_date.getTime()) / (1000 * 60 * 60 * 24),
+      );
       return days > 60 && days <= 90;
     }).length;
 
@@ -582,50 +657,72 @@ export class OnboardingService {
       (p) => p.status === TrainingModuleStatus.COMPLETED,
     ).length;
 
-    const passed_evaluations = evaluations.filter((e) => e.status === EvaluationStatus.PASSED);
-    const failed_evaluations = evaluations.filter((e) => e.status === EvaluationStatus.FAILED);
-    const avg_score = passed_evaluations.length > 0
-      ? passed_evaluations.reduce((sum, e) => sum + (e.score || 0), 0) / passed_evaluations.length
-      : 0;
+    const passed_evaluations = evaluations.filter(
+      (e) => e.status === EvaluationStatus.PASSED,
+    );
+    const failed_evaluations = evaluations.filter(
+      (e) => e.status === EvaluationStatus.FAILED,
+    );
+    const avg_score =
+      passed_evaluations.length > 0
+        ? passed_evaluations.reduce((sum, e) => sum + (e.score || 0), 0) /
+          passed_evaluations.length
+        : 0;
 
-    const active_certifications = certifications.filter((c) => c.status === CertificationStatus.ACTIVE);
-    const expiring_soon = (await this.findExpiringCertifications(organization_id)).length;
+    const active_certifications = certifications.filter(
+      (c) => c.status === CertificationStatus.ACTIVE,
+    );
+    const expiring_soon = (
+      await this.findExpiringCertifications(organization_id)
+    ).length;
 
-    const avg_progress = active_plans.length > 0
-      ? active_plans.reduce((sum, p) => sum + p.progress_percentage, 0) / active_plans.length
-      : 0;
+    const avg_progress =
+      active_plans.length > 0
+        ? active_plans.reduce((sum, p) => sum + p.progress_percentage, 0) /
+          active_plans.length
+        : 0;
 
-    const avg_completion_days = completed_plans.length > 0
-      ? completed_plans.reduce((sum, p) => {
-          const days = Math.floor(
-            (p.actual_completion_date!.getTime() - p.start_date.getTime()) / (1000 * 60 * 60 * 24),
-          );
-          return sum + days;
-        }, 0) / completed_plans.length
-      : 0;
+    const avg_completion_days =
+      completed_plans.length > 0
+        ? completed_plans.reduce((sum, p) => {
+            const days = Math.floor(
+              (p.actual_completion_date!.getTime() - p.start_date.getTime()) /
+                (1000 * 60 * 60 * 24),
+            );
+            return sum + days;
+          }, 0) / completed_plans.length
+        : 0;
 
-    const completion_rate = plans.length > 0
-      ? (completed_plans.filter((p) => {
-          const days = Math.floor(
-            (p.actual_completion_date!.getTime() - p.start_date.getTime()) / (1000 * 60 * 60 * 24),
-          );
-          return days <= 90;
-        }).length / plans.length) * 100
-      : 0;
+    const completion_rate =
+      plans.length > 0
+        ? (completed_plans.filter((p) => {
+            const days = Math.floor(
+              (p.actual_completion_date!.getTime() - p.start_date.getTime()) /
+                (1000 * 60 * 60 * 24),
+            );
+            return days <= 90;
+          }).length /
+            plans.length) *
+          100
+        : 0;
 
     // Calcular por categoría
     const modules_by_category = {} as Record<TrainingCategory, number>;
     const completion_by_category = {} as Record<TrainingCategory, number>;
-    
+
     Object.values(TrainingCategory).forEach((cat) => {
       const cat_modules = Array.from(this.trainingModules.values()).filter(
         (m) => m.organization_id === organization_id && m.category === cat,
       );
       modules_by_category[cat] = cat_modules.length;
-      
+
       const cat_progress = progress.filter((p) => {
         const module = this.trainingModules.get(p.module_id);
-        return module && module.category === cat && p.status === TrainingModuleStatus.COMPLETED;
+        return (
+          module &&
+          module.category === cat &&
+          p.status === TrainingModuleStatus.COMPLETED
+        );
       });
       completion_by_category[cat] = cat_progress.length;
     });
@@ -657,19 +754,28 @@ export class OnboardingService {
   /**
    * Obtener reporte de progreso individual
    */
-  async getEmployeeProgressReport(employee_id: string): Promise<EmployeeProgressReport> {
+  async getEmployeeProgressReport(
+    employee_id: string,
+  ): Promise<EmployeeProgressReport> {
     const plan = await this.findOnboardingPlanByEmployee(employee_id);
     if (!plan) {
-      throw new NotFoundException(`No active onboarding plan found for employee ${employee_id}`);
+      throw new NotFoundException(
+        `No active onboarding plan found for employee ${employee_id}`,
+      );
     }
 
     const progress = await this.findEmployeeModuleProgress(employee_id);
     const evaluations = await this.findAllEvaluations(undefined, employee_id);
-    const certifications = await this.findAllCertifications(undefined, employee_id);
+    const certifications = await this.findAllCertifications(
+      undefined,
+      employee_id,
+    );
 
     const now = new Date();
-    const current_day = Math.floor((now.getTime() - plan.start_date.getTime()) / (1000 * 60 * 60 * 24));
-    
+    const current_day = Math.floor(
+      (now.getTime() - plan.start_date.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
     let current_phase: '30' | '60' | '90' | 'complete';
     if (plan.is_completed) {
       current_phase = 'complete';
@@ -681,23 +787,40 @@ export class OnboardingService {
       current_phase = '90';
     }
 
-    const completed_modules = progress.filter((p) => p.status === TrainingModuleStatus.COMPLETED).length;
-    const in_progress_modules = progress.filter((p) => p.status === TrainingModuleStatus.IN_PROGRESS).length;
-    const not_started_modules = progress.filter((p) => p.status === TrainingModuleStatus.NOT_STARTED).length;
+    const completed_modules = progress.filter(
+      (p) => p.status === TrainingModuleStatus.COMPLETED,
+    ).length;
+    const in_progress_modules = progress.filter(
+      (p) => p.status === TrainingModuleStatus.IN_PROGRESS,
+    ).length;
+    const not_started_modules = progress.filter(
+      (p) => p.status === TrainingModuleStatus.NOT_STARTED,
+    ).length;
 
-    const passed_evals = evaluations.filter((e) => e.status === EvaluationStatus.PASSED);
-    const failed_evals = evaluations.filter((e) => e.status === EvaluationStatus.FAILED);
-    const pending_evals = evaluations.filter((e) => e.status === EvaluationStatus.PENDING);
-    
-    const avg_score = passed_evals.length > 0
-      ? passed_evals.reduce((sum, e) => sum + (e.score || 0), 0) / passed_evals.length
-      : 0;
+    const passed_evals = evaluations.filter(
+      (e) => e.status === EvaluationStatus.PASSED,
+    );
+    const failed_evals = evaluations.filter(
+      (e) => e.status === EvaluationStatus.FAILED,
+    );
+    const pending_evals = evaluations.filter(
+      (e) => e.status === EvaluationStatus.PENDING,
+    );
+
+    const avg_score =
+      passed_evals.length > 0
+        ? passed_evals.reduce((sum, e) => sum + (e.score || 0), 0) /
+          passed_evals.length
+        : 0;
 
     const expected_progress = Math.min((current_day / 90) * 100, 100);
     const is_on_track = plan.progress_percentage >= expected_progress - 10; // 10% tolerance
-    const days_difference = Math.round(((plan.progress_percentage - expected_progress) / 100) * 90);
+    const days_difference = Math.round(
+      ((plan.progress_percentage - expected_progress) / 100) * 90,
+    );
 
-    const total_training_hours = progress.reduce((sum, p) => sum + (p.time_spent_minutes || 0), 0) / 60;
+    const total_training_hours =
+      progress.reduce((sum, p) => sum + (p.time_spent_minutes || 0), 0) / 60;
 
     // Obtener próximos módulos (no iniciados, ordenados por order)
     const next_module_ids = progress
@@ -729,7 +852,9 @@ export class OnboardingService {
       failed_evaluations: failed_evals.length,
       pending_evaluations: pending_evals.length,
       average_score: Math.round(avg_score),
-      certifications_earned: certifications.filter((c) => c.status === CertificationStatus.ACTIVE).length,
+      certifications_earned: certifications.filter(
+        (c) => c.status === CertificationStatus.ACTIVE,
+      ).length,
       is_on_track,
       days_behind: days_difference < 0 ? Math.abs(days_difference) : undefined,
       days_ahead: days_difference > 0 ? days_difference : undefined,

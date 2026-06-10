@@ -1,5 +1,13 @@
-import { Controller, Post, Body, Get, Param, HttpCode, Delete } from '@nestjs/common';
-import { MailrelayService, EmailData } from './mailrelay.service';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+} from '@nestjs/common';
+import { EmailData, MailrelayService } from './mailrelay.service';
 
 @Controller('integrations/mailrelay')
 export class MailrelayController {

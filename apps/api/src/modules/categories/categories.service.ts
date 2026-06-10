@@ -1,9 +1,9 @@
 import {
-  Injectable,
-  NotFoundException,
   BadRequestException,
   ConflictException,
+  Injectable,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -18,12 +18,12 @@ import { CategoryStatus } from './interfaces';
 
 /**
  * CategoriesService con Prisma ORM
- * 
+ *
  * Nota: El schema actual de Prisma es simplificado:
  * - No incluye parent_id (jerarquías)
  * - No incluye organization_id (multi-tenant)
  * - Campos básicos: id, name, description, color, icon, sortOrder, active
- * 
+ *
  * Este servicio se adapta al schema existente.
  */
 @Injectable()
@@ -76,8 +76,16 @@ export class CategoriesService {
   /**
    * Listar categorías con filtros
    */
-  async findAll(query?: QueryCategoriesDto): Promise<any[]> {
+  async findAll(
+    query?: QueryCategoriesDto,
+    organizationId?: string,
+  ): Promise<any[]> {
     const where: any = {};
+
+    // Multi-tenant: filtrar por organización del usuario autenticado
+    if (organizationId) {
+      where.organizationId = organizationId;
+    }
 
     // Filtro por estado activo
     if (query?.status) {
@@ -139,14 +147,22 @@ export class CategoriesService {
   async update(id: string, updateCategoryDto: UpdateCategoryDto): Promise<any> {
     await this.findById(id);
 
-    // Validar nombre único si está cambiando
+    // Validar nombre único si está cambiando (dentro de la misma org)
     if (updateCategoryDto.name) {
+      const current = await this.prisma.category.findUnique({
+        where: { id },
+        select: { organizationId: true },
+      });
+
       const existing = await this.prisma.category.findFirst({
         where: {
           name: {
             equals: updateCategoryDto.name,
             mode: 'insensitive',
           },
+          ...(current?.organizationId
+            ? { organizationId: current.organizationId }
+            : {}),
           NOT: {
             id,
           },
@@ -218,12 +234,15 @@ export class CategoriesService {
   /**
    * Obtener estadísticas de categorías
    */
-  async getStats(): Promise<any> {
+  async getStats(organizationId?: string): Promise<any> {
+    const baseWhere: any = organizationId ? { organizationId } : {};
+    const productWhere: any = organizationId ? { organizationId } : {};
+
     const [total, active, inactive, productsCount] = await Promise.all([
-      this.prisma.category.count(),
-      this.prisma.category.count({ where: { active: true } }),
-      this.prisma.category.count({ where: { active: false } }),
-      this.prisma.product.count(),
+      this.prisma.category.count({ where: baseWhere }),
+      this.prisma.category.count({ where: { ...baseWhere, active: true } }),
+      this.prisma.category.count({ where: { ...baseWhere, active: false } }),
+      this.prisma.product.count({ where: productWhere }),
     ]);
 
     return {
@@ -236,19 +255,19 @@ export class CategoriesService {
   }
 
   /**
-   * Reordenar categorías (nuevo)
+   * Reordenar categorías (nuevo) — atómico dentro de una transacción
    */
   async reorderCategories(dto: ReorderCategoriesDto): Promise<any> {
     const { orders } = dto;
 
-    const updates = orders.map((item) =>
-      this.prisma.category.update({
-        where: { id: item.id },
-        data: { sortOrder: item.sortOrder },
-      }),
+    await this.prisma.$transaction(
+      orders.map((item) =>
+        this.prisma.category.update({
+          where: { id: item.id },
+          data: { sortOrder: item.sortOrder },
+        }),
+      ),
     );
-
-    await Promise.all(updates);
 
     this.logger.log(`Reordenadas ${orders.length} categorías`);
 
@@ -338,7 +357,7 @@ export class CategoriesService {
    * Obtener categoría por slug
    * Nota: El schema no tiene campo slug
    */
-  async findBySlug(slug: string, organization_id?: string): Promise<any> {
+  async findBySlug(_slug: string, _organization_id?: string): Promise<any> {
     this.logger.warn('findBySlug not implemented: schema has no slug field');
     throw new BadRequestException(
       'Slug lookup not supported in current schema',
@@ -349,7 +368,7 @@ export class CategoriesService {
    * Obtener árbol de categorías
    * Nota: El schema no tiene parent_id para jerarquías
    */
-  async getTree(organization_id?: string): Promise<any[]> {
+  async getTree(_organization_id?: string): Promise<any[]> {
     this.logger.warn('getTree not implemented: schema has no parent_id field');
     const categories = await this.findAll();
     return categories; // Retorna lista plana
@@ -371,8 +390,10 @@ export class CategoriesService {
    * Obtener hijos directos
    * Nota: El schema no tiene parent_id para jerarquías
    */
-  async getChildren(id: string): Promise<any[]> {
-    this.logger.warn('getChildren not implemented: schema has no parent_id field');
+  async getChildren(_id: string): Promise<any[]> {
+    this.logger.warn(
+      'getChildren not implemented: schema has no parent_id field',
+    );
     return []; // Sin jerarquía, no hay hijos
   }
 
@@ -380,8 +401,10 @@ export class CategoriesService {
    * Obtener descendientes
    * Nota: El schema no tiene parent_id para jerarquías
    */
-  async getDescendants(id: string): Promise<any[]> {
-    this.logger.warn('getDescendants not implemented: schema has no parent_id field');
+  async getDescendants(_id: string): Promise<any[]> {
+    this.logger.warn(
+      'getDescendants not implemented: schema has no parent_id field',
+    );
     return []; // Sin jerarquía, no hay descendientes
   }
 
@@ -389,9 +412,10 @@ export class CategoriesService {
    * Mover categoría en la jerarquía
    * Nota: El schema no tiene parent_id para jerarquías
    */
-  async move(id: string, newParentId: string | null): Promise<any> {
+  async move(_id: string, _newParentId: string | null): Promise<any> {
     this.logger.warn('move not implemented: schema has no parent_id field');
-    throw new BadRequestException('Category hierarchy not supported in current schema');
+    throw new BadRequestException(
+      'Category hierarchy not supported in current schema',
+    );
   }
-
 }

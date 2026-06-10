@@ -5,12 +5,12 @@
 
 import { api } from '@/lib/api';
 import {
-  Product,
   Category,
   Modifier,
-  ProductFilters,
-  PaginationParams,
   PaginatedResponse,
+  PaginationParams,
+  Product,
+  ProductFilters,
 } from '@/types';
 
 class ProductsService {
@@ -93,7 +93,7 @@ class ProductsService {
   }
 
   async updateProduct(id: string, data: Partial<Product>): Promise<Product> {
-    const response = await api.put<any>(`${this.baseUrl}/${id}`, data);
+    const response = await api.patch<any>(`${this.baseUrl}/${id}`, data);
     return this.unwrapSingle<Product>(response);
   }
 
@@ -106,7 +106,9 @@ class ProductsService {
   // ============================================================================
 
   async getCategories(organizationId: string): Promise<Category[]> {
-    const response = await api.get<any>(`/categories`);
+    const response = await api.get<any>(
+      `/categories?organization_id=${organizationId}`,
+    );
     return this.unwrapArray<Category>(response);
   }
 

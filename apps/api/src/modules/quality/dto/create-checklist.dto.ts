@@ -1,4 +1,12 @@
-import { IsNotEmpty, IsString, IsEnum, IsArray, IsOptional, IsDateString, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsDateString,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum ChecklistType {

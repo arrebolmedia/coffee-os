@@ -5,7 +5,7 @@
 
 import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
-import { Toast, Modal } from '@/types';
+import { Modal, Toast } from '@/types';
 
 interface UIState {
   // Modals
@@ -21,7 +21,11 @@ interface UIState {
   openModal: (id: string, title?: string, size?: Modal['size']) => void;
   closeModal: (id: string) => void;
   closeAllModals: () => void;
-  showToast: (type: Toast['type'], message: string, duration?: number) => string;
+  showToast: (
+    type: Toast['type'],
+    message: string,
+    duration?: number,
+  ) => string;
   hideToast: (id: string) => void;
   setLoading: (isLoading: boolean, message?: string) => void;
   toggleSidebar: () => void;

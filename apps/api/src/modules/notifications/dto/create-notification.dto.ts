@@ -1,14 +1,14 @@
 import {
-  IsEnum,
-  IsString,
-  IsOptional,
-  IsUUID,
-  IsObject,
-  IsDateString,
   IsArray,
+  IsDateString,
+  IsEnum,
   IsNumber,
-  Min,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
   Max,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Channel, NotificationPriority } from '../interfaces';

@@ -7,12 +7,12 @@
 
 import { useState } from 'react';
 import {
-  Coffee,
+  ArrowRight,
   Building2,
+  Check,
+  Coffee,
   MapPin,
   User,
-  ArrowRight,
-  Check,
 } from 'lucide-react';
 
 interface OnboardingStep {

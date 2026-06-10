@@ -1,5 +1,16 @@
-import { IsOptional, IsString, IsEmail, IsEnum, IsDateString, IsNumber } from 'class-validator';
-import { EmployeeStatus, EmploymentType, EmployeeRole } from './create-employee.dto';
+import {
+  IsDateString,
+  IsEmail,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+import {
+  EmployeeRole,
+  EmployeeStatus,
+  EmploymentType,
+} from './create-employee.dto';
 
 export class UpdateEmployeeDto {
   @IsOptional()

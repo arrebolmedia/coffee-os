@@ -7,14 +7,14 @@ import {
   useNOM251Status,
 } from '@/hooks/use-quality-control';
 import {
-  Shield,
-  ClipboardCheck,
-  Thermometer,
   AlertTriangle,
   CheckCircle,
+  ClipboardCheck,
   Download,
-  Plus,
   Loader2,
+  Plus,
+  Shield,
+  Thermometer,
 } from 'lucide-react';
 
 export default function QualityPage() {

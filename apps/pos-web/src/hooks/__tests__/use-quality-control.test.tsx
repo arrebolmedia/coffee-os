@@ -1,17 +1,17 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
-  useChecklistTemplates,
-  useCreateChecklistTemplate,
   useChecklistExecutions,
+  useChecklistTemplates,
   useCompleteChecklistExecution,
-  useTemperatureLogs,
-  useCreateTemperatureLog,
-  useComplianceReport,
-  useNOM251Status,
-  useCorrectiveActions,
-  useCreateCorrectiveAction,
   useCompleteCorrectiveAction,
+  useComplianceReport,
+  useCorrectiveActions,
+  useCreateChecklistTemplate,
+  useCreateCorrectiveAction,
+  useCreateTemperatureLog,
+  useNOM251Status,
+  useTemperatureLogs,
 } from '../use-quality-control';
 import { QualityControlService } from '@/services/quality-control.service';
 
@@ -59,19 +59,14 @@ describe('Quality Control Hooks', () => {
           QualityControlService.getChecklistTemplates as jest.Mock
         ).mockResolvedValue(mockTemplates);
 
-        const { result } = renderHook(
-          () => useChecklistTemplates(true),
-          {
-            wrapper: createWrapper(),
-          },
-        );
+        const { result } = renderHook(() => useChecklistTemplates(true), {
+          wrapper: createWrapper(),
+        });
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
         expect(result.current.data).toEqual(mockTemplates);
-        expect(
-          QualityControlService.getChecklistTemplates,
-        ).toHaveBeenCalled();
+        expect(QualityControlService.getChecklistTemplates).toHaveBeenCalled();
       });
     });
 
@@ -131,19 +126,14 @@ describe('Quality Control Hooks', () => {
           QualityControlService.getChecklistExecutions as jest.Mock
         ).mockResolvedValue(mockExecutions);
 
-        const { result } = renderHook(
-          () => useChecklistExecutions(filters),
-          {
-            wrapper: createWrapper(),
-          },
-        );
+        const { result } = renderHook(() => useChecklistExecutions(filters), {
+          wrapper: createWrapper(),
+        });
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
         expect(result.current.data).toEqual(mockExecutions);
-        expect(
-          QualityControlService.getChecklistExecutions,
-        ).toHaveBeenCalled();
+        expect(QualityControlService.getChecklistExecutions).toHaveBeenCalled();
       });
     });
 
@@ -198,12 +188,9 @@ describe('Quality Control Hooks', () => {
           QualityControlService.getTemperatureLogs as jest.Mock
         ).mockResolvedValue(mockLogs);
 
-        const { result } = renderHook(
-          () => useTemperatureLogs(),
-          {
-            wrapper: createWrapper(),
-          },
-        );
+        const { result } = renderHook(() => useTemperatureLogs(), {
+          wrapper: createWrapper(),
+        });
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
@@ -314,12 +301,9 @@ describe('Quality Control Hooks', () => {
           QualityControlService.getComplianceReport as jest.Mock
         ).mockResolvedValue(mockReport);
 
-        const { result } = renderHook(
-          () => useComplianceReport(dateRange),
-          {
-            wrapper: createWrapper(),
-          },
-        );
+        const { result } = renderHook(() => useComplianceReport(dateRange), {
+          wrapper: createWrapper(),
+        });
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
@@ -352,12 +336,9 @@ describe('Quality Control Hooks', () => {
           QualityControlService.getNOM251ComplianceStatus as jest.Mock
         ).mockResolvedValue(mockStatus);
 
-        const { result } = renderHook(
-          () => useNOM251Status(true),
-          {
-            wrapper: createWrapper(),
-          },
-        );
+        const { result } = renderHook(() => useNOM251Status(true), {
+          wrapper: createWrapper(),
+        });
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
@@ -384,12 +365,9 @@ describe('Quality Control Hooks', () => {
           QualityControlService.getCorrectiveActions as jest.Mock
         ).mockResolvedValue(mockActions);
 
-        const { result } = renderHook(
-          () => useCorrectiveActions(),
-          {
-            wrapper: createWrapper(),
-          },
-        );
+        const { result } = renderHook(() => useCorrectiveActions(), {
+          wrapper: createWrapper(),
+        });
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
@@ -463,10 +441,7 @@ describe('Quality Control Hooks', () => {
         expect(result.current.data?.status).toBe('completed');
         expect(
           QualityControlService.completeCorrectiveAction,
-        ).toHaveBeenCalledWith(
-          payload.id,
-          payload.verificationNotes,
-        );
+        ).toHaveBeenCalledWith(payload.id, payload.verificationNotes);
       });
     });
   });

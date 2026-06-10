@@ -5,29 +5,26 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useSuppliers, useSupplierStats } from '@/hooks/use-suppliers';
 import {
-  Truck,
-  Search,
   AlertCircle,
   CheckCircle,
-  Star,
-  Phone,
-  MapPin,
-  Plus,
-  Edit,
-  Trash2,
-  Loader2,
-  Package,
   DollarSign,
-  XCircle,
   Download,
-  Filter,
+  Edit,
   Eye,
+  Filter,
+  Loader2,
   Mail,
-  ArrowUpDown,
+  Phone,
+  Plus,
+  Search,
+  Star,
+  Trash2,
+  Truck,
+  XCircle,
 } from 'lucide-react';
 
 interface SupplierDisplay {
@@ -54,7 +51,11 @@ export default function SuppliersPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
   // Obtener datos del backend
-  const { data: suppliersData, isLoading, error } = useSuppliers({
+  const {
+    data: suppliersData,
+    isLoading,
+    error,
+  } = useSuppliers({
     category: filterCategory !== 'all' ? filterCategory : undefined,
     status: filterStatus !== 'all' ? filterStatus : undefined,
     search: searchQuery || undefined,
@@ -89,22 +90,29 @@ export default function SuppliersPage() {
     return suppliers.filter((supplier) => {
       const matchesSearch = searchQuery
         ? supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          supplier.businessName.toLowerCase().includes(searchQuery.toLowerCase())
+          supplier.businessName
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase())
         : true;
-      const matchesCategory = filterCategory === 'all' || supplier.category === filterCategory;
-      const matchesStatus = filterStatus === 'all' || supplier.status === filterStatus;
+      const matchesCategory =
+        filterCategory === 'all' || supplier.category === filterCategory;
+      const matchesStatus =
+        filterStatus === 'all' || supplier.status === filterStatus;
       return matchesSearch && matchesCategory && matchesStatus;
     });
   }, [suppliers, searchQuery, filterCategory, filterStatus]);
 
   // Stats locales
-  const localStats = useMemo(() => ({
-    total: suppliers.length,
-    active: suppliers.filter((s) => s.status === 'active').length,
-    pending: suppliers.filter((s) => s.status === 'pending').length,
-    inactive: suppliers.filter((s) => s.status === 'inactive').length,
-    totalSpent: suppliers.reduce((sum, s) => sum + s.totalPurchases, 0),
-  }), [suppliers]);
+  const localStats = useMemo(
+    () => ({
+      total: suppliers.length,
+      active: suppliers.filter((s) => s.status === 'active').length,
+      pending: suppliers.filter((s) => s.status === 'pending').length,
+      inactive: suppliers.filter((s) => s.status === 'inactive').length,
+      totalSpent: suppliers.reduce((sum, s) => sum + s.totalPurchases, 0),
+    }),
+    [suppliers],
+  );
 
   if (isLoading) {
     return (
@@ -211,7 +219,10 @@ export default function SuppliersPage() {
                 <div>
                   <p className="text-sm text-gray-500">Total Comprado</p>
                   <p className="text-2xl font-bold text-blue-600">
-                    ${(stats?.total_purchases ?? localStats.totalSpent).toLocaleString('es-MX')}
+                    $
+                    {(
+                      stats?.total_purchases ?? localStats.totalSpent
+                    ).toLocaleString('es-MX')}
                   </p>
                 </div>
                 <DollarSign className="w-8 h-8 text-blue-400" />
@@ -307,7 +318,9 @@ export default function SuppliersPage() {
                         <div className="text-sm font-medium text-gray-900">
                           {supplier.name}
                         </div>
-                        <div className="text-sm text-gray-500">{supplier.businessName}</div>
+                        <div className="text-sm text-gray-500">
+                          {supplier.businessName}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -317,7 +330,9 @@ export default function SuppliersPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm">
-                        <div className="font-medium text-gray-900">{supplier.contactName}</div>
+                        <div className="font-medium text-gray-900">
+                          {supplier.contactName}
+                        </div>
                         <div className="text-gray-500 flex items-center gap-1 mt-1">
                           <Phone className="w-3 h-3" />
                           {supplier.contactPhone}
@@ -362,7 +377,11 @@ export default function SuppliersPage() {
                               : 'bg-gray-100 text-gray-800'
                         }`}
                       >
-                        {supplier.status === 'active' ? 'Activo' : supplier.status === 'pending' ? 'Pendiente' : 'Inactivo'}
+                        {supplier.status === 'active'
+                          ? 'Activo'
+                          : supplier.status === 'pending'
+                            ? 'Pendiente'
+                            : 'Inactivo'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

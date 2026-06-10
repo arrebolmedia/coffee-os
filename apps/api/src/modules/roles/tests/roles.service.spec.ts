@@ -1,21 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { RolesService } from '../roles.service';
 import {
-  CreatePermissionDto,
-  CreateRoleDto,
   AssignRoleDto,
   CheckPermissionDto,
+  CreatePermissionDto,
+  CreateRoleDto,
 } from '../dto';
+import { Action, Effect, Resource, SystemRole } from '../interfaces';
 import {
-  Resource,
-  Action,
-  Effect,
-  SystemRole,
-} from '../interfaces';
-import {
-  NotFoundException,
-  ConflictException,
   BadRequestException,
+  ConflictException,
+  NotFoundException,
 } from '@nestjs/common';
 
 describe('RolesService', () => {

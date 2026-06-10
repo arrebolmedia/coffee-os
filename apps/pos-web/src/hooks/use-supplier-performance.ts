@@ -5,9 +5,9 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  SupplierPerformanceService,
   CreateEvaluationDTO,
   CreateIssueDTO,
+  SupplierPerformanceService,
 } from '@/services/supplier-performance.service';
 import { useAuth } from '@/hooks/use-auth';
 import toast from 'react-hot-toast';
@@ -79,8 +79,8 @@ export function useAllSuppliersPerformance(
   dateRange?: { from: string; to: string },
   enabled = true,
 ) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: supplierPerformanceKeys.allMetrics(organizationId, dateRange),
@@ -102,8 +102,8 @@ export function useCompareSuppliers(
   dateRange?: { from: string; to: string },
   enabled = true,
 ) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: supplierPerformanceKeys.comparison(
@@ -255,8 +255,8 @@ export function useOrganizationIssues(
   },
   enabled = true,
 ) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: supplierPerformanceKeys.orgIssues(organizationId, filters),
@@ -321,15 +321,11 @@ export function useUpdateIssue() {
  */
 export function useResolveIssue() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: ({ id, resolution }: { id: string; resolution: string }) =>
-      SupplierPerformanceService.resolveIssue(
-        id,
-        resolution,
-        session?.user?.id || '',
-      ),
+      SupplierPerformanceService.resolveIssue(id, resolution, user?.id || ''),
     onSuccess: (issue) => {
       queryClient.invalidateQueries({
         queryKey: supplierPerformanceKeys.issues(issue.supplier_id),
@@ -391,8 +387,8 @@ export function useTopPerformers(
   dateRange?: { from: string; to: string },
   enabled = true,
 ) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: supplierPerformanceKeys.topPerformers(
@@ -419,8 +415,8 @@ export function useUnderperformers(
   dateRange?: { from: string; to: string },
   enabled = true,
 ) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: supplierPerformanceKeys.underperformers(

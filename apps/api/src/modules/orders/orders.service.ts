@@ -141,7 +141,53 @@ export class OrdersService {
     return order;
   }
 
-  async create(createOrderDto: CreateOrderDto) {
+  async create(createOrderDto: CreateOrderDto, callerOrganizationId?: string) {
+    // Validate referenced FKs exist; if a callerOrganizationId is provided,
+    // validate that location, ticket, and user all belong to that organization.
+    const [location, ticket, user] = await Promise.all([
+      this.prisma.location.findUnique({
+        where: { id: createOrderDto.locationId },
+        select: { id: true, organizationId: true },
+      }),
+      this.prisma.ticket.findUnique({
+        where: { id: createOrderDto.ticketId },
+        select: {
+          id: true,
+          location: { select: { organizationId: true } },
+        },
+      }),
+      this.prisma.user.findUnique({
+        where: { id: createOrderDto.userId },
+        select: { id: true, organizationId: true },
+      }),
+    ]);
+
+    if (!location) {
+      throw new NotFoundException(
+        `Location ${createOrderDto.locationId} not found`,
+      );
+    }
+    if (!ticket) {
+      throw new NotFoundException(
+        `Ticket ${createOrderDto.ticketId} not found`,
+      );
+    }
+    if (!user) {
+      throw new NotFoundException(`User ${createOrderDto.userId} not found`);
+    }
+
+    if (callerOrganizationId) {
+      const sameOrg =
+        location.organizationId === callerOrganizationId &&
+        ticket.location?.organizationId === callerOrganizationId &&
+        user.organizationId === callerOrganizationId;
+      if (!sameOrg) {
+        throw new BadRequestException(
+          'Location, ticket, and user must belong to the caller organization',
+        );
+      }
+    }
+
     const orderNumber =
       createOrderDto.orderNumber ||
       `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -165,8 +211,39 @@ export class OrdersService {
     });
   }
 
+  /**
+   * Allowed state transitions for orders. Source: spec.
+   *   PENDING     -> IN_PROGRESS | CANCELLED
+   *   IN_PROGRESS -> READY | CANCELLED
+   *   READY       -> SERVED | CANCELLED
+   *   SERVED      -> COMPLETED | CANCELLED
+   *   COMPLETED   -> (terminal)
+   *   CANCELLED   -> (terminal)
+   */
+  private static readonly ORDER_TRANSITIONS: Record<
+    OrderStatus,
+    OrderStatus[]
+  > = {
+    [OrderStatus.PENDING]: [OrderStatus.IN_PROGRESS, OrderStatus.CANCELLED],
+    [OrderStatus.IN_PROGRESS]: [OrderStatus.READY, OrderStatus.CANCELLED],
+    [OrderStatus.READY]: [OrderStatus.SERVED, OrderStatus.CANCELLED],
+    [OrderStatus.SERVED]: [OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+    [OrderStatus.COMPLETED]: [],
+    [OrderStatus.CANCELLED]: [],
+  };
+
   async updateStatus(id: string, updateStatusDto: UpdateOrderStatusDto) {
-    await this.findOne(id);
+    const current = await this.findOne(id);
+
+    const allowed = OrdersService.ORDER_TRANSITIONS[current.status] ?? [];
+    if (
+      current.status !== updateStatusDto.status &&
+      !allowed.includes(updateStatusDto.status)
+    ) {
+      throw new BadRequestException(
+        `Invalid status transition: ${current.status} -> ${updateStatusDto.status}`,
+      );
+    }
 
     const data: Prisma.OrderUpdateInput = {
       status: updateStatusDto.status,

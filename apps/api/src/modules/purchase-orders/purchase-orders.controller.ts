@@ -1,29 +1,27 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Patch,
-  Delete,
   Body,
-  Param,
-  Query,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
 } from '@nestjs/common';
 import { PurchaseOrdersService } from './purchase-orders.service';
 import {
   CreatePurchaseOrderDto,
-  UpdatePurchaseOrderDto,
   QueryPurchaseOrdersDto,
   ReceivePurchaseOrderDto,
+  UpdatePurchaseOrderDto,
 } from './dto';
 
 @Controller('purchase-orders')
 export class PurchaseOrdersController {
-  constructor(
-    private readonly purchaseOrdersService: PurchaseOrdersService,
-  ) {}
+  constructor(private readonly purchaseOrdersService: PurchaseOrdersService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -47,10 +45,7 @@ export class PurchaseOrdersController {
   }
 
   @Put(':id')
-  update(
-    @Param('id') id: string,
-    @Body() updateDto: UpdatePurchaseOrderDto,
-  ) {
+  update(@Param('id') id: string, @Body() updateDto: UpdatePurchaseOrderDto) {
     return this.purchaseOrdersService.update(id, updateDto);
   }
 

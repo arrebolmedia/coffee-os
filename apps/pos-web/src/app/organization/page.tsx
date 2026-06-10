@@ -7,34 +7,30 @@
 
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { useOrganization } from '@/hooks/use-organization';
 import {
   Building2,
-  Save,
+  Calendar,
+  CheckCircle,
+  CreditCard,
+  Download,
   Edit,
   FileText,
-  Globe,
-  Phone,
   Mail,
   MapPin,
-  Calendar,
-  Users,
+  Save,
   Shield,
-  CreditCard,
-  CheckCircle,
-  AlertCircle,
-  Upload,
-  Eye,
-  Download,
+  Users,
 } from 'lucide-react';
 
 export default function OrganizationPage() {
   const [isEditing, setIsEditing] = useState(false);
+  const { data: org } = useOrganization();
 
-  // Mock data: Organización
   const organizationData = {
     general: {
-      businessName: 'Café Central Sociedad Anónima',
-      tradeName: 'Café Central',
+      businessName: org?.name || 'Cargando...',
+      tradeName: org?.name || '',
       rfc: 'CCE850312AB7',
       regimen: '601 - General de Ley Personas Morales',
       activity: 'Servicios de cafeterías y restaurantes',

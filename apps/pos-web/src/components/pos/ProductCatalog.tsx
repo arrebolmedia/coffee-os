@@ -5,13 +5,13 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useProducts } from '@/hooks/use-products';
 import { useCartStore } from '@/store/cart.store';
 import { ProductCard } from './ProductCard';
 import { CategoryFilter } from './CategoryFilter';
-import { Product, ProductStatus, ProductType } from '@/types';
-import { Search, Loader2, AlertCircle, Package } from 'lucide-react';
+import { Product } from '@/types';
+import { AlertCircle, Loader2, Package, Search } from 'lucide-react';
 
 export function ProductCatalog() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<
@@ -41,8 +41,8 @@ export function ProductCatalog() {
       const normalizedCategory = selectedCategoryId.toLowerCase();
       products = products.filter((product) => {
         const productCategoryId =
-          typeof product.category_id === 'string'
-            ? product.category_id.toLowerCase()
+          typeof product.categoryId === 'string'
+            ? product.categoryId.toLowerCase()
             : undefined;
         const categoryRef: any = product.category;
         const categoryId =

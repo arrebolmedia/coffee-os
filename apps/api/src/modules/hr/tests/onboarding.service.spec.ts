@@ -1,6 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { OnboardingService } from '../onboarding.service';
-import { CreateOnboardingPlanDto, OnboardingPeriod, TaskCategory, CompleteOnboardingTaskDto } from '../dto';
+import {
+  CompleteOnboardingTaskDto,
+  CreateOnboardingPlanDto,
+  OnboardingPeriod,
+  TaskCategory,
+} from '../dto';
 
 describe('OnboardingService', () => {
   let service: OnboardingService;
@@ -56,18 +61,21 @@ describe('OnboardingService', () => {
 
   describe('completeTask', () => {
     it('should complete a task', async () => {
-      const plan = await service.create({
-        employee_id: 'emp_1',
-        created_by_user_id: 'mgr_1',
-        tasks: [
-          {
-            title: 'Task 1',
-            description: 'First task',
-            period: OnboardingPeriod.DAY_30,
-            category: TaskCategory.DOCUMENTATION,
-          },
-        ],
-      }, 'org_1');
+      const plan = await service.create(
+        {
+          employee_id: 'emp_1',
+          created_by_user_id: 'mgr_1',
+          tasks: [
+            {
+              title: 'Task 1',
+              description: 'First task',
+              period: OnboardingPeriod.DAY_30,
+              category: TaskCategory.DOCUMENTATION,
+            },
+          ],
+        },
+        'org_1',
+      );
 
       const taskId = plan.tasks[0].id;
 
@@ -87,24 +95,27 @@ describe('OnboardingService', () => {
     });
 
     it('should update completion percentage', async () => {
-      const plan = await service.create({
-        employee_id: 'emp_1',
-        created_by_user_id: 'mgr_1',
-        tasks: [
-          {
-            title: 'Task 1',
-            description: 'First task',
-            period: OnboardingPeriod.DAY_30,
-            category: TaskCategory.DOCUMENTATION,
-          },
-          {
-            title: 'Task 2',
-            description: 'Second task',
-            period: OnboardingPeriod.DAY_60,
-            category: TaskCategory.TRAINING,
-          },
-        ],
-      }, 'org_1');
+      const plan = await service.create(
+        {
+          employee_id: 'emp_1',
+          created_by_user_id: 'mgr_1',
+          tasks: [
+            {
+              title: 'Task 1',
+              description: 'First task',
+              period: OnboardingPeriod.DAY_30,
+              category: TaskCategory.DOCUMENTATION,
+            },
+            {
+              title: 'Task 2',
+              description: 'Second task',
+              period: OnboardingPeriod.DAY_60,
+              category: TaskCategory.TRAINING,
+            },
+          ],
+        },
+        'org_1',
+      );
 
       const taskId = plan.tasks[0].id;
 
@@ -122,37 +133,46 @@ describe('OnboardingService', () => {
 
   describe('findAll', () => {
     beforeEach(async () => {
-      await service.create({
-        employee_id: 'emp_1',
-        created_by_user_id: 'mgr_1',
-        tasks: [
-          {
-            title: 'Task 1',
-            description: 'First task',
-            period: OnboardingPeriod.DAY_30,
-            category: TaskCategory.DOCUMENTATION,
-          },
-        ],
-      }, 'org_1');
+      await service.create(
+        {
+          employee_id: 'emp_1',
+          created_by_user_id: 'mgr_1',
+          tasks: [
+            {
+              title: 'Task 1',
+              description: 'First task',
+              period: OnboardingPeriod.DAY_30,
+              category: TaskCategory.DOCUMENTATION,
+            },
+          ],
+        },
+        'org_1',
+      );
 
-      await service.create({
-        employee_id: 'emp_2',
-        created_by_user_id: 'mgr_1',
-        tasks: [
-          {
-            title: 'Task 2',
-            description: 'Second task',
-            period: OnboardingPeriod.DAY_60,
-            category: TaskCategory.TRAINING,
-          },
-        ],
-      }, 'org_1');
+      await service.create(
+        {
+          employee_id: 'emp_2',
+          created_by_user_id: 'mgr_1',
+          tasks: [
+            {
+              title: 'Task 2',
+              description: 'Second task',
+              period: OnboardingPeriod.DAY_60,
+              category: TaskCategory.TRAINING,
+            },
+          ],
+        },
+        'org_1',
+      );
 
-      await service.create({
-        employee_id: 'emp_3',
-        created_by_user_id: 'mgr_2',
-        tasks: [],
-      }, 'org_2');
+      await service.create(
+        {
+          employee_id: 'emp_3',
+          created_by_user_id: 'mgr_2',
+          tasks: [],
+        },
+        'org_2',
+      );
     });
 
     it('should return all plans when no filters', async () => {
@@ -173,24 +193,27 @@ describe('OnboardingService', () => {
 
   describe('getStats', () => {
     beforeEach(async () => {
-      const plan1 = await service.create({
-        employee_id: 'emp_1',
-        created_by_user_id: 'mgr_1',
-        tasks: [
-          {
-            title: 'Task 1',
-            description: 'First task',
-            period: OnboardingPeriod.DAY_30,
-            category: TaskCategory.DOCUMENTATION,
-          },
-          {
-            title: 'Task 2',
-            description: 'Second task',
-            period: OnboardingPeriod.DAY_60,
-            category: TaskCategory.TRAINING,
-          },
-        ],
-      }, 'org_1');
+      const plan1 = await service.create(
+        {
+          employee_id: 'emp_1',
+          created_by_user_id: 'mgr_1',
+          tasks: [
+            {
+              title: 'Task 1',
+              description: 'First task',
+              period: OnboardingPeriod.DAY_30,
+              category: TaskCategory.DOCUMENTATION,
+            },
+            {
+              title: 'Task 2',
+              description: 'Second task',
+              period: OnboardingPeriod.DAY_60,
+              category: TaskCategory.TRAINING,
+            },
+          ],
+        },
+        'org_1',
+      );
 
       await service.completeTask(plan1.id, {
         task_id: plan1.tasks[0].id,
@@ -198,18 +221,21 @@ describe('OnboardingService', () => {
         completed_by_user_id: 'mgr_1',
       });
 
-      await service.create({
-        employee_id: 'emp_2',
-        created_by_user_id: 'mgr_1',
-        tasks: [
-          {
-            title: 'Task 3',
-            description: 'Third task',
-            period: OnboardingPeriod.DAY_30,
-            category: TaskCategory.TRAINING,
-          },
-        ],
-      }, 'org_1');
+      await service.create(
+        {
+          employee_id: 'emp_2',
+          created_by_user_id: 'mgr_1',
+          tasks: [
+            {
+              title: 'Task 3',
+              description: 'Third task',
+              period: OnboardingPeriod.DAY_30,
+              category: TaskCategory.TRAINING,
+            },
+          ],
+        },
+        'org_1',
+      );
     });
 
     it('should return onboarding statistics', async () => {
@@ -236,11 +262,14 @@ describe('OnboardingService', () => {
 
   describe('delete', () => {
     it('should delete onboarding plan', async () => {
-      const plan = await service.create({
-        employee_id: 'emp_1',
-        created_by_user_id: 'mgr_1',
-        tasks: [],
-      }, 'org_1');
+      const plan = await service.create(
+        {
+          employee_id: 'emp_1',
+          created_by_user_id: 'mgr_1',
+          tasks: [],
+        },
+        'org_1',
+      );
 
       await service.delete(plan.id);
       const result = await service.findOne(plan.id);

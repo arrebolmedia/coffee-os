@@ -1,26 +1,26 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
   Body,
-  Param,
-  Query,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
 } from '@nestjs/common';
 import { MaintenanceService } from './maintenance.service';
 import {
-  CreateAssetDto,
-  UpdateAssetDto,
-  CreateMaintenanceRecordDto,
   CompleteMaintenanceDto,
+  CreateAssetDto,
+  CreateMaintenanceRecordDto,
+  UpdateAssetDto,
 } from './dto';
 
 /**
  * Controlador para gestión de activos y mantenimiento
- * 
+ *
  * Endpoints:
  * - POST /maintenance/assets - Crear activo
  * - GET /maintenance/assets - Listar activos
@@ -166,9 +166,7 @@ export class MaintenanceController {
 
   @Get('stats/:organization_id')
   @HttpCode(HttpStatus.OK)
-  async getMaintenanceStats(
-    @Param('organization_id') organization_id: string,
-  ) {
+  async getMaintenanceStats(@Param('organization_id') organization_id: string) {
     return this.maintenanceService.getMaintenanceStats(organization_id);
   }
 

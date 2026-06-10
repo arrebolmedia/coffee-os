@@ -1,16 +1,16 @@
 import {
-  IsNotEmpty,
-  IsString,
-  IsNumber,
-  IsEnum,
-  IsOptional,
   IsDateString,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
   IsUUID,
-  Min,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { AssetType, AssetStatus } from '../interfaces/maintenance.interface';
+import { AssetStatus, AssetType } from '../interfaces/maintenance.interface';
 
 export class CreateAssetDto {
   @IsNotEmpty()

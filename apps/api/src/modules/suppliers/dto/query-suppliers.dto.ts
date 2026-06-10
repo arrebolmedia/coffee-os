@@ -1,15 +1,5 @@
-import {
-  IsOptional,
-  IsUUID,
-  IsBoolean,
-  IsString,
-  IsEnum,
-  IsNumber,
-  Min,
-  Max,
-} from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
-import { SupplierStatus } from './create-supplier.dto';
 
 export class QuerySuppliersDto {
   @IsOptional()
@@ -17,20 +7,9 @@ export class QuerySuppliersDto {
   organization_id?: string;
 
   @IsOptional()
-  @IsEnum(SupplierStatus)
-  status?: SupplierStatus;
-
-  @IsOptional()
   @IsBoolean()
   @Type(() => Boolean)
-  is_preferred?: boolean;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(5)
-  @Type(() => Number)
-  min_rating?: number;
+  active?: boolean;
 
   @IsOptional()
   @IsString()

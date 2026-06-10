@@ -1,8 +1,8 @@
 import {
+  IsDateString,
+  IsOptional,
   IsString,
   IsUUID,
-  IsOptional,
-  IsDateString,
   MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';

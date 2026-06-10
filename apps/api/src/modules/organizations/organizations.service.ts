@@ -1,7 +1,7 @@
 import {
+  ConflictException,
   Injectable,
   NotFoundException,
-  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
@@ -58,7 +58,9 @@ export class OrganizationsService {
         where: { slug: updateDto.slug, id: { not: id } },
       });
       if (conflict) {
-        throw new ConflictException(`Slug "${updateDto.slug}" is already taken`);
+        throw new ConflictException(
+          `Slug "${updateDto.slug}" is already taken`,
+        );
       }
     }
 

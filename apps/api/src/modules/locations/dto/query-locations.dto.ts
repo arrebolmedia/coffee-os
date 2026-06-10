@@ -1,35 +1,15 @@
-import {
-  IsOptional,
-  IsUUID,
-  IsEnum,
-  IsBoolean,
-  IsString,
-} from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
-import { LocationStatus, LocationType } from '../interfaces';
 
 export class QueryLocationsDto {
   @IsOptional()
-  @IsUUID()
+  @IsString()
   organization_id?: string;
 
   @IsOptional()
-  @IsEnum(LocationStatus)
-  status?: LocationStatus;
-
-  @IsOptional()
-  @IsEnum(LocationType)
-  type?: LocationType;
-
-  @IsOptional()
   @IsBoolean()
   @Type(() => Boolean)
-  allow_online_orders?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  @Type(() => Boolean)
-  allow_delivery?: boolean;
+  active?: boolean;
 
   @IsOptional()
   @IsString()

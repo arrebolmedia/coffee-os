@@ -5,12 +5,12 @@
 
 import { api } from '@/lib/api';
 import {
+  PaginatedResponse,
+  PaginationParams,
   Recipe,
+  RecipeFilters,
   RecipeIngredient,
   RecipeParameter,
-  RecipeFilters,
-  PaginationParams,
-  PaginatedResponse,
 } from '@/types';
 
 class RecipesService {
@@ -80,7 +80,7 @@ class RecipesService {
         `${this.baseUrl}/product/${productId}`,
       );
       return this.unwrapSingle<Recipe>(response);
-    } catch (error) {
+    } catch {
       // Return null if no recipe found for product
       return null;
     }

@@ -1,16 +1,16 @@
 import {
+  IsEnum,
+  IsObject,
+  IsOptional,
   IsString,
   IsUUID,
-  IsEnum,
-  IsOptional,
-  IsObject,
   MaxLength,
 } from 'class-validator';
 import {
-  ReportCategory,
-  ReportType,
   ExportFormat,
+  ReportCategory,
   ReportParameters,
+  ReportType,
 } from '../interfaces/report.interface';
 
 export class GenerateReportDto {

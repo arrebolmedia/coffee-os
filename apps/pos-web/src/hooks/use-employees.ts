@@ -3,8 +3,9 @@
  * React Query hooks para gestión de empleados (Users)
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
+import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 // Types
@@ -97,43 +98,26 @@ export const employeesKeys = {
   stats: (orgId: string) => [...employeesKeys.all, 'stats', orgId] as const,
 };
 
-// API functions (mock for now - replace with actual API calls)
 const employeesAPI = {
-  getEmployees: async (organizationId: string): Promise<Employee[]> => {
-    // TODO: Replace with actual API call
-    // return await api.get(`/users?organizationId=${organizationId}`);
-    return []; // Mock data
-  },
+  getEmployees: (organizationId: string): Promise<Employee[]> =>
+    api.get(`/hr/employees?organization_id=${organizationId}`),
 
-  getEmployee: async (id: string): Promise<Employee> => {
-    // TODO: Replace with actual API call
-    // return await api.get(`/users/${id}`);
-    throw new Error('Not implemented');
-  },
+  getEmployee: (id: string): Promise<Employee> =>
+    api.get(`/hr/employees/${id}`),
 
-  createEmployee: async (data: CreateEmployeeDTO): Promise<Employee> => {
-    // TODO: Replace with actual API call
-    // return await api.post('/users', data);
-    console.log('Creating employee:', data);
-    throw new Error('Not implemented');
-  },
+  createEmployee: (data: CreateEmployeeDTO): Promise<Employee> =>
+    api.post('/hr/employees', data),
 
-  updateEmployee: async (
+  updateEmployee: (
     id: string,
     data: Partial<UpdateEmployeeDTO>,
-  ): Promise<Employee> => {
-    // TODO: Replace with actual API call
-    // return await api.put(`/users/${id}`, data);
-    console.log('Updating employee:', id, data);
-    throw new Error('Not implemented');
-  },
+  ): Promise<Employee> => api.patch(`/hr/employees/${id}`, data),
 
-  deleteEmployee: async (id: string): Promise<void> => {
-    // TODO: Replace with actual API call
-    // return await api.delete(`/users/${id}`);
-    console.log('Deleting employee:', id);
-    throw new Error('Not implemented');
-  },
+  deleteEmployee: (id: string): Promise<void> =>
+    api.delete(`/hr/employees/${id}`),
+
+  getStats: (organizationId: string) =>
+    api.get(`/hr/employees/stats?organization_id=${organizationId}`),
 };
 
 /**
@@ -269,17 +253,8 @@ export function useEmployeeStats() {
 
   return useQuery({
     queryKey: employeesKeys.stats(organizationId),
-    queryFn: async () => {
-      // TODO: Replace with actual API call
-      // return await api.get(`/users/stats?organizationId=${organizationId}`);
-      return {
-        total: 0,
-        active: 0,
-        inactive: 0,
-        vacation: 0,
-      };
-    },
+    queryFn: () => employeesAPI.getStats(organizationId),
     enabled: !!organizationId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 }

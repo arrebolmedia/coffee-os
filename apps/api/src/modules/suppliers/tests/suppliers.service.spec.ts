@@ -1,108 +1,125 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SuppliersService } from '../suppliers.service';
 import { PrismaService } from '../../database/prisma.service';
-import {
-  SupplierStatus,
-  PaymentTerms,
-  CreateSupplierDto,
-} from '../dto/create-supplier.dto';
-import { ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { CreateSupplierDto } from '../dto/create-supplier.dto';
+import { NotFoundException } from '@nestjs/common';
 
 describe('SuppliersService', () => {
   let service: SuppliersService;
-
   const orgId = 'org-123';
+
   const createDto: CreateSupplierDto = {
     organization_id: orgId,
-    code: 'SUPP-001',
     name: 'Café Premium SA',
-    legal_name: 'Café Premium SA de CV',
-    status: SupplierStatus.ACTIVE,
     contact_person: 'Juan Pérez',
     email: 'ventas@cafepremium.mx',
     phone: '+52 55 1234 5678',
-    website: 'https://cafepremium.mx',
     address: 'Calle Principal 123',
-    city: 'Ciudad de México',
-    state: 'CDMX',
-    postal_code: '01000',
-    country: 'México',
-    tax_id: 'CTP970615XYZ',
-    payment_terms: PaymentTerms.NET_30,
-    credit_limit: 50000,
-    discount_percentage: 5,
-    rating: 4.5,
-    is_preferred: true,
-    tags: ['coffee', 'premium'],
-    notes: 'Proveedor principal de café',
+    payment_terms: 'NET_30',
+    lead_time_days: 5,
+    active: true,
   };
 
-  // The service uses a try/catch hybrid: tries Prisma first, falls back to in-memory Map.
-  // We simulate DB unavailability so tests exercise the Map path (unit test behavior).
+  const makeRow = (overrides: any = {}) => ({
+    id: overrides.id || `sup-${Date.now()}-${Math.random()}`,
+    organizationId: overrides.organizationId || orgId,
+    name: overrides.name || 'Café Premium SA',
+    contactName: overrides.contactName ?? null,
+    email: overrides.email ?? null,
+    phone: overrides.phone ?? null,
+    address: overrides.address ?? null,
+    paymentTerms: overrides.paymentTerms ?? null,
+    leadTime: overrides.leadTime ?? null,
+    active: overrides.active ?? true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  const store: any[] = [];
+
   const mockPrismaService = {
     supplier: {
-      findMany: jest.fn().mockRejectedValue(new Error('DB not available in unit tests')),
-      findFirst: jest.fn().mockRejectedValue(new Error('DB not available in unit tests')),
-      findUnique: jest.fn().mockRejectedValue(new Error('DB not available in unit tests')),
-      create: jest.fn().mockRejectedValue(new Error('DB not available in unit tests')),
-      update: jest.fn().mockRejectedValue(new Error('DB not available in unit tests')),
-      delete: jest.fn().mockRejectedValue(new Error('DB not available in unit tests')),
-      count: jest.fn().mockRejectedValue(new Error('DB not available in unit tests')),
+      create: jest.fn().mockImplementation((args: any) => {
+        const row = makeRow({
+          organizationId: args.data?.organizationId,
+          name: args.data?.name,
+          contactName: args.data?.contactName,
+          email: args.data?.email,
+          phone: args.data?.phone,
+          address: args.data?.address,
+          paymentTerms: args.data?.paymentTerms,
+          leadTime: args.data?.leadTime,
+          active: args.data?.active,
+        });
+        store.push(row);
+        return Promise.resolve(row);
+      }),
+      findMany: jest.fn().mockImplementation((args: any = {}) => {
+        let results = [...store];
+        const where = args?.where || {};
+        if (where.organizationId) {
+          results = results.filter(
+            (r) => r.organizationId === where.organizationId,
+          );
+        }
+        if (where.active !== undefined) {
+          results = results.filter((r) => r.active === where.active);
+        }
+        return Promise.resolve(results);
+      }),
+      findUnique: jest.fn().mockImplementation((args: any) => {
+        const found = store.find((r) => r.id === args?.where?.id);
+        return Promise.resolve(found || null);
+      }),
+      update: jest.fn().mockImplementation((args: any) => {
+        const idx = store.findIndex((r) => r.id === args?.where?.id);
+        if (idx < 0) return Promise.reject(new Error('Not found'));
+        store[idx] = { ...store[idx], ...args.data, updatedAt: new Date() };
+        return Promise.resolve(store[idx]);
+      }),
+      count: jest.fn().mockImplementation((args: any = {}) => {
+        let results = [...store];
+        const where = args?.where || {};
+        if (where.organizationId) {
+          results = results.filter(
+            (r) => r.organizationId === where.organizationId,
+          );
+        }
+        if (where.active !== undefined) {
+          results = results.filter((r) => r.active === where.active);
+        }
+        return Promise.resolve(results.length);
+      }),
     },
   };
 
   beforeEach(async () => {
+    store.length = 0;
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SuppliersService,
         { provide: PrismaService, useValue: mockPrismaService },
       ],
     }).compile();
-
     service = module.get<SuppliersService>(SuppliersService);
-    // Clear the Map between tests
-    (service as any).suppliers.clear();
   });
 
   describe('create', () => {
-    it('should create a supplier with full data', async () => {
+    it('should create a supplier', async () => {
       const result = await service.create(createDto);
-
-      expect(result).toBeDefined();
       expect(result.id).toBeDefined();
-      expect(result.code).toBe('SUPP-001');
       expect(result.name).toBe('Café Premium SA');
-      expect(result.status).toBe(SupplierStatus.ACTIVE);
-      expect(result.payment_terms).toBe(PaymentTerms.NET_30);
-      expect(result.rating).toBe(4.5);
-      expect(result.on_time_delivery_rate).toBe(85);
-      expect(result.is_preferred).toBe(true);
-      expect(result.created_at).toBeInstanceOf(Date);
+      expect(result.active).toBe(true);
+      expect(result.contact_person).toBe('Juan Pérez');
+      expect(result.payment_terms).toBe('NET_30');
     });
 
-    it('should create supplier with default status', async () => {
-      const { status, ...dtoWithoutStatus } = createDto;
-      const result = await service.create(dtoWithoutStatus);
-
-      expect(result.status).toBe(SupplierStatus.ACTIVE);
-    });
-
-    it('should throw ConflictException if code already exists', async () => {
-      await service.create(createDto);
-
-      await expect(service.create(createDto)).rejects.toThrow(
-        ConflictException,
-      );
-    });
-
-    it('should allow same code in different organizations', async () => {
-      await service.create(createDto);
-
-      const otherOrgDto = { ...createDto, organization_id: 'org-456' };
-      const result = await service.create(otherOrgDto);
-
-      expect(result).toBeDefined();
-      expect(result.code).toBe('SUPP-001');
+    it('should default active=true', async () => {
+      const { active: _active, ...rest } = createDto;
+      const result = await service.create(rest);
+      expect(result.active).toBe(true);
     });
   });
 
@@ -111,241 +128,89 @@ describe('SuppliersService', () => {
       await service.create(createDto);
       await service.create({
         ...createDto,
-        code: 'SUPP-002',
         name: 'Lácteos del Valle',
-        status: SupplierStatus.INACTIVE,
-        is_preferred: false,
-        rating: 3.5,
+        active: false,
       });
       await service.create({
         ...createDto,
-        code: 'SUPP-003',
-        name: 'Azúcar Mexicana',
-        status: SupplierStatus.SUSPENDED,
-        rating: undefined,
-        is_preferred: false,
+        organization_id: 'org-456',
+        name: 'Otra Org',
       });
     });
 
-    it('should return all suppliers', async () => {
+    it('should return all suppliers when no filters', async () => {
       const result = await service.findAll({});
       expect(result).toHaveLength(3);
     });
 
     it('should filter by organization_id', async () => {
-      await service.create({
-        ...createDto,
-        code: 'SUPP-004',
-        organization_id: 'org-456',
-      });
-
       const result = await service.findAll({ organization_id: orgId });
-      expect(result).toHaveLength(3);
+      expect(result).toHaveLength(2);
     });
 
-    it('should filter by status', async () => {
-      const result = await service.findAll({ status: SupplierStatus.ACTIVE });
-      expect(result).toHaveLength(1);
-      expect(result[0].status).toBe(SupplierStatus.ACTIVE);
-    });
-
-    it('should filter by is_preferred', async () => {
-      const result = await service.findAll({ is_preferred: true });
-      expect(result).toHaveLength(1);
-      expect(result[0].is_preferred).toBe(true);
-    });
-
-    it('should filter by min_rating', async () => {
-      const result = await service.findAll({ min_rating: 4.0 });
-      expect(result).toHaveLength(1);
-      expect(result[0].rating).toBe(4.5);
-    });
-
-    it('should search by name', async () => {
-      const result = await service.findAll({ search: 'Lácteos' });
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toBe('Lácteos del Valle');
-    });
-
-    it('should search by code', async () => {
-      const result = await service.findAll({ search: 'SUPP-002' });
-      expect(result).toHaveLength(1);
-    });
-
-    it('should sort by name ascending', async () => {
-      const result = await service.findAll({ sort_by: 'name', order: 'asc' });
-      expect(result[0].name).toBe('Azúcar Mexicana');
-      expect(result[2].name).toBe('Lácteos del Valle');
-    });
-
-    it('should sort by rating descending', async () => {
-      const result = await service.findAll({
-        sort_by: 'rating',
-        order: 'desc',
-      });
-      expect(result[0].rating).toBe(4.5);
-      expect(result[1].rating).toBe(3.5);
+    it('should filter by active', async () => {
+      const result = await service.findAll({ active: true });
+      expect(result.every((s) => s.active)).toBe(true);
     });
   });
 
   describe('findById', () => {
-    it('should return a supplier by id', async () => {
+    it('should return a supplier', async () => {
       const created = await service.create(createDto);
       const result = await service.findById(created.id);
-
-      expect(result).toBeDefined();
       expect(result.id).toBe(created.id);
     });
 
-    it('should throw NotFoundException if supplier not found', async () => {
+    it('should throw NotFoundException if not found', async () => {
       await expect(service.findById('non-existent')).rejects.toThrow(
         NotFoundException,
       );
     });
   });
 
-  describe('findByCode', () => {
-    it('should return supplier by organization and code', async () => {
-      await service.create(createDto);
-      const result = await service.findByCode(orgId, 'SUPP-001');
-
-      expect(result).toBeDefined();
-      expect(result?.code).toBe('SUPP-001');
-    });
-
-    it('should return undefined if not found', async () => {
-      const result = await service.findByCode(orgId, 'NON-EXISTENT');
-      expect(result).toBeUndefined();
-    });
-  });
-
   describe('update', () => {
-    it('should update supplier fields', async () => {
+    it('should update supplier', async () => {
       const created = await service.create(createDto);
-      const result = await service.update(created.id, {
-        name: 'Café Premium Updated',
-        rating: 5.0,
+      const updated = await service.update(created.id, {
+        name: 'Updated',
+        lead_time_days: 10,
       });
-
-      expect(result.name).toBe('Café Premium Updated');
-      expect(result.rating).toBe(5.0);
-      expect(result.code).toBe('SUPP-001');
-      expect(result.updated_at).toBeInstanceOf(Date);
+      expect(updated.name).toBe('Updated');
+      expect(updated.lead_time_days).toBe(10);
     });
 
-    it('should throw NotFoundException if supplier not found', async () => {
+    it('should throw NotFoundException if not found', async () => {
       await expect(
-        service.update('non-existent', { name: 'Test' }),
+        service.update('non-existent', { name: 'X' }),
       ).rejects.toThrow(NotFoundException);
     });
-
-    it('should throw ConflictException if code already exists', async () => {
-      const s1 = await service.create(createDto);
-      await service.create({ ...createDto, code: 'SUPP-002' });
-
-      await expect(
-        service.update(s1.id, { code: 'SUPP-002' }),
-      ).rejects.toThrow(ConflictException);
-    });
   });
 
-  describe('delete', () => {
-    it('should delete a supplier', async () => {
+  describe('delete (soft)', () => {
+    it('should soft delete by setting active=false', async () => {
       const created = await service.create(createDto);
       await service.delete(created.id);
-
-      await expect(service.findById(created.id)).rejects.toThrow(
-        NotFoundException,
-      );
+      const after = await service.findById(created.id);
+      expect(after.active).toBe(false);
     });
 
-    it('should throw NotFoundException if supplier not found', async () => {
+    it('should throw NotFoundException if not found', async () => {
       await expect(service.delete('non-existent')).rejects.toThrow(
         NotFoundException,
       );
     });
   });
 
-  describe('updateRating', () => {
-    it('should update rating and on-time delivery', async () => {
-      const created = await service.create(createDto);
-      const result = await service.updateRating(created.id, 4.8, 95);
-
-      expect(result.rating).toBe(4.8);
-      expect(result.on_time_delivery_rate).toBe(95);
-    });
-
-    it('should update only rating', async () => {
-      const created = await service.create(createDto);
-      const result = await service.updateRating(created.id, 4.0);
-
-      expect(result.rating).toBe(4.0);
-      expect(result.on_time_delivery_rate).toBe(85);
-    });
-
-    it('should throw BadRequestException if rating < 0', async () => {
-      const created = await service.create(createDto);
-      await expect(service.updateRating(created.id, -1)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('should throw BadRequestException if rating > 5', async () => {
-      const created = await service.create(createDto);
-      await expect(service.updateRating(created.id, 6)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('should throw BadRequestException if on_time_delivery_rate invalid', async () => {
-      const created = await service.create(createDto);
-      await expect(service.updateRating(created.id, 4.0, 150)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-  });
-
   describe('getStats', () => {
-    beforeEach(async () => {
+    it('should return total/active/inactive counts', async () => {
       await service.create(createDto);
-      await service.create({
-        ...createDto,
-        code: 'SUPP-002',
-        status: SupplierStatus.INACTIVE,
-        is_preferred: false,
-        rating: 3.5,
-      });
-      await service.create({
-        ...createDto,
-        code: 'SUPP-003',
-        status: SupplierStatus.SUSPENDED,
-        is_preferred: true,
-        rating: undefined,
-      });
-    });
+      await service.create({ ...createDto, name: 'B', active: false });
+      await service.create({ ...createDto, name: 'C' });
 
-    it('should return supplier statistics', async () => {
-      const result = await service.getStats(orgId);
-
-      expect(result.total_suppliers).toBe(3);
-      expect(result.by_status[SupplierStatus.ACTIVE]).toBe(1);
-      expect(result.by_status[SupplierStatus.INACTIVE]).toBe(1);
-      expect(result.by_status[SupplierStatus.SUSPENDED]).toBe(1);
-      expect(result.preferred_count).toBe(2);
-      expect(result.average_rating).toBeCloseTo(4.0);
-    });
-
-    it('should return zero average_rating if no ratings', async () => {
-      const testOrgId = 'org-test';
-      await service.create({
-        ...createDto,
-        organization_id: testOrgId,
-        code: 'SUPP-100',
-        rating: undefined,
-      });
-
-      const result = await service.getStats(testOrgId);
-      expect(result.average_rating).toBe(0);
+      const stats = await service.getStats(orgId);
+      expect(stats.total_suppliers).toBe(3);
+      expect(stats.active_count).toBe(2);
+      expect(stats.inactive_count).toBe(1);
     });
   });
 });

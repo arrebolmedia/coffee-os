@@ -1,5 +1,5 @@
 import { IsEnum, IsUUID } from 'class-validator';
-import { Resource, Action } from '../interfaces';
+import { Action, Resource } from '../interfaces';
 
 export class CheckPermissionDto {
   @IsUUID()

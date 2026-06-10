@@ -1,21 +1,20 @@
 import {
-  IsNotEmpty,
-  IsString,
-  IsNumber,
-  IsEnum,
-  IsOptional,
-  IsDateString,
-  IsUUID,
   IsBoolean,
-  IsArray,
-  Min,
+  IsDateString,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
-  MaintenanceType,
-  MaintenanceStatus,
   MaintenancePriority,
+  MaintenanceStatus,
+  MaintenanceType,
 } from '../interfaces/maintenance.interface';
 
 export class CreateMaintenanceRecordDto {

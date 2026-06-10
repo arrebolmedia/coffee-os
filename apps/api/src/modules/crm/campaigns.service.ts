@@ -1,5 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateCampaignDto, QueryCampaignsDto, CampaignStatus, CampaignType, CampaignChannel } from './dto';
+import {
+  CampaignChannel,
+  CampaignStatus,
+  CampaignType,
+  CreateCampaignDto,
+  QueryCampaignsDto,
+} from './dto';
 import { Campaign, CampaignRecipient } from './interfaces';
 import { PrismaService } from '../database/prisma.service';
 
@@ -59,7 +65,10 @@ export class CampaignsService {
     };
   }
 
-  async create(createDto: CreateCampaignDto, createdByUserId?: string): Promise<Campaign> {
+  async create(
+    createDto: CreateCampaignDto,
+    createdByUserId?: string,
+  ): Promise<Campaign> {
     const campaign = await this.prisma.campaign.create({
       data: {
         organizationId: createDto.organization_id,
@@ -128,7 +137,11 @@ export class CampaignsService {
     await this.prisma.campaign.delete({ where: { id } });
   }
 
-  async addRecipient(campaignId: string, customerId: string, channel: CampaignChannel): Promise<CampaignRecipient> {
+  async addRecipient(
+    campaignId: string,
+    customerId: string,
+    channel: CampaignChannel,
+  ): Promise<CampaignRecipient> {
     const [recipient] = await this.prisma.$transaction([
       this.prisma.campaignRecipient.create({
         data: { campaignId, customerId, channel },
@@ -142,7 +155,9 @@ export class CampaignsService {
   }
 
   async markSent(recipientId: string): Promise<void> {
-    const r = await this.prisma.campaignRecipient.findUnique({ where: { id: recipientId } });
+    const r = await this.prisma.campaignRecipient.findUnique({
+      where: { id: recipientId },
+    });
     if (!r) return;
     await this.prisma.$transaction([
       this.prisma.campaignRecipient.update({
@@ -157,7 +172,9 @@ export class CampaignsService {
   }
 
   async markDelivered(recipientId: string): Promise<void> {
-    const r = await this.prisma.campaignRecipient.findUnique({ where: { id: recipientId } });
+    const r = await this.prisma.campaignRecipient.findUnique({
+      where: { id: recipientId },
+    });
     if (!r) return;
     await this.prisma.$transaction([
       this.prisma.campaignRecipient.update({
@@ -172,7 +189,9 @@ export class CampaignsService {
   }
 
   async markOpened(recipientId: string): Promise<void> {
-    const r = await this.prisma.campaignRecipient.findUnique({ where: { id: recipientId } });
+    const r = await this.prisma.campaignRecipient.findUnique({
+      where: { id: recipientId },
+    });
     if (!r || r.openedAt) return; // no double-count
     await this.prisma.$transaction([
       this.prisma.campaignRecipient.update({
@@ -187,7 +206,9 @@ export class CampaignsService {
   }
 
   async markClicked(recipientId: string): Promise<void> {
-    const r = await this.prisma.campaignRecipient.findUnique({ where: { id: recipientId } });
+    const r = await this.prisma.campaignRecipient.findUnique({
+      where: { id: recipientId },
+    });
     if (!r || r.clickedAt) return;
     await this.prisma.$transaction([
       this.prisma.campaignRecipient.update({
@@ -202,7 +223,9 @@ export class CampaignsService {
   }
 
   async markConverted(recipientId: string): Promise<void> {
-    const r = await this.prisma.campaignRecipient.findUnique({ where: { id: recipientId } });
+    const r = await this.prisma.campaignRecipient.findUnique({
+      where: { id: recipientId },
+    });
     if (!r || r.convertedAt) return;
     await this.prisma.$transaction([
       this.prisma.campaignRecipient.update({
@@ -217,7 +240,9 @@ export class CampaignsService {
   }
 
   async markUnsubscribed(recipientId: string): Promise<void> {
-    const r = await this.prisma.campaignRecipient.findUnique({ where: { id: recipientId } });
+    const r = await this.prisma.campaignRecipient.findUnique({
+      where: { id: recipientId },
+    });
     if (!r || r.unsubscribedAt) return;
     await this.prisma.$transaction([
       this.prisma.campaignRecipient.update({
@@ -231,7 +256,9 @@ export class CampaignsService {
     ]);
   }
 
-  async getCampaignRecipients(campaignId: string): Promise<CampaignRecipient[]> {
+  async getCampaignRecipients(
+    campaignId: string,
+  ): Promise<CampaignRecipient[]> {
     const recipients = await this.prisma.campaignRecipient.findMany({
       where: { campaignId },
     });
@@ -241,31 +268,37 @@ export class CampaignsService {
   async getStats(organizationId: string): Promise<any> {
     const where = { organizationId };
 
-    const [total, active, draft, completed, paused, byTypeRaw, metricsAgg] = await Promise.all([
-      this.prisma.campaign.count({ where }),
-      this.prisma.campaign.count({ where: { ...where, status: 'ACTIVE' } }),
-      this.prisma.campaign.count({ where: { ...where, status: 'DRAFT' } }),
-      this.prisma.campaign.count({ where: { ...where, status: 'COMPLETED' } }),
-      this.prisma.campaign.count({ where: { ...where, status: 'PAUSED' } }),
-      this.prisma.campaign.groupBy({
-        by: ['type'],
-        where,
-        _count: { type: true },
-      }),
-      this.prisma.campaign.aggregate({
-        where,
-        _sum: {
-          sentCount: true,
-          deliveredCount: true,
-          openedCount: true,
-          clickedCount: true,
-          convertedCount: true,
-        },
-      }),
-    ]);
+    const [total, active, draft, completed, paused, byTypeRaw, metricsAgg] =
+      await Promise.all([
+        this.prisma.campaign.count({ where }),
+        this.prisma.campaign.count({ where: { ...where, status: 'ACTIVE' } }),
+        this.prisma.campaign.count({ where: { ...where, status: 'DRAFT' } }),
+        this.prisma.campaign.count({
+          where: { ...where, status: 'COMPLETED' },
+        }),
+        this.prisma.campaign.count({ where: { ...where, status: 'PAUSED' } }),
+        this.prisma.campaign.groupBy({
+          by: ['type'],
+          where,
+          _count: { type: true },
+        }),
+        this.prisma.campaign.aggregate({
+          where,
+          _sum: {
+            sentCount: true,
+            deliveredCount: true,
+            openedCount: true,
+            clickedCount: true,
+            convertedCount: true,
+          },
+        }),
+      ]);
 
     const byType = byTypeRaw.reduce(
-      (acc, g) => { acc[g.type] = g._count.type; return acc; },
+      (acc, g) => {
+        acc[g.type] = g._count.type;
+        return acc;
+      },
       {} as Record<string, number>,
     );
 
@@ -283,7 +316,9 @@ export class CampaignsService {
     });
     const byChannel = campaigns.reduce(
       (acc, c) => {
-        (c.channels as string[]).forEach((ch) => { acc[ch] = (acc[ch] || 0) + 1; });
+        (c.channels as string[]).forEach((ch) => {
+          acc[ch] = (acc[ch] || 0) + 1;
+        });
         return acc;
       },
       {} as Record<string, number>,
@@ -303,10 +338,16 @@ export class CampaignsService {
         total_opened: totalOpened,
         total_clicked: totalClicked,
         total_converted: totalConverted,
-        delivery_rate: totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0,
-        open_rate: totalDelivered > 0 ? Math.round((totalOpened / totalDelivered) * 100) : 0,
-        click_rate: totalOpened > 0 ? Math.round((totalClicked / totalOpened) * 100) : 0,
-        conversion_rate: totalSent > 0 ? Math.round((totalConverted / totalSent) * 100) : 0,
+        delivery_rate:
+          totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0,
+        open_rate:
+          totalDelivered > 0
+            ? Math.round((totalOpened / totalDelivered) * 100)
+            : 0,
+        click_rate:
+          totalOpened > 0 ? Math.round((totalClicked / totalOpened) * 100) : 0,
+        conversion_rate:
+          totalSent > 0 ? Math.round((totalConverted / totalSent) * 100) : 0,
       },
     };
   }
@@ -323,7 +364,8 @@ export class CampaignsService {
       is_automated: true,
       whatsapp_template_id: 'birthday_offer_mx',
       email_subject: '¡Feliz Cumpleaños! 🎂 Regalo especial para ti',
-      email_body: 'Celebra tu cumpleaños con nosotros y recibe un descuento especial.',
+      email_body:
+        'Celebra tu cumpleaños con nosotros y recibe un descuento especial.',
       offer_code: 'BIRTHDAY2025',
       offer_discount_percent: 20,
     });
@@ -338,7 +380,8 @@ export class CampaignsService {
       channels: [CampaignChannel.EMAIL, CampaignChannel.WHATSAPP],
       is_automated: true,
       email_subject: '¡Bienvenido a nuestra cafetería! ☕',
-      email_body: 'Gracias por unirte a nuestra comunidad. Disfruta de tu primera compra.',
+      email_body:
+        'Gracias por unirte a nuestra comunidad. Disfruta de tu primera compra.',
       offer_code: 'WELCOME10',
       offer_discount_percent: 10,
     });

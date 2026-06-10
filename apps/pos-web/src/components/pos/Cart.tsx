@@ -6,9 +6,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useCartStore } from '@/store/cart.store';
-import { Trash2, Plus, Minus, ShoppingCart, X } from 'lucide-react';
+import { TAX_RATE, useCartStore } from '@/store/cart.store';
+import { Minus, Plus, ShoppingCart, Trash2, X } from 'lucide-react';
 import { CartItem } from '@/types';
+
+const TAX_PERCENT_LABEL = `${Math.round(TAX_RATE * 100)}%`;
 
 export function Cart() {
   const cart = useCartStore((state) => state.cart);
@@ -92,7 +94,7 @@ export function Cart() {
         )}
 
         <div className="flex justify-between text-sm text-gray-600">
-          <span>IVA (16%):</span>
+          <span>IVA ({TAX_PERCENT_LABEL}):</span>
           <span>{formatPrice(cart.tax)}</span>
         </div>
 
@@ -132,9 +134,7 @@ function CartItemRow({
   onRemove,
   formatPrice,
 }: CartItemRowProps) {
-  const IVA_RATE = 0.16;
-  const unitPriceWithTax = item.unit_price * (1 + IVA_RATE);
-  const lineTotalWithTax = item.subtotal * (1 + IVA_RATE);
+  // Prices are stored without tax; tax is applied to the cart total once.
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-3">
       {/* Product Info */}
@@ -144,7 +144,7 @@ function CartItemRow({
             {item.product.name}
           </h4>
           <p className="text-xs text-gray-500">
-            {formatPrice(unitPriceWithTax)} c/u (IVA incl.)
+            {formatPrice(item.unit_price)} c/u
           </p>
         </div>
         <button
@@ -167,7 +167,7 @@ function CartItemRow({
               <span>+ {mod.option_name}</span>
               {mod.price_adjustment > 0 && (
                 <span className="text-amber-600">
-                  +{formatPrice(mod.price_adjustment * (1 + IVA_RATE))}
+                  +{formatPrice(mod.price_adjustment)}
                 </span>
               )}
             </div>
@@ -206,7 +206,7 @@ function CartItemRow({
         </div>
 
         <span className="font-bold text-gray-900">
-          {formatPrice(lineTotalWithTax)}
+          {formatPrice(item.subtotal)}
         </span>
       </div>
     </div>

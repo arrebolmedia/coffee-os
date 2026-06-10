@@ -7,8 +7,8 @@ import { api } from '@/lib/api';
 import {
   Evaluation,
   EvaluationPeriod,
-  PerformanceRating,
   EvaluationStats,
+  PerformanceRating,
 } from '@/types';
 
 export interface CreateEvaluationDto {

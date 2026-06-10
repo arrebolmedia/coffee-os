@@ -1,13 +1,13 @@
 import {
-  IsString,
+  IsBoolean,
   IsEnum,
   IsNumber,
   IsOptional,
-  IsBoolean,
-  Min,
+  IsString,
   Max,
-  MinLength,
   MaxLength,
+  Min,
+  MinLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -39,11 +39,11 @@ export class CreateTaxDto {
   category: TaxCategory;
 
   @ApiProperty({
-    description: 'Tax rate as percentage (e.g., 16 for 16%)',
+    description: 'Tax rate as decimal (e.g., 0.16 for 16%)',
   })
   @IsNumber()
   @Min(0)
-  @Max(100)
+  @Max(1)
   rate: number;
 
   @ApiPropertyOptional({ description: 'Is tax active', default: true })

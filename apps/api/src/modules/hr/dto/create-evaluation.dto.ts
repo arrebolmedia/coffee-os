@@ -1,4 +1,13 @@
-import { IsNotEmpty, IsString, IsEnum, IsNumber, IsOptional, IsDateString, Min, Max } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 export enum EvaluationPeriod {
   MONTHLY = 'MONTHLY',

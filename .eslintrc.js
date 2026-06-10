@@ -1,6 +1,10 @@
 module.exports = {
   root: true,
-  extends: ['eslint:recommended', '@typescript-eslint/recommended', 'prettier'],
+  extends: [
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
+    'prettier',
+  ],
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint'],
   parserOptions: {
@@ -17,7 +21,14 @@ module.exports = {
   },
   rules: {
     // TypeScript specific rules
-    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      },
+    ],
     '@typescript-eslint/no-explicit-any': 'warn',
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
@@ -38,19 +49,10 @@ module.exports = {
       },
     ],
   },
-  overrides: [
-    {
-      files: ['*.tsx', '*.jsx'],
-      extends: ['plugin:react/recommended', 'plugin:react-hooks/recommended'],
-      rules: {
-        'react/react-in-jsx-scope': 'off', // Next.js doesn't require React import
-        'react/prop-types': 'off', // TypeScript handles this
-      },
-      settings: {
-        react: {
-          version: 'detect',
-        },
-      },
-    },
-  ],
+  // React-specific rules (plugin:react/recommended, plugin:react-hooks/recommended)
+  // are intentionally omitted here because eslint-plugin-react and
+  // eslint-plugin-react-hooks are NOT installed at the monorepo root.
+  // apps/pos-web uses eslint-config-next (which bundles these rules) via
+  // its own local `next lint` command — those rules apply there automatically.
+  overrides: [],
 };

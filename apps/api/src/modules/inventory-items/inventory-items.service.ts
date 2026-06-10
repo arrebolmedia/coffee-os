@@ -1,8 +1,8 @@
 import {
+  BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
-  ConflictException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
@@ -57,18 +57,14 @@ export class InventoryItemsService {
     });
   }
 
-  async findAll(query: QueryInventoryItemsDto) {
-    const {
-      skip = 0,
-      take = 50,
-      active,
-      category,
-      search,
-      supplierId,
-      lowStock,
-    } = query;
+  async findAll(query: QueryInventoryItemsDto, organizationId?: string) {
+    const { skip = 0, take = 50, active, category, search, supplierId } = query;
 
     const where: any = {};
+
+    if (organizationId) {
+      where.organizationId = organizationId;
+    }
 
     if (active !== undefined) {
       where.active = active;
@@ -129,9 +125,9 @@ export class InventoryItemsService {
     };
   }
 
-  async findAllActive() {
+  async findAllActive(organizationId?: string) {
     return this.prisma.inventoryItem.findMany({
-      where: { active: true },
+      where: { active: true, ...(organizationId ? { organizationId } : {}) },
       orderBy: { name: 'asc' },
       include: {
         supplier: {
@@ -144,7 +140,7 @@ export class InventoryItemsService {
     });
   }
 
-  async findLowStock() {
+  async findLowStock(organizationId?: string) {
     // Find items where reorderPoint > 0 (meaning they have stock tracking)
     // In a real implementation, you'd compare with actual stock levels
     return this.prisma.inventoryItem.findMany({
@@ -153,6 +149,7 @@ export class InventoryItemsService {
         reorderPoint: {
           gt: 0,
         },
+        ...(organizationId ? { organizationId } : {}),
       },
       orderBy: {
         reorderPoint: 'desc',
@@ -170,7 +167,7 @@ export class InventoryItemsService {
     });
   }
 
-  async findByCategory(category: string) {
+  async findByCategory(category: string, organizationId?: string) {
     return this.prisma.inventoryItem.findMany({
       where: {
         category: {
@@ -178,6 +175,7 @@ export class InventoryItemsService {
           mode: 'insensitive',
         },
         active: true,
+        ...(organizationId ? { organizationId } : {}),
       },
       orderBy: { name: 'asc' },
       include: {

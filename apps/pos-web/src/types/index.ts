@@ -11,8 +11,8 @@ export type UUID = string;
 
 export interface BaseEntity {
   id: UUID;
-  created_at: Date;
-  updated_at: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface OrganizationContext {
@@ -25,15 +25,15 @@ export interface OrganizationContext {
 // ============================================================================
 
 export enum ProductStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  DRAFT = 'draft',
-  ARCHIVED = 'archived',
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  DRAFT = 'DRAFT',
+  ARCHIVED = 'ARCHIVED',
 }
 
 export enum ProductType {
   SIMPLE = 'SIMPLE',
-  COMBO = 'COMBO',
+  BUNDLE = 'BUNDLE',
   VARIABLE = 'VARIABLE',
 }
 
@@ -42,15 +42,15 @@ export interface Product extends BaseEntity, OrganizationContext {
   name: string;
   description?: string;
   type: ProductType;
-  category_id: UUID;
+  categoryId: UUID;
   category?: Category;
   price: number;
   cost?: number;
   status: ProductStatus;
-  image_url?: string;
+  image?: string;
   barcode?: string;
   track_inventory: boolean;
-  current_stock?: number;
+  currentStock?: number;
   min_stock?: number;
   max_stock?: number;
   modifiers?: Modifier[];
@@ -68,20 +68,21 @@ export interface Category extends BaseEntity, OrganizationContext {
   products?: Array<{ id: string; name: string }>; // Incluido en respuestas del backend
 }
 
-export interface Modifier extends BaseEntity, OrganizationContext {
-  name: string;
-  type: 'SINGLE' | 'MULTIPLE';
-  required: boolean;
-  min_selections: number;
-  max_selections: number;
-  options: ModifierOption[];
+export enum ModifierType {
+  SIZE = 'SIZE',
+  MILK = 'MILK',
+  EXTRA = 'EXTRA',
+  SYRUP = 'SYRUP',
+  DECAF = 'DECAF',
 }
 
-export interface ModifierOption {
-  id: UUID;
+export interface Modifier {
+  id: string;
   name: string;
-  price_adjustment: number;
-  is_default: boolean;
+  type: ModifierType;
+  priceDelta: number;
+  active: boolean;
+  productId: string;
 }
 
 // ============================================================================
@@ -89,10 +90,10 @@ export interface ModifierOption {
 // ============================================================================
 
 export enum OrderStatus {
-  DRAFT = 'DRAFT',
   PENDING = 'PENDING',
-  CONFIRMED = 'CONFIRMED',
   IN_PROGRESS = 'IN_PROGRESS',
+  READY = 'READY',
+  SERVED = 'SERVED',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
 }
@@ -100,15 +101,19 @@ export enum OrderStatus {
 export enum PaymentMethod {
   CASH = 'CASH',
   CARD = 'CARD',
-  TRANSFER = 'TRANSFER',
+  DIGITAL_WALLET = 'DIGITAL_WALLET',
+  BANK_TRANSFER = 'BANK_TRANSFER',
+  LOYALTY_POINTS = 'LOYALTY_POINTS',
   MIXED = 'MIXED',
 }
 
 export enum PaymentStatus {
   PENDING = 'PENDING',
-  PAID = 'PAID',
-  PARTIAL = 'PARTIAL',
+  PROCESSING = 'PROCESSING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
   REFUNDED = 'REFUNDED',
+  CANCELED = 'CANCELED',
 }
 
 export interface CartItem {
@@ -182,27 +187,45 @@ export interface Payment {
 // CUSTOMER TYPES
 // ============================================================================
 
+export enum CustomerStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  BLOCKED = 'BLOCKED',
+}
+
 export interface Customer extends BaseEntity, OrganizationContext {
-  customer_code: string;
-  name: string;
   email?: string;
   phone?: string;
-  birthday?: Date;
-  date_of_birth?: Date; // Alias for birthday
-  total_orders: number;
-  total_spent: number;
-  loyalty_points: number;
-  loyalty_tier?: 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM';
-  rfm_segment?: string;
-  tags?: string[];
-  // Additional customer fields
-  address?: string;
-  city?: string;
-  state?: string;
-  postal_code?: string;
-  preferences?: string;
-  allergies?: string;
+  firstName?: string;
+  lastName?: string;
+  dateOfBirth?: Date;
+  gender?: string;
+  preferredLanguage?: string;
   notes?: string;
+  // LFPDPPP Consent
+  consentMarketing: boolean;
+  consentWhatsapp: boolean;
+  consentEmail: boolean;
+  consentSms: boolean;
+  consentDate?: Date;
+  // Preferences
+  favoriteDrink?: string;
+  dietaryRestrictions?: string;
+  allergies?: string;
+  // Status
+  status: CustomerStatus;
+  blockedReason?: string;
+  // Loyalty
+  loyaltyPoints: number;
+  totalVisits: number;
+  totalSpent: number;
+  lastVisitDate?: Date;
+  // RFM Segmentation
+  rfmSegment?: string;
+  recencyScore?: number;
+  frequencyScore?: number;
+  monetaryScore?: number;
+  active: boolean;
 }
 
 // ============================================================================
@@ -220,12 +243,18 @@ export enum UserRole {
 
 export interface User extends BaseEntity {
   email: string;
-  name: string;
-  role: UserRole;
-  organization_id: UUID;
-  location_id?: UUID;
-  is_active: boolean;
-  avatar_url?: string;
+  firstName: string;
+  lastName: string;
+  roleId: string;
+  organizationId: UUID;
+  locationId?: UUID;
+  active: boolean;
+  avatar?: string;
+  phone?: string;
+  isSuperAdmin?: boolean;
+  emailVerified?: Date;
+  twoFactorEnabled?: boolean;
+  lastLoginAt?: Date;
 }
 
 export interface AuthToken {
@@ -240,18 +269,25 @@ export interface AuthToken {
 // ============================================================================
 
 export interface Shift extends BaseEntity, OrganizationContext {
-  shift_number: string;
+  shiftNumber: string;
   user_id: UUID;
-  user_name: string;
-  started_at: Date;
-  ended_at?: Date;
-  initial_cash: number;
-  final_cash?: number;
-  expected_cash?: number;
-  cash_difference?: number;
-  total_sales: number;
-  total_orders: number;
   status: 'OPEN' | 'CLOSED';
+  // Cash float
+  openingFloat: number;
+  openingCash: number;
+  closingCash?: number;
+  expectedCash?: number;
+  countedCash?: number;
+  variance?: number;
+  // Totals
+  totalExpected?: number;
+  totalClosing?: number;
+  // Notes
+  openingNotes?: string;
+  closingNotes?: string;
+  // Timestamps
+  openedAt: Date;
+  closedAt?: Date;
 }
 
 export interface CashMovement {

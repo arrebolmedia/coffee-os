@@ -1,4 +1,4 @@
-import { CampaignType, CampaignStatus, CampaignChannel } from '../dto';
+import { CampaignChannel, CampaignStatus, CampaignType } from '../dto';
 
 export interface Campaign {
   id: string;

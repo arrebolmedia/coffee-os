@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import wasteService, {
   CreateWasteLogDto,
-  UpdateWasteLogDto,
   QueryWasteLogsParams,
+  UpdateWasteLogDto,
 } from '@/services/waste.service';
 import { useAuth } from '@/hooks/use-auth';
 

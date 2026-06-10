@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsString, IsBoolean, IsOptional, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class ChecklistItemCompletionDto {

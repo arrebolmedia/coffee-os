@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TaxesService, TaxCategory } from './taxes.service';
+import { TaxesService } from './taxes.service';
+import { TaxCategory } from './dto/create-tax.dto';
 import { PrismaService } from '../database/prisma.service';
 import { NotFoundException } from '@nestjs/common';
 
@@ -209,10 +210,10 @@ describe('TaxesService', () => {
   });
 
   describe('calculateTax', () => {
-    it('should calculate tax amount', async () => {
+    it('should calculate tax amount (rate as decimal: 0.16 = 16%)', async () => {
       const tax = {
         id: '1',
-        rate: 16,
+        rate: 0.16,
         active: true,
       };
 
@@ -226,7 +227,7 @@ describe('TaxesService', () => {
     it('should return 0 if tax is not active', async () => {
       const tax = {
         id: '1',
-        rate: 16,
+        rate: 0.16,
         active: false,
       };
 
@@ -239,24 +240,24 @@ describe('TaxesService', () => {
   });
 
   describe('calculateMultipleTaxes', () => {
-    it('should calculate multiple taxes', async () => {
+    it('should calculate multiple taxes (decimal rates)', async () => {
       const taxes = [
-        { id: "1", rate: 16, active: true },
-        { id: "2", rate: 8, active: true },
+        { id: '1', rate: 0.16, active: true },
+        { id: '2', rate: 0.08, active: true },
       ];
 
       mockPrismaService.tax.findMany.mockResolvedValue(taxes);
 
       const result = await service.calculateMultipleTaxes(['1', '2'], 100);
 
-      expect(result.total).toBe(24); // 16 + 8
+      expect(result.total).toBeCloseTo(24, 5); // 16 + 8
       expect(result.breakdown).toHaveLength(2);
       expect(result.breakdown[0]).toEqual({ taxId: '1', amount: 16 });
       expect(result.breakdown[1]).toEqual({ taxId: '2', amount: 8 });
     });
 
     it('should only calculate active taxes', async () => {
-      const taxes = [{ id: "1", rate: 16, active: true }];
+      const taxes = [{ id: '1', rate: 0.16, active: true }];
 
       mockPrismaService.tax.findMany.mockResolvedValue(taxes);
 

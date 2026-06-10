@@ -5,41 +5,29 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { useCategories, useProducts } from '@/hooks/use-products';
+import { useMarginBadge, useProductCOGS } from '@/hooks/use-costing';
 import {
-  useProducts,
-  useCategories,
-  useCreateProduct,
-  useUpdateProduct,
-  useDeleteProduct,
-  useCreateCategory,
-} from '@/hooks/use-products';
-import {
-  useProductCOGS,
-  useMarginBadge,
-  useFormatCurrency,
-} from '@/hooks/use-costing';
-import {
-  Package,
-  Search,
-  Plus,
   AlertCircle,
-  Loader2,
-  Edit,
-  Trash2,
-  Eye,
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  Grid3x3,
-  Filter,
-  Download,
   BarChart3,
-  Tag,
-  Image as ImageIcon,
-  Archive,
   Calculator,
+  DollarSign,
+  Download,
+  Edit,
+  Eye,
+  Filter,
+  Grid3x3,
+  Image as ImageIcon,
+  Loader2,
+  Package,
+  Plus,
+  Search,
+  Tag,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
 } from 'lucide-react';
 
 // ============================================================================
@@ -56,7 +44,7 @@ interface ProductDisplay {
   price: number;
   cost: number;
   margin: number;
-  status: 'active' | 'inactive' | 'draft' | 'archived';
+  status: 'ACTIVE' | 'INACTIVE' | 'DRAFT' | 'ARCHIVED';
   imageUrl: string;
   barcode: string;
   trackInventory: boolean;
@@ -96,7 +84,7 @@ export default function ProductsPage() {
       name: product.name,
       description: product.description || '',
       category: product.category?.name || 'Sin categoría',
-      categoryId: product.category_id,
+      categoryId: product.categoryId,
       price: product.price || 0,
       cost: product.cost || 0,
       margin:
@@ -104,10 +92,10 @@ export default function ProductsPage() {
           ? ((product.price - product.cost) / product.price) * 100
           : 0,
       status: product.status,
-      imageUrl: product.image_url || '',
+      imageUrl: product.image || '',
       barcode: product.barcode || '',
       trackInventory: product.track_inventory || false,
-      currentStock: product.current_stock || 0,
+      currentStock: product.currentStock || 0,
       type: product.type || 'SIMPLE',
       tags: product.tags || [],
     }));
@@ -158,7 +146,7 @@ export default function ProductsPage() {
   // ============================================================================
 
   const localStats = useMemo(() => {
-    const activeProducts = products.filter((p) => p.status === 'active');
+    const activeProducts = products.filter((p) => p.status === 'ACTIVE');
     const totalValue = products.reduce(
       (sum, p) => sum + p.cost * p.currentStock,
       0,
@@ -171,8 +159,8 @@ export default function ProductsPage() {
     return {
       total: products.length,
       active: activeProducts.length,
-      inactive: products.filter((p) => p.status === 'inactive').length,
-      draft: products.filter((p) => p.status === 'draft').length,
+      inactive: products.filter((p) => p.status === 'INACTIVE').length,
+      draft: products.filter((p) => p.status === 'DRAFT').length,
       outOfStock: products.filter(
         (p) => p.trackInventory && p.currentStock === 0,
       ).length,
@@ -189,13 +177,13 @@ export default function ProductsPage() {
   // ============================================================================
 
   const getStatusBadge = (status: string) => {
-    const badges = {
-      active: 'bg-green-100 text-green-800 border-green-300',
-      inactive: 'bg-gray-100 text-gray-800 border-gray-300',
-      draft: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      archived: 'bg-red-100 text-red-800 border-red-300',
+    const badges: Record<string, string> = {
+      ACTIVE: 'bg-green-100 text-green-800 border-green-300',
+      INACTIVE: 'bg-gray-100 text-gray-800 border-gray-300',
+      DRAFT: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+      ARCHIVED: 'bg-red-100 text-red-800 border-red-300',
     };
-    return badges[status as keyof typeof badges] || badges.draft;
+    return badges[status] || badges.DRAFT;
   };
 
   const getStockBadge = (product: ProductDisplay) => {
@@ -484,10 +472,10 @@ export default function ProductsPage() {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white"
                 >
                   <option value="all">Todos los estados</option>
-                  <option value="active">Activo</option>
-                  <option value="inactive">Inactivo</option>
-                  <option value="draft">Borrador</option>
-                  <option value="archived">Archivado</option>
+                  <option value="ACTIVE">Activo</option>
+                  <option value="INACTIVE">Inactivo</option>
+                  <option value="DRAFT">Borrador</option>
+                  <option value="ARCHIVED">Archivado</option>
                 </select>
               </div>
             </div>
@@ -613,10 +601,10 @@ export default function ProductsPage() {
                           product.status,
                         )}`}
                       >
-                        {product.status === 'active' && 'Activo'}
-                        {product.status === 'inactive' && 'Inactivo'}
-                        {product.status === 'draft' && 'Borrador'}
-                        {product.status === 'archived' && 'Archivado'}
+                        {product.status === 'ACTIVE' && 'Activo'}
+                        {product.status === 'INACTIVE' && 'Inactivo'}
+                        {product.status === 'DRAFT' && 'Borrador'}
+                        {product.status === 'ARCHIVED' && 'Archivado'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">

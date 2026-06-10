@@ -3,14 +3,34 @@
  * Cliente HTTP simple usando fetch con NextAuth
  */
 
-import { getSession } from 'next-auth/react';
+import { getSession, signOut } from 'next-auth/react';
 import toast from 'react-hot-toast';
+
+// Body types that fetch can send raw without JSON.stringify and that should
+// NOT have an explicit Content-Type set (the browser does it).
+function isRawBody(body: unknown): boolean {
+  if (body == null) return false;
+  if (typeof FormData !== 'undefined' && body instanceof FormData) return true;
+  if (typeof Blob !== 'undefined' && body instanceof Blob) return true;
+  if (
+    typeof ArrayBuffer !== 'undefined' &&
+    (body instanceof ArrayBuffer ||
+      (ArrayBuffer.isView && ArrayBuffer.isView(body as any)))
+  )
+    return true;
+  if (typeof URLSearchParams !== 'undefined' && body instanceof URLSearchParams)
+    return true;
+  if (typeof ReadableStream !== 'undefined' && body instanceof ReadableStream)
+    return true;
+  return false;
+}
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
 export interface FetchOptions extends RequestInit {
   requiresAuth?: boolean;
+  params?: Record<string, any>;
 }
 
 /**
@@ -32,21 +52,16 @@ export async function apiFetch<T = any>(
     }
   }
 
-  // Construir URL completa con organization_id automático
-  let url = endpoint.startsWith('http')
+  const url = endpoint.startsWith('http')
     ? endpoint
     : `${API_BASE_URL}${endpoint}`;
 
-  // Agregar organization_id automáticamente a query params si no está presente
-  if (session?.user?.organizationId && !url.includes('organization_id=')) {
-    const separator = url.includes('?') ? '&' : '?';
-    url += `${separator}organization_id=${session.user.organizationId}`;
+  // Headers por defecto. NO setear Content-Type si el body es FormData/Blob —
+  // el browser necesita generar el boundary correcto para multipart.
+  const headers: Record<string, string> = {};
+  if (!isRawBody(fetchOptions.body)) {
+    headers['Content-Type'] = 'application/json';
   }
-
-  // Headers por defecto
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
 
   // Copiar headers adicionales
   if (fetchOptions.headers) {
@@ -55,20 +70,13 @@ export async function apiFetch<T = any>(
     });
   }
 
-  // Agregar token de autenticación y headers de contexto
-  if (requiresAuth && session) {
-    if (session?.accessToken) {
+  if (requiresAuth) {
+    if (session?.accessToken)
       headers['Authorization'] = `Bearer ${session.accessToken}`;
-    }
-
-    // Context de organización en headers también
-    if (session?.user?.organizationId) {
+    if (session?.user?.organizationId)
       headers['X-Organization-Id'] = session.user.organizationId;
-    }
-
-    if (session?.user?.locationId) {
+    if (session?.user?.locationId)
       headers['X-Location-Id'] = session.user.locationId;
-    }
   }
 
   try {
@@ -116,7 +124,13 @@ async function handleErrorResponse(response: Response): Promise<never> {
     case 401:
       toast.error('Sesión expirada. Por favor, inicia sesión nuevamente.');
       if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+        // Llamar a signOut limpia la sesión de NextAuth antes de redirigir,
+        // evitando un loop donde el cliente sigue mandando el token expirado.
+        try {
+          await signOut({ callbackUrl: '/login', redirect: true });
+        } catch {
+          window.location.href = '/login';
+        }
       }
       break;
 
@@ -178,6 +192,16 @@ export function buildQueryString(params: Record<string, any>): string {
 }
 
 /**
+ * Serialize a body for the HTTP helpers: FormData/Blob/etc. are passed
+ * through untouched; everything else is JSON.stringify'd.
+ */
+function serializeBody(data: any): BodyInit | undefined {
+  if (data === undefined || data === null) return undefined;
+  if (isRawBody(data)) return data as BodyInit;
+  return JSON.stringify(data);
+}
+
+/**
  * Métodos HTTP helpers
  */
 export const api = {
@@ -188,21 +212,21 @@ export const api = {
     apiFetch<T>(endpoint, {
       ...options,
       method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
+      body: serializeBody(data),
     }),
 
   put: <T = any>(endpoint: string, data?: any, options?: FetchOptions) =>
     apiFetch<T>(endpoint, {
       ...options,
       method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined,
+      body: serializeBody(data),
     }),
 
   patch: <T = any>(endpoint: string, data?: any, options?: FetchOptions) =>
     apiFetch<T>(endpoint, {
       ...options,
       method: 'PATCH',
-      body: data ? JSON.stringify(data) : undefined,
+      body: serializeBody(data),
     }),
 
   delete: <T = any>(endpoint: string, options?: FetchOptions) =>

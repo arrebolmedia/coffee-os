@@ -100,7 +100,8 @@ describe('RecipesController', () => {
       const mockUser = {
         userId: 'user-1',
         email: 'test@test.com',
-        name: 'Test User',
+        firstName: 'Test',
+        lastName: 'User',
         organizationId: 'org-1',
       };
 

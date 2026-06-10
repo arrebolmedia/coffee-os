@@ -1,17 +1,19 @@
 import {
-  IsString,
-  IsUUID,
+  IsArray,
+  IsDateString,
   IsEnum,
   IsNumber,
   IsOptional,
-  IsArray,
-  IsDateString,
+  IsString,
+  IsUUID,
   MaxLength,
   Min,
-  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { EvaluationType, EvaluationQuestion } from '../interfaces/onboarding.interface';
+import {
+  EvaluationQuestion,
+  EvaluationType,
+} from '../interfaces/onboarding.interface';
 
 export class CreateEvaluationDto {
   @IsUUID()

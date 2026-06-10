@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SettingsService } from '../settings.service';
-import { CreateSettingDto, UpdateSettingDto } from '../dto';
-import { SettingType, SettingCategory } from '../interfaces';
+import { CreateSettingDto } from '../dto';
+import { SettingCategory, SettingType } from '../interfaces';
 import {
-  NotFoundException,
-  ConflictException,
   BadRequestException,
+  ConflictException,
+  NotFoundException,
 } from '@nestjs/common';
 
 describe('SettingsService', () => {
@@ -78,7 +78,10 @@ describe('SettingsService', () => {
       };
 
       const result = await service.create(dto);
-      expect(result.value).toEqual({ primaryColor: '#FF5733', darkMode: false });
+      expect(result.value).toEqual({
+        primaryColor: '#FF5733',
+        darkMode: false,
+      });
     });
 
     it('should throw ConflictException if key exists', async () => {

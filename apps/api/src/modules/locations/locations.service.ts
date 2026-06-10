@@ -1,268 +1,191 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  BadRequestException,
-} from '@nestjs/common';
-import {
-  CreateLocationDto,
-  UpdateLocationDto,
-  QueryLocationsDto,
-} from './dto';
-import {
-  Location,
-  LocationStatus,
-  LocationType,
-  LocationStats,
-} from './interfaces';
+/**
+ * LocationsService — Prisma-backed implementation.
+ *
+ * Maps to the `Location` model in `packages/database/prisma/schema.prisma`:
+ *   id, organizationId, name, address, city, state, postalCode, country,
+ *   phone, email, timezone, active, taxRate, currency.
+ *
+ * TODO migration: campos de DTO que NO existen aún en el schema y por lo tanto
+ * NO se persisten — se eliminaron del DTO y del controller:
+ *   - code (string)
+ *   - type (enum: flagship | standard | kiosk | food_truck | popup)
+ *   - status (enum: active | inactive | coming_soon | temporarily_closed | permanently_closed)
+ *     → se mapea SOLO a `active: boolean` (active vs anything-else).
+ *   - coordinates (lat/long)
+ *   - hours (LocationHours[])
+ *   - seating_capacity, max_occupancy
+ *   - allow_online_orders, allow_delivery, allow_pickup, allow_dine_in
+ *   - address_line_2, manager_id, opening_date, image_url, notes
+ *   - findByCode endpoint (deprecated por ausencia de `code`)
+ *
+ * Cuando se agreguen estos campos al schema, ampliar este service.
+ */
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../database/prisma.service';
+import { CreateLocationDto, QueryLocationsDto, UpdateLocationDto } from './dto';
+import { Location, LocationStats } from './interfaces';
 
 @Injectable()
 export class LocationsService {
-  private readonly locations = new Map<string, Location>();
+  constructor(private readonly prisma: PrismaService) {}
+
+  /** Convert a Prisma Location row to the public Location interface. */
+  private toLocation(row: any): Location {
+    return {
+      id: row.id,
+      organization_id: row.organizationId,
+      name: row.name,
+      address: row.address ?? undefined,
+      city: row.city ?? undefined,
+      state: row.state ?? undefined,
+      postal_code: row.postalCode ?? undefined,
+      country: row.country,
+      phone: row.phone ?? undefined,
+      email: row.email ?? undefined,
+      timezone: row.timezone,
+      active: row.active,
+      tax_rate: row.taxRate,
+      currency: row.currency,
+      created_at: row.createdAt,
+      updated_at: row.updatedAt,
+    };
+  }
 
   async create(createDto: CreateLocationDto): Promise<Location> {
-    const existing = Array.from(this.locations.values()).find(
-      (loc) =>
-        loc.code === createDto.code &&
-        loc.organization_id === createDto.organization_id,
-    );
-
-    if (existing) {
-      throw new ConflictException(
-        `Location with code ${createDto.code} already exists in this organization`,
-      );
-    }
-
-    const location: Location = {
-      id: `loc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      ...createDto,
-      status: createDto.status || LocationStatus.ACTIVE,
-      allow_online_orders: createDto.allow_online_orders ?? true,
-      allow_delivery: createDto.allow_delivery ?? false,
-      allow_pickup: createDto.allow_pickup ?? true,
-      allow_dine_in: createDto.allow_dine_in ?? true,
-      created_at: new Date(),
-      updated_at: new Date(),
-    };
-
-    this.locations.set(location.id, location);
-    return location;
+    const created = await this.prisma.location.create({
+      data: {
+        organizationId: createDto.organization_id,
+        name: createDto.name,
+        address: createDto.address,
+        city: createDto.city,
+        state: createDto.state,
+        postalCode: createDto.postal_code,
+        country: createDto.country ?? 'MX',
+        phone: createDto.phone,
+        email: createDto.email,
+        timezone: createDto.timezone ?? 'America/Mexico_City',
+        taxRate: createDto.tax_rate ?? 0.16,
+        currency: createDto.currency ?? 'MXN',
+        active: createDto.active ?? true,
+      },
+    });
+    return this.toLocation(created);
   }
 
   async findAll(query: QueryLocationsDto): Promise<Location[]> {
-    let locations = Array.from(this.locations.values());
+    const where: any = {};
 
     if (query.organization_id) {
-      locations = locations.filter(
-        (loc) => loc.organization_id === query.organization_id,
-      );
+      where.organizationId = query.organization_id;
     }
-
-    if (query.status) {
-      locations = locations.filter((loc) => loc.status === query.status);
+    if (query.active !== undefined) {
+      where.active = query.active;
     }
-
-    if (query.type) {
-      locations = locations.filter((loc) => loc.type === query.type);
-    }
-
-    if (query.allow_online_orders !== undefined) {
-      locations = locations.filter(
-        (loc) => loc.allow_online_orders === query.allow_online_orders,
-      );
-    }
-
-    if (query.allow_delivery !== undefined) {
-      locations = locations.filter(
-        (loc) => loc.allow_delivery === query.allow_delivery,
-      );
-    }
-
     if (query.city) {
-      locations = locations.filter(
-        (loc) => loc.city.toLowerCase() === query.city!.toLowerCase(),
-      );
+      where.city = { equals: query.city, mode: 'insensitive' };
     }
-
     if (query.state) {
-      locations = locations.filter(
-        (loc) => loc.state.toLowerCase() === query.state!.toLowerCase(),
-      );
+      where.state = { equals: query.state, mode: 'insensitive' };
     }
-
     if (query.search) {
-      const search = query.search.toLowerCase();
-      locations = locations.filter(
-        (loc) =>
-          loc.name.toLowerCase().includes(search) ||
-          loc.code.toLowerCase().includes(search) ||
-          loc.city.toLowerCase().includes(search) ||
-          loc.address.toLowerCase().includes(search),
-      );
+      where.OR = [
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { city: { contains: query.search, mode: 'insensitive' } },
+        { address: { contains: query.search, mode: 'insensitive' } },
+      ];
     }
 
     const sortBy = query.sort_by || 'name';
-    const order = query.order || 'asc';
+    const order: 'asc' | 'desc' = query.order || 'asc';
+    const orderBy: any = { [this.mapSortField(sortBy)]: order };
 
-    locations.sort((a, b) => {
-      let aValue: any = a[sortBy as keyof Location];
-      let bValue: any = b[sortBy as keyof Location];
+    const rows = await this.prisma.location.findMany({ where, orderBy });
+    return rows.map((r) => this.toLocation(r));
+  }
 
-      if (aValue === undefined) aValue = order === 'asc' ? '' : Number.MIN_VALUE;
-      if (bValue === undefined) bValue = order === 'asc' ? '' : Number.MIN_VALUE;
-
-      if (aValue instanceof Date && bValue instanceof Date) {
-        return order === 'asc'
-          ? aValue.getTime() - bValue.getTime()
-          : bValue.getTime() - aValue.getTime();
-      }
-
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return order === 'asc'
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      }
-
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return order === 'asc' ? aValue - bValue : bValue - aValue;
-      }
-
-      return 0;
-    });
-
-    return locations;
+  /** Map external sort field names to Prisma column names. */
+  private mapSortField(field: string): string {
+    switch (field) {
+      case 'created_at':
+        return 'createdAt';
+      case 'updated_at':
+        return 'updatedAt';
+      case 'postal_code':
+        return 'postalCode';
+      default:
+        return field;
+    }
   }
 
   async findById(id: string): Promise<Location> {
-    const location = this.locations.get(id);
-    if (!location) {
+    const row = await this.prisma.location.findUnique({ where: { id } });
+    if (!row) {
       throw new NotFoundException(`Location with ID ${id} not found`);
     }
-    return location;
-  }
-
-  async findByCode(
-    organizationId: string,
-    code: string,
-  ): Promise<Location | undefined> {
-    return Array.from(this.locations.values()).find(
-      (loc) => loc.organization_id === organizationId && loc.code === code,
-    );
+    return this.toLocation(row);
   }
 
   async update(id: string, updateDto: UpdateLocationDto): Promise<Location> {
-    const location = await this.findById(id);
+    await this.findById(id); // throws if not found
 
-    if (updateDto.code && updateDto.code !== location.code) {
-      const existing = await this.findByCode(
-        location.organization_id,
-        updateDto.code,
-      );
-      if (existing) {
-        throw new ConflictException(
-          `Location with code ${updateDto.code} already exists in this organization`,
-        );
-      }
-    }
+    const data: any = {};
+    if (updateDto.name !== undefined) data.name = updateDto.name;
+    if (updateDto.address !== undefined) data.address = updateDto.address;
+    if (updateDto.city !== undefined) data.city = updateDto.city;
+    if (updateDto.state !== undefined) data.state = updateDto.state;
+    if (updateDto.postal_code !== undefined)
+      data.postalCode = updateDto.postal_code;
+    if (updateDto.country !== undefined) data.country = updateDto.country;
+    if (updateDto.phone !== undefined) data.phone = updateDto.phone;
+    if (updateDto.email !== undefined) data.email = updateDto.email;
+    if (updateDto.timezone !== undefined) data.timezone = updateDto.timezone;
+    if (updateDto.tax_rate !== undefined) data.taxRate = updateDto.tax_rate;
+    if (updateDto.currency !== undefined) data.currency = updateDto.currency;
+    if (updateDto.active !== undefined) data.active = updateDto.active;
 
-    const updatedLocation: Location = {
-      ...location,
-      ...updateDto,
-      updated_at: new Date(),
-    };
-
-    this.locations.set(id, updatedLocation);
-    return updatedLocation;
+    const updated = await this.prisma.location.update({
+      where: { id },
+      data,
+    });
+    return this.toLocation(updated);
   }
 
+  /** Soft delete: marca active=false en lugar de borrar el registro. */
   async delete(id: string): Promise<void> {
-    const location = await this.findById(id);
-    this.locations.delete(location.id);
+    await this.findById(id);
+    await this.prisma.location.update({
+      where: { id },
+      data: { active: false },
+    });
   }
 
   async activate(id: string): Promise<Location> {
-    const location = await this.findById(id);
-
-    const updatedLocation: Location = {
-      ...location,
-      status: LocationStatus.ACTIVE,
-      updated_at: new Date(),
-    };
-
-    this.locations.set(id, updatedLocation);
-    return updatedLocation;
+    await this.findById(id);
+    const updated = await this.prisma.location.update({
+      where: { id },
+      data: { active: true },
+    });
+    return this.toLocation(updated);
   }
 
   async deactivate(id: string): Promise<Location> {
-    const location = await this.findById(id);
-
-    const updatedLocation: Location = {
-      ...location,
-      status: LocationStatus.INACTIVE,
-      updated_at: new Date(),
-    };
-
-    this.locations.set(id, updatedLocation);
-    return updatedLocation;
-  }
-
-  async updateHours(
-    id: string,
-    hours: any[],
-  ): Promise<Location> {
-    const location = await this.findById(id);
-
-    if (hours.length > 7) {
-      throw new BadRequestException('Cannot have more than 7 hours entries (one per day)');
-    }
-
-    const updatedLocation: Location = {
-      ...location,
-      hours,
-      updated_at: new Date(),
-    };
-
-    this.locations.set(id, updatedLocation);
-    return updatedLocation;
+    await this.findById(id);
+    const updated = await this.prisma.location.update({
+      where: { id },
+      data: { active: false },
+    });
+    return this.toLocation(updated);
   }
 
   async getStats(organizationId: string): Promise<LocationStats> {
-    const locations = Array.from(this.locations.values()).filter(
-      (loc) => loc.organization_id === organizationId,
-    );
-
-    const byStatus: Record<LocationStatus, number> = {
-      [LocationStatus.ACTIVE]: 0,
-      [LocationStatus.INACTIVE]: 0,
-      [LocationStatus.COMING_SOON]: 0,
-      [LocationStatus.TEMPORARILY_CLOSED]: 0,
-      [LocationStatus.PERMANENTLY_CLOSED]: 0,
-    };
-
-    const byType: Record<LocationType, number> = {
-      [LocationType.FLAGSHIP]: 0,
-      [LocationType.STANDARD]: 0,
-      [LocationType.KIOSK]: 0,
-      [LocationType.FOOD_TRUCK]: 0,
-      [LocationType.POPUP]: 0,
-    };
-
-    let activeCount = 0;
-
-    locations.forEach((location) => {
-      byStatus[location.status]++;
-      byType[location.type]++;
-
-      if (location.status === LocationStatus.ACTIVE) {
-        activeCount++;
-      }
-    });
-
+    const [total, activeCount] = await Promise.all([
+      this.prisma.location.count({ where: { organizationId } }),
+      this.prisma.location.count({ where: { organizationId, active: true } }),
+    ]);
     return {
-      total_locations: locations.length,
-      by_status: byStatus,
-      by_type: byType,
+      total_locations: total,
       active_count: activeCount,
+      inactive_count: total - activeCount,
     };
   }
 }

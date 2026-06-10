@@ -1,26 +1,26 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
   Body,
-  Query,
-  Patch,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
 } from '@nestjs/common';
 import { SettingsService } from './settings.service';
 import {
-  CreateSettingDto,
-  UpdateSettingDto,
-  QuerySettingsDto,
   BulkUpdateDto,
-  ImportSettingsDto,
-  ExportSettingsDto,
-  SetValidationRuleDto,
+  CreateSettingDto,
   CreateTemplateDto,
+  ExportSettingsDto,
+  ImportSettingsDto,
+  QuerySettingsDto,
+  SetValidationRuleDto,
+  UpdateSettingDto,
 } from './dto';
 import { SettingCategory, ValidationRuleType } from './interfaces';
 

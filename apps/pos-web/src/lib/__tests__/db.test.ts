@@ -1,25 +1,17 @@
 import { openDB } from 'idb';
 import {
-  initDB,
-  saveProducts,
-  getProducts,
-  searchProducts,
-  getProductBySku,
-  saveCategories,
-  getCategories,
-  saveOrder,
-  getOrders,
-  addToSyncQueue,
-  getSyncQueue,
-  updateSyncQueueItem,
-  removeSyncQueueItem,
-  saveMetadata,
-  getLastSyncTime,
-  getDatabaseStats,
   clearAllData,
+  getDatabaseStats,
+  getLastSyncTime,
+  getProductBySku,
+  getProducts,
+  initDB,
+  saveMetadata,
+  saveProducts,
+  searchProducts,
 } from '../db';
-import type { Product, Category, Order } from '@/types';
-import { ProductStatus, OrderStatus } from '@/types';
+import type { Product } from '@/types';
+import { ProductStatus } from '@/types';
 
 // Mock idb
 jest.mock('idb');
@@ -119,18 +111,18 @@ describe('IndexedDB Manager', () => {
         name: 'Espresso',
         sku: 'ESP001',
         price: 45,
-        category_id: 'cat1',
+        categoryId: 'cat1',
         status: ProductStatus.ACTIVE,
-        image_url: '/espresso.jpg',
+        image: '/espresso.jpg',
       },
       {
         id: '2',
         name: 'Cappuccino',
         sku: 'CAP001',
         price: 55,
-        category_id: 'cat1',
+        categoryId: 'cat1',
         status: ProductStatus.ACTIVE,
-        image_url: '/cappuccino.jpg',
+        image: '/cappuccino.jpg',
       },
     ] as Product[];
 

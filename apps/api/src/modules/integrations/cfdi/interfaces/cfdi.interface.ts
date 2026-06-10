@@ -1,9 +1,9 @@
 import {
-  TipoComprobante,
-  MetodoPago,
   FormaPago,
-  UsoCFDI,
+  MetodoPago,
   RegimenFiscal,
+  TipoComprobante,
+  UsoCFDI,
 } from '../dto/create-cfdi.dto';
 
 export interface CFDIConcepto {

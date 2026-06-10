@@ -3,17 +3,11 @@
  * React Query hooks para productos, categorías y modificadores
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { productsService } from '@/services/products.service';
 import { useAuth } from '@/hooks/use-auth';
 import toast from 'react-hot-toast';
-import {
-  Product,
-  Category,
-  Modifier,
-  ProductFilters,
-  PaginationParams,
-} from '@/types';
+import { Category, PaginationParams, Product, ProductFilters } from '@/types';
 
 // ============================================================================
 // QUERY KEYS

@@ -1,12 +1,12 @@
 import {
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsOptional,
   IsString,
   IsUUID,
-  IsOptional,
-  IsEnum,
-  IsBoolean,
-  IsArray,
-  MaxLength,
   Matches,
+  MaxLength,
 } from 'class-validator';
 import { SystemRole } from '../interfaces';
 
@@ -20,7 +20,8 @@ export class CreateRoleDto {
 
   @IsString()
   @Matches(/^[A-Z0-9_]+$/, {
-    message: 'Code must contain only uppercase letters, numbers, and underscores',
+    message:
+      'Code must contain only uppercase letters, numbers, and underscores',
   })
   @MaxLength(50)
   code: string;

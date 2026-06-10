@@ -1,43 +1,67 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
   Query,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { DiscountsService } from './discounts.service';
 import { CreateDiscountDto } from './dto/create-discount.dto';
 import { UpdateDiscountDto } from './dto/update-discount.dto';
 import { QueryDiscountsDto } from './dto/query-discounts.dto';
+import {
+  CurrentUser,
+  CurrentUserType,
+} from '../auth/decorators/current-user.decorator';
 
 @ApiTags('discounts')
 @Controller('discounts')
 export class DiscountsController {
   constructor(private readonly discountsService: DiscountsService) {}
 
+  private requireOrg(user: CurrentUserType): string {
+    if (!user?.organizationId) {
+      throw new UnauthorizedException(
+        'Authenticated user does not belong to any organization',
+      );
+    }
+    return user.organizationId;
+  }
+
   @Post()
   @ApiOperation({ summary: 'Create a new discount' })
   @ApiResponse({ status: 201, description: 'Discount created successfully' })
-  create(@Body() createDiscountDto: CreateDiscountDto) {
-    return this.discountsService.create(createDiscountDto);
+  create(
+    @Body() createDiscountDto: CreateDiscountDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    // organizationId siempre se toma del JWT — ignora el del body
+    return this.discountsService.create({
+      ...createDiscountDto,
+      organizationId: this.requireOrg(user),
+    });
   }
 
   @Get()
   @ApiOperation({ summary: 'Get all discounts' })
   @ApiResponse({ status: 200, description: 'Returns all discounts' })
-  findAll(@Query() query: QueryDiscountsDto) {
-    return this.discountsService.findAll(query);
+  findAll(
+    @Query() query: QueryDiscountsDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.discountsService.findAll(query, this.requireOrg(user));
   }
 
   @Get('active')
   @ApiOperation({ summary: 'Get all active discounts' })
   @ApiResponse({ status: 200, description: 'Returns all active discounts' })
-  findActive() {
-    return this.discountsService.findActive();
+  findActive(@CurrentUser() user: CurrentUserType) {
+    return this.discountsService.findActive(this.requireOrg(user));
   }
 
   @Get('type/:type')
@@ -46,15 +70,21 @@ export class DiscountsController {
     status: 200,
     description: 'Returns discounts of specified type',
   })
-  findByType(@Param('type') type: string) {
-    return this.discountsService.findByType(type);
+  findByType(
+    @Param('type') type: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.discountsService.findByType(type, this.requireOrg(user));
   }
 
   @Get('code/:code')
   @ApiOperation({ summary: 'Get discount by code' })
   @ApiResponse({ status: 200, description: 'Returns discount with given code' })
-  findByCode(@Param('code') code: string) {
-    return this.discountsService.findByCode(code);
+  findByCode(
+    @Param('code') code: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.discountsService.findByCode(code, this.requireOrg(user));
   }
 
   @Get(':id')
@@ -98,4 +128,3 @@ export class DiscountsController {
     return this.discountsService.remove(id);
   }
 }
-

@@ -4,46 +4,39 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { MainLayout } from '@/components/layout/MainLayout';
 import {
-  useRecipes,
+  useCreateRecipe,
+  useDeleteRecipe,
   useRecipe,
   useRecipeCategories,
-  useCreateRecipe,
+  useRecipes,
   useUpdateRecipe,
-  useDeleteRecipe,
 } from '@/hooks/use-recipes';
 import { useInventory } from '@/hooks/use-inventory';
 import { useAuth } from '@/hooks/use-auth';
 import { RecipeIngredientLinkingModal } from '@/components/recipes/RecipeIngredientLinkingModal';
-import { RecipeModal, RecipeFormData } from '@/components/recipes/RecipeModal';
+import { RecipeFormData, RecipeModal } from '@/components/recipes/RecipeModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import {
-  BookOpen,
-  Search,
-  Plus,
   AlertCircle,
-  Loader2,
-  Edit,
-  Trash2,
-  Eye,
-  Copy,
-  Coffee,
+  BookOpen,
   Clock,
+  Coffee,
+  Copy,
   DollarSign,
-  Filter,
   Download,
-  ChefHat,
-  Flame,
-  Droplets,
-  Wind,
+  Edit,
+  Eye,
   Image as ImageIcon,
-  TrendingUp,
-  Package,
-  Users,
   Link as LinkIcon,
+  Loader2,
+  Package,
+  Plus,
+  Trash2,
+  Users,
 } from 'lucide-react';
 
 interface RecipeDisplay {

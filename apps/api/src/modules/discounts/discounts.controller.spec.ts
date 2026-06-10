@@ -1,6 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DiscountsController } from './discounts.controller';
 import { DiscountsService, DiscountType } from './discounts.service';
+import { CurrentUserType } from '../auth/decorators/current-user.decorator';
+
+const mockUser: CurrentUserType = {
+  userId: 'user-1',
+  email: 'test@example.com',
+  firstName: 'Test',
+  lastName: 'User',
+  organizationId: 'org-1',
+};
 
 describe('DiscountsController', () => {
   let controller: DiscountsController;
@@ -51,8 +60,11 @@ describe('DiscountsController', () => {
 
       mockDiscountsService.create.mockResolvedValue(result);
 
-      expect(await controller.create(dto)).toEqual(result);
-      expect(service.create).toHaveBeenCalledWith(dto);
+      expect(await controller.create(dto, mockUser)).toEqual(result);
+      expect(service.create).toHaveBeenCalledWith({
+        ...dto,
+        organizationId: 'org-1',
+      });
     });
   });
 
@@ -63,8 +75,8 @@ describe('DiscountsController', () => {
 
       mockDiscountsService.findAll.mockResolvedValue(result);
 
-      expect(await controller.findAll(query)).toEqual(result);
-      expect(service.findAll).toHaveBeenCalledWith(query);
+      expect(await controller.findAll(query, mockUser)).toEqual(result);
+      expect(service.findAll).toHaveBeenCalledWith(query, 'org-1');
     });
   });
 
@@ -74,8 +86,8 @@ describe('DiscountsController', () => {
 
       mockDiscountsService.findActive.mockResolvedValue(result);
 
-      expect(await controller.findActive()).toEqual(result);
-      expect(service.findActive).toHaveBeenCalled();
+      expect(await controller.findActive(mockUser)).toEqual(result);
+      expect(service.findActive).toHaveBeenCalledWith('org-1');
     });
   });
 
@@ -86,8 +98,8 @@ describe('DiscountsController', () => {
 
       mockDiscountsService.findByType.mockResolvedValue(result);
 
-      expect(await controller.findByType(type)).toEqual(result);
-      expect(service.findByType).toHaveBeenCalledWith(type);
+      expect(await controller.findByType(type, mockUser)).toEqual(result);
+      expect(service.findByType).toHaveBeenCalledWith(type, 'org-1');
     });
   });
 
@@ -98,8 +110,8 @@ describe('DiscountsController', () => {
 
       mockDiscountsService.findByCode.mockResolvedValue(result);
 
-      expect(await controller.findByCode(code)).toEqual(result);
-      expect(service.findByCode).toHaveBeenCalledWith(code);
+      expect(await controller.findByCode(code, mockUser)).toEqual(result);
+      expect(service.findByCode).toHaveBeenCalledWith(code, 'org-1');
     });
   });
 
@@ -164,4 +176,3 @@ describe('DiscountsController', () => {
     });
   });
 });
-

@@ -1,16 +1,12 @@
 import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
   BadRequestException,
+  ConflictException,
+  Injectable,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import {
-  CreateProductDto,
-  UpdateProductDto,
-  QueryProductsDto,
-} from './dto';
+import { CreateProductDto, QueryProductsDto, UpdateProductDto } from './dto';
 
 @Injectable()
 export class ProductsService {
@@ -45,6 +41,7 @@ export class ProductsService {
         description: createProductDto.description,
         image: createProductDto.image_url,
         price: createProductDto.base_price,
+        basePrice: createProductDto.base_price,
         cost: createProductDto.cost || 0,
         taxRate: createProductDto.tax_rate || 0.16,
         allowModifiers: createProductDto.allow_modifiers ?? true,
@@ -68,8 +65,13 @@ export class ProductsService {
   /**
    * Obtener todos los productos con filtros
    */
-  async findAll(query?: QueryProductsDto) {
+  async findAll(query?: QueryProductsDto, organizationId?: string) {
     const where: any = {};
+
+    // Multi-tenant: filtrar por organización del usuario autenticado
+    if (organizationId) {
+      where.organizationId = organizationId;
+    }
 
     // Filtrar por categoría
     if (query?.category_id) {
@@ -134,9 +136,14 @@ export class ProductsService {
   /**
    * Obtener producto por SKU
    */
-  async findBySku(sku: string) {
-    const product = await this.prisma.product.findUnique({
-      where: { sku },
+  async findBySku(sku: string, organizationId?: string) {
+    const where: any = { sku };
+    if (organizationId) {
+      where.organizationId = organizationId;
+    }
+
+    const product = await this.prisma.product.findFirst({
+      where,
       include: {
         category: true,
         productModifiers: {
@@ -161,11 +168,19 @@ export class ProductsService {
     // Verificar que existe
     await this.findById(id);
 
-    // Verificar SKU único si se está actualizando
+    // Verificar SKU único si se está actualizando (dentro de la misma org)
     if (updateProductDto.sku) {
+      const current = await this.prisma.product.findUnique({
+        where: { id },
+        select: { organizationId: true },
+      });
+
       const existingBySku = await this.prisma.product.findFirst({
         where: {
           sku: updateProductDto.sku,
+          ...(current?.organizationId
+            ? { organizationId: current.organizationId }
+            : {}),
           NOT: { id },
         },
       });
@@ -193,6 +208,7 @@ export class ProductsService {
         }),
         ...(updateProductDto.base_price !== undefined && {
           price: updateProductDto.base_price,
+          basePrice: updateProductDto.base_price,
         }),
         ...(updateProductDto.cost !== undefined && {
           cost: updateProductDto.cost,
@@ -306,10 +322,14 @@ export class ProductsService {
   /**
    * Obtener estadísticas de productos
    */
-  async getStats() {
-    const total_products = await this.prisma.product.count();
+  async getStats(organizationId?: string) {
+    const where: any = {};
+    if (organizationId) where.organizationId = organizationId;
+
+    const total_products = await this.prisma.product.count({ where });
 
     const products = await this.prisma.product.findMany({
+      where,
       select: {
         price: true,
         cost: true,
@@ -329,8 +349,7 @@ export class ProductsService {
       totalPrice += product.price;
 
       if (product.cost && product.cost > 0) {
-        const margin =
-          ((product.price - product.cost) / product.price) * 100;
+        const margin = ((product.price - product.cost) / product.price) * 100;
         totalMargin += margin;
         countWithMargin++;
       }
@@ -354,13 +373,16 @@ export class ProductsService {
   /**
    * Analizar rentabilidad de productos
    */
-  async analyzeProfitability() {
-    const products = await this.prisma.product.findMany({
-      where: {
-        cost: {
-          gt: 0,
-        },
+  async analyzeProfitability(organizationId?: string) {
+    const where: any = {
+      cost: {
+        gt: 0,
       },
+    };
+    if (organizationId) where.organizationId = organizationId;
+
+    const products = await this.prisma.product.findMany({
+      where,
       select: {
         id: true,
         name: true,
@@ -397,8 +419,8 @@ export class ProductsService {
    */
   async updateStock(
     id: string,
-    quantity: number,
-    operation: 'add' | 'subtract' | 'set',
+    _quantity: number,
+    _operation: 'add' | 'subtract' | 'set',
   ) {
     const product = await this.findById(id);
 
@@ -408,13 +430,10 @@ export class ProductsService {
       );
     }
 
-    // Note: En el schema actual de Prisma no hay stock_quantity
-    // Esto debería manejarse con un módulo de inventario separado
-    this.logger.warn(
-      `Stock update solicitado para ${product.name} pero no hay campo stock en schema`,
+    // Stock management is handled exclusively by the Inventory module
+    throw new BadRequestException(
+      'Stock updates must be done through the Inventory module. Use PATCH /inventory/items/:id or POST /inventory/movements.',
     );
-
-    return product;
   }
 
   /**

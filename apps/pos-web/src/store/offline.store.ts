@@ -4,15 +4,18 @@
  */
 
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import { v4 as uuid } from 'uuid';
 import {
-  SyncQueueItem,
-  OfflineData,
-  Product,
   Category,
   Modifier,
+  OfflineData,
+  Product,
+  SyncQueueItem,
 } from '@/types';
+import { requestBackgroundSync } from '@/lib/sw-registration';
+
+const SYNC_TAG = 'coffeeos-sync';
 
 interface OfflineState {
   isOnline: boolean;
@@ -44,8 +47,7 @@ interface OfflineState {
 export const useOfflineStore = create<OfflineState>()(
   persist(
     (set, get) => ({
-      // Evitar acceso a navigator durante SSR - usar true como valor por defecto
-      isOnline: true,
+      isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
       offlineData: {
         products: [],
         categories: [],
@@ -63,10 +65,9 @@ export const useOfflineStore = create<OfflineState>()(
       setOnlineStatus: (isOnline) => {
         set({ isOnline });
 
-        // If going online, trigger sync
+        // Al volver a estar online, disparar background sync si hay items pendientes
         if (isOnline && get().syncQueue.length > 0) {
-          // Trigger sync process (will be handled by background sync service)
-          console.log('Going online - sync queue:', get().syncQueue.length);
+          requestBackgroundSync(SYNC_TAG);
         }
       },
 
@@ -88,7 +89,8 @@ export const useOfflineStore = create<OfflineState>()(
           syncQueue: [...state.syncQueue, item],
         }));
 
-        console.log('Added to sync queue:', item);
+        // Registrar background sync para procesar cuando haya conexión
+        requestBackgroundSync(SYNC_TAG);
       },
 
       removeFromSyncQueue: (id) => {
@@ -185,17 +187,55 @@ export const useOfflineStore = create<OfflineState>()(
         syncQueue: state.syncQueue,
         lastSyncAttempt: state.lastSyncAttempt,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+
+        // Rehydrate Date instances that were serialized to strings
+        if (state.syncQueue && Array.isArray(state.syncQueue)) {
+          state.syncQueue = state.syncQueue.map((item) => ({
+            ...item,
+            created_at:
+              typeof item.created_at === 'string' ||
+              typeof item.created_at === 'number'
+                ? new Date(item.created_at)
+                : (item.created_at as Date),
+          }));
+        }
+
+        if (state.offlineData?.last_sync) {
+          const ls = state.offlineData.last_sync as unknown;
+          if (typeof ls === 'string' || typeof ls === 'number') {
+            state.offlineData.last_sync = new Date(ls);
+          }
+        }
+
+        if (state.lastSyncAttempt) {
+          const lsa = state.lastSyncAttempt as unknown;
+          if (typeof lsa === 'string' || typeof lsa === 'number') {
+            state.lastSyncAttempt = new Date(lsa);
+          }
+        }
+      },
     },
   ),
 );
 
-// Setup online/offline listeners
-if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => {
-    useOfflineStore.getState().setOnlineStatus(true);
-  });
+/**
+ * Initialize online/offline listeners. Returns a cleanup function.
+ * Prefer calling this from the `useOffline` hook so the listeners are
+ * scoped to React's lifecycle and properly disposed of.
+ */
+export function initOfflineListeners(): () => void {
+  if (typeof window === 'undefined') return () => {};
 
-  window.addEventListener('offline', () => {
-    useOfflineStore.getState().setOnlineStatus(false);
-  });
+  const handleOnline = () => useOfflineStore.getState().setOnlineStatus(true);
+  const handleOffline = () => useOfflineStore.getState().setOnlineStatus(false);
+
+  window.addEventListener('online', handleOnline);
+  window.addEventListener('offline', handleOffline);
+
+  return () => {
+    window.removeEventListener('online', handleOnline);
+    window.removeEventListener('offline', handleOffline);
+  };
 }

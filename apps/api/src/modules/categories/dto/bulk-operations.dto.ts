@@ -1,4 +1,4 @@
-import { IsArray, IsString, IsNumber, Min } from 'class-validator';
+import { IsArray, IsNumber, IsString, Min } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class ReorderCategoriesDto {

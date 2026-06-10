@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { pnlService } from '@/services/pnl.service';
 import { useAuth } from '@/hooks/use-auth';
-import { ProfitAndLoss, PnLComparison } from '@/types';
+import { PnLComparison, ProfitAndLoss } from '@/types';
 
 /**
  * Hook to calculate P&L for a custom date range

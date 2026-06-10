@@ -1,12 +1,12 @@
 import {
-  IsUUID,
   IsEnum,
-  IsOptional,
   IsNumber,
+  IsOptional,
   IsString,
-  Min,
+  IsUUID,
   Max,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { TrainingModuleStatus } from '../interfaces/onboarding.interface';
 

@@ -5,11 +5,11 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  QualityControlService,
   CreateChecklistExecutionDTO,
-  UpdateChecklistExecutionDTO,
-  CreateTemperatureLogDTO,
   CreateCorrectiveActionDTO,
+  CreateTemperatureLogDTO,
+  QualityControlService,
+  UpdateChecklistExecutionDTO,
 } from '@/services/quality-control.service';
 import { useAuth } from '@/hooks/use-auth';
 import toast from 'react-hot-toast';
@@ -54,8 +54,8 @@ export const qualityControlKeys = {
 // ============= CHECKLIST TEMPLATES =============
 
 export function useChecklistTemplates(enabled = true) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: qualityControlKeys.templates(organizationId),
@@ -76,8 +76,8 @@ export function useChecklistTemplate(templateId: string, enabled = true) {
 
 export function useCreateChecklistTemplate() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: (data: any) =>
@@ -96,8 +96,8 @@ export function useCreateChecklistTemplate() {
 
 export function useUpdateChecklistTemplate() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
@@ -121,8 +121,8 @@ export function useUpdateChecklistTemplate() {
 
 export function useDeleteChecklistTemplate() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: (id: string) =>
@@ -152,8 +152,8 @@ export function useChecklistExecutions(
   },
   enabled = true,
 ) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: qualityControlKeys.executions(organizationId, filters),
@@ -175,8 +175,8 @@ export function useChecklistExecution(executionId: string, enabled = true) {
 
 export function useCreateChecklistExecution() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: (
@@ -188,7 +188,7 @@ export function useCreateChecklistExecution() {
       QualityControlService.createChecklistExecution({
         ...data,
         organization_id: organizationId,
-        executed_by: session?.user?.id || '',
+        executed_by: user?.id || '',
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -206,8 +206,8 @@ export function useCreateChecklistExecution() {
 
 export function useUpdateChecklistExecution() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: ({
@@ -235,8 +235,8 @@ export function useUpdateChecklistExecution() {
 
 export function useCompleteChecklistExecution() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: (id: string) =>
@@ -272,8 +272,8 @@ export function useTemperatureLogs(
   },
   enabled = true,
 ) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: qualityControlKeys.tempLogs(organizationId, filters),
@@ -286,8 +286,8 @@ export function useTemperatureLogs(
 
 export function useCreateTemperatureLog() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: (
@@ -296,7 +296,7 @@ export function useCreateTemperatureLog() {
       QualityControlService.createTemperatureLog({
         ...data,
         organization_id: organizationId,
-        recorded_by: session?.user?.id || '',
+        recorded_by: user?.id || '',
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -316,8 +316,8 @@ export function useCreateTemperatureLog() {
 }
 
 export function useTemperatureAlerts(acknowledged?: boolean, enabled = true) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: qualityControlKeys.tempAlerts(organizationId, acknowledged),
@@ -330,14 +330,14 @@ export function useTemperatureAlerts(acknowledged?: boolean, enabled = true) {
 
 export function useAcknowledgeTemperatureAlert() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: (alertId: string) =>
       QualityControlService.acknowledgeTemperatureAlert(
         alertId,
-        session?.user?.id || '',
+        user?.id || '',
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -359,8 +359,8 @@ export function useComplianceReport(
   dateRange: { from: string; to: string },
   enabled = true,
 ) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: qualityControlKeys.complianceReport(organizationId, dateRange),
@@ -372,8 +372,8 @@ export function useComplianceReport(
 }
 
 export function useNOM251Status(enabled = true) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: qualityControlKeys.nom251Status(organizationId),
@@ -420,8 +420,8 @@ export function useCorrectiveActions(
   },
   enabled = true,
 ) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: qualityControlKeys.correctiveActions(organizationId, filters),
@@ -434,8 +434,8 @@ export function useCorrectiveActions(
 
 export function useCreateCorrectiveAction() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: (
@@ -444,7 +444,7 @@ export function useCreateCorrectiveAction() {
       QualityControlService.createCorrectiveAction({
         ...data,
         organization_id: organizationId,
-        created_by: session?.user?.id || '',
+        created_by: user?.id || '',
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -462,8 +462,8 @@ export function useCreateCorrectiveAction() {
 
 export function useUpdateCorrectiveAction() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) =>
@@ -485,8 +485,8 @@ export function useUpdateCorrectiveAction() {
 
 export function useCompleteCorrectiveAction() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: ({
@@ -495,12 +495,7 @@ export function useCompleteCorrectiveAction() {
     }: {
       id: string;
       verificationNotes: string;
-    }) =>
-      QualityControlService.completeCorrectiveAction(
-        id,
-        verificationNotes,
-        session?.user?.id || '',
-      ),
+    }) => QualityControlService.completeCorrectiveAction(id, verificationNotes),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: qualityControlKeys.correctiveActions(organizationId),
@@ -527,8 +522,8 @@ export function useAuditTrail(
   },
   enabled = true,
 ) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: qualityControlKeys.auditTrail(organizationId, filters),

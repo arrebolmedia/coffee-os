@@ -1,25 +1,21 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
 import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
-import {
-  WasteLog,
-  WasteCategory,
-  WasteReason,
   DisposalMethod,
   SustainabilityMetric,
-  SustainabilityTarget,
   SustainabilityMetricType,
-  WasteStats,
   SustainabilityReport,
+  SustainabilityTarget,
+  WasteCategory,
+  WasteLog,
+  WasteReason,
+  WasteStats,
 } from './interfaces/waste.interface';
 import {
-  CreateWasteLogDto,
-  UpdateWasteLogDto,
   CreateSustainabilityMetricDto,
   CreateSustainabilityTargetDto,
+  CreateWasteLogDto,
   QueryWasteLogsDto,
+  UpdateWasteLogDto,
 } from './dto';
 
 /**
@@ -40,10 +36,10 @@ export class WasteService {
    */
   async createWasteLog(dto: CreateWasteLogDto): Promise<WasteLog> {
     const id = `waste-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Calculate total cost if cost_per_unit is provided
-    const total_cost = dto.cost_per_unit 
-      ? dto.cost_per_unit * dto.quantity 
+    const total_cost = dto.cost_per_unit
+      ? dto.cost_per_unit * dto.quantity
       : undefined;
 
     const wasteLog: WasteLog = {
@@ -66,7 +62,9 @@ export class WasteService {
 
     if (query) {
       if (query.organization_id) {
-        logs = logs.filter((log) => log.organization_id === query.organization_id);
+        logs = logs.filter(
+          (log) => log.organization_id === query.organization_id,
+        );
       }
       if (query.location_id) {
         logs = logs.filter((log) => log.location_id === query.location_id);
@@ -78,7 +76,9 @@ export class WasteService {
         logs = logs.filter((log) => log.reason === query.reason);
       }
       if (query.disposal_method) {
-        logs = logs.filter((log) => log.disposal_method === query.disposal_method);
+        logs = logs.filter(
+          (log) => log.disposal_method === query.disposal_method,
+        );
       }
       if (query.start_date) {
         logs = logs.filter(
@@ -109,10 +109,7 @@ export class WasteService {
   /**
    * Actualizar un waste log
    */
-  async updateWasteLog(
-    id: string,
-    dto: UpdateWasteLogDto,
-  ): Promise<WasteLog> {
+  async updateWasteLog(id: string, dto: UpdateWasteLogDto): Promise<WasteLog> {
     const wasteLog = await this.findWasteLogById(id);
 
     // Recalculate total cost if quantity or cost_per_unit changed
@@ -138,7 +135,7 @@ export class WasteService {
    * Eliminar un waste log
    */
   async deleteWasteLog(id: string): Promise<void> {
-    const wasteLog = await this.findWasteLogById(id);
+    await this.findWasteLogById(id);
     this.wasteLogs.delete(id);
   }
 
@@ -223,8 +220,7 @@ export class WasteService {
     // Calculate trends
     const now = new Date();
     const daily = logs.filter(
-      (log) =>
-        log.created_at >= new Date(now.getTime() - 24 * 60 * 60 * 1000),
+      (log) => log.created_at >= new Date(now.getTime() - 24 * 60 * 60 * 1000),
     );
     const weekly = logs.filter(
       (log) =>
@@ -244,9 +240,21 @@ export class WasteService {
       by_disposal,
       top_items,
       trends: {
-        daily_average: daily.length > 0 ? daily.reduce((sum, log) => sum + (log.total_cost || 0), 0) / daily.length : 0,
-        weekly_average: weekly.length > 0 ? weekly.reduce((sum, log) => sum + (log.total_cost || 0), 0) / weekly.length : 0,
-        monthly_average: monthly.length > 0 ? monthly.reduce((sum, log) => sum + (log.total_cost || 0), 0) / monthly.length : 0,
+        daily_average:
+          daily.length > 0
+            ? daily.reduce((sum, log) => sum + (log.total_cost || 0), 0) /
+              daily.length
+            : 0,
+        weekly_average:
+          weekly.length > 0
+            ? weekly.reduce((sum, log) => sum + (log.total_cost || 0), 0) /
+              weekly.length
+            : 0,
+        monthly_average:
+          monthly.length > 0
+            ? monthly.reduce((sum, log) => sum + (log.total_cost || 0), 0) /
+              monthly.length
+            : 0,
       },
     };
   }
@@ -378,7 +386,8 @@ export class WasteService {
 
     // Check if target is achieved
     const achieved = current_value >= target.target_value;
-    const achieved_at = achieved && !target.achieved ? new Date() : target.achieved_at;
+    const achieved_at =
+      achieved && !target.achieved ? new Date() : target.achieved_at;
 
     const updated: SustainabilityTarget = {
       ...target,
@@ -407,8 +416,7 @@ export class WasteService {
     // Get all metrics for the period
     const allMetrics = await this.findAllMetrics(organization_id);
     const periodMetrics = allMetrics.filter(
-      (m) =>
-        m.period_start >= period_start && m.period_end <= period_end,
+      (m) => m.period_start >= period_start && m.period_end <= period_end,
     );
 
     // Calculate aggregate metrics
@@ -460,8 +468,7 @@ export class WasteService {
 
     // Calculate improvements (compare to previous period)
     const previous_period_start = new Date(
-      period_start.getTime() -
-        (period_end.getTime() - period_start.getTime()),
+      period_start.getTime() - (period_end.getTime() - period_start.getTime()),
     );
     const previous_period_end = period_start;
     const previousMetrics = allMetrics.filter(

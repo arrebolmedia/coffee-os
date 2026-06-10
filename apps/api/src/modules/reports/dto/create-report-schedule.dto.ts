@@ -1,11 +1,11 @@
 import {
-  IsString,
-  IsUUID,
+  IsArray,
+  IsBoolean,
+  IsDateString,
   IsEnum,
   IsOptional,
-  IsBoolean,
-  IsArray,
-  IsDateString,
+  IsString,
+  IsUUID,
   MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';

@@ -1,27 +1,27 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
   Body,
-  Param,
-  Query,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
 } from '@nestjs/common';
 import { WasteService } from './waste.service';
 import {
-  CreateWasteLogDto,
-  UpdateWasteLogDto,
   CreateSustainabilityMetricDto,
   CreateSustainabilityTargetDto,
+  CreateWasteLogDto,
   QueryWasteLogsDto,
+  UpdateWasteLogDto,
 } from './dto';
 
 /**
  * Controlador para gestión de desperdicios y sostenibilidad
- * 
+ *
  * Endpoints:
  * - POST /waste/logs - Crear waste log
  * - GET /waste/logs - Listar waste logs
@@ -101,7 +101,10 @@ export class WasteController {
     @Query('organization_id') organization_id?: string,
     @Query('metric_type') metric_type?: string,
   ) {
-    return this.wasteService.findAllMetrics(organization_id, metric_type as any);
+    return this.wasteService.findAllMetrics(
+      organization_id,
+      metric_type as any,
+    );
   }
 
   @Get('metrics/:id')
@@ -126,7 +129,8 @@ export class WasteController {
     @Query('organization_id') organization_id?: string,
     @Query('is_active') is_active?: string,
   ) {
-    const active = is_active === 'true' ? true : is_active === 'false' ? false : undefined;
+    const active =
+      is_active === 'true' ? true : is_active === 'false' ? false : undefined;
     return this.wasteService.findAllTargets(organization_id, active);
   }
 

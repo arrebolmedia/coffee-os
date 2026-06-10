@@ -1,27 +1,36 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Patch,
-  Delete,
   Body,
-  Param,
-  Query,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { LocationsService } from './locations.service';
+import { CreateLocationDto, QueryLocationsDto, UpdateLocationDto } from './dto';
 import {
-  CreateLocationDto,
-  UpdateLocationDto,
-  QueryLocationsDto,
-  LocationHoursDto,
-} from './dto';
+  CurrentUser,
+  CurrentUserType,
+} from '../auth/decorators/current-user.decorator';
 
 @Controller('locations')
 export class LocationsController {
   constructor(private readonly locationsService: LocationsService) {}
+
+  private requireOrg(user: CurrentUserType): string {
+    if (!user?.organizationId) {
+      throw new UnauthorizedException(
+        'Authenticated user does not belong to any organization',
+      );
+    }
+    return user.organizationId;
+  }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -34,9 +43,16 @@ export class LocationsController {
     return this.locationsService.findAll(query);
   }
 
+  /**
+   * Estadísticas por organización. El path param se conserva por compat.
+   * pero SIEMPRE usamos el organizationId del JWT — el path se ignora.
+   */
   @Get('stats/:organizationId')
-  getStats(@Param('organizationId') organizationId: string) {
-    return this.locationsService.getStats(organizationId);
+  getStats(
+    @Param('organizationId') _organizationId: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.locationsService.getStats(this.requireOrg(user));
   }
 
   @Get(':id')
@@ -57,11 +73,6 @@ export class LocationsController {
   @Patch(':id/deactivate')
   deactivate(@Param('id') id: string) {
     return this.locationsService.deactivate(id);
-  }
-
-  @Patch(':id/hours')
-  updateHours(@Param('id') id: string, @Body() body: { hours: LocationHoursDto[] }) {
-    return this.locationsService.updateHours(id, body.hours);
   }
 
   @Delete(':id')

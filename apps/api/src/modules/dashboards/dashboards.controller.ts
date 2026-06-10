@@ -1,20 +1,20 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
   Body,
+  Controller,
+  Delete,
+  Get,
   Param,
+  Patch,
+  Post,
   Query,
 } from '@nestjs/common';
 import { DashboardsService } from './dashboards.service';
 import {
+  AddWidgetDto,
+  CreateAlertDto,
   CreateDashboardDto,
   UpdateDashboardDto,
-  AddWidgetDto,
   UpdateWidgetDto,
-  CreateAlertDto,
 } from './dto';
 import { DashboardCategory } from './interfaces/dashboard.interface';
 

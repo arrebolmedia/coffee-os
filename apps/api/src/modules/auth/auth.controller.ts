@@ -1,24 +1,27 @@
 import {
-  Controller,
-  Post,
   Body,
+  Controller,
+  ForbiddenException,
+  Get,
   HttpCode,
   HttpStatus,
+  Post,
   UseGuards,
-  Get,
 } from '@nestjs/common';
 import {
-  ApiTags,
+  ApiBearerAuth,
   ApiOperation,
   ApiResponse,
-  ApiBearerAuth,
+  ApiTags,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import { PrismaService } from '../database/prisma.service';
 import {
-  RegisterDto,
+  ChangePasswordDto,
   LoginDto,
   RefreshTokenDto,
-  ChangePasswordDto,
+  RegisterDto,
+  RegisterOrganizationDto,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Public } from './decorators/public.decorator';
@@ -27,18 +30,76 @@ import {
   CurrentUserType,
 } from './decorators/current-user.decorator';
 
+// Nombres de rol permitidos para registrar usuarios dentro de una organización.
+const ROLES_THAT_CAN_REGISTER = new Set(['owner', 'admin']);
+
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly prisma: PrismaService,
+  ) {}
 
-  @Public()
+  /**
+   * Registrar nuevo usuario dentro de una organización existente.
+   * Requiere JWT con rol owner/admin (o super-admin).
+   */
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Post('register')
-  @ApiOperation({ summary: 'Register a new user' })
+  @ApiOperation({
+    summary: 'Register a new user inside an existing organization',
+  })
   @ApiResponse({ status: 201, description: 'User successfully registered' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden: insufficient role' })
   @ApiResponse({ status: 409, description: 'Email already exists' })
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  async register(
+    @CurrentUser() actor: CurrentUserType,
+    @Body() registerDto: RegisterDto,
+  ) {
+    // Resolver el rol del actor — sólo owner/admin (o super-admin) pueden registrar.
+    if (!actor.isSuperAdmin) {
+      const me = await this.prisma.user.findUnique({
+        where: { id: actor.userId },
+        select: { role: { select: { name: true } } },
+      });
+      const roleName = me?.role?.name?.toLowerCase();
+      if (!roleName || !ROLES_THAT_CAN_REGISTER.has(roleName)) {
+        throw new ForbiddenException(
+          'Only owner/admin users can register new users',
+        );
+      }
+    }
+
+    return this.authService.register(registerDto, {
+      userId: actor.userId,
+      organizationId: actor.organizationId,
+      isSuperAdmin: actor.isSuperAdmin,
+    });
+  }
+
+  /**
+   * Self-registration de una nueva organización + primer admin (owner).
+   * Público porque es el punto de entrada para nuevos clientes; el rol
+   * del usuario creado SIEMPRE será 'owner' (no se acepta roleId del DTO).
+   */
+  @Public()
+  @Post('register-organization')
+  @ApiOperation({
+    summary: 'Self-register a new organization and its first owner user',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Organization and owner user created',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Email or organization slug already exists',
+  })
+  async registerOrganization(@Body() dto: RegisterOrganizationDto) {
+    return this.authService.registerOrganization(dto);
   }
 
   @Public()

@@ -1,4 +1,11 @@
-import { IsEnum, IsOptional, IsDateString, IsString, IsNumber, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 import { PermitStatus } from './create-permit.dto';
 
 export class UpdatePermitDto {

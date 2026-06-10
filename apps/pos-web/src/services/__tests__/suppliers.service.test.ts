@@ -31,7 +31,7 @@ describe('SuppliersService', () => {
       const result = await SuppliersService.getSuppliers(mockOrganizationId);
 
       expect(api.get).toHaveBeenCalledWith(
-        `/organizations/${mockOrganizationId}/suppliers`,
+        `/suppliers/organization/${mockOrganizationId}`,
       );
       expect(result).toEqual(mockSuppliers);
     });
@@ -153,7 +153,7 @@ describe('SuppliersService', () => {
       );
 
       expect(api.get).toHaveBeenCalledWith(
-        `/organizations/${mockOrganizationId}/suppliers?category=${category}`,
+        `/suppliers/organization/${mockOrganizationId}?category=${category}`,
       );
       expect(result).toEqual(mockSuppliers);
     });
@@ -179,7 +179,7 @@ describe('SuppliersService', () => {
         await SuppliersService.getSupplierStats(mockOrganizationId);
 
       expect(api.get).toHaveBeenCalledWith(
-        `/organizations/${mockOrganizationId}/suppliers/stats`,
+        `/suppliers/organization/${mockOrganizationId}/stats`,
       );
       expect(result).toEqual(mockStats);
     });

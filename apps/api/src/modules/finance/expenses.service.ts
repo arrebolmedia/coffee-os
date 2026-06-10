@@ -1,166 +1,230 @@
-import { Injectable } from '@nestjs/common';
-import { CreateExpenseDto, UpdateExpenseDto, QueryFinanceDto, ExpenseStatus } from './dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../database/prisma.service';
+import {
+  CreateExpenseDto,
+  ExpenseStatus,
+  QueryFinanceDto,
+  UpdateExpenseDto,
+} from './dto';
 import { Expense } from './interfaces';
 
 @Injectable()
 export class ExpensesService {
-  private expenses: Map<string, Expense> = new Map();
+  constructor(private readonly prisma: PrismaService) {}
 
-  async create(createDto: CreateExpenseDto, createdByUserId?: string): Promise<Expense> {
-    const id = this.generateId();
-    const now = new Date();
-
-    const totalAmount = createDto.amount + (createDto.tax_amount || 0);
-
-    const expense: Expense = {
-      id,
-      organization_id: createDto.organization_id,
-      location_id: createDto.location_id,
-      category: createDto.category,
-      description: createDto.description,
-      amount: createDto.amount,
-      tax_amount: createDto.tax_amount,
-      total_amount: totalAmount,
-      due_date: createDto.due_date ? new Date(createDto.due_date) : undefined,
-      status: ExpenseStatus.PENDING,
-      vendor_name: createDto.vendor_name,
-      vendor_rfc: createDto.vendor_rfc,
-      invoice_number: createDto.invoice_number,
-      notes: createDto.notes,
-      attachment_url: createDto.attachment_url,
-      created_by_user_id: createdByUserId,
-      created_at: now,
-      updated_at: now,
+  private map(e: any): Expense {
+    return {
+      id: e.id,
+      organization_id: e.organizationId,
+      location_id: e.locationId,
+      category: e.category,
+      description: e.description,
+      amount: e.amount,
+      tax_amount: e.taxAmount ?? undefined,
+      total_amount: e.totalAmount,
+      due_date: e.dueDate ?? undefined,
+      status: e.status,
+      vendor_name: e.vendorName ?? undefined,
+      vendor_rfc: e.vendorRfc ?? undefined,
+      invoice_number: e.invoiceNumber ?? undefined,
+      payment_method: e.paymentMethod ?? undefined,
+      paid_date: e.paidDate ?? undefined,
+      payment_reference: e.paymentReference ?? undefined,
+      attachment_url: e.attachmentUrl ?? undefined,
+      notes: e.notes ?? undefined,
+      created_by_user_id: e.createdByUserId ?? undefined,
+      created_at: e.createdAt,
+      updated_at: e.updatedAt,
     };
+  }
 
-    this.expenses.set(id, expense);
-    return expense;
+  async create(
+    createDto: CreateExpenseDto,
+    createdByUserId?: string,
+  ): Promise<Expense> {
+    const totalAmount = createDto.amount + (createDto.tax_amount ?? 0);
+    const expense = await this.prisma.expense.create({
+      data: {
+        organizationId: createDto.organization_id,
+        locationId: createDto.location_id,
+        category: createDto.category as any,
+        description: createDto.description,
+        amount: createDto.amount,
+        taxAmount: createDto.tax_amount,
+        totalAmount,
+        dueDate: createDto.due_date ? new Date(createDto.due_date) : undefined,
+        status: ExpenseStatus.PENDING as any,
+        vendorName: createDto.vendor_name,
+        vendorRfc: createDto.vendor_rfc,
+        invoiceNumber: createDto.invoice_number,
+        notes: createDto.notes,
+        attachmentUrl: createDto.attachment_url,
+        createdByUserId,
+      },
+    });
+    return this.map(expense);
   }
 
   async findAll(query: QueryFinanceDto): Promise<Expense[]> {
-    let expenses = Array.from(this.expenses.values());
+    const where: any = {};
 
-    if (query.organization_id) {
-      expenses = expenses.filter((e) => e.organization_id === query.organization_id);
-    }
-
-    if (query.location_id) {
-      expenses = expenses.filter((e) => e.location_id === query.location_id);
-    }
+    if (query.organization_id) where.organizationId = query.organization_id;
+    if (query.location_id) where.locationId = query.location_id;
 
     if (query.start_date && query.end_date) {
-      const start = new Date(query.start_date);
-      const end = new Date(query.end_date);
-      expenses = expenses.filter((e) => {
-        const expenseDate = e.created_at;
-        return expenseDate >= start && expenseDate <= end;
-      });
+      where.createdAt = {
+        gte: new Date(query.start_date),
+        lte: new Date(query.end_date),
+      };
     }
 
     if (query.search) {
-      const search = query.search.toLowerCase();
-      expenses = expenses.filter(
-        (e) =>
-          e.description.toLowerCase().includes(search) ||
-          e.vendor_name?.toLowerCase().includes(search) ||
-          e.invoice_number?.toLowerCase().includes(search),
-      );
+      where.OR = [
+        { description: { contains: query.search, mode: 'insensitive' } },
+        { vendorName: { contains: query.search, mode: 'insensitive' } },
+        { invoiceNumber: { contains: query.search, mode: 'insensitive' } },
+      ];
     }
 
-    return expenses.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+    const expenses = await this.prisma.expense.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+    return expenses.map((e) => this.map(e));
   }
 
   async findOne(id: string): Promise<Expense | null> {
-    return this.expenses.get(id) || null;
+    const expense = await this.prisma.expense.findUnique({ where: { id } });
+    return expense ? this.map(expense) : null;
   }
 
   async update(id: string, updateDto: UpdateExpenseDto): Promise<Expense> {
-    const expense = this.expenses.get(id);
-    if (!expense) {
-      throw new Error('Expense not found');
+    const existing = await this.prisma.expense.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Expense not found');
+
+    const anyDto = updateDto as any;
+    const amountProvided = anyDto.amount !== undefined;
+    const taxAmountProvided = anyDto.tax_amount !== undefined;
+
+    const data: any = {
+      ...(updateDto.category && { category: updateDto.category as any }),
+      ...(updateDto.description && { description: updateDto.description }),
+      ...(updateDto.due_date && { dueDate: new Date(updateDto.due_date) }),
+      ...(updateDto.status && { status: updateDto.status as any }),
+      ...(updateDto.payment_method && {
+        paymentMethod: updateDto.payment_method as any,
+      }),
+      ...(updateDto.paid_date && { paidDate: new Date(updateDto.paid_date) }),
+      ...(updateDto.payment_reference !== undefined && {
+        paymentReference: updateDto.payment_reference,
+      }),
+      ...(updateDto.notes !== undefined && { notes: updateDto.notes }),
+      ...(updateDto.attachment_url !== undefined && {
+        attachmentUrl: updateDto.attachment_url,
+      }),
+    };
+
+    if (amountProvided) data.amount = anyDto.amount;
+    if (taxAmountProvided) data.taxAmount = anyDto.tax_amount;
+
+    // Recalculate totalAmount when amount or taxAmount change.
+    if (amountProvided || taxAmountProvided) {
+      const newAmount = amountProvided ? anyDto.amount : existing.amount;
+      const newTaxAmount = taxAmountProvided
+        ? (anyDto.tax_amount ?? 0)
+        : (existing.taxAmount ?? 0);
+      data.totalAmount = newAmount + newTaxAmount;
     }
 
-    Object.assign(expense, updateDto);
-    
-    if (updateDto.due_date) {
-      expense.due_date = new Date(updateDto.due_date);
-    }
-    if (updateDto.paid_date) {
-      expense.paid_date = new Date(updateDto.paid_date);
-    }
-    
-    expense.updated_at = new Date();
-
-    this.expenses.set(id, expense);
-    return expense;
+    const expense = await this.prisma.expense.update({
+      where: { id },
+      data,
+    });
+    return this.map(expense);
   }
 
-  async markAsPaid(id: string, paidDate: Date, paymentMethod: string, reference?: string): Promise<Expense> {
-    const expense = this.expenses.get(id);
-    if (!expense) {
-      throw new Error('Expense not found');
-    }
+  async markAsPaid(
+    id: string,
+    paidDate: Date,
+    paymentMethod: string,
+    reference?: string,
+  ): Promise<Expense> {
+    const existing = await this.prisma.expense.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Expense not found');
 
-    expense.status = ExpenseStatus.PAID;
-    expense.paid_date = paidDate;
-    expense.payment_method = paymentMethod as any;
-    expense.payment_reference = reference;
-    expense.updated_at = new Date();
-
-    this.expenses.set(id, expense);
-    return expense;
+    const expense = await this.prisma.expense.update({
+      where: { id },
+      data: {
+        status: ExpenseStatus.PAID as any,
+        paidDate,
+        paymentMethod: paymentMethod as any,
+        paymentReference: reference,
+      },
+    });
+    return this.map(expense);
   }
 
   async delete(id: string): Promise<void> {
-    this.expenses.delete(id);
+    await this.prisma.expense.delete({ where: { id } });
   }
 
   async getStats(organizationId: string, locationId?: string): Promise<any> {
-    let expenses = Array.from(this.expenses.values()).filter(
-      (e) => e.organization_id === organizationId,
+    const where: any = { organizationId };
+    if (locationId) where.locationId = locationId;
+
+    const now = new Date();
+
+    const [
+      total,
+      pending,
+      paid,
+      overdue,
+      totalAgg,
+      pendingAgg,
+      paidAgg,
+      byCategory,
+    ] = await Promise.all([
+      this.prisma.expense.count({ where }),
+      this.prisma.expense.count({
+        where: { ...where, status: 'PENDING' as any },
+      }),
+      this.prisma.expense.count({ where: { ...where, status: 'PAID' as any } }),
+      this.prisma.expense.count({
+        where: { ...where, status: 'PENDING' as any, dueDate: { lt: now } },
+      }),
+      this.prisma.expense.aggregate({ where, _sum: { totalAmount: true } }),
+      this.prisma.expense.aggregate({
+        where: { ...where, status: 'PENDING' as any },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.expense.aggregate({
+        where: { ...where, status: 'PAID' as any },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.expense.groupBy({
+        by: ['category'],
+        where,
+        _sum: { totalAmount: true },
+      }),
+    ]);
+
+    const byCategoryMap = byCategory.reduce(
+      (acc, row) => {
+        acc[row.category] = row._sum.totalAmount ?? 0;
+        return acc;
+      },
+      {} as Record<string, number>,
     );
-
-    if (locationId) {
-      expenses = expenses.filter((e) => e.location_id === locationId);
-    }
-
-    const total = expenses.length;
-    const pending = expenses.filter((e) => e.status === ExpenseStatus.PENDING).length;
-    const paid = expenses.filter((e) => e.status === ExpenseStatus.PAID).length;
-    const overdue = expenses.filter((e) => {
-      if (e.status === ExpenseStatus.PENDING && e.due_date) {
-        return new Date() > e.due_date;
-      }
-      return false;
-    }).length;
-
-    const totalAmount = expenses.reduce((sum, e) => sum + e.total_amount, 0);
-    const pendingAmount = expenses
-      .filter((e) => e.status === ExpenseStatus.PENDING)
-      .reduce((sum, e) => sum + e.total_amount, 0);
-    const paidAmount = expenses
-      .filter((e) => e.status === ExpenseStatus.PAID)
-      .reduce((sum, e) => sum + e.total_amount, 0);
-
-    // By category
-    const byCategory = expenses.reduce((acc, e) => {
-      acc[e.category] = (acc[e.category] || 0) + e.total_amount;
-      return acc;
-    }, {} as Record<string, number>);
 
     return {
       total_expenses: total,
       pending_count: pending,
       paid_count: paid,
       overdue_count: overdue,
-      total_amount: totalAmount,
-      pending_amount: pendingAmount,
-      paid_amount: paidAmount,
-      by_category: byCategory,
+      total_amount: totalAgg._sum.totalAmount ?? 0,
+      pending_amount: pendingAgg._sum.totalAmount ?? 0,
+      paid_amount: paidAgg._sum.totalAmount ?? 0,
+      by_category: byCategoryMap,
     };
-  }
-
-  private generateId(): string {
-    return `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 }

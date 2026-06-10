@@ -1,57 +1,24 @@
 import {
-  IsString,
-  IsNotEmpty,
-  IsEmail,
-  IsOptional,
-  IsEnum,
   IsBoolean,
+  IsEmail,
+  IsNotEmpty,
   IsNumber,
-  IsArray,
-  IsUUID,
+  IsOptional,
+  IsString,
   MaxLength,
-  Matches,
   Min,
-  Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export enum SupplierStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  SUSPENDED = 'suspended',
-}
-
-export enum PaymentTerms {
-  IMMEDIATE = 'immediate',
-  NET_15 = 'net_15',
-  NET_30 = 'net_30',
-  NET_60 = 'net_60',
-  NET_90 = 'net_90',
-}
-
 export class CreateSupplierDto {
-  @IsUUID()
-  organization_id: string;
-
   @IsString()
   @IsNotEmpty()
-  @Matches(/^[A-Z0-9-]+$/)
-  @MaxLength(50)
-  code: string;
+  organization_id: string;
 
   @IsString()
   @IsNotEmpty()
   @MaxLength(200)
   name: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(200)
-  legal_name?: string;
-
-  @IsOptional()
-  @IsEnum(SupplierStatus)
-  status?: SupplierStatus;
 
   @IsOptional()
   @IsString()
@@ -70,73 +37,20 @@ export class CreateSupplierDto {
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  website?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
   address?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(100)
-  city?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  state?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(20)
-  postal_code?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  country?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(50)
-  tax_id?: string;
-
-  @IsOptional()
-  @IsEnum(PaymentTerms)
-  payment_terms?: PaymentTerms;
+  payment_terms?: string;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
   @Type(() => Number)
-  credit_limit?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(100)
-  @Type(() => Number)
-  discount_percentage?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(5)
-  @Type(() => Number)
-  rating?: number;
+  lead_time_days?: number;
 
   @IsOptional()
   @IsBoolean()
-  is_preferred?: boolean;
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  tags?: string[];
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(1000)
-  notes?: string;
+  active?: boolean;
 }

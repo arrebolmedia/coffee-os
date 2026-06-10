@@ -1,10 +1,4 @@
-import {
-  IsString,
-  IsUUID,
-  IsOptional,
-  IsArray,
-  IsDateString,
-} from 'class-validator';
+import { IsArray, IsDateString, IsOptional, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class AssignRoleDto {

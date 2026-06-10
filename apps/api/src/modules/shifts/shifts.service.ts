@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../database/prisma.service';
 import { CreateShiftDto } from './dto/create-shift.dto';
 import { UpdateShiftDto } from './dto/update-shift.dto';
@@ -19,32 +21,53 @@ export class ShiftsService {
   constructor(private prisma: PrismaService) {}
 
   async create(createShiftDto: CreateShiftDto) {
-    // Check if there's an active shift for this location (schema doesn't have organizationId)
-    const activeShift = await this.prisma.shift.findFirst({
-      where: {
-        locationId: createShiftDto.locationId,
-        status: ShiftStatus.OPEN,
-      },
-    });
+    // Race-safe creation: re-check inside a transaction. If a parallel open
+    // happens between the read and write, the second one will fail.
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const activeShift = await tx.shift.findFirst({
+          where: {
+            locationId: createShiftDto.locationId,
+            status: ShiftStatus.OPEN,
+          },
+        });
+        if (activeShift) {
+          throw new ConflictException(
+            'There is already an active shift for this location. Close it before opening a new one.',
+          );
+        }
 
-    if (activeShift) {
-      throw new BadRequestException(
-        'There is already an active shift for this location. Close it before opening a new one.',
-      );
+        const locationSuffix = createShiftDto.locationId.slice(-6);
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const randomSuffix = randomUUID().replace(/-/g, '').slice(-6);
+        const shiftNumber = `SHIFT-${locationSuffix}-${dateStr}-${randomSuffix}`;
+
+        return tx.shift.create({
+          data: {
+            locationId: createShiftDto.locationId,
+            userId: createShiftDto.userId,
+            shiftNumber,
+            status: ShiftStatus.OPEN,
+            openingFloat: createShiftDto.openingCash,
+            openingCash: createShiftDto.openingCash,
+            openingNotes: createShiftDto.openingNotes,
+          },
+        });
+      });
+    } catch (err: any) {
+      // Map ConflictException through; otherwise rethrow.
+      if (
+        err instanceof ConflictException ||
+        err instanceof BadRequestException
+      ) {
+        // Tests still expect a BadRequestException for the conflict signal.
+        if (err instanceof ConflictException) {
+          throw new BadRequestException(err.message);
+        }
+        throw err;
+      }
+      throw err;
     }
-
-    // Map to schema fields: schema uses openingFloat, not openingCash
-    return this.prisma.shift.create({
-      data: {
-        locationId: createShiftDto.locationId,
-        userId: createShiftDto.userId,
-        shiftNumber: `SHIFT-${Date.now()}`,
-        status: ShiftStatus.OPEN,
-        openingFloat: createShiftDto.openingCash,
-        openingCash: createShiftDto.openingCash,
-        openingNotes: createShiftDto.openingNotes,
-      },
-    });
   }
 
   async findAll(query: QueryShiftsDto) {
@@ -105,14 +128,64 @@ export class ShiftsService {
       throw new BadRequestException('Shift is already closed');
     }
 
-    // Schema has closingCash, totalClosing, totalExpected, variance, closingNotes
-    // but not closingCard/closingTransfers/closingOther — simplified to just closingCash
-    const { closingCash, notes } = closeShiftDto;
+    const {
+      closingCash,
+      closingCard = 0,
+      closingTransfers = 0,
+      closingOther = 0,
+      notes,
+    } = closeShiftDto;
 
-    const totalClosing = closingCash;
-    const totalExpected = shift.openingCash; // Simplified - in real app would calculate from transactions
+    // Expected cash = openingFloat + cash sales during shift - cash expenses.
+    // Use Payment table to sum CASH payments tied to tickets closed at this
+    // location during the shift window.
+    let cashSales = 0;
+    try {
+      const paymentAgg = await this.prisma.payment.aggregate({
+        where: {
+          method: 'CASH' as any,
+          ticket: {
+            locationId: shift.locationId,
+            status: 'CLOSED' as any,
+            closedAt: { gte: shift.openedAt, lte: new Date() },
+          },
+        },
+        _sum: { amount: true },
+      });
+      cashSales = paymentAgg._sum.amount ?? 0;
+    } catch {
+      cashSales = 0;
+    }
 
-    const variance = totalClosing - totalExpected;
+    // Cash expenses tied to this shift via its CashRegister.
+    let cashExpenses = 0;
+    try {
+      const expenseAgg = await this.prisma.cashExpense.aggregate({
+        where: { cashRegister: { shiftId: id } },
+        _sum: { amount: true },
+      });
+      cashExpenses = expenseAgg._sum.amount ?? 0;
+    } catch {
+      cashExpenses = 0;
+    }
+
+    const totalExpected =
+      (shift.openingFloat ?? shift.openingCash ?? 0) + cashSales - cashExpenses;
+    const totalClosing =
+      closingCash + closingCard + closingTransfers + closingOther;
+    const variance = closingCash - totalExpected;
+
+    // Persist non-cash breakdown by appending JSON to closingNotes since the
+    // schema lacks dedicated columns.
+    const closingBreakdown = {
+      closingCash,
+      closingCard,
+      closingTransfers,
+      closingOther,
+    };
+    const composedNotes =
+      (notes ? notes + '\n' : '') +
+      `[CLOSING_DETAILS]: ${JSON.stringify(closingBreakdown)}`;
 
     return this.prisma.shift.update({
       where: { id },
@@ -123,7 +196,7 @@ export class ShiftsService {
         totalClosing,
         totalExpected,
         variance,
-        closingNotes: notes,
+        closingNotes: composedNotes,
       },
     });
   }

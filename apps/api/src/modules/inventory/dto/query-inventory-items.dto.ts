@@ -1,12 +1,6 @@
-import {
-  IsOptional,
-  IsString,
-  IsEnum,
-  IsNumber,
-  Min,
-} from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ItemType, ItemStatus } from './create-inventory-item.dto';
+import { ItemStatus, ItemType } from './create-inventory-item.dto';
 
 export class QueryInventoryItemsDto {
   @IsOptional()
@@ -39,11 +33,11 @@ export class QueryInventoryItemsDto {
 
   @IsOptional()
   @IsString()
-  low_stock?: string;           // current_stock <= minimum_stock
+  low_stock?: string; // current_stock <= minimum_stock
 
   @IsOptional()
   @IsString()
-  out_of_stock?: string;        // current_stock = 0
+  out_of_stock?: string; // current_stock = 0
 
   @IsOptional()
   @IsString()

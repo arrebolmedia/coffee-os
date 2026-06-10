@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DashboardService } from '../dashboard.service';
 import { SalesAnalyticsService } from '../sales-analytics.service';
 import { ProductAnalyticsService } from '../product-analytics.service';
+import { PrismaService } from '../../database/prisma.service';
 
 const defaultQuery = {
   organization_id: 'org_1',
@@ -71,6 +72,15 @@ const mockProductAnalyticsService = {
   getCategoryPerformance: jest.fn(),
 };
 
+const mockPrismaService = {
+  ticket: { findMany: jest.fn().mockResolvedValue([]) },
+  permit: { findMany: jest.fn().mockResolvedValue([]) },
+  expense: {
+    aggregate: jest.fn().mockResolvedValue({ _sum: { totalAmount: 0 } }),
+  },
+  $queryRaw: jest.fn().mockResolvedValue([{ count: 0 }]),
+};
+
 describe('DashboardService', () => {
   let service: DashboardService;
 
@@ -79,7 +89,11 @@ describe('DashboardService', () => {
       providers: [
         DashboardService,
         { provide: SalesAnalyticsService, useValue: mockSalesAnalyticsService },
-        { provide: ProductAnalyticsService, useValue: mockProductAnalyticsService },
+        {
+          provide: ProductAnalyticsService,
+          useValue: mockProductAnalyticsService,
+        },
+        { provide: PrismaService, useValue: mockPrismaService },
       ],
     }).compile();
 
@@ -88,10 +102,14 @@ describe('DashboardService', () => {
     jest.clearAllMocks();
 
     // Default mock returns
-    mockSalesAnalyticsService.getSalesMetrics.mockResolvedValue(mockSalesMetrics);
+    mockSalesAnalyticsService.getSalesMetrics.mockResolvedValue(
+      mockSalesMetrics,
+    );
     mockSalesAnalyticsService.getSalesTrend.mockResolvedValue(mockSalesTrend);
     mockSalesAnalyticsService.getTopSellingProducts.mockResolvedValue([]);
-    mockProductAnalyticsService.getTopProducts.mockResolvedValue(mockTopProducts);
+    mockProductAnalyticsService.getTopProducts.mockResolvedValue(
+      mockTopProducts,
+    );
     mockProductAnalyticsService.getCategoryPerformance.mockResolvedValue([]);
   });
 
@@ -182,42 +200,56 @@ describe('DashboardService', () => {
       expect(kpis.organization_id).toBe('org_1');
     });
 
-    it('should include profitability metrics', async () => {
+    it('should include profitability fields (null when no data)', async () => {
       const kpis = await service.getKPIDashboard(defaultQuery);
 
-      expect(kpis.gross_margin_percent).toBeDefined();
-      expect(kpis.net_margin_percent).toBeDefined();
-      expect(kpis.ebitda_margin_percent).toBeDefined();
+      expect(kpis).toHaveProperty('gross_margin_percent');
+      expect(kpis).toHaveProperty('net_margin_percent');
+      expect(kpis).toHaveProperty('ebitda_margin_percent');
+      // Without real data these are null, not fake numbers
+      expect(kpis.net_margin_percent).toBeNull();
+      expect(kpis.ebitda_margin_percent).toBeNull();
     });
 
-    it('should include efficiency metrics', async () => {
+    it('should include efficiency fields', async () => {
       const kpis = await service.getKPIDashboard(defaultQuery);
 
-      expect(kpis.prime_cost_percent).toBeDefined();
-      expect(kpis.labor_percent).toBeDefined();
-      expect(kpis.cogs_percent).toBeDefined();
+      expect(kpis).toHaveProperty('prime_cost_percent');
+      expect(kpis).toHaveProperty('labor_percent');
+      expect(kpis).toHaveProperty('cogs_percent');
     });
 
-    it('should include operational metrics', async () => {
+    it('should include operational fields', async () => {
       const kpis = await service.getKPIDashboard(defaultQuery);
 
-      expect(kpis.avg_order_value).toBeDefined();
-      expect(kpis.orders_per_day).toBeDefined();
-      expect(kpis.revenue_per_hour).toBeDefined();
+      expect(kpis).toHaveProperty('avg_order_value');
+      expect(kpis).toHaveProperty('orders_per_day');
+      expect(kpis).toHaveProperty('revenue_per_hour');
+      // Not derivable from schema yet
+      expect(kpis.revenue_per_hour).toBeNull();
     });
 
-    it('should include inventory metrics', async () => {
+    it('should include inventory fields (null until tracked)', async () => {
       const kpis = await service.getKPIDashboard(defaultQuery);
 
-      expect(kpis.inventory_turnover).toBeDefined();
-      expect(kpis.days_of_inventory).toBeDefined();
-      expect(kpis.waste_percent).toBeDefined();
+      expect(kpis).toHaveProperty('inventory_turnover');
+      expect(kpis).toHaveProperty('days_of_inventory');
+      expect(kpis).toHaveProperty('waste_percent');
+      expect(kpis.inventory_turnover).toBeNull();
+      expect(kpis.waste_percent).toBeNull();
     });
 
     it('should include status indicators', async () => {
       const kpis = await service.getKPIDashboard(defaultQuery);
 
       expect(kpis.status).toBeDefined();
+      // Status entries are null when their KPI is null
+      expect(kpis.status.waste).toBeNull();
+    });
+
+    it('should expose unavailable flags', async () => {
+      const kpis = await service.getKPIDashboard(defaultQuery);
+      expect(kpis.unavailable).toBeDefined();
     });
   });
 });

@@ -1,18 +1,17 @@
 import {
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsObject,
+  IsOptional,
   IsString,
   IsUUID,
-  IsEnum,
-  IsOptional,
-  IsBoolean,
-  IsArray,
-  IsObject,
-  IsNumber,
   MaxLength,
-  ValidateNested,
-  Min,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-import { DashboardCategory, WidgetConfig } from '../interfaces/dashboard.interface';
+import {
+  DashboardCategory,
+  WidgetConfig,
+} from '../interfaces/dashboard.interface';
 
 export class CreateDashboardDto {
   @IsUUID()

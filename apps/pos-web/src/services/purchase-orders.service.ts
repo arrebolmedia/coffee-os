@@ -91,21 +91,18 @@ export interface ReceivePurchaseOrderDTO {
 
 export interface PurchaseOrderStats {
   total_orders: number;
-  pending_orders: number;
-  approved_orders: number;
-  received_orders: number;
-  total_spent: number;
-  average_order_value: number;
-  orders_by_status: {
-    status: string;
-    count: number;
-  }[];
-  orders_by_supplier: {
-    supplier_id: string;
-    supplier_name: string;
-    count: number;
-    total_spent: number;
-  }[];
+  by_status: {
+    draft: number;
+    pending: number;
+    approved: number;
+    ordered: number;
+    partially_received: number;
+    received: number;
+    cancelled: number;
+  };
+  total_amount: number;
+  pending_approval_count: number;
+  overdue_count: number;
 }
 
 export class PurchaseOrdersService {
@@ -121,7 +118,6 @@ export class PurchaseOrdersService {
       date_to?: string;
     },
   ): Promise<PurchaseOrder[]> {
-    let url = `/purchase-orders/organization/${organizationId}`;
     const params = new URLSearchParams();
 
     if (filters?.supplier_id) params.append('supplier_id', filters.supplier_id);
@@ -129,10 +125,7 @@ export class PurchaseOrdersService {
     if (filters?.date_from) params.append('date_from', filters.date_from);
     if (filters?.date_to) params.append('date_to', filters.date_to);
 
-    if (params.toString()) {
-      url += `?${params.toString()}`;
-    }
-
+    const url = `/purchase-orders${params.toString() ? `?${params.toString()}` : ''}`;
     return await api.get<PurchaseOrder[]>(url);
   }
 
@@ -161,7 +154,7 @@ export class PurchaseOrdersService {
     organizationId: string,
     dateRange?: { from: string; to: string },
   ): Promise<PurchaseOrderStats> {
-    let url = `/purchase-orders/organization/${organizationId}/stats`;
+    let url = `/purchase-orders/stats/${organizationId}`;
 
     if (dateRange) {
       url += `?from=${dateRange.from}&to=${dateRange.to}`;

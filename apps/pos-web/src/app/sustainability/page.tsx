@@ -2,9 +2,23 @@
 
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { Leaf, Search, Filter, Trash2, AlertTriangle, Loader2, TrendingDown, TrendingUp, Recycle, Package } from 'lucide-react';
-import { useWasteLogs, useWasteStats, useDeleteWasteLog } from '@/hooks/use-waste';
-import { WasteCategory, WasteReason, DisposalMethod } from '@/types';
+import {
+  AlertTriangle,
+  Filter,
+  Leaf,
+  Loader2,
+  Package,
+  Search,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
+import {
+  useDeleteWasteLog,
+  useWasteLogs,
+  useWasteStats,
+} from '@/hooks/use-waste';
+import { DisposalMethod, WasteCategory, WasteReason } from '@/types';
 
 export default function SustainabilityPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,12 +30,14 @@ export default function SustainabilityPage() {
   const deleteWasteLog = useDeleteWasteLog();
 
   const filteredLogs = wasteLogs.filter((log) => {
-    const matchesSearch = !searchTerm || 
+    const matchesSearch =
+      !searchTerm ||
       log.item_name.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesCategory = filterCategory === 'all' || log.category === filterCategory;
+
+    const matchesCategory =
+      filterCategory === 'all' || log.category === filterCategory;
     const matchesReason = filterReason === 'all' || log.reason === filterReason;
-    
+
     return matchesSearch && matchesCategory && matchesReason;
   });
 
@@ -104,7 +120,9 @@ export default function SustainabilityPage() {
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <AlertTriangle className="h-12 w-12 text-red-600 mx-auto mb-4" />
-            <p className="text-gray-600">Error al cargar datos de sostenibilidad</p>
+            <p className="text-gray-600">
+              Error al cargar datos de sostenibilidad
+            </p>
           </div>
         </div>
       </MainLayout>
@@ -116,8 +134,12 @@ export default function SustainabilityPage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Sostenibilidad & Desperdicio</h1>
-            <p className="text-gray-600 mt-1">Gestión de residuos y métricas eco-friendly</p>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Sostenibilidad & Desperdicio
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Gestión de residuos y métricas eco-friendly
+            </p>
           </div>
           <Leaf className="h-12 w-12 text-green-600" />
         </div>
@@ -129,8 +151,12 @@ export default function SustainabilityPage() {
               <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-6 text-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-red-100 text-sm font-medium">Total Registros</p>
-                    <p className="text-3xl font-bold mt-1">{stats.total_logs}</p>
+                    <p className="text-red-100 text-sm font-medium">
+                      Total Registros
+                    </p>
+                    <p className="text-3xl font-bold mt-1">
+                      {stats.total_logs}
+                    </p>
                   </div>
                   <Package className="h-12 w-12 text-red-200" />
                 </div>
@@ -139,8 +165,12 @@ export default function SustainabilityPage() {
               <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-6 text-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-orange-100 text-sm font-medium">Costo Total</p>
-                    <p className="text-3xl font-bold mt-1">${(stats.total_cost / 1000).toFixed(1)}k</p>
+                    <p className="text-orange-100 text-sm font-medium">
+                      Costo Total
+                    </p>
+                    <p className="text-3xl font-bold mt-1">
+                      ${(stats.total_cost / 1000).toFixed(1)}k
+                    </p>
                   </div>
                   <TrendingDown className="h-12 w-12 text-orange-200" />
                 </div>
@@ -149,8 +179,12 @@ export default function SustainabilityPage() {
               <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-purple-100 text-sm font-medium">Peso Total</p>
-                    <p className="text-3xl font-bold mt-1">{stats.total_weight_kg.toFixed(1)} kg</p>
+                    <p className="text-purple-100 text-sm font-medium">
+                      Peso Total
+                    </p>
+                    <p className="text-3xl font-bold mt-1">
+                      {stats.total_weight_kg.toFixed(1)} kg
+                    </p>
                   </div>
                   <Package className="h-12 w-12 text-purple-200" />
                 </div>
@@ -159,8 +193,12 @@ export default function SustainabilityPage() {
               <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-green-100 text-sm font-medium">Promedio Diario</p>
-                    <p className="text-3xl font-bold mt-1">{stats.trends.daily_average.toFixed(1)} kg</p>
+                    <p className="text-green-100 text-sm font-medium">
+                      Promedio Diario
+                    </p>
+                    <p className="text-3xl font-bold mt-1">
+                      {stats.trends.daily_average.toFixed(1)} kg
+                    </p>
                   </div>
                   <TrendingUp className="h-12 w-12 text-green-200" />
                 </div>
@@ -172,12 +210,15 @@ export default function SustainabilityPage() {
               <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
                 <div className="flex items-center mb-2">
                   <AlertTriangle className="h-5 w-5 text-yellow-400 mr-2" />
-                  <p className="text-sm font-semibold text-yellow-800">Items con Mayor Desperdicio</p>
+                  <p className="text-sm font-semibold text-yellow-800">
+                    Items con Mayor Desperdicio
+                  </p>
                 </div>
                 <div className="space-y-1">
                   {stats.top_items.slice(0, 3).map((item, index) => (
                     <p key={index} className="text-sm text-yellow-700">
-                      {index + 1}. {item.item_name} - {item.quantity} unidades (${item.cost.toFixed(2)})
+                      {index + 1}. {item.item_name} - {item.quantity} unidades
+                      (${item.cost.toFixed(2)})
                     </p>
                   ))}
                 </div>
@@ -223,9 +264,13 @@ export default function SustainabilityPage() {
                 <option value="all">Todas las razones</option>
                 <option value={WasteReason.EXPIRED}>Vencido</option>
                 <option value={WasteReason.DAMAGED}>Dañado</option>
-                <option value={WasteReason.OVERPRODUCTION}>Sobreproducción</option>
+                <option value={WasteReason.OVERPRODUCTION}>
+                  Sobreproducción
+                </option>
                 <option value={WasteReason.SPILLAGE}>Derrame</option>
-                <option value={WasteReason.QUALITY_ISSUE}>Problema de Calidad</option>
+                <option value={WasteReason.QUALITY_ISSUE}>
+                  Problema de Calidad
+                </option>
               </select>
             </div>
           </div>
@@ -235,8 +280,14 @@ export default function SustainabilityPage() {
         {filteredLogs.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <Leaf className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay registros</h3>
-            <p className="text-gray-600">{searchTerm ? 'No se encontraron resultados' : 'Comienza registrando desperdicios'}</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              No hay registros
+            </h3>
+            <p className="text-gray-600">
+              {searchTerm
+                ? 'No se encontraron resultados'
+                : 'Comienza registrando desperdicios'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
@@ -246,11 +297,15 @@ export default function SustainabilityPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <Package className="h-5 w-5 text-gray-400" />
-                      <h3 className="text-lg font-semibold text-gray-900">{log.item_name}</h3>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {log.item_name}
+                      </h3>
                       <span className="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700">
                         {getCategoryLabel(log.category)}
                       </span>
-                      <span className={`px-2 py-1 text-xs font-medium rounded ${getDisposalColor(log.disposal_method)}`}>
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded ${getDisposalColor(log.disposal_method)}`}
+                      >
                         {getDisposalLabel(log.disposal_method)}
                       </span>
                     </div>
@@ -301,7 +356,11 @@ export default function SustainabilityPage() {
         )}
 
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <p className="text-sm text-green-800">🌱 <strong>Sostenibilidad:</strong> Registra y monitorea los desperdicios para reducir el impacto ambiental. Recicla, composta y dona cuando sea posible para minimizar residuos.</p>
+          <p className="text-sm text-green-800">
+            🌱 <strong>Sostenibilidad:</strong> Registra y monitorea los
+            desperdicios para reducir el impacto ambiental. Recicla, composta y
+            dona cuando sea posible para minimizar residuos.
+          </p>
         </div>
       </div>
     </MainLayout>

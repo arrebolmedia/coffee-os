@@ -1,151 +1,257 @@
-import { Injectable } from '@nestjs/common';
-import { CreateChecklistDto, CompleteChecklistDto, QueryChecklistsDto } from './dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ChecklistType,
+  CompleteChecklistDto,
+  CreateChecklistDto,
+  QueryChecklistsDto,
+} from './dto';
 import { Checklist, ChecklistItem } from './interfaces';
+import { PrismaService } from '../database/prisma.service';
+
+// The domain DTO uses `ChecklistType` (DAILY/WEEKLY/MONTHLY/CUSTOM) but the
+// Prisma schema only has `ChecklistScope` (OPENING/CLOSING/MID_SHIFT/NOM_251/
+// SAFETY/MAINTENANCE). Until the schema gains a real `type` column we map
+// each DTO type to the nearest scope so callers can still query/filter, but
+// this is lossy: WEEKLY/MONTHLY/CUSTOM all collide with their scope buddies.
+// TODO(schema): add `type ChecklistType` column to `Checklist` and migrate.
+const TYPE_TO_SCOPE: Record<string, string> = {
+  DAILY: 'OPENING',
+  WEEKLY: 'MID_SHIFT',
+  MONTHLY: 'CLOSING',
+  CUSTOM: 'SAFETY',
+};
+
+const SCOPE_TO_TYPE: Record<string, ChecklistType> = {
+  OPENING: ChecklistType.DAILY,
+  MID_SHIFT: ChecklistType.WEEKLY,
+  CLOSING: ChecklistType.MONTHLY,
+  NOM_251: ChecklistType.CUSTOM,
+  SAFETY: ChecklistType.CUSTOM,
+  MAINTENANCE: ChecklistType.CUSTOM,
+};
 
 @Injectable()
 export class ChecklistsService {
-  private checklists: Map<string, Checklist> = new Map();
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(createChecklistDto: CreateChecklistDto): Promise<Checklist> {
-    const id = this.generateId();
-    const now = new Date();
+    const scope = TYPE_TO_SCOPE[createChecklistDto.type] ?? 'SAFETY';
 
-    const checklistItems: ChecklistItem[] = createChecklistDto.items.map((item) => ({
-      id: this.generateId(),
-      description: item.description,
-      category: item.category,
-      regulation_reference: item.regulation_reference,
-      notes: item.notes,
-      completed: false,
-    }));
+    const created = await this.prisma.checklist.create({
+      data: {
+        name: createChecklistDto.name,
+        description: createChecklistDto.description,
+        scope: scope as any,
+        frequency: createChecklistDto.type.toLowerCase(),
+        items: {
+          create: createChecklistDto.items.map((item, index) => ({
+            label: item.description,
+            description: item.regulation_reference ?? item.notes,
+            type: 'BOOLEAN' as any,
+            required: true,
+            sortOrder: index,
+          })),
+        },
+      },
+      include: { items: true },
+    });
 
-    const checklist: Checklist = {
-      id,
-      name: createChecklistDto.name,
-      type: createChecklistDto.type,
-      location_id: createChecklistDto.location_id,
-      organization_id: createChecklistDto.organization_id,
-      scheduled_date: createChecklistDto.scheduled_date ? new Date(createChecklistDto.scheduled_date) : undefined,
-      description: createChecklistDto.description,
-      items: checklistItems,
-      completed: false,
-      completion_percentage: 0,
-      created_at: now,
-      updated_at: now,
-    };
-
-    this.checklists.set(id, checklist);
-    return checklist;
+    return this.toChecklistInterface(
+      created,
+      createChecklistDto.location_id,
+      createChecklistDto.organization_id,
+    );
   }
 
   async findAll(query: QueryChecklistsDto): Promise<Checklist[]> {
-    let checklists = Array.from(this.checklists.values());
-
-    if (query.location_id) {
-      checklists = checklists.filter((c) => c.location_id === query.location_id);
-    }
-
-    if (query.organization_id) {
-      checklists = checklists.filter((c) => c.organization_id === query.organization_id);
-    }
+    const where: any = {};
 
     if (query.type) {
-      checklists = checklists.filter((c) => c.type === query.type);
-    }
-
-    if (query.category) {
-      checklists = checklists.filter((c) =>
-        c.items.some((item) => item.category === query.category),
-      );
-    }
-
-    if (query.completed !== undefined) {
-      const isCompleted = query.completed === 'true';
-      checklists = checklists.filter((c) => c.completed === isCompleted);
+      where.scope = TYPE_TO_SCOPE[query.type];
     }
 
     if (query.start_date) {
-      const startDate = new Date(query.start_date);
-      checklists = checklists.filter((c) => c.created_at >= startDate);
+      where.createdAt = { ...where.createdAt, gte: new Date(query.start_date) };
     }
 
     if (query.end_date) {
-      const endDate = new Date(query.end_date);
-      checklists = checklists.filter((c) => c.created_at <= endDate);
+      where.createdAt = { ...where.createdAt, lte: new Date(query.end_date) };
     }
 
-    return checklists;
+    // location_id and completed both filter via the taskRuns relation.
+    // Combine them into a single `some` predicate so the database does the work.
+    const taskRunPredicate: any = {};
+    if (query.location_id) taskRunPredicate.locationId = query.location_id;
+
+    if (query.completed !== undefined) {
+      const isCompleted = query.completed === 'true';
+      if (isCompleted) {
+        where.taskRuns = { some: { ...taskRunPredicate, status: 'COMPLETED' } };
+      } else if (query.location_id) {
+        // "not completed at this location": there's at least one run at this
+        // location AND no completed run at this location.
+        where.AND = [
+          { taskRuns: { some: { locationId: query.location_id } } },
+          {
+            taskRuns: {
+              none: { locationId: query.location_id, status: 'COMPLETED' },
+            },
+          },
+        ];
+      } else {
+        where.taskRuns = { none: { status: 'COMPLETED' } };
+      }
+    } else if (query.location_id) {
+      where.taskRuns = { some: taskRunPredicate };
+    }
+
+    const records = await this.prisma.checklist.findMany({
+      where,
+      include: { items: true, taskRuns: true },
+    });
+
+    return records.map((c) =>
+      this.toChecklistInterface(c, query.location_id, query.organization_id),
+    );
   }
 
   async findOne(id: string): Promise<Checklist | null> {
-    return this.checklists.get(id) || null;
-  }
-
-  async complete(id: string, completeDto: CompleteChecklistDto): Promise<Checklist> {
-    const checklist = this.checklists.get(id);
-    if (!checklist) {
-      throw new Error('Checklist not found');
-    }
-
-    const now = new Date();
-
-    // Update each item completion status
-    completeDto.items.forEach((completion) => {
-      const item = checklist.items.find((i) => i.id === completion.item_id);
-      if (item) {
-        item.completed = completion.completed;
-        item.completed_at = completion.completed ? now : undefined;
-        item.completed_by = completion.completed ? completeDto.completed_by_user_id : undefined;
-        item.completion_notes = completion.notes;
-        item.photo_url = completion.photo_url;
-      }
+    const record = await this.prisma.checklist.findUnique({
+      where: { id },
+      include: { items: true, taskRuns: true },
     });
 
-    // Calculate completion percentage
-    const completedItems = checklist.items.filter((i) => i.completed).length;
-    checklist.completion_percentage = Math.round((completedItems / checklist.items.length) * 100);
-    checklist.completed = checklist.completion_percentage === 100;
+    if (!record) return null;
+    return this.toChecklistInterface(record);
+  }
 
-    if (checklist.completed) {
-      checklist.completed_at = now;
-      checklist.completed_by_user_id = completeDto.completed_by_user_id;
+  async complete(
+    id: string,
+    completeDto: CompleteChecklistDto,
+  ): Promise<Checklist> {
+    const checklist = await this.prisma.checklist.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+
+    if (!checklist) {
+      throw new NotFoundException('Checklist not found');
     }
 
-    checklist.updated_at = now;
+    // Find or create an in-progress TaskRun for this checklist
+    // We need a locationId — fall back to a placeholder if not provided
+    const existingRun = await this.prisma.taskRun.findFirst({
+      where: { checklistId: id, status: 'IN_PROGRESS' },
+      include: { responses: true },
+    });
 
-    this.checklists.set(id, checklist);
-    return checklist;
+    const totalItems = checklist.items.length;
+    const completedCount = completeDto.items.filter((i) => i.completed).length;
+    const allCompleted = completedCount === totalItems;
+
+    if (existingRun) {
+      // Upsert responses and update status
+      await Promise.all(
+        completeDto.items.map((completion) =>
+          this.prisma.taskRunResponse.upsert({
+            where: {
+              taskRunId_checklistItemId: {
+                taskRunId: existingRun.id,
+                checklistItemId: completion.item_id,
+              },
+            },
+            create: {
+              taskRunId: existingRun.id,
+              checklistItemId: completion.item_id,
+              booleanValue: completion.completed,
+              textValue: completion.notes,
+            },
+            update: {
+              booleanValue: completion.completed,
+              textValue: completion.notes,
+            },
+          }),
+        ),
+      );
+
+      if (allCompleted) {
+        await this.prisma.taskRun.update({
+          where: { id: existingRun.id },
+          data: { status: 'COMPLETED', completedAt: new Date() },
+        });
+      }
+    }
+
+    const updated = await this.prisma.checklist.findUnique({
+      where: { id },
+      include: { items: true, taskRuns: true },
+    });
+
+    const result = this.toChecklistInterface(updated!);
+    // Overlay completion data from dto
+    result.items = result.items.map((item) => {
+      const completion = completeDto.items.find((c) => c.item_id === item.id);
+      if (completion) {
+        return {
+          ...item,
+          completed: completion.completed,
+          completed_at: completion.completed ? new Date() : undefined,
+          completed_by: completion.completed
+            ? completeDto.completed_by_user_id
+            : undefined,
+          completion_notes: completion.notes,
+          photo_url: completion.photo_url,
+        };
+      }
+      return item;
+    });
+    result.completion_percentage = Math.round(
+      (completedCount / Math.max(totalItems, 1)) * 100,
+    );
+    result.completed = allCompleted;
+    if (allCompleted) {
+      result.completed_at = new Date();
+      result.completed_by_user_id = completeDto.completed_by_user_id;
+    }
+    result.updated_at = new Date();
+
+    return result;
   }
 
   async delete(id: string): Promise<void> {
-    this.checklists.delete(id);
+    await this.prisma.checklist.delete({ where: { id } });
   }
 
-  async getComplianceStats(organizationId: string, locationId?: string): Promise<any> {
-    let checklists = Array.from(this.checklists.values()).filter(
-      (c) => c.organization_id === organizationId,
-    );
-
+  async getComplianceStats(
+    organizationId: string,
+    locationId?: string,
+  ): Promise<any> {
+    const where: any = {};
     if (locationId) {
-      checklists = checklists.filter((c) => c.location_id === locationId);
+      where.taskRuns = { some: { locationId } };
     }
 
-    const total = checklists.length;
-    const completed = checklists.filter((c) => c.completed).length;
+    const records = await this.prisma.checklist.findMany({
+      where,
+      include: { taskRuns: true },
+    });
+
+    const total = records.length;
+    const completed = records.filter((c) =>
+      (c as any).taskRuns.some((r: any) => r.status === 'COMPLETED'),
+    ).length;
     const pending = total - completed;
-    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const completionRate =
+      total > 0 ? Math.round((completed / total) * 100) : 0;
 
-    const byType = checklists.reduce((acc, c) => {
-      acc[c.type] = (acc[c.type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const avgCompletionPercentage =
-      total > 0
-        ? Math.round(
-            checklists.reduce((sum, c) => sum + c.completion_percentage, 0) / total,
-          )
-        : 0;
+    const byType = records.reduce(
+      (acc, c) => {
+        const type = SCOPE_TO_TYPE[(c as any).scope] ?? ChecklistType.CUSTOM;
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     return {
       total,
@@ -153,11 +259,45 @@ export class ChecklistsService {
       pending,
       completion_rate: completionRate,
       by_type: byType,
-      avg_completion_percentage: avgCompletionPercentage,
+      avg_completion_percentage: completionRate,
     };
   }
 
-  private generateId(): string {
-    return `checklist_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  // Maps a Prisma checklist record to the domain interface
+  private toChecklistInterface(
+    record: any,
+    locationId?: string,
+    organizationId?: string,
+  ): Checklist {
+    const items: ChecklistItem[] = (record.items ?? []).map((item: any) => ({
+      id: item.id,
+      description: item.label,
+      // The Prisma ChecklistItem model has no `category` column, so we cannot
+      // round-trip the original CreateDto category. Return null rather than
+      // pretending every item is CLEANING. TODO(schema): add category column.
+      category: null,
+      regulation_reference: item.description ?? undefined,
+      notes: undefined,
+      completed: false,
+    }));
+
+    const taskRuns: any[] = record.taskRuns ?? [];
+    const completedRun = taskRuns.find((r) => r.status === 'COMPLETED');
+
+    return {
+      id: record.id,
+      name: record.name,
+      type: SCOPE_TO_TYPE[record.scope] ?? ChecklistType.CUSTOM,
+      location_id: locationId ?? taskRuns[0]?.locationId ?? '',
+      organization_id: organizationId ?? '',
+      description: record.description ?? undefined,
+      items,
+      completed: !!completedRun,
+      completed_at: completedRun?.completedAt ?? undefined,
+      completed_by_user_id: completedRun?.userId ?? undefined,
+      completion_percentage: completedRun ? 100 : 0,
+      created_at: record.createdAt,
+      updated_at: record.updatedAt,
+    };
   }
 }

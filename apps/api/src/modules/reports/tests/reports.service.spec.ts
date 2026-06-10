@@ -2,10 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ReportsService } from '../reports.service';
 import {
-  ReportCategory,
-  ReportType,
-  ReportStatus,
   ExportFormat,
+  ReportCategory,
+  ReportStatus,
+  ReportType,
   ScheduleFrequency,
 } from '../interfaces/report.interface';
 import { CreateReportTemplateDto } from '../dto/create-report-template.dto';
@@ -125,7 +125,8 @@ describe('ReportsService', () => {
         const result = await service.findAllReportTemplates(mockOrgId);
         expect(result).toHaveLength(2);
 
-        const otherOrgResult = await service.findAllReportTemplates('other-org-id');
+        const otherOrgResult =
+          await service.findAllReportTemplates('other-org-id');
         expect(otherOrgResult).toHaveLength(0);
       });
 
@@ -203,7 +204,10 @@ describe('ReportsService', () => {
           description: 'Updated description',
         };
 
-        const result = await service.updateReportTemplate(created.id, updateDto);
+        const result = await service.updateReportTemplate(
+          created.id,
+          updateDto,
+        );
         expect(result.name).toBe('Updated Name');
         expect(result.description).toBe('Updated description');
         expect(result.updated_at.getTime()).toBeGreaterThan(
@@ -527,7 +531,9 @@ describe('ReportsService', () => {
           undefined,
           ReportStatus.PENDING,
         );
-        expect(result.every((r) => r.status === ReportStatus.PENDING)).toBe(true);
+        expect(result.every((r) => r.status === ReportStatus.PENDING)).toBe(
+          true,
+        );
       });
 
       it('should filter reports by requested_by', async () => {
@@ -850,7 +856,9 @@ describe('ReportsService', () => {
         expect(result.organization_id).toBe(mockOrgId);
         expect(result.schedule_id).toBe(schedule.id);
 
-        const updatedSchedule = await service.findReportScheduleById(schedule.id);
+        const updatedSchedule = await service.findReportScheduleById(
+          schedule.id,
+        );
         expect(updatedSchedule.run_count).toBe(1);
         expect(updatedSchedule.last_run_date).toBeDefined();
         expect(updatedSchedule.next_run_date).toBeDefined();

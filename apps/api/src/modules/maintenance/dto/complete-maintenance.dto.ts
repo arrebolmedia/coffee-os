@@ -1,12 +1,12 @@
 import {
+  IsArray,
+  IsDateString,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
-  IsNumber,
-  IsDateString,
-  IsArray,
-  Min,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 

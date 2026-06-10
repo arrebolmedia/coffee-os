@@ -5,9 +5,9 @@ import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
 import { QueryInventoryItemsDto } from './dto/query-inventory-items.dto';
 import {
+  BadRequestException,
   ConflictException,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 
 describe('InventoryItemsService', () => {

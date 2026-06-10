@@ -1,11 +1,11 @@
 import {
-  IsUUID,
-  IsString,
-  IsEnum,
   IsArray,
-  IsOptional,
-  IsObject,
   IsDateString,
+  IsEnum,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
   MaxLength,
 } from 'class-validator';
 import { Channel } from '../interfaces/notification.interface';

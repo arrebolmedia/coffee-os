@@ -1,27 +1,28 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
-  BarChart3,
-  TrendingUp,
-  DollarSign,
-  ShoppingCart,
-  Users,
-  Coffee,
   AlertCircle,
-  Calendar,
-  TrendingDown,
-  Percent,
+  BarChart3,
   Calculator,
+  Calendar,
+  Coffee,
+  DollarSign,
+  Percent,
+  ShoppingCart,
+  TrendingDown,
+  TrendingUp,
+  Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/use-auth';
 import {
-  useTopProfitableProducts,
   useLowMarginProducts,
   useMarginDistribution,
+  useTopProfitableProducts,
 } from '@/hooks/use-costing';
 
 interface DashboardStats {
@@ -53,12 +54,9 @@ interface DashboardStats {
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const organizationId = user?.organizationId || '';
 
   // Fetch profitability data
-  const organizationId = user?.organizationId || '';
   const { data: topProfitable } = useTopProfitableProducts(
     organizationId,
     5,
@@ -74,110 +72,148 @@ export default function DashboardPage() {
     !!organizationId,
   );
 
-  useEffect(() => {
-    if (user) {
-      fetchDashboardData();
-    }
-  }, [user]);
+  // Build deterministic date ranges (memoized so query keys are stable across renders)
+  const ranges = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    return {
+      now: now.toISOString(),
+      today: today.toISOString(),
+      startOfWeek: startOfWeek.toISOString(),
+      startOfMonth: startOfMonth.toISOString(),
+    };
+  }, []);
 
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
+  const dashboardKey = ['dashboard', organizationId] as const;
 
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay());
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dashboardTodayQuery = useQuery({
+    queryKey: [...dashboardKey, 'analytics', 'today', ranges.today, ranges.now],
+    queryFn: () =>
+      api.get<any>(
+        `/analytics/dashboard?${new URLSearchParams({
+          organization_id: organizationId,
+          start_date: ranges.today,
+          end_date: ranges.now,
+        }).toString()}`,
+      ),
+    enabled: !!organizationId,
+  });
 
-      // Llamadas paralelas a todos los endpoints necesarios
-      const [
-        dashboardToday,
-        dashboardWeek,
-        dashboardMonth,
-        inventoryStats,
-        customerStats,
-      ] = await Promise.all([
-        // Dashboard del día
-        user?.organizationId
-          ? api.get(
-              `/analytics/dashboard?${new URLSearchParams({
-                organization_id: user.organizationId,
-                start_date: today.toISOString(),
-                end_date: now.toISOString(),
-              }).toString()}`,
-            )
-          : Promise.resolve({}),
-        // Dashboard de la semana
-        user?.organizationId
-          ? api.get(
-              `/analytics/dashboard?${new URLSearchParams({
-                organization_id: user.organizationId,
-                start_date: startOfWeek.toISOString(),
-                end_date: now.toISOString(),
-              }).toString()}`,
-            )
-          : Promise.resolve({}),
-        // Dashboard del mes
-        user?.organizationId
-          ? api.get(
-              `/analytics/dashboard?${new URLSearchParams({
-                organization_id: user.organizationId,
-                start_date: startOfMonth.toISOString(),
-                end_date: now.toISOString(),
-              }).toString()}`,
-            )
-          : Promise.resolve({}),
-        // Stats de inventario (con organizationId del usuario)
-        user?.organizationId
-          ? api.get(`/inventory/organization/${user.organizationId}/stats`)
-          : Promise.resolve({ lowStockItems: [] }),
-        // Stats de clientes
-        user?.organizationId
-          ? api.get(
-              `/crm/customers/stats?organization_id=${user.organizationId}`,
-            )
-          : Promise.resolve({}),
-      ]);
+  const dashboardWeekQuery = useQuery({
+    queryKey: [
+      ...dashboardKey,
+      'analytics',
+      'week',
+      ranges.startOfWeek,
+      ranges.now,
+    ],
+    queryFn: () =>
+      api.get<any>(
+        `/analytics/dashboard?${new URLSearchParams({
+          organization_id: organizationId,
+          start_date: ranges.startOfWeek,
+          end_date: ranges.now,
+        }).toString()}`,
+      ),
+    enabled: !!organizationId,
+  });
 
-      // Transformar datos del backend al formato del frontend
-      const transformedStats: DashboardStats = {
-        sales: {
-          today: dashboardToday.today_sales || 0,
-          thisWeek: dashboardWeek.today_sales || 0,
-          thisMonth: dashboardMonth.today_sales || 0,
-          todayTransactions: dashboardToday.today_orders || 0,
-          averageTicket: dashboardToday.today_avg_order_value || 0,
-        },
-        products: {
-          topSelling:
-            dashboardToday.top_products?.map((product: any) => ({
-              name: product.name || product.product_name,
-              quantity: product.quantity_sold || 0,
-              revenue: product.revenue || 0,
-            })) || [],
-          lowStock:
-            inventoryStats.lowStockItems?.map((item: any) => ({
-              name: item.name || item.product_name,
-              stock: item.current_stock || item.stock || 0,
-              minStock: item.min_stock || item.minStock || 0,
-            })) || [],
-        },
-        customers: {
-          total: customerStats.total || 0,
-          newToday: customerStats.new_today || 0,
-          loyaltyActive: customerStats.loyalty_active || 0,
-        },
-      };
+  const dashboardMonthQuery = useQuery({
+    queryKey: [
+      ...dashboardKey,
+      'analytics',
+      'month',
+      ranges.startOfMonth,
+      ranges.now,
+    ],
+    queryFn: () =>
+      api.get<any>(
+        `/analytics/dashboard?${new URLSearchParams({
+          organization_id: organizationId,
+          start_date: ranges.startOfMonth,
+          end_date: ranges.now,
+        }).toString()}`,
+      ),
+    enabled: !!organizationId,
+  });
 
-      setStats(transformedStats);
-      setLoading(false);
-    } catch (err) {
-      console.error('Error fetching dashboard data:', err);
-      setError('Error al cargar datos del dashboard');
-      setLoading(false);
-    }
-  };
+  const inventoryStatsQuery = useQuery({
+    queryKey: [...dashboardKey, 'inventory-stats'],
+    queryFn: () =>
+      api.get<any>(`/inventory/organization/${organizationId}/stats`),
+    enabled: !!organizationId,
+  });
+
+  const customerStatsQuery = useQuery({
+    queryKey: [...dashboardKey, 'customer-stats'],
+    queryFn: () =>
+      api.get<any>(`/crm/customers/stats?organization_id=${organizationId}`),
+    enabled: !!organizationId,
+  });
+
+  const loading =
+    dashboardTodayQuery.isLoading ||
+    dashboardWeekQuery.isLoading ||
+    dashboardMonthQuery.isLoading ||
+    inventoryStatsQuery.isLoading ||
+    customerStatsQuery.isLoading;
+
+  const hasError =
+    dashboardTodayQuery.isError ||
+    dashboardWeekQuery.isError ||
+    dashboardMonthQuery.isError ||
+    inventoryStatsQuery.isError ||
+    customerStatsQuery.isError;
+  const error = hasError ? 'Error al cargar datos del dashboard' : null;
+
+  const stats: DashboardStats | null = useMemo(() => {
+    if (loading || hasError) return null;
+    const dashboardToday = dashboardTodayQuery.data || {};
+    const dashboardWeek = dashboardWeekQuery.data || {};
+    const dashboardMonth = dashboardMonthQuery.data || {};
+    const inventoryStats = inventoryStatsQuery.data || { lowStockItems: [] };
+    const customerStats = customerStatsQuery.data || {};
+
+    return {
+      sales: {
+        today: dashboardToday.today_sales || 0,
+        thisWeek: dashboardWeek.today_sales || 0,
+        thisMonth: dashboardMonth.today_sales || 0,
+        todayTransactions: dashboardToday.today_orders || 0,
+        averageTicket: dashboardToday.today_avg_order_value || 0,
+      },
+      products: {
+        topSelling:
+          dashboardToday.top_products?.map((product: any) => ({
+            name: product.name || product.product_name,
+            quantity: product.quantity_sold || 0,
+            revenue: product.revenue || 0,
+          })) || [],
+        lowStock:
+          inventoryStats.lowStockItems?.map((item: any) => ({
+            name: item.name || item.product_name,
+            stock: item.current_stock || item.stock || 0,
+            minStock: item.min_stock || item.minStock || 0,
+          })) || [],
+      },
+      customers: {
+        total: customerStats.total || 0,
+        newToday: customerStats.new_today || 0,
+        loyaltyActive: customerStats.loyalty_active || 0,
+      },
+    };
+  }, [
+    loading,
+    hasError,
+    dashboardTodayQuery.data,
+    dashboardWeekQuery.data,
+    dashboardMonthQuery.data,
+    inventoryStatsQuery.data,
+    customerStatsQuery.data,
+  ]);
 
   if (loading) {
     return (
@@ -335,7 +371,14 @@ export default function DashboardPage() {
                         <div
                           className="bg-amber-600 h-2 rounded-full"
                           style={{
-                            width: `${(product.quantity / stats.products.topSelling[0].quantity) * 100}%`,
+                            width: `${
+                              stats.products.topSelling.length > 0 &&
+                              stats.products.topSelling[0].quantity > 0
+                                ? (product.quantity /
+                                    stats.products.topSelling[0].quantity) *
+                                  100
+                                : 0
+                            }%`,
                           }}
                         />
                       </div>
@@ -528,7 +571,7 @@ export default function DashboardPage() {
               </h2>
               {lowMargin && lowMargin.length > 0 ? (
                 <div className="space-y-3">
-                  {lowMargin.map((product, index) => (
+                  {lowMargin.map((product, _index) => (
                     <div
                       key={product.product_id}
                       className="bg-red-50 border-l-4 border-red-500 p-3 rounded"

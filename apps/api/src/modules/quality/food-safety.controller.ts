@@ -1,31 +1,23 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  Delete,
-  Query,
-  Patch,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { FoodSafetyService } from './food-safety.service';
-import { CreateFoodSafetyIncidentDto, ResolveIncidentDto, QueryIncidentsDto } from './dto';
+import { QueryIncidentsDto } from './dto';
 import { FoodSafetyIncident } from './interfaces';
 
+/**
+ * Food-safety incidents are currently NOT persisted (no Prisma model). To
+ * avoid exposing endpoints that would silently lose data, only the read
+ * endpoints — all of which return empty results — are routed. Write
+ * endpoints (POST/PATCH/DELETE incidents) will reappear once the
+ * `FoodSafetyIncident` model is added to the schema.
+ */
 @Controller('quality/food-safety')
 export class FoodSafetyController {
   constructor(private readonly foodSafetyService: FoodSafetyService) {}
 
-  @Post('incidents')
-  @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createDto: CreateFoodSafetyIncidentDto): Promise<FoodSafetyIncident> {
-    return this.foodSafetyService.create(createDto);
-  }
-
   @Get('incidents')
-  async findAll(@Query() query: QueryIncidentsDto): Promise<FoodSafetyIncident[]> {
+  async findAll(
+    @Query() query: QueryIncidentsDto,
+  ): Promise<FoodSafetyIncident[]> {
     return this.foodSafetyService.findAll(query);
   }
 
@@ -34,7 +26,10 @@ export class FoodSafetyController {
     @Query('organization_id') organizationId: string,
     @Query('location_id') locationId?: string,
   ): Promise<FoodSafetyIncident[]> {
-    return this.foodSafetyService.getCriticalIncidents(organizationId, locationId);
+    return this.foodSafetyService.getCriticalIncidents(
+      organizationId,
+      locationId,
+    );
   }
 
   @Get('stats')
@@ -43,25 +38,5 @@ export class FoodSafetyController {
     @Query('location_id') locationId?: string,
   ): Promise<any> {
     return this.foodSafetyService.getStats(organizationId, locationId);
-  }
-
-  @Get('incidents/:id')
-  async findOne(@Param('id') id: string): Promise<FoodSafetyIncident> {
-    const incident = await this.foodSafetyService.findOne(id);
-    if (!incident) {
-      throw new Error('Incident not found');
-    }
-    return incident;
-  }
-
-  @Patch('incidents/:id/resolve')
-  async resolve(@Param('id') id: string, @Body() resolveDto: ResolveIncidentDto): Promise<FoodSafetyIncident> {
-    return this.foodSafetyService.resolve(id, resolveDto);
-  }
-
-  @Delete('incidents/:id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.foodSafetyService.delete(id);
   }
 }

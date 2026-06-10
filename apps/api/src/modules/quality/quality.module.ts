@@ -5,9 +5,15 @@ import { FoodSafetyController } from './food-safety.controller';
 import { ChecklistsService } from './checklists.service';
 import { TemperatureLogsService } from './temperature-logs.service';
 import { FoodSafetyService } from './food-safety.service';
+import { DatabaseModule } from '../database/database.module';
 
 @Module({
-  controllers: [ChecklistsController, TemperatureLogsController, FoodSafetyController],
+  imports: [DatabaseModule],
+  controllers: [
+    ChecklistsController,
+    TemperatureLogsController,
+    FoodSafetyController,
+  ],
   providers: [ChecklistsService, TemperatureLogsService, FoodSafetyService],
   exports: [ChecklistsService, TemperatureLogsService, FoodSafetyService],
 })

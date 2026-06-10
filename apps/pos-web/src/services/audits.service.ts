@@ -1,5 +1,5 @@
 import api from '@/lib/api';
-import { Audit, AuditStats, AuditType, AuditResult } from '@/types';
+import { Audit, AuditResult, AuditStats, AuditType } from '@/types';
 
 export interface CreateAuditDto {
   location_id: string;

@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsEnum } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 
 export enum MotivoCancelacion {
   COMPROBANTE_EMITIDO_CON_ERRORES = '01',

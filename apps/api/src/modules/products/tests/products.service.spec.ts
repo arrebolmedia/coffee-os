@@ -2,20 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ProductsService } from '../products.service';
 import { PrismaService } from '../../database/prisma.service';
 import {
-  NotFoundException,
-  ConflictException,
   BadRequestException,
+  ConflictException,
+  NotFoundException,
 } from '@nestjs/common';
-import {
-  ProductType,
-  ProductStatus,
-  PricingStrategy,
-  ModifierType,
-} from '../interfaces';
+import { PricingStrategy, ProductStatus, ProductType } from '../interfaces';
 
 describe('ProductsService', () => {
   let service: ProductsService;
-  let prisma: PrismaService;
 
   const mockPrismaService = {
     product: {
@@ -71,7 +65,6 @@ describe('ProductsService', () => {
     }).compile();
 
     service = module.get<ProductsService>(ProductsService);
-    prisma = module.get<PrismaService>(PrismaService);
 
     // Reset mocks before each test
     jest.clearAllMocks();
@@ -429,21 +422,29 @@ describe('ProductsService', () => {
   describe.skip('updateStock', () => {
     it('should add stock', async () => {
       const product = await service.create(mockProductDto);
-      const updated = await service.updateStock(product.id, 50, 'add');
+      const updated = (await service.updateStock(product.id, 50, 'add')) as any;
 
       expect(updated.stockQuantity).toBe(150); // 100 + 50
     });
 
     it('should subtract stock', async () => {
       const product = await service.create(mockProductDto);
-      const updated = await service.updateStock(product.id, 30, 'subtract');
+      const updated = (await service.updateStock(
+        product.id,
+        30,
+        'subtract',
+      )) as any;
 
       expect(updated.stockQuantity).toBe(70); // 100 - 30
     });
 
     it('should set stock', async () => {
       const product = await service.create(mockProductDto);
-      const updated = await service.updateStock(product.id, 200, 'set');
+      const updated = (await service.updateStock(
+        product.id,
+        200,
+        'set',
+      )) as any;
 
       expect(updated.stockQuantity).toBe(200);
     });

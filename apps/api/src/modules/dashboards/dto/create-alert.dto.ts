@@ -1,15 +1,10 @@
 import {
-  IsString,
-  IsUUID,
-  IsEnum,
-  IsBoolean,
   IsArray,
   IsObject,
-  IsNumber,
   IsOptional,
-  ValidateNested,
+  IsString,
+  IsUUID,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 
 export class CreateAlertDto {
   @IsUUID()

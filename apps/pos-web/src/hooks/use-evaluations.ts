@@ -6,8 +6,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import {
-  evaluationsService,
   CreateEvaluationDto,
+  evaluationsService,
   QueryEvaluationsParams,
 } from '@/services/evaluations.service';
 import { Evaluation, EvaluationStats } from '@/types';

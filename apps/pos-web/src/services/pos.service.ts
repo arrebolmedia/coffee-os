@@ -4,6 +4,7 @@
  */
 
 import { api } from '@/lib/api';
+import { PaymentMethod } from '@/types';
 
 export interface OrderItem {
   product_id: string;
@@ -25,7 +26,7 @@ export interface CreateOrderDTO {
   tax: number;
   discount: number;
   total: number;
-  payment_method: 'cash' | 'card' | 'transfer' | 'mixed';
+  payment_method: PaymentMethod;
   payment_details?: {
     cash?: number;
     card?: number;
@@ -76,26 +77,23 @@ export class POSService {
    * Create new order
    */
   static async createOrder(data: CreateOrderDTO): Promise<Order> {
-    const response = await api.post('/pos/orders', data);
-    return response.data;
+    return await api.post<Order>('/pos/orders', data);
   }
 
   /**
    * Get order by ID
    */
   static async getOrder(orderId: string): Promise<Order> {
-    const response = await api.get(`/pos/orders/${orderId}`);
-    return response.data;
+    return await api.get<Order>(`/pos/orders/${orderId}`);
   }
 
   /**
    * Get today's orders for organization
    */
   static async getTodayOrders(organizationId: string): Promise<Order[]> {
-    const response = await api.get(
+    return await api.get<Order[]>(
       `/pos/orders/organization/${organizationId}/today`,
     );
-    return response.data;
   }
 
   /**
@@ -106,10 +104,9 @@ export class POSService {
     startDate: string,
     endDate: string,
   ): Promise<Order[]> {
-    const response = await api.get(
+    return await api.get<Order[]>(
       `/pos/orders/organization/${organizationId}?startDate=${startDate}&endDate=${endDate}`,
     );
-    return response.data;
   }
 
   /**
@@ -122,18 +119,16 @@ export class POSService {
     const url = date
       ? `/pos/stats/daily/${organizationId}?date=${date}`
       : `/pos/stats/daily/${organizationId}`;
-    const response = await api.get(url);
-    return response.data;
+    return await api.get<DailySalesStats>(url);
   }
 
   /**
    * Cancel order
    */
   static async cancelOrder(orderId: string, reason: string): Promise<Order> {
-    const response = await api.post(`/pos/orders/${orderId}/cancel`, {
+    return await api.post<Order>(`/pos/orders/${orderId}/cancel`, {
       reason,
     });
-    return response.data;
   }
 
   /**
@@ -144,27 +139,24 @@ export class POSService {
     reason: string,
     amount?: number,
   ): Promise<Order> {
-    const response = await api.post(`/pos/orders/${orderId}/refund`, {
+    return await api.post<Order>(`/pos/orders/${orderId}/refund`, {
       reason,
       amount,
     });
-    return response.data;
   }
 
   /**
    * Print receipt
    */
   static async printReceipt(orderId: string): Promise<{ receipt: string }> {
-    const response = await api.get(`/pos/orders/${orderId}/receipt`);
-    return response.data;
+    return await api.get<{ receipt: string }>(`/pos/orders/${orderId}/receipt`);
   }
 
   /**
    * Get payment methods for organization
    */
   static async getPaymentMethods(organizationId: string): Promise<string[]> {
-    const response = await api.get(`/pos/payment-methods/${organizationId}`);
-    return response.data;
+    return await api.get<string[]>(`/pos/payment-methods/${organizationId}`);
   }
 
   /**
@@ -175,12 +167,14 @@ export class POSService {
     initialAmount: number,
     userId: string,
   ): Promise<{ id: string; opened_at: string }> {
-    const response = await api.post('/pos/cash-register/open', {
-      organization_id: organizationId,
-      initial_amount: initialAmount,
-      user_id: userId,
-    });
-    return response.data;
+    return await api.post<{ id: string; opened_at: string }>(
+      '/pos/cash-register/open',
+      {
+        organization_id: organizationId,
+        initial_amount: initialAmount,
+        user_id: userId,
+      },
+    );
   }
 
   /**
@@ -191,11 +185,14 @@ export class POSService {
     finalAmount: number,
     notes?: string,
   ): Promise<{ id: string; closed_at: string; difference: number }> {
-    const response = await api.post(`/pos/cash-register/${registerId}/close`, {
+    return await api.post<{
+      id: string;
+      closed_at: string;
+      difference: number;
+    }>(`/pos/cash-register/${registerId}/close`, {
       final_amount: finalAmount,
       notes,
     });
-    return response.data;
   }
 
   /**
@@ -204,9 +201,10 @@ export class POSService {
   static async getCurrentCashRegister(
     organizationId: string,
   ): Promise<{ id: string; initial_amount: number; opened_at: string } | null> {
-    const response = await api.get(
-      `/pos/cash-register/current/${organizationId}`,
-    );
-    return response.data;
+    return await api.get<{
+      id: string;
+      initial_amount: number;
+      opened_at: string;
+    } | null>(`/pos/cash-register/current/${organizationId}`);
   }
 }

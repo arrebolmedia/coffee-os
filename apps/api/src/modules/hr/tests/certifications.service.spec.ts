@@ -1,6 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CertificationsService } from '../certifications.service';
-import { CreateCertificationDto, CertificationType, CertificationStatus } from '../dto';
+import {
+  CertificationStatus,
+  CertificationType,
+  CreateCertificationDto,
+} from '../dto';
 
 // Use relative dates so tests don't break as time passes
 const futureDate = (daysFromNow: number) => {
@@ -103,32 +107,41 @@ describe('CertificationsService', () => {
 
   describe('findAll', () => {
     beforeEach(async () => {
-      await service.create({
-        employee_id: 'emp_1',
-        type: CertificationType.FOOD_HANDLER,
-        name: 'Food Handler',
-        issue_date: pastDate(30),
-        expiry_date: futureDate(335),
-        issuer: 'Authority 1',
-      }, 'org_1');
+      await service.create(
+        {
+          employee_id: 'emp_1',
+          type: CertificationType.FOOD_HANDLER,
+          name: 'Food Handler',
+          issue_date: pastDate(30),
+          expiry_date: futureDate(335),
+          issuer: 'Authority 1',
+        },
+        'org_1',
+      );
 
-      await service.create({
-        employee_id: 'emp_2',
-        type: CertificationType.BARISTA,
-        name: 'Barista Certification',
-        issue_date: pastDate(15),
-        expiry_date: futureDate(350),
-        issuer: 'Coffee Association',
-      }, 'org_1');
+      await service.create(
+        {
+          employee_id: 'emp_2',
+          type: CertificationType.BARISTA,
+          name: 'Barista Certification',
+          issue_date: pastDate(15),
+          expiry_date: futureDate(350),
+          issuer: 'Coffee Association',
+        },
+        'org_1',
+      );
 
-      await service.create({
-        employee_id: 'emp_3',
-        type: CertificationType.FIRE_SAFETY,
-        name: 'Fire Safety',
-        issue_date: pastDate(60),
-        expiry_date: futureDate(305),
-        issuer: 'Fire Department',
-      }, 'org_2');
+      await service.create(
+        {
+          employee_id: 'emp_3',
+          type: CertificationType.FIRE_SAFETY,
+          name: 'Fire Safety',
+          issue_date: pastDate(60),
+          expiry_date: futureDate(305),
+          issuer: 'Fire Department',
+        },
+        'org_2',
+      );
     });
 
     it('should return all certifications when no filters', async () => {
@@ -147,36 +160,46 @@ describe('CertificationsService', () => {
     });
 
     it('should filter by type', async () => {
-      const result = await service.findAll({ type: CertificationType.FOOD_HANDLER });
+      const result = await service.findAll({
+        type: CertificationType.FOOD_HANDLER,
+      });
       expect(result).toHaveLength(1);
     });
 
     it('should filter by status active', async () => {
-      const result = await service.findAll({ status: CertificationStatus.ACTIVE });
+      const result = await service.findAll({
+        status: CertificationStatus.ACTIVE,
+      });
       expect(result).toHaveLength(3);
     });
   });
 
   describe('getExpiring', () => {
     it('should find certifications expiring soon', async () => {
-      await service.create({
-        employee_id: 'emp_1',
-        type: CertificationType.FOOD_HANDLER,
-        name: 'Expiring Soon',
-        issue_date: pastDate(300),
-        expiry_date: futureDate(25),
-        issuer: 'Authority',
-      }, 'org_1');
+      await service.create(
+        {
+          employee_id: 'emp_1',
+          type: CertificationType.FOOD_HANDLER,
+          name: 'Expiring Soon',
+          issue_date: pastDate(300),
+          expiry_date: futureDate(25),
+          issuer: 'Authority',
+        },
+        'org_1',
+      );
 
       // Add one that is not expiring soon
-      await service.create({
-        employee_id: 'emp_2',
-        type: CertificationType.BARISTA,
-        name: 'Not Expiring Soon',
-        issue_date: pastDate(10),
-        expiry_date: futureDate(180),
-        issuer: 'Authority',
-      }, 'org_1');
+      await service.create(
+        {
+          employee_id: 'emp_2',
+          type: CertificationType.BARISTA,
+          name: 'Not Expiring Soon',
+          issue_date: pastDate(10),
+          expiry_date: futureDate(180),
+          issuer: 'Authority',
+        },
+        'org_1',
+      );
 
       const result = await service.getExpiring('org_1', 30);
 
@@ -186,16 +209,22 @@ describe('CertificationsService', () => {
 
   describe('updateStatus', () => {
     it('should update certification status', async () => {
-      const cert = await service.create({
-        employee_id: 'emp_1',
-        type: CertificationType.FOOD_HANDLER,
-        name: 'Food Handler',
-        issue_date: pastDate(30),
-        expiry_date: futureDate(335),
-        issuer: 'Authority',
-      }, 'org_1');
+      const cert = await service.create(
+        {
+          employee_id: 'emp_1',
+          type: CertificationType.FOOD_HANDLER,
+          name: 'Food Handler',
+          issue_date: pastDate(30),
+          expiry_date: futureDate(335),
+          issuer: 'Authority',
+        },
+        'org_1',
+      );
 
-      const result = await service.updateStatus(cert.id, CertificationStatus.EXPIRED);
+      const result = await service.updateStatus(
+        cert.id,
+        CertificationStatus.EXPIRED,
+      );
 
       expect(result.status).toBe(CertificationStatus.EXPIRED);
     });
@@ -204,33 +233,42 @@ describe('CertificationsService', () => {
   describe('getStats', () => {
     beforeEach(async () => {
       // Two active FOOD_HANDLER
-      await service.create({
-        employee_id: 'emp_1',
-        type: CertificationType.FOOD_HANDLER,
-        name: 'Food Handler 1',
-        issue_date: pastDate(30),
-        expiry_date: futureDate(335),
-        issuer: 'Authority 1',
-      }, 'org_1');
+      await service.create(
+        {
+          employee_id: 'emp_1',
+          type: CertificationType.FOOD_HANDLER,
+          name: 'Food Handler 1',
+          issue_date: pastDate(30),
+          expiry_date: futureDate(335),
+          issuer: 'Authority 1',
+        },
+        'org_1',
+      );
 
-      await service.create({
-        employee_id: 'emp_2',
-        type: CertificationType.FOOD_HANDLER,
-        name: 'Food Handler 2',
-        issue_date: pastDate(15),
-        expiry_date: futureDate(350),
-        issuer: 'Authority 1',
-      }, 'org_1');
+      await service.create(
+        {
+          employee_id: 'emp_2',
+          type: CertificationType.FOOD_HANDLER,
+          name: 'Food Handler 2',
+          issue_date: pastDate(15),
+          expiry_date: futureDate(350),
+          issuer: 'Authority 1',
+        },
+        'org_1',
+      );
 
       // One BARISTA that we'll manually expire
-      const cert3 = await service.create({
-        employee_id: 'emp_3',
-        type: CertificationType.BARISTA,
-        name: 'Barista',
-        issue_date: pastDate(400),
-        expiry_date: futureDate(200),
-        issuer: 'Coffee Assoc',
-      }, 'org_1');
+      const cert3 = await service.create(
+        {
+          employee_id: 'emp_3',
+          type: CertificationType.BARISTA,
+          name: 'Barista',
+          issue_date: pastDate(400),
+          expiry_date: futureDate(200),
+          issuer: 'Coffee Assoc',
+        },
+        'org_1',
+      );
 
       await service.updateStatus(cert3.id, CertificationStatus.EXPIRED);
     });
@@ -253,14 +291,17 @@ describe('CertificationsService', () => {
 
   describe('delete', () => {
     it('should delete certification', async () => {
-      const cert = await service.create({
-        employee_id: 'emp_1',
-        type: CertificationType.FOOD_HANDLER,
-        name: 'Food Handler',
-        issue_date: pastDate(30),
-        expiry_date: futureDate(335),
-        issuer: 'Authority',
-      }, 'org_1');
+      const cert = await service.create(
+        {
+          employee_id: 'emp_1',
+          type: CertificationType.FOOD_HANDLER,
+          name: 'Food Handler',
+          issue_date: pastDate(30),
+          expiry_date: futureDate(335),
+          issuer: 'Authority',
+        },
+        'org_1',
+      );
 
       await service.delete(cert.id);
       const result = await service.findOne(cert.id);

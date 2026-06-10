@@ -195,7 +195,7 @@ export interface Dashboard {
 export interface WidgetData {
   widget_id: string;
   type: WidgetType;
-  value?: number | string; // Para KPIs y stats
+  value?: number | string | null; // Para KPIs y stats
   values?: Array<{
     label: string;
     value: number;
@@ -210,13 +210,17 @@ export interface WidgetData {
   }>; // Para gráficas de serie temporal
   rows?: Array<Record<string, any>>; // Para tablas
   comparison?: {
-    previous_value: number;
-    change_percent: number;
-    change_absolute: number;
+    previous_value: number | null;
+    change_percent: number | null;
+    change_absolute: number | null;
     trend: 'up' | 'down' | 'stable';
     is_favorable: boolean; // Si el cambio es positivo según contexto
   };
   error?: string;
+  /** false when no real data source is wired for this widget */
+  available?: boolean;
+  /** Reason code when `available` is false, e.g. 'not_implemented' */
+  reason?: string;
   last_updated: Date;
 }
 

@@ -1,4 +1,11 @@
-import { IsUUID, IsEnum, IsOptional, IsString, MaxLength, IsIn } from 'class-validator';
+import {
+  IsEnum,
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 import { SettingCategory, SettingType } from '../interfaces';
 
 export class QuerySettingsDto {

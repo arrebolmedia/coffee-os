@@ -1,4 +1,4 @@
-import { IsUUID, IsObject } from 'class-validator';
+import { IsObject, IsUUID } from 'class-validator';
 
 export class UpdateWidgetDto {
   @IsUUID()

@@ -3,7 +3,7 @@ import { PurchaseOrdersService } from '../purchase-orders.service';
 import { PrismaService } from '../../database/prisma.service';
 import { CreatePurchaseOrderDto } from '../dto';
 import { PurchaseOrderStatus } from '../interfaces';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('PurchaseOrdersService', () => {
   let service: PurchaseOrdersService;
@@ -134,7 +134,9 @@ describe('PurchaseOrdersService', () => {
     });
 
     it('should filter by status', async () => {
-      const result = await service.findAll({ status: PurchaseOrderStatus.DRAFT });
+      const result = await service.findAll({
+        status: PurchaseOrderStatus.DRAFT,
+      });
       expect(result).toHaveLength(3);
     });
 
@@ -154,7 +156,10 @@ describe('PurchaseOrdersService', () => {
     });
 
     it('should sort by order_date descending', async () => {
-      const result = await service.findAll({ sort_by: 'order_date', order: 'desc' });
+      const result = await service.findAll({
+        sort_by: 'order_date',
+        order: 'desc',
+      });
       expect(result[0].order_date.getTime()).toBeGreaterThanOrEqual(
         result[result.length - 1].order_date.getTime(),
       );
@@ -368,7 +373,7 @@ describe('PurchaseOrdersService', () => {
   describe('getStats', () => {
     beforeEach(async () => {
       const po1 = await service.create(createDto);
-      const po2 = await service.create({
+      await service.create({
         ...createDto,
         expected_delivery_date: new Date('2020-01-01'),
       });

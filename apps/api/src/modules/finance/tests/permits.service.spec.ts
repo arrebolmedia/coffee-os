@@ -1,20 +1,60 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PermitsService } from '../permits.service';
-import { PermitType, PermitStatus } from '../dto';
+import { PrismaService } from '../../database/prisma.service';
+import { PermitStatus, PermitType } from '../dto';
+
+const now = new Date('2026-04-21');
+const future = new Date('2027-04-21');
+
+const mockPermit = {
+  id: 'permit_1',
+  organizationId: 'org_1',
+  locationId: 'loc_1',
+  type: 'FUNCIONAMIENTO',
+  name: 'LIC-2026-001',
+  authority: 'Alcaldía Cuauhtémoc',
+  permitNumber: 'LIC-2026-001',
+  status: 'ACTIVE',
+  issuedDate: now,
+  expiryDate: future,
+  lastRenewalDate: null,
+  cost: 5000,
+  renewalCost: null,
+  renewalFrequency: 'FREQ=YEARLY',
+  responsiblePerson: 'Juan Pérez',
+  documents: [],
+  documentUrl: null,
+  notes: null,
+  createdAt: now,
+  updatedAt: now,
+};
+
+const mockPrismaService = {
+  permit: {
+    create: jest.fn(),
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+    groupBy: jest.fn(),
+  },
+};
 
 describe('PermitsService', () => {
   let service: PermitsService;
 
   beforeEach(async () => {
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [PermitsService],
+      providers: [
+        PermitsService,
+        { provide: PrismaService, useValue: mockPrismaService },
+      ],
     }).compile();
 
     service = module.get<PermitsService>(PermitsService);
-  });
-
-  afterEach(() => {
-    service['permits'].clear();
   });
 
   it('should be defined', () => {
@@ -22,298 +62,183 @@ describe('PermitsService', () => {
   });
 
   describe('create', () => {
-    it('should create a permit', async () => {
-      const futureDate = new Date();
-      futureDate.setDate(futureDate.getDate() + 90); // 90 days ahead
+    it('should create a permit and calculate expiry info', async () => {
+      mockPrismaService.permit.create.mockResolvedValueOnce(mockPermit);
 
-      const permit = await service.create({
+      const result = await service.create({
         organization_id: 'org_1',
         location_id: 'loc_1',
         type: PermitType.FUNCIONAMIENTO,
-        permit_number: 'FUNC-2024-001',
+        permit_number: 'LIC-2026-001',
         issuing_authority: 'Alcaldía Cuauhtémoc',
-        issue_date: new Date().toISOString(),
-        expiry_date: futureDate.toISOString(),
+        issue_date: now.toISOString(),
+        expiry_date: future.toISOString(),
         cost: 5000,
-        responsible_person: 'Juan Pérez',
       });
 
-      expect(permit.id).toBeDefined();
-      expect(permit.type).toBe(PermitType.FUNCIONAMIENTO);
-      expect(permit.status).toBe(PermitStatus.ACTIVE); // > 30 days
-      expect(permit.days_until_expiry).toBeDefined();
-    });
-
-    it('should calculate expiry info', async () => {
-      const futureDate = new Date();
-      futureDate.setDate(futureDate.getDate() + 15); // 15 days from now
-
-      const permit = await service.create({
-        organization_id: 'org_1',
-        location_id: 'loc_1',
-        type: PermitType.USO_SUELO,
-        permit_number: 'USO-001',
-        issuing_authority: 'Gobierno CDMX',
-        issue_date: new Date().toISOString(),
-        expiry_date: futureDate.toISOString(),
-      });
-
-      expect(permit.days_until_expiry).toBeLessThanOrEqual(15);
-      expect(permit.is_expiring_soon).toBe(true); // < 30 days
+      expect(result.id).toBe('permit_1');
+      expect(result.days_until_expiry).toBeGreaterThan(0);
+      expect(result.is_expiring_soon).toBe(false);
     });
   });
 
   describe('findAll', () => {
-    beforeEach(async () => {
-      await service.create({
-        organization_id: 'org_1',
-        location_id: 'loc_1',
-        type: PermitType.FUNCIONAMIENTO,
-        permit_number: 'FUNC-001',
-        issuing_authority: 'Alcaldía',
-        issue_date: '2024-01-01',
-        expiry_date: '2025-01-01',
-      });
+    it('should return permits for organization ordered by expiry', async () => {
+      mockPrismaService.permit.findMany.mockResolvedValueOnce([mockPermit]);
 
-      await service.create({
-        organization_id: 'org_1',
-        location_id: 'loc_2',
-        type: PermitType.SALUBRIDAD,
-        permit_number: 'SAL-001',
-        issuing_authority: 'Secretaría de Salud',
-        issue_date: '2024-01-01',
-        expiry_date: '2025-01-01',
-      });
+      const result = await service.findAll({ organization_id: 'org_1' });
 
-      await service.create({
-        organization_id: 'org_2',
-        location_id: 'loc_3',
-        type: PermitType.PROTECCION_CIVIL,
-        permit_number: 'PC-001',
-        issuing_authority: 'Protección Civil',
-        issue_date: '2024-01-01',
-        expiry_date: '2025-01-01',
-      });
+      expect(result).toHaveLength(1);
+      expect(mockPrismaService.permit.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ organizationId: 'org_1' }),
+          orderBy: { expiryDate: 'asc' },
+        }),
+      );
+    });
+  });
+
+  describe('findOne', () => {
+    it('should return permit when found', async () => {
+      mockPrismaService.permit.findUnique.mockResolvedValueOnce(mockPermit);
+
+      const result = await service.findOne('permit_1');
+
+      expect(result).not.toBeNull();
+      expect(result!.id).toBe('permit_1');
     });
 
-    it('should return all permits for organization', async () => {
-      const permits = await service.findAll({ organization_id: 'org_1' });
+    it('should return null when not found', async () => {
+      mockPrismaService.permit.findUnique.mockResolvedValueOnce(null);
 
-      expect(permits).toHaveLength(2);
-    });
+      const result = await service.findOne('nope');
 
-    it('should filter by location', async () => {
-      const permits = await service.findAll({
-        organization_id: 'org_1',
-        location_id: 'loc_1',
-      });
-
-      expect(permits).toHaveLength(1);
-      expect(permits[0].location_id).toBe('loc_1');
-    });
-
-    it('should search by permit number', async () => {
-      const permits = await service.findAll({
-        organization_id: 'org_1',
-        search: 'SAL',
-      });
-
-      expect(permits).toHaveLength(1);
-      expect(permits[0].type).toBe(PermitType.SALUBRIDAD);
+      expect(result).toBeNull();
     });
   });
 
   describe('update', () => {
     it('should update permit', async () => {
-      const permit = await service.create({
-        organization_id: 'org_1',
-        location_id: 'loc_1',
-        type: PermitType.ANUNCIO,
-        permit_number: 'ANU-001',
-        issuing_authority: 'Autoridad',
-        issue_date: '2024-01-01',
-        expiry_date: '2025-01-01',
+      const newExpiry = new Date('2028-04-21');
+      mockPrismaService.permit.findUnique.mockResolvedValueOnce(mockPermit);
+      mockPrismaService.permit.update.mockResolvedValueOnce({
+        ...mockPermit,
+        status: 'RENEWAL_DUE',
+        expiryDate: newExpiry,
       });
 
-      const newDate = new Date('2026-01-01');
-      const updated = await service.update(permit.id, {
-        expiry_date: newDate.toISOString(),
-        responsible_person: 'María García',
+      const result = await service.update('permit_1', {
+        status: PermitStatus.RENEWAL_DUE,
+        expiry_date: newExpiry.toISOString(),
       });
 
-      expect(updated.expiry_date).toEqual(newDate);
-      expect(updated.responsible_person).toBe('María García');
+      expect(result.status).toBe(PermitStatus.RENEWAL_DUE);
+    });
+
+    it('should throw NotFoundException when not found', async () => {
+      mockPrismaService.permit.findUnique.mockResolvedValueOnce(null);
+
+      await expect(
+        service.update('bad_id', { status: PermitStatus.CANCELLED }),
+      ).rejects.toThrow('Permit not found');
     });
   });
 
   describe('renewPermit', () => {
-    it('should renew a permit', async () => {
-      const pastDate = new Date();
-      pastDate.setDate(pastDate.getDate() - 30); // 30 days ago
-
-      const permit = await service.create({
-        organization_id: 'org_1',
-        location_id: 'loc_1',
-        type: PermitType.FUNCIONAMIENTO,
-        permit_number: 'FUNC-001',
-        issuing_authority: 'Alcaldía',
-        issue_date: '2024-01-01',
-        expiry_date: pastDate.toISOString(), // Already expired
+    it('should renew permit and set status to ACTIVE', async () => {
+      const newExpiry = new Date('2028-04-21');
+      mockPrismaService.permit.findUnique.mockResolvedValueOnce(mockPermit);
+      mockPrismaService.permit.update.mockResolvedValueOnce({
+        ...mockPermit,
+        expiryDate: newExpiry,
+        status: 'ACTIVE',
+        lastRenewalDate: new Date(),
+        renewalCost: 5500,
       });
 
-      const newExpiryDate = new Date();
-      newExpiryDate.setDate(newExpiryDate.getDate() + 365); // 1 year from now
+      const result = await service.renewPermit('permit_1', newExpiry, 5500);
 
-      const renewed = await service.renewPermit(permit.id, newExpiryDate, 6000);
+      expect(result.status).toBe(PermitStatus.ACTIVE);
+    });
 
-      expect(renewed.expiry_date).toEqual(newExpiryDate);
-      expect(renewed.renewal_cost).toBe(6000);
-      expect(renewed.status).toBe(PermitStatus.ACTIVE); // > 30 days now
-      expect(renewed.last_renewal_date).toBeDefined();
+    it('should throw NotFoundException when permit not found', async () => {
+      mockPrismaService.permit.findUnique.mockResolvedValueOnce(null);
+
+      await expect(
+        service.renewPermit('bad_id', new Date(), 1000),
+      ).rejects.toThrow('Permit not found');
     });
   });
 
   describe('getExpiringSoon', () => {
-    beforeEach(async () => {
-      // Expires in 15 days
-      const soon = new Date();
-      soon.setDate(soon.getDate() + 15);
+    it('should query permits expiring within threshold', async () => {
+      mockPrismaService.permit.findMany.mockResolvedValueOnce([mockPermit]);
 
-      await service.create({
-        organization_id: 'org_1',
-        location_id: 'loc_1',
-        type: PermitType.FUNCIONAMIENTO,
-        permit_number: 'FUNC-001',
-        issuing_authority: 'Alcaldía',
-        issue_date: new Date().toISOString(),
-        expiry_date: soon.toISOString(),
-      });
+      const result = await service.getExpiringSoon('org_1', 30);
 
-      // Expires in 60 days
-      const later = new Date();
-      later.setDate(later.getDate() + 60);
-
-      await service.create({
-        organization_id: 'org_1',
-        location_id: 'loc_2',
-        type: PermitType.SALUBRIDAD,
-        permit_number: 'SAL-001',
-        issuing_authority: 'Salud',
-        issue_date: new Date().toISOString(),
-        expiry_date: later.toISOString(),
-      });
-    });
-
-    it('should return permits expiring soon', async () => {
-      const expiring = await service.getExpiringSoon('org_1', 30);
-
-      expect(expiring.length).toBeGreaterThanOrEqual(1);
-      const funcionamiento = expiring.find((p) => p.type === PermitType.FUNCIONAMIENTO);
-      expect(funcionamiento).toBeDefined();
+      expect(mockPrismaService.permit.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organizationId: 'org_1',
+            expiryDate: expect.objectContaining({
+              gte: expect.any(Date),
+              lte: expect.any(Date),
+            }),
+          }),
+        }),
+      );
+      expect(Array.isArray(result)).toBe(true);
     });
   });
 
   describe('getExpired', () => {
-    it('should return expired permits', async () => {
-      const past = new Date();
-      past.setDate(past.getDate() - 10); // 10 days ago
+    it('should query permits with past expiry', async () => {
+      mockPrismaService.permit.findMany.mockResolvedValueOnce([]);
 
-      await service.create({
-        organization_id: 'org_1',
-        location_id: 'loc_1',
-        type: PermitType.PROTECCION_CIVIL,
-        permit_number: 'PC-001',
-        issuing_authority: 'PC',
-        issue_date: '2023-01-01',
-        expiry_date: past.toISOString(),
-      });
+      const result = await service.getExpired('org_1');
 
-      const expired = await service.getExpired('org_1');
-
-      expect(expired).toHaveLength(1);
-      expect(expired[0].status).toBe(PermitStatus.EXPIRED);
+      expect(mockPrismaService.permit.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organizationId: 'org_1',
+            expiryDate: { lt: expect.any(Date) },
+          }),
+        }),
+      );
+      expect(result).toHaveLength(0);
     });
   });
 
   describe('getStats', () => {
-    beforeEach(async () => {
-      // Active permit
-      const future = new Date();
-      future.setDate(future.getDate() + 60);
-
-      await service.create({
-        organization_id: 'org_1',
-        location_id: 'loc_1',
-        type: PermitType.FUNCIONAMIENTO,
-        permit_number: 'FUNC-001',
-        issuing_authority: 'Alcaldía',
-        issue_date: new Date().toISOString(),
-        expiry_date: future.toISOString(),
-      });
-
-      // Expiring soon
-      const soon = new Date();
-      soon.setDate(soon.getDate() + 20);
-
-      await service.create({
-        organization_id: 'org_1',
-        location_id: 'loc_1',
-        type: PermitType.SALUBRIDAD,
-        permit_number: 'SAL-001',
-        issuing_authority: 'Salud',
-        issue_date: new Date().toISOString(),
-        expiry_date: soon.toISOString(),
-      });
-
-      // Expired
-      const past = new Date();
-      past.setDate(past.getDate() - 10);
-
-      await service.create({
-        organization_id: 'org_1',
-        location_id: 'loc_1',
-        type: PermitType.PROTECCION_CIVIL,
-        permit_number: 'PC-001',
-        issuing_authority: 'PC',
-        issue_date: '2023-01-01',
-        expiry_date: past.toISOString(),
-      });
-    });
-
     it('should return permit statistics', async () => {
+      mockPrismaService.permit.count
+        .mockResolvedValueOnce(5) // total
+        .mockResolvedValueOnce(1) // expired
+        .mockResolvedValueOnce(1); // expiringSoon
+      mockPrismaService.permit.groupBy.mockResolvedValueOnce([
+        { type: 'FUNCIONAMIENTO', _count: { id: 3 } },
+        { type: 'SALUBRIDAD', _count: { id: 2 } },
+      ]);
+
       const stats = await service.getStats('org_1');
 
-      expect(stats.total_permits).toBe(3);
-      expect(stats.active).toBe(1);
-      expect(stats.renewal_due).toBe(1);
+      expect(stats.total_permits).toBe(5);
       expect(stats.expired).toBe(1);
-    });
-
-    it('should group by type', async () => {
-      const stats = await service.getStats('org_1');
-
-      expect(stats.by_type[PermitType.FUNCIONAMIENTO]).toBe(1);
-      expect(stats.by_type[PermitType.SALUBRIDAD]).toBe(1);
-      expect(stats.by_type[PermitType.PROTECCION_CIVIL]).toBe(1);
+      expect(stats.renewal_due).toBe(1);
+      expect(stats.by_type['FUNCIONAMIENTO']).toBe(3);
+      expect(stats.by_type['SALUBRIDAD']).toBe(2);
     });
   });
 
   describe('delete', () => {
     it('should delete permit', async () => {
-      const permit = await service.create({
-        organization_id: 'org_1',
-        location_id: 'loc_1',
-        type: PermitType.OTHER,
-        permit_number: 'TEST-001',
-        issuing_authority: 'Test',
-        issue_date: '2024-01-01',
-        expiry_date: '2025-01-01',
+      mockPrismaService.permit.delete.mockResolvedValueOnce(mockPermit);
+
+      await service.delete('permit_1');
+
+      expect(mockPrismaService.permit.delete).toHaveBeenCalledWith({
+        where: { id: 'permit_1' },
       });
-
-      await service.delete(permit.id);
-      const result = await service.findOne(permit.id);
-
-      expect(result).toBeNull();
     });
   });
 });

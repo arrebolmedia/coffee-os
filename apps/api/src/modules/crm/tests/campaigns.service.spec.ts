@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { CampaignsService } from '../campaigns.service';
 import { PrismaService } from '../../database/prisma.service';
-import { CampaignStatus, CampaignType, CampaignChannel } from '../dto';
+import { CampaignChannel, CampaignStatus, CampaignType } from '../dto';
 
 describe('CampaignsService', () => {
   let service: CampaignsService;
@@ -136,15 +136,18 @@ describe('CampaignsService', () => {
       mockPrismaService.campaign.findUnique.mockResolvedValue(mockCampaign);
       mockPrismaService.campaign.update.mockResolvedValue(activeCampaign);
 
-      const result = await service.updateStatus('camp-1', CampaignStatus.ACTIVE);
+      const result = await service.updateStatus(
+        'camp-1',
+        CampaignStatus.ACTIVE,
+      );
       expect(result.status).toBe(CampaignStatus.ACTIVE);
     });
 
     it('should throw NotFoundException when campaign not found', async () => {
       mockPrismaService.campaign.findUnique.mockResolvedValue(null);
-      await expect(service.updateStatus('bad-id', CampaignStatus.ACTIVE)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.updateStatus('bad-id', CampaignStatus.ACTIVE),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -157,7 +160,9 @@ describe('CampaignsService', () => {
     });
 
     it('should add recipient and increment total_recipients', async () => {
-      mockPrismaService.campaignRecipient.create.mockResolvedValue(mockRecipient);
+      mockPrismaService.campaignRecipient.create.mockResolvedValue(
+        mockRecipient,
+      );
       mockPrismaService.campaign.update.mockResolvedValue({
         ...mockCampaign,
         totalRecipients: 1,
@@ -169,7 +174,11 @@ describe('CampaignsService', () => {
         { ...mockCampaign, totalRecipients: 1 },
       ]);
 
-      const result = await service.addRecipient('camp-1', 'cust-1', CampaignChannel.EMAIL);
+      const result = await service.addRecipient(
+        'camp-1',
+        'cust-1',
+        CampaignChannel.EMAIL,
+      );
 
       expect(result.campaign_id).toBe('camp-1');
       expect(result.customer_id).toBe('cust-1');
@@ -177,7 +186,9 @@ describe('CampaignsService', () => {
     });
 
     it('should mark sent and increment sent_count', async () => {
-      mockPrismaService.campaignRecipient.findUnique.mockResolvedValue(mockRecipient);
+      mockPrismaService.campaignRecipient.findUnique.mockResolvedValue(
+        mockRecipient,
+      );
       mockPrismaService.$transaction.mockResolvedValue([
         { ...mockRecipient, sentAt: new Date() },
         { ...mockCampaign, sentCount: 1 },
@@ -190,7 +201,9 @@ describe('CampaignsService', () => {
 
     it('should not double-count opened events', async () => {
       const alreadyOpened = { ...mockRecipient, openedAt: new Date() };
-      mockPrismaService.campaignRecipient.findUnique.mockResolvedValue(alreadyOpened);
+      mockPrismaService.campaignRecipient.findUnique.mockResolvedValue(
+        alreadyOpened,
+      );
 
       await service.markOpened('recip-1');
 
@@ -200,7 +213,9 @@ describe('CampaignsService', () => {
 
     it('should not double-count clicked events', async () => {
       const alreadyClicked = { ...mockRecipient, clickedAt: new Date() };
-      mockPrismaService.campaignRecipient.findUnique.mockResolvedValue(alreadyClicked);
+      mockPrismaService.campaignRecipient.findUnique.mockResolvedValue(
+        alreadyClicked,
+      );
 
       await service.markClicked('recip-1');
       expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
@@ -208,7 +223,9 @@ describe('CampaignsService', () => {
 
     it('should not double-count converted events', async () => {
       const alreadyConverted = { ...mockRecipient, convertedAt: new Date() };
-      mockPrismaService.campaignRecipient.findUnique.mockResolvedValue(alreadyConverted);
+      mockPrismaService.campaignRecipient.findUnique.mockResolvedValue(
+        alreadyConverted,
+      );
 
       await service.markConverted('recip-1');
       expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
@@ -216,14 +233,18 @@ describe('CampaignsService', () => {
 
     it('should not double-count unsubscribed events', async () => {
       const alreadyUnsub = { ...mockRecipient, unsubscribedAt: new Date() };
-      mockPrismaService.campaignRecipient.findUnique.mockResolvedValue(alreadyUnsub);
+      mockPrismaService.campaignRecipient.findUnique.mockResolvedValue(
+        alreadyUnsub,
+      );
 
       await service.markUnsubscribed('recip-1');
       expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
     });
 
     it('should return campaign recipients', async () => {
-      mockPrismaService.campaignRecipient.findMany.mockResolvedValue([mockRecipient]);
+      mockPrismaService.campaignRecipient.findMany.mockResolvedValue([
+        mockRecipient,
+      ]);
       const result = await service.getCampaignRecipients('camp-1');
       expect(result).toHaveLength(1);
       expect(result[0].campaign_id).toBe('camp-1');
@@ -233,10 +254,10 @@ describe('CampaignsService', () => {
   describe('getStats', () => {
     it('should return campaign statistics with rates', async () => {
       mockPrismaService.campaign.count
-        .mockResolvedValueOnce(5)  // total
-        .mockResolvedValueOnce(2)  // active
-        .mockResolvedValueOnce(2)  // draft
-        .mockResolvedValueOnce(1)  // completed
+        .mockResolvedValueOnce(5) // total
+        .mockResolvedValueOnce(2) // active
+        .mockResolvedValueOnce(2) // draft
+        .mockResolvedValueOnce(1) // completed
         .mockResolvedValueOnce(0); // paused
 
       mockPrismaService.campaign.groupBy.mockResolvedValue([

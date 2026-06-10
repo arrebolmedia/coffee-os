@@ -1,6 +1,20 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { LoyaltyService } from './loyalty.service';
-import { CreateLoyaltyTransactionDto, QueryLoyaltyTransactionsDto } from './dto';
+import {
+  CreateLoyaltyTransactionDto,
+  QueryLoyaltyTransactionsDto,
+} from './dto';
 
 @Controller('crm/loyalty')
 export class LoyaltyController {
@@ -14,7 +28,15 @@ export class LoyaltyController {
 
   @Post('earn')
   @HttpCode(HttpStatus.CREATED)
-  async earnPoints(@Body() body: { customer_id: string; organization_id: string; order_total: number; order_id?: string }) {
+  async earnPoints(
+    @Body()
+    body: {
+      customer_id: string;
+      organization_id: string;
+      order_total: number;
+      order_id?: string;
+    },
+  ) {
     return this.loyaltyService.earnPoints(
       body.customer_id,
       body.organization_id,
@@ -25,7 +47,15 @@ export class LoyaltyController {
 
   @Post('redeem')
   @HttpCode(HttpStatus.CREATED)
-  async redeemPoints(@Body() body: { customer_id: string; organization_id: string; reward_id: string; processed_by_user_id: string }) {
+  async redeemPoints(
+    @Body()
+    body: {
+      customer_id: string;
+      organization_id: string;
+      reward_id: string;
+      processed_by_user_id: string;
+    },
+  ) {
     return this.loyaltyService.redeemPoints(
       body.customer_id,
       body.organization_id,
@@ -67,7 +97,10 @@ export class LoyaltyController {
   @Post('rewards')
   @HttpCode(HttpStatus.CREATED)
   async createReward(@Body() body: any) {
-    return this.loyaltyService.createReward(body.organization_id || 'org_default', body);
+    return this.loyaltyService.createReward(
+      body.organization_id || 'org_default',
+      body,
+    );
   }
 
   @Get('rewards')

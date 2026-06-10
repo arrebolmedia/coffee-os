@@ -4,15 +4,15 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import {
   InputField,
-  TextareaField,
   SelectField,
+  TextareaField,
 } from '@/components/ui/FormField';
-import { Save, Plus } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { CategoryModal } from './CategoryModal';
 
 export interface InventoryItem {
@@ -89,7 +89,7 @@ export function InventoryItemModal({
   ];
 
   // Build category options including current item's category if it exists
-  const categoryOptions = predefinedCategories.map(cat => ({
+  const categoryOptions = predefinedCategories.map((cat) => ({
     value: cat,
     label: cat,
   }));
@@ -147,11 +147,11 @@ export function InventoryItemModal({
     if (!formData.name || !formData.name.trim()) {
       newErrors.name = 'El nombre es requerido';
     }
-    
+
     if (!formData.category) {
       newErrors.category = 'Debes seleccionar una categoría';
     }
-    
+
     if (formData.costPerUnit < 0) {
       newErrors.costPerUnit = 'El costo debe ser mayor o igual a 0';
     }
@@ -168,7 +168,7 @@ export function InventoryItemModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate organizationId
     if (!organizationId || organizationId.trim() === '') {
       setErrors({
@@ -181,6 +181,7 @@ export function InventoryItemModal({
     if (validateForm()) {
       // Transform data to match backend validation - only send required/accepted fields
       const backendData: any = {
+        ...(item?.id ? { id: item.id } : {}),
         organization_id: organizationId,
         sku: formData.code?.toUpperCase() || formData.code,
         name: formData.name,
@@ -279,7 +280,9 @@ export function InventoryItemModal({
                 onChange={(e) => handleChange('category', e.target.value)}
                 required
                 error={errors.category}
-                helperText={errors.category || 'Selecciona o crea una categoría'}
+                helperText={
+                  errors.category || 'Selecciona o crea una categoría'
+                }
               />
             </div>
 
@@ -381,4 +384,3 @@ export function InventoryItemModal({
     </>
   );
 }
-

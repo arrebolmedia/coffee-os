@@ -3,16 +3,16 @@
  * React Query hooks para recetas, ingredientes y parámetros
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { recipesService } from '@/services/recipes.service';
 import { useAuth } from '@/hooks/use-auth';
 import toast from 'react-hot-toast';
 import {
+  PaginationParams,
   Recipe,
+  RecipeFilters,
   RecipeIngredient,
   RecipeParameter,
-  RecipeFilters,
-  PaginationParams,
 } from '@/types';
 
 // ============================================================================
@@ -50,8 +50,7 @@ export function useRecipes(
 ) {
   const { user } = useAuth();
 
-  // Super admins don't filter by organization, regular users use their organizationId
-  const organizationId = user?.isSuperAdmin ? undefined : user?.organizationId;
+  const organizationId = user?.organizationId;
 
   return useQuery({
     queryKey: recipeKeys.list(organizationId || 'all', filters, pagination),
@@ -83,8 +82,7 @@ export function useRecipeByProduct(productId: string, enabled = true) {
 export function useRecipeCategories() {
   const { user } = useAuth();
 
-  // Super admins don't filter by organization
-  const organizationId = user?.isSuperAdmin ? undefined : user?.organizationId;
+  const organizationId = user?.organizationId;
 
   return useQuery({
     queryKey: recipeKeys.categories(organizationId || 'all'),

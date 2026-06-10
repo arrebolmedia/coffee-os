@@ -14,17 +14,7 @@ import CustomerSearch from '@/components/pos/CustomerSearch';
 import { ShoppingCart } from 'lucide-react';
 import { OfflineIndicator } from '@/components/pos/OfflineIndicator';
 import { MainLayout } from '@/components/layout/MainLayout';
-
-interface Customer {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-  loyaltyPoints: number;
-  segment: 'vip' | 'frequent' | 'regular' | 'new';
-  totalPurchases: number;
-  lastVisit: string;
-}
+import type { Customer } from '@/types';
 
 export default function POSPage() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -129,16 +119,17 @@ export default function POSPage() {
             {/* Checkout Button */}
             <div className="p-4 border-t border-gray-200 bg-white">
               {/* Loyalty Point Info */}
-              {selectedCustomer && selectedCustomer.loyaltyPoints >= 9 && (
-                <div className="mb-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
-                  <p className="text-sm font-semibold text-green-800 text-center">
-                    🎉 ¡Bebida GRATIS disponible!
-                  </p>
-                  <p className="text-xs text-green-600 text-center mt-1">
-                    Se aplicará automáticamente al cobrar
-                  </p>
-                </div>
-              )}
+              {selectedCustomer &&
+                (selectedCustomer.loyaltyPoints ?? 0) >= 9 && (
+                  <div className="mb-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
+                    <p className="text-sm font-semibold text-green-800 text-center">
+                      🎉 ¡Bebida GRATIS disponible!
+                    </p>
+                    <p className="text-xs text-green-600 text-center mt-1">
+                      Se aplicará automáticamente al cobrar
+                    </p>
+                  </div>
+                )}
 
               <button
                 onClick={handleCheckout}

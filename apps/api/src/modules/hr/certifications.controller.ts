@@ -1,17 +1,21 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Param,
+  Controller,
   Delete,
-  Query,
-  Patch,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
 } from '@nestjs/common';
 import { CertificationsService } from './certifications.service';
-import { CreateCertificationDto, QueryCertificationsDto, CertificationStatus } from './dto';
+import {
+  CertificationStatus,
+  CreateCertificationDto,
+  QueryCertificationsDto,
+} from './dto';
 import { Certification } from './interfaces';
 
 @Controller('hr/certifications')
@@ -28,7 +32,9 @@ export class CertificationsController {
   }
 
   @Get()
-  async findAll(@Query() query: QueryCertificationsDto): Promise<Certification[]> {
+  async findAll(
+    @Query() query: QueryCertificationsDto,
+  ): Promise<Certification[]> {
     return this.certificationsService.findAll(query);
   }
 
@@ -37,11 +43,16 @@ export class CertificationsController {
     @Query('organization_id') organizationId: string,
     @Query('days') days?: string,
   ): Promise<Certification[]> {
-    return this.certificationsService.getExpiring(organizationId, days ? parseInt(days) : 30);
+    return this.certificationsService.getExpiring(
+      organizationId,
+      days ? parseInt(days) : 30,
+    );
   }
 
   @Get('stats')
-  async getStats(@Query('organization_id') organizationId: string): Promise<any> {
+  async getStats(
+    @Query('organization_id') organizationId: string,
+  ): Promise<any> {
     return this.certificationsService.getStats(organizationId);
   }
 

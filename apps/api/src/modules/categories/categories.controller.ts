@@ -1,30 +1,33 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
   Body,
-  Param,
-  Query,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
 } from '@nestjs/common';
 import {
-  ApiTags,
+  ApiBearerAuth,
   ApiOperation,
   ApiResponse,
-  ApiBearerAuth,
+  ApiTags,
 } from '@nestjs/swagger';
-import { Public } from '../auth/decorators/public.decorator';
+import {
+  CurrentUser,
+  CurrentUserType,
+} from '../auth/decorators/current-user.decorator';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { QueryCategoriesDto } from './dto/query-categories.dto';
 import {
-  ReorderCategoriesDto,
   BulkDeleteCategoriesDto,
   BulkUpdateStatusDto,
+  ReorderCategoriesDto,
 } from './dto/bulk-operations.dto';
 
 @ApiTags('categories')
@@ -48,11 +51,13 @@ export class CategoriesController {
   /**
    * Listar categorías con filtros
    */
-  @Public() // Permitir acceso sin autenticación para desarrollo
   @Get()
   @HttpCode(HttpStatus.OK)
-  async findAll(@Query() query: QueryCategoriesDto) {
-    return this.categoriesService.findAll(query);
+  async findAll(
+    @Query() query: QueryCategoriesDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.categoriesService.findAll(query, user.organizationId);
   }
 
   /**
@@ -132,7 +137,7 @@ export class CategoriesController {
   async move(
     @Param('id') id: string,
     @Body('new_parent_id') new_parent_id: string | undefined,
-    @Body('new_display_order') new_display_order: number | undefined,
+    @Body('new_display_order') _new_display_order: number | undefined,
   ) {
     return this.categoriesService.move(id, new_parent_id ?? null);
   }
@@ -153,9 +158,12 @@ export class CategoriesController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Obtener estadísticas de categorías' })
   @ApiResponse({ status: 200, description: 'Estadísticas obtenidas' })
-  async getStats(@Param('organization_id') organization_id: string) {
-    // organization_id ignored in simplified schema
-    return this.categoriesService.getStats();
+  async getStats(
+    @Param('organization_id') _organization_id: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    // El path param se ignora; siempre usamos el organizationId del JWT
+    return this.categoriesService.getStats(user.organizationId);
   }
 
   /**

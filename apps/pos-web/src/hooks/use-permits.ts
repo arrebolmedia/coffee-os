@@ -6,10 +6,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import {
-  permitsService,
   CreatePermitDto,
-  UpdatePermitDto,
+  permitsService,
   QueryPermitsParams,
+  UpdatePermitDto,
 } from '@/services/permits.service';
 import { Permit, PermitStats } from '@/types';
 import { useAuth } from '@/hooks/use-auth';

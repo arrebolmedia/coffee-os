@@ -1,12 +1,6 @@
-import {
-  IsOptional,
-  IsString,
-  IsEnum,
-  IsNumber,
-  Min,
-} from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { CategoryType, CategoryStatus } from './create-category.dto';
+import { CategoryStatus, CategoryType } from './create-category.dto';
 
 export class QueryCategoriesDto {
   @IsOptional()

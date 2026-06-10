@@ -1,25 +1,23 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import {
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  Calendar,
+  AlertTriangle,
+  ArrowUpCircle,
+  BarChart3,
   Building,
+  Calendar,
+  DollarSign,
   Download,
   Filter,
-  AlertTriangle,
   Loader2,
-  BarChart3,
-  PieChart,
-  ArrowUpCircle,
-  ArrowDownCircle,
   Minus,
+  PieChart,
+  TrendingDown,
+  TrendingUp,
 } from 'lucide-react';
 import { useMonthlyPnL } from '@/hooks/use-pnl';
-import { ProfitAndLoss } from '@/types';
 
 export default function PnLPage() {
   const currentDate = new Date();

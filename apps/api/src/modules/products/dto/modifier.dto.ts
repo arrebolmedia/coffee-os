@@ -1,22 +1,16 @@
 import {
+  IsBoolean,
+  IsEnum,
   IsNotEmpty,
+  IsNumber,
+  IsOptional,
   IsString,
   IsUUID,
-  IsEnum,
-  IsNumber,
-  IsBoolean,
-  IsOptional,
-  Min,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-
-export enum ModifierType {
-  EXTRA = 'extra',
-  SUBSTITUTION = 'substitution',
-  REMOVAL = 'removal',
-  SPECIAL_REQUEST = 'special_request',
-}
+import { ModifierType } from '../../modifiers/dto/create-modifier.dto';
 
 export class CreateModifierDto {
   @IsNotEmpty()

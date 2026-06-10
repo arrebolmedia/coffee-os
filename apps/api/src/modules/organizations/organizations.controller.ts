@@ -1,13 +1,13 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
   Body,
-  Param,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
+  Post,
 } from '@nestjs/common';
 import { OrganizationsService } from './organizations.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
@@ -39,7 +39,10 @@ export class OrganizationsController {
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateDto: UpdateOrganizationDto) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateOrganizationDto,
+  ) {
     return this.organizationsService.update(id, updateDto);
   }
 

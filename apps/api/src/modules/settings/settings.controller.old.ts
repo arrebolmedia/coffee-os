@@ -1,18 +1,18 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
   Body,
-  Query,
-  Patch,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
 } from '@nestjs/common';
 import { SettingsService } from './settings.service';
-import { CreateSettingDto, UpdateSettingDto, QuerySettingsDto } from './dto';
+import { CreateSettingDto, QuerySettingsDto, UpdateSettingDto } from './dto';
 
 @Controller('settings')
 export class SettingsController {

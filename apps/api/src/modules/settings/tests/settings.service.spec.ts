@@ -1,18 +1,24 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SettingsService } from '../settings.service';
 import {
-  NotFoundException,
-  ConflictException,
   BadRequestException,
+  ConflictException,
+  NotFoundException,
 } from '@nestjs/common';
 import {
-  SettingType,
   SettingCategory,
+  SettingType,
   ValidationRuleType,
 } from '../interfaces';
 
 describe('SettingsService', () => {
   let service: SettingsService;
+
+  beforeAll(() => {
+    // SettingsService now requires SETTINGS_ENCRYPTION_KEY at construction.
+    process.env.SETTINGS_ENCRYPTION_KEY =
+      'test-encryption-key-do-not-use-in-prod';
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -140,7 +146,9 @@ describe('SettingsService', () => {
         value: 16,
       });
 
-      const result = await service.findAll({ category: SettingCategory.FINANCE });
+      const result = await service.findAll({
+        category: SettingCategory.FINANCE,
+      });
 
       expect(result).toHaveLength(1);
       expect(result[0].category).toBe(SettingCategory.FINANCE);
@@ -423,9 +431,9 @@ describe('SettingsService', () => {
         value: 18,
       });
 
-      await expect(
-        service.update(created.id, { value: 15 }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.update(created.id, { value: 15 })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should validate against MAX rule', async () => {
@@ -442,9 +450,9 @@ describe('SettingsService', () => {
         value: 1000,
       });
 
-      await expect(
-        service.update(created.id, { value: 1500 }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.update(created.id, { value: 1500 })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should validate against ENUM rule', async () => {
@@ -461,9 +469,9 @@ describe('SettingsService', () => {
         value: ['es', 'en', 'fr'],
       });
 
-      await expect(
-        service.update(created.id, { value: 'de' }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.update(created.id, { value: 'de' })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should validate against RANGE rule', async () => {
@@ -480,9 +488,9 @@ describe('SettingsService', () => {
         value: [0, 100],
       });
 
-      await expect(
-        service.update(created.id, { value: 150 }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.update(created.id, { value: 150 })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should validate against LENGTH rule', async () => {
@@ -548,7 +556,11 @@ describe('SettingsService', () => {
       const result = await service.bulkUpdate({
         organization_id: 'org-1',
         updates: [
-          { category: SettingCategory.GENERAL, key: 'timezone', value: 'America/New_York' },
+          {
+            category: SettingCategory.GENERAL,
+            key: 'timezone',
+            value: 'America/New_York',
+          },
           { category: SettingCategory.GENERAL, key: 'language', value: 'en' },
         ],
       });
@@ -569,8 +581,16 @@ describe('SettingsService', () => {
       const result = await service.bulkUpdate({
         organization_id: 'org-1',
         updates: [
-          { category: SettingCategory.GENERAL, key: 'timezone', value: 'America/New_York' },
-          { category: SettingCategory.GENERAL, key: 'non_existent', value: 'value' },
+          {
+            category: SettingCategory.GENERAL,
+            key: 'timezone',
+            value: 'America/New_York',
+          },
+          {
+            category: SettingCategory.GENERAL,
+            key: 'non_existent',
+            value: 'value',
+          },
         ],
       });
 
@@ -836,7 +856,10 @@ describe('SettingsService', () => {
       expect(result.success).toBe(2);
       expect(result.failed).toBe(0);
 
-      const settings = await service.getByCategory('org-1', SettingCategory.GENERAL);
+      const settings = await service.getByCategory(
+        'org-1',
+        SettingCategory.GENERAL,
+      );
       expect(settings).toHaveLength(2);
     });
 
@@ -873,7 +896,10 @@ describe('SettingsService', () => {
         value: 16,
       });
 
-      const result = await service.getByCategory('org-1', SettingCategory.GENERAL);
+      const result = await service.getByCategory(
+        'org-1',
+        SettingCategory.GENERAL,
+      );
 
       expect(result).toHaveLength(1);
       expect(result[0].category).toBe(SettingCategory.GENERAL);

@@ -1,28 +1,28 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
   Body,
+  Controller,
+  Delete,
+  Get,
   Param,
+  Patch,
+  Post,
   Query,
 } from '@nestjs/common';
 import { OnboardingService } from './onboarding.service';
 import {
-  CreateTrainingModuleDto,
-  UpdateTrainingModuleDto,
-  CreateOnboardingPlanDto,
-  UpdateModuleProgressDto,
-  CreateEvaluationDto,
   CompleteEvaluationDto,
   CreateCertificationDto,
+  CreateEvaluationDto,
+  CreateOnboardingPlanDto,
+  CreateTrainingModuleDto,
+  UpdateModuleProgressDto,
+  UpdateTrainingModuleDto,
 } from './dto';
 import {
-  TrainingCategory,
+  CertificationStatus,
   CompetencyLevel,
   EvaluationStatus,
-  CertificationStatus,
+  TrainingCategory,
 } from './interfaces/onboarding.interface';
 
 @Controller('onboarding')
@@ -43,7 +43,8 @@ export class OnboardingController {
     @Query('level') level?: CompetencyLevel,
     @Query('is_active') is_active?: string,
   ) {
-    const activeFilter = is_active !== undefined ? is_active === 'true' : undefined;
+    const activeFilter =
+      is_active !== undefined ? is_active === 'true' : undefined;
     return this.onboardingService.findAllTrainingModules(
       organization_id,
       category,
@@ -58,7 +59,10 @@ export class OnboardingController {
   }
 
   @Patch('modules/:id')
-  updateTrainingModule(@Param('id') id: string, @Body() dto: UpdateTrainingModuleDto) {
+  updateTrainingModule(
+    @Param('id') id: string,
+    @Body() dto: UpdateTrainingModuleDto,
+  ) {
     return this.onboardingService.updateTrainingModule(id, dto);
   }
 
@@ -79,8 +83,12 @@ export class OnboardingController {
     @Query('organization_id') organization_id?: string,
     @Query('is_active') is_active?: string,
   ) {
-    const activeFilter = is_active !== undefined ? is_active === 'true' : undefined;
-    return this.onboardingService.findAllOnboardingPlans(organization_id, activeFilter);
+    const activeFilter =
+      is_active !== undefined ? is_active === 'true' : undefined;
+    return this.onboardingService.findAllOnboardingPlans(
+      organization_id,
+      activeFilter,
+    );
   }
 
   @Get('plans/:id')
@@ -111,7 +119,10 @@ export class OnboardingController {
   }
 
   @Patch('progress/:id')
-  updateModuleProgress(@Param('id') id: string, @Body() dto: UpdateModuleProgressDto) {
+  updateModuleProgress(
+    @Param('id') id: string,
+    @Body() dto: UpdateModuleProgressDto,
+  ) {
     return this.onboardingService.updateModuleProgress(id, dto);
   }
 
@@ -133,7 +144,10 @@ export class OnboardingController {
   }
 
   @Patch('evaluations/:id/complete')
-  completeEvaluation(@Param('id') id: string, @Body() dto: CompleteEvaluationDto) {
+  completeEvaluation(
+    @Param('id') id: string,
+    @Body() dto: CompleteEvaluationDto,
+  ) {
     return this.onboardingService.completeEvaluation(id, dto);
   }
 
@@ -143,7 +157,11 @@ export class OnboardingController {
     @Query('employee_id') employee_id?: string,
     @Query('status') status?: EvaluationStatus,
   ) {
-    return this.onboardingService.findAllEvaluations(organization_id, employee_id, status);
+    return this.onboardingService.findAllEvaluations(
+      organization_id,
+      employee_id,
+      status,
+    );
   }
 
   // ==================== CERTIFICATIONS ====================
@@ -159,7 +177,11 @@ export class OnboardingController {
     @Query('employee_id') employee_id?: string,
     @Query('status') status?: CertificationStatus,
   ) {
-    return this.onboardingService.findAllCertifications(organization_id, employee_id, status);
+    return this.onboardingService.findAllCertifications(
+      organization_id,
+      employee_id,
+      status,
+    );
   }
 
   @Get('certifications/expiring/:organization_id')
@@ -168,7 +190,10 @@ export class OnboardingController {
     @Query('days') days?: string,
   ) {
     const daysNumber = days ? parseInt(days, 10) : 30;
-    return this.onboardingService.findExpiringCertifications(organization_id, daysNumber);
+    return this.onboardingService.findExpiringCertifications(
+      organization_id,
+      daysNumber,
+    );
   }
 
   // ==================== REPORTS ====================

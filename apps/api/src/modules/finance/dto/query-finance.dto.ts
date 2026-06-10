@@ -1,4 +1,4 @@
-import { IsOptional, IsDateString, IsString, IsEnum } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
 
 export enum PeriodType {
   DAILY = 'DAILY',

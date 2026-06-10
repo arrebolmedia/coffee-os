@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsString, IsEnum, IsOptional, IsDateString, IsBoolean } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export enum CertificationType {
   FOOD_HANDLER = 'FOOD_HANDLER',

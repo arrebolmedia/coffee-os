@@ -5,32 +5,31 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import {
-  useEmployees,
-  useCreateEmployee,
-  useUpdateEmployee,
-  useDeleteEmployee,
-  useEmployeeStats,
   type Employee as HookEmployee,
+  useCreateEmployee,
+  useDeleteEmployee,
+  useEmployees,
+  useUpdateEmployee,
 } from '@/hooks/use-employees';
-import { EmployeeModal, EmployeeFormData } from '@/components/hr/EmployeeModal';
+import { EmployeeFormData, EmployeeModal } from '@/components/hr/EmployeeModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import {
-  Users,
-  Search,
-  Plus,
-  Mail,
-  Phone,
+  AlertCircle,
   Calendar,
   Clock,
-  Shield,
   Edit,
+  Loader2,
+  Mail,
+  Phone,
+  Plus,
+  Search,
+  Shield,
   Trash2,
   UserCheck,
-  Loader2,
-  AlertCircle,
+  Users,
 } from 'lucide-react';
 
 interface DisplayEmployee {
@@ -65,13 +64,11 @@ export default function EmployeesPage() {
   const [selectedEmployee, setSelectedEmployee] =
     useState<EmployeeFormData | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [employeeToDelete, setEmployeeToDelete] = useState<DisplayEmployee | null>(
-    null,
-  );
+  const [employeeToDelete, setEmployeeToDelete] =
+    useState<DisplayEmployee | null>(null);
 
   // Fetch data
   const { data: employeesData, isLoading, error } = useEmployees();
-  const { data: stats } = useEmployeeStats();
 
   // Mutations
   const createMutation = useCreateEmployee();
@@ -104,7 +101,7 @@ export default function EmployeesPage() {
       }
       setIsModalOpen(false);
       setSelectedEmployee(null);
-    } catch (error) {
+    } catch {
       // Error handled by mutation
     }
   };
@@ -147,7 +144,7 @@ export default function EmployeesPage() {
       await deleteMutation.mutateAsync(employeeToDelete.id);
       setIsDeleteDialogOpen(false);
       setEmployeeToDelete(null);
-    } catch (error) {
+    } catch {
       // Error handled by mutation
     }
   };

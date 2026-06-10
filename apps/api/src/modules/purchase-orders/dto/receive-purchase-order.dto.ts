@@ -1,12 +1,12 @@
 import {
+  ArrayMinSize,
   IsArray,
-  IsUUID,
   IsNumber,
   IsOptional,
   IsString,
-  ValidateNested,
+  IsUUID,
   Min,
-  ArrayMinSize,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 

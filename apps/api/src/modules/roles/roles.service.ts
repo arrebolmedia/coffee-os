@@ -1,30 +1,28 @@
 import {
+  BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
-  ConflictException,
-  BadRequestException,
 } from '@nestjs/common';
 import {
-  Permission,
-  Role,
-  UserRole,
-  PermissionCheck,
-  RoleStats,
-  Resource,
-  Action,
   Effect,
+  Permission,
+  PermissionCheck,
+  Role,
+  RoleStats,
   SystemRole,
+  UserRole,
 } from './interfaces';
 import {
-  CreatePermissionDto,
-  CreateRoleDto,
   AssignRoleDto,
   CheckPermissionDto,
-  UpdatePermissionDto,
-  UpdateRoleDto,
+  CreatePermissionDto,
+  CreateRoleDto,
   QueryPermissionsDto,
   QueryRolesDto,
   QueryUserRolesDto,
+  UpdatePermissionDto,
+  UpdateRoleDto,
 } from './dto';
 
 @Injectable()
@@ -36,9 +34,7 @@ export class RolesService {
   /**
    * PERMISSIONS CRUD
    */
-  async createPermission(
-    createDto: CreatePermissionDto,
-  ): Promise<Permission> {
+  async createPermission(createDto: CreatePermissionDto): Promise<Permission> {
     const permission: Permission = {
       id: `perm-${Date.now()}-${Math.random().toString(36).substring(7)}`,
       ...createDto,
@@ -51,9 +47,7 @@ export class RolesService {
     return permission;
   }
 
-  async findAllPermissions(
-    query: QueryPermissionsDto,
-  ): Promise<Permission[]> {
+  async findAllPermissions(query: QueryPermissionsDto): Promise<Permission[]> {
     let permissions = Array.from(this.permissions.values());
 
     // Filters
@@ -129,7 +123,7 @@ export class RolesService {
   }
 
   async deletePermission(id: string): Promise<void> {
-    const permission = await this.findPermissionById(id);
+    await this.findPermissionById(id);
 
     // Check if permission is used in any role
     const rolesUsingPermission = Array.from(this.roles.values()).filter(
@@ -385,8 +379,7 @@ export class RolesService {
 
     if (query.location_id) {
       userRoles = userRoles.filter(
-        (ur) =>
-          ur.location_ids && ur.location_ids.includes(query.location_id!),
+        (ur) => ur.location_ids && ur.location_ids.includes(query.location_id!),
       );
     }
 
@@ -463,7 +456,10 @@ export class RolesService {
     userId: string,
     organizationId: string,
   ): Promise<Permission[]> {
-    const userRoles = await this.findUserRoles({ user_id: userId, organization_id: organizationId });
+    const userRoles = await this.findUserRoles({
+      user_id: userId,
+      organization_id: organizationId,
+    });
     const permissionSet = new Set<string>();
 
     for (const userRole of userRoles) {

@@ -1,19 +1,17 @@
 import {
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsObject,
+  IsOptional,
   IsString,
   IsUUID,
-  IsEnum,
-  IsOptional,
-  IsBoolean,
-  IsArray,
-  IsObject,
   MaxLength,
-  ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 import {
   ReportCategory,
-  ReportType,
   ReportParameters,
+  ReportType,
 } from '../interfaces/report.interface';
 
 export class CreateReportTemplateDto {

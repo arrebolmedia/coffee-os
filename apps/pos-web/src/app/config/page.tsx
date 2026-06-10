@@ -8,18 +8,18 @@
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import {
-  Settings,
-  Building2,
-  Users,
-  MapPin,
   Bell,
-  Key,
-  Palette,
-  Globe,
-  Mail,
-  Phone,
+  Building2,
   Clock,
+  Globe,
+  Key,
+  Mail,
+  MapPin,
+  Palette,
+  Phone,
+  Settings,
   Shield,
+  Users,
 } from 'lucide-react';
 
 interface ConfigSection {

@@ -236,9 +236,10 @@ export class QualityControlService {
   static async getChecklistTemplates(
     organizationId: string,
   ): Promise<ChecklistTemplate[]> {
-    return await api.get<ChecklistTemplate[]>(
-      `/quality-control/organizations/${organizationId}/checklist-templates`,
+    const response = await api.get<any>(
+      `/organizations/${organizationId}/quality/checklist-templates`,
     );
+    return response?.data ?? response;
   }
 
   static async getChecklistTemplate(
@@ -252,10 +253,8 @@ export class QualityControlService {
   static async createChecklistTemplate(
     data: Omit<ChecklistTemplate, 'id' | 'created_at' | 'updated_at'>,
   ): Promise<ChecklistTemplate> {
-    return await api.post<ChecklistTemplate>(
-      '/quality-control/checklist-templates',
-      data,
-    );
+    const response = await api.post<any>('/quality/checklist-templates', data);
+    return response?.data ?? response;
   }
 
   static async updateChecklistTemplate(
@@ -283,17 +282,11 @@ export class QualityControlService {
       date_to?: string;
     },
   ): Promise<ChecklistExecution[]> {
-    let url = `/quality-control/organizations/${organizationId}/checklist-executions`;
-    const params = new URLSearchParams();
-
-    if (filters?.template_id) params.append('template_id', filters.template_id);
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.date_from) params.append('date_from', filters.date_from);
-    if (filters?.date_to) params.append('date_to', filters.date_to);
-
-    if (params.toString()) url += `?${params.toString()}`;
-
-    return await api.get<ChecklistExecution[]>(url);
+    const response = await api.get<any>(
+      `/organizations/${organizationId}/quality/checklist-executions`,
+      filters ? { params: filters } : undefined,
+    );
+    return response?.data ?? response;
   }
 
   static async getChecklistExecution(
@@ -326,10 +319,10 @@ export class QualityControlService {
   static async completeChecklistExecution(
     executionId: string,
   ): Promise<ChecklistExecution> {
-    return await api.post<ChecklistExecution>(
-      `/quality-control/checklist-executions/${executionId}/complete`,
-      {},
+    const response = await api.post<any>(
+      `/quality/checklist-executions/${executionId}/complete`,
     );
+    return response?.data ?? response;
   }
 
   // ============= TEMPERATURE LOGS =============
@@ -343,38 +336,29 @@ export class QualityControlService {
       out_of_range_only?: boolean;
     },
   ): Promise<TemperatureLog[]> {
-    let url = `/quality-control/organizations/${organizationId}/temperature-logs`;
-    const params = new URLSearchParams();
-
-    if (filters?.equipment_type)
-      params.append('equipment_type', filters.equipment_type);
-    if (filters?.date_from) params.append('date_from', filters.date_from);
-    if (filters?.date_to) params.append('date_to', filters.date_to);
-    if (filters?.out_of_range_only) params.append('out_of_range_only', 'true');
-
-    if (params.toString()) url += `?${params.toString()}`;
-
-    return await api.get<TemperatureLog[]>(url);
+    const response = await api.get<any>(
+      `/organizations/${organizationId}/quality/temperature-logs`,
+      filters ? { params: filters } : undefined,
+    );
+    return response?.data ?? response;
   }
 
   static async createTemperatureLog(
     data: CreateTemperatureLogDTO,
   ): Promise<TemperatureLog> {
-    return await api.post<TemperatureLog>(
-      '/quality-control/temperature-logs',
-      data,
-    );
+    const response = await api.post<any>('/quality/temperature-logs', data);
+    return response?.data ?? response;
   }
 
   static async getTemperatureAlerts(
     organizationId: string,
     acknowledged?: boolean,
   ): Promise<TemperatureAlert[]> {
-    let url = `/quality-control/organizations/${organizationId}/temperature-alerts`;
-    if (acknowledged !== undefined) {
-      url += `?acknowledged=${acknowledged}`;
-    }
-    return await api.get<TemperatureAlert[]>(url);
+    const response = await api.get<any>(
+      `/organizations/${organizationId}/quality/temperature-alerts`,
+      acknowledged !== undefined ? { params: { acknowledged } } : undefined,
+    );
+    return response?.data ?? response;
   }
 
   static async acknowledgeTemperatureAlert(
@@ -393,9 +377,11 @@ export class QualityControlService {
     organizationId: string,
     dateRange: { from: string; to: string },
   ): Promise<ComplianceReport> {
-    return await api.get<ComplianceReport>(
-      `/quality-control/organizations/${organizationId}/compliance-report?from=${dateRange.from}&to=${dateRange.to}`,
+    const response = await api.get<any>(
+      `/organizations/${organizationId}/quality/compliance-report`,
+      { params: dateRange },
     );
+    return response?.data ?? response;
   }
 
   static async getCorrectiveActions(
@@ -406,25 +392,18 @@ export class QualityControlService {
       issue_type?: string;
     },
   ): Promise<CorrectiveAction[]> {
-    let url = `/quality-control/organizations/${organizationId}/corrective-actions`;
-    const params = new URLSearchParams();
-
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.severity) params.append('severity', filters.severity);
-    if (filters?.issue_type) params.append('issue_type', filters.issue_type);
-
-    if (params.toString()) url += `?${params.toString()}`;
-
-    return await api.get<CorrectiveAction[]>(url);
+    const response = await api.get<any>(
+      `/organizations/${organizationId}/quality/corrective-actions`,
+      filters ? { params: filters } : undefined,
+    );
+    return response?.data ?? response;
   }
 
   static async createCorrectiveAction(
     data: CreateCorrectiveActionDTO,
   ): Promise<CorrectiveAction> {
-    return await api.post<CorrectiveAction>(
-      '/quality-control/corrective-actions',
-      data,
-    );
+    const response = await api.post<any>('/quality/corrective-actions', data);
+    return response?.data ?? response;
   }
 
   static async updateCorrectiveAction(
@@ -440,15 +419,16 @@ export class QualityControlService {
   static async completeCorrectiveAction(
     actionId: string,
     verificationNotes: string,
-    verifiedBy: string,
+    verifiedBy?: string,
   ): Promise<CorrectiveAction> {
-    return await api.post<CorrectiveAction>(
-      `/quality-control/corrective-actions/${actionId}/complete`,
+    const response = await api.post<any>(
+      `/quality/corrective-actions/${actionId}/complete`,
       {
         verification_notes: verificationNotes,
         verified_by: verifiedBy,
       },
     );
+    return response?.data ?? response;
   }
 
   static async getAuditTrail(
@@ -487,9 +467,14 @@ export class QualityControlService {
     }[];
     recommendations: string[];
   }> {
-    return await api.get(
-      `/quality-control/organizations/${organizationId}/nom251-status`,
+    const response = await api.get<any>(
+      `/organizations/${organizationId}/quality/nom251-status`,
     );
+    const data = response?.data ?? response;
+    return {
+      ...data,
+      score: data.score ?? data.compliance_score,
+    };
   }
 
   static async generateNOM251Report(

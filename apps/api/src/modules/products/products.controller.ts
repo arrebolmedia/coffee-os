@@ -1,43 +1,40 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
   Body,
-  Param,
-  Query,
+  Controller,
+  Delete,
+  FileTypeValidator,
+  Get,
   HttpCode,
   HttpStatus,
-  UseInterceptors,
-  UploadedFile,
-  ParseFilePipe,
   MaxFileSizeValidator,
-  FileTypeValidator,
+  Param,
+  ParseFilePipe,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
-  ApiTags,
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiOperation,
   ApiResponse,
-  ApiBearerAuth,
-  ApiConsumes,
-  ApiBody,
+  ApiTags,
 } from '@nestjs/swagger';
-import { Public } from '../auth/decorators/public.decorator';
+import {
+  CurrentUser,
+  CurrentUserType,
+} from '../auth/decorators/current-user.decorator';
 import { ProductsService } from './products.service';
 import { FileUploadService } from '../upload/file-upload.service';
-import {
-  CreateProductDto,
-  UpdateProductDto,
-  QueryProductsDto,
-  CreateModifierDto,
-  UpdateModifierDto,
-} from './dto';
+import { CreateProductDto, QueryProductsDto, UpdateProductDto } from './dto';
 import {
   BulkDeleteDto,
-  BulkUpdateStatusDto,
   BulkUpdateCategoryDto,
+  BulkUpdateStatusDto,
 } from './dto/bulk-operations.dto';
 
 /**
@@ -82,11 +79,43 @@ export class ProductsController {
   /**
    * Obtener todos los productos con filtros
    */
-  @Public() // Permitir acceso sin autenticación para desarrollo
   @Get()
   @HttpCode(HttpStatus.OK)
-  async findAll(@Query() query: QueryProductsDto) {
-    return this.productsService.findAll(query);
+  async findAll(
+    @Query() query: QueryProductsDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.productsService.findAll(query, user.organizationId);
+  }
+
+  /**
+   * Obtener estadísticas de productos
+   */
+  @Get('stats')
+  @HttpCode(HttpStatus.OK)
+  async getStats(@CurrentUser() user: CurrentUserType) {
+    return this.productsService.getStats(user.organizationId);
+  }
+
+  /**
+   * Analizar rentabilidad de productos
+   */
+  @Get('profitability')
+  @HttpCode(HttpStatus.OK)
+  async analyzeProfitability(@CurrentUser() user: CurrentUserType) {
+    return this.productsService.analyzeProfitability(user.organizationId);
+  }
+
+  /**
+   * Obtener producto por SKU
+   */
+  @Get('sku/:sku')
+  @HttpCode(HttpStatus.OK)
+  async findBySku(
+    @Param('sku') sku: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.productsService.findBySku(sku, user.organizationId);
   }
 
   /**
@@ -96,15 +125,6 @@ export class ProductsController {
   @HttpCode(HttpStatus.OK)
   async findById(@Param('id') id: string) {
     return this.productsService.findById(id);
-  }
-
-  /**
-   * Obtener producto por SKU
-   */
-  @Get('sku/:sku')
-  @HttpCode(HttpStatus.OK)
-  async findBySku(@Param('sku') sku: string) {
-    return this.productsService.findBySku(sku);
   }
 
   /**
@@ -171,24 +191,6 @@ export class ProductsController {
     @Body() body: { quantity: number; operation: 'add' | 'subtract' | 'set' },
   ) {
     return this.productsService.updateStock(id, body.quantity, body.operation);
-  }
-
-  /**
-   * Obtener estadísticas de productos
-   */
-  @Get('stats')
-  @HttpCode(HttpStatus.OK)
-  async getStats() {
-    return this.productsService.getStats();
-  }
-
-  /**
-   * Analizar rentabilidad de productos
-   */
-  @Get('profitability')
-  @HttpCode(HttpStatus.OK)
-  async analyzeProfitability() {
-    return this.productsService.analyzeProfitability();
   }
 
   /**

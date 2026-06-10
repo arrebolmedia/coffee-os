@@ -1,4 +1,4 @@
-import { EmployeeStatus, EmploymentType, EmployeeRole } from '../dto';
+import { EmployeeRole, EmployeeStatus, EmploymentType } from '../dto';
 
 export interface Employee {
   id: string;

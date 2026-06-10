@@ -1,20 +1,31 @@
 import {
-  Injectable,
-  UnauthorizedException,
-  ConflictException,
   BadRequestException,
+  ConflictException,
+  Injectable,
   Logger,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../database/prisma.service';
 import * as bcrypt from 'bcrypt';
-import { RegisterDto, LoginDto, ChangePasswordDto } from './dto/auth.dto';
+import { randomUUID } from 'crypto';
+import {
+  ChangePasswordDto,
+  LoginDto,
+  RegisterDto,
+  RegisterOrganizationDto,
+} from './dto/auth.dto';
+
+const ACCESS_TOKEN_TTL = '15m';
+const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
+const REFRESH_TOKEN_TTL = '7d';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
-  private readonly saltRounds = 10;
+  private readonly saltRounds = 12;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -23,9 +34,25 @@ export class AuthService {
   ) {}
 
   /**
-   * Registrar nuevo usuario
+   * Registrar nuevo usuario dentro de una organización existente.
+   * Sólo puede ser invocado por un usuario autenticado con rol owner/admin
+   * (control de acceso enforced en el controller).
    */
-  async register(registerDto: RegisterDto) {
+  async register(
+    registerDto: RegisterDto,
+    actor: { userId: string; organizationId?: string; isSuperAdmin?: boolean },
+  ) {
+    // Validar que el actor sólo pueda crear usuarios dentro de su propia organización
+    // (super-admins pueden crear en cualquier organización).
+    if (
+      !actor.isSuperAdmin &&
+      actor.organizationId !== registerDto.organizationId
+    ) {
+      throw new UnauthorizedException(
+        'Cannot register users in a different organization',
+      );
+    }
+
     // Verificar si el email ya existe
     const existingUser = await this.prisma.user.findUnique({
       where: { email: registerDto.email },
@@ -33,6 +60,14 @@ export class AuthService {
 
     if (existingUser) {
       throw new ConflictException('Email already registered');
+    }
+
+    // Validar que el rol exista y pertenezca a una organización válida
+    const role = await this.prisma.role.findUnique({
+      where: { id: registerDto.roleId },
+    });
+    if (!role) {
+      throw new BadRequestException('Invalid roleId');
     }
 
     // Hash de la contraseña
@@ -62,7 +97,7 @@ export class AuthService {
       },
     });
 
-    this.logger.log(`User registered: ${user.email}`);
+    this.logger.log(`User registered: ${user.email} (by ${actor.userId})`);
 
     // Generar tokens
     const tokens = await this.generateTokens(
@@ -73,6 +108,80 @@ export class AuthService {
 
     return {
       user,
+      ...tokens,
+    };
+  }
+
+  /**
+   * Self-registration de una nueva organización: crea Organization + primer admin
+   * atómicamente. NO permite setear roleId arbitrario desde el DTO.
+   */
+  async registerOrganization(dto: RegisterOrganizationDto) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (existingUser) {
+      throw new ConflictException('Email already registered');
+    }
+
+    // Buscar (o exigir) el rol "owner" que viene en seeds.
+    const ownerRole = await this.prisma.role.findUnique({
+      where: { name: 'owner' },
+    });
+    if (!ownerRole) {
+      throw new BadRequestException(
+        'Owner role not found. Please run database seed first.',
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, this.saltRounds);
+
+    // Crear org + user en una transacción para garantizar atomicidad.
+    const result = await this.prisma.$transaction(async (tx) => {
+      const org = await tx.organization.create({
+        data: {
+          name: dto.organizationName,
+          slug: dto.organizationSlug,
+        },
+        select: { id: true, name: true, slug: true },
+      });
+
+      const user = await tx.user.create({
+        data: {
+          email: dto.email,
+          password: hashedPassword,
+          firstName: dto.firstName || '',
+          lastName: dto.lastName || '',
+          organizationId: org.id,
+          roleId: ownerRole.id,
+          active: true,
+        },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          organizationId: true,
+          createdAt: true,
+        },
+      });
+
+      return { user, org };
+    });
+
+    this.logger.log(
+      `Organization registered: ${result.org.slug} (admin: ${result.user.email})`,
+    );
+
+    const tokens = await this.generateTokens(
+      result.user.id,
+      result.user.email,
+      result.user.organizationId,
+    );
+
+    return {
+      user: result.user,
+      organization: result.org,
       ...tokens,
     };
   }
@@ -99,6 +208,11 @@ export class AuthService {
             name: true,
           },
         },
+        locations: {
+          select: {
+            locationId: true,
+          },
+        },
       },
     });
 
@@ -123,6 +237,12 @@ export class AuthService {
 
     this.logger.log(`User logged in: ${user.email}`);
 
+    // Determinar primer locationId asociado al usuario (o null si no tiene).
+    const primaryLocationId =
+      user.locations && user.locations.length > 0
+        ? user.locations[0].locationId
+        : null;
+
     // Generar tokens
     const tokens = await this.generateTokens(
       user.id,
@@ -138,7 +258,8 @@ export class AuthService {
         name: `${user.firstName} ${user.lastName}`.trim() || user.email,
         role: user.role?.name || 'USER',
         organizationId: user.organizationId,
-        locationId: null, // TODO: Agregar cuando exista relación user-location
+        locationId: primaryLocationId,
+        locationIds: user.locations?.map((l) => l.locationId) ?? [],
         isSuperAdmin: user.isSuperAdmin,
       },
       ...tokens,
@@ -146,38 +267,52 @@ export class AuthService {
   }
 
   /**
-   * Refrescar access token
+   * Refrescar access token usando JWT_REFRESH_SECRET y validando type=refresh.
+   * Re-lanza errores que no sean JsonWebTokenError/TokenExpiredError para
+   * no enmascarar fallas de infraestructura (DB caída, etc.).
    */
   async refreshToken(refreshToken: string) {
+    let payload: any;
     try {
-      const payload = this.jwtService.verify(refreshToken, {
-        secret: this.configService.get<string>('JWT_SECRET'),
+      payload = this.jwtService.verify(refreshToken, {
+        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
-
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.sub },
-        select: {
-          id: true,
-          email: true,
-          organizationId: true,
-          active: true,
-        },
-      });
-
-      if (!user || !user.active) {
+    } catch (error) {
+      if (
+        error instanceof JsonWebTokenError ||
+        error instanceof TokenExpiredError
+      ) {
         throw new UnauthorizedException('Invalid refresh token');
       }
+      throw error;
+    }
 
-      const tokens = await this.generateTokens(
-        user.id,
-        user.email,
-        user.organizationId,
-      );
-
-      return tokens;
-    } catch (error) {
+    if (payload?.type !== 'refresh') {
+      // Access tokens NO deben servir como refresh
       throw new UnauthorizedException('Invalid refresh token');
     }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: {
+        id: true,
+        email: true,
+        organizationId: true,
+        isSuperAdmin: true,
+        active: true,
+      },
+    });
+
+    if (!user || !user.active) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    return this.generateTokens(
+      user.id,
+      user.email,
+      user.organizationId,
+      user.isSuperAdmin,
+    );
   }
 
   /**
@@ -247,7 +382,9 @@ export class AuthService {
   }
 
   /**
-   * Generar access y refresh tokens
+   * Generar access (15m) y refresh (7d) tokens. Refresh usa un secret
+   * separado y un campo type:'refresh' para no ser confundible con un
+   * access token.
    */
   private async generateTokens(
     userId: string,
@@ -255,25 +392,35 @@ export class AuthService {
     organizationId?: string,
     isSuperAdmin?: boolean,
   ) {
-    const payload = {
+    const basePayload = {
       sub: userId,
       email,
       organizationId,
       isSuperAdmin: isSuperAdmin || false,
     };
 
-    const accessToken = this.jwtService.sign(payload, {
-      expiresIn: this.configService.get<string>('JWT_EXPIRES_IN') || '7d',
-    });
+    const accessToken = this.jwtService.sign(
+      { ...basePayload, type: 'access' },
+      {
+        expiresIn:
+          this.configService.get<string>('JWT_EXPIRES_IN') || ACCESS_TOKEN_TTL,
+      },
+    );
 
-    const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: '30d',
-    });
+    const refreshToken = this.jwtService.sign(
+      { ...basePayload, type: 'refresh', jti: randomUUID() },
+      {
+        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+        expiresIn:
+          this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ||
+          REFRESH_TOKEN_TTL,
+      },
+    );
 
     return {
       accessToken,
       refreshToken,
-      expiresIn: 7 * 24 * 60 * 60, // 7 días en segundos
+      expiresIn: ACCESS_TOKEN_TTL_SECONDS,
     };
   }
 }

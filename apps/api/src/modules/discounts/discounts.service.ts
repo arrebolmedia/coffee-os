@@ -1,7 +1,7 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateDiscountDto } from './dto/create-discount.dto';
@@ -19,9 +19,14 @@ export class DiscountsService {
   constructor(private prisma: PrismaService) {}
 
   async create(createDiscountDto: CreateDiscountDto) {
-    // Validate that code is unique
-    const existing = await this.prisma.discount.findUnique({
-      where: { code: createDiscountDto.code },
+    // Validate that code is unique within the organization
+    const existing = await this.prisma.discount.findFirst({
+      where: {
+        code: createDiscountDto.code,
+        ...(createDiscountDto.organizationId
+          ? { organizationId: createDiscountDto.organizationId }
+          : {}),
+      },
     });
 
     if (existing) {
@@ -94,10 +99,11 @@ export class DiscountsService {
     return this.prisma.discount.create({ data });
   }
 
-  async findAll(query: QueryDiscountsDto) {
+  async findAll(query: QueryDiscountsDto, organizationId?: string) {
     const { skip, take, active, type } = query;
 
     const where: any = {};
+    if (organizationId) where.organizationId = organizationId;
     if (active !== undefined) where.active = active;
     if (type) where.type = type as DiscountType;
 
@@ -109,11 +115,12 @@ export class DiscountsService {
     });
   }
 
-  async findActive() {
+  async findActive(organizationId?: string) {
     const now = new Date();
 
     return this.prisma.discount.findMany({
       where: {
+        ...(organizationId ? { organizationId } : {}),
         active: true,
         OR: [
           {
@@ -134,16 +141,22 @@ export class DiscountsService {
     });
   }
 
-  async findByType(type: string) {
+  async findByType(type: string, organizationId?: string) {
     return this.prisma.discount.findMany({
-      where: { type: type as DiscountType },
+      where: {
+        type: type as DiscountType,
+        ...(organizationId ? { organizationId } : {}),
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findByCode(code: string) {
-    const discount = await this.prisma.discount.findUnique({
-      where: { code },
+  async findByCode(code: string, organizationId?: string) {
+    const discount = await this.prisma.discount.findFirst({
+      where: {
+        code,
+        ...(organizationId ? { organizationId } : {}),
+      },
     });
 
     if (!discount) {
@@ -168,10 +181,20 @@ export class DiscountsService {
   async update(id: string, updateDiscountDto: UpdateDiscountDto) {
     await this.findOne(id);
 
-    // If updating code, check uniqueness
+    // If updating code, check uniqueness within the organization
     if (updateDiscountDto.code) {
-      const existing = await this.prisma.discount.findUnique({
-        where: { code: updateDiscountDto.code },
+      const current = await this.prisma.discount.findUnique({
+        where: { id },
+        select: { organizationId: true },
+      });
+
+      const existing = await this.prisma.discount.findFirst({
+        where: {
+          code: updateDiscountDto.code,
+          ...(current?.organizationId
+            ? { organizationId: current.organizationId }
+            : {}),
+        },
       });
 
       if (existing && existing.id !== id) {

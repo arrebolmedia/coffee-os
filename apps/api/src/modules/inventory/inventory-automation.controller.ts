@@ -1,16 +1,16 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
   Body,
-  Param,
-  Query,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Post,
+  Put,
+  Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('inventory-automation')
 @Controller('inventory/automation')
@@ -21,9 +21,9 @@ export class InventoryAutomationController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get theoretical stock for organization' })
   async getOrganizationTheoreticalStock(
-    @Query('organization_id') organizationId: string,
-    @Query('show_discrepancies_only') showDiscrepanciesOnly?: string,
-    @Query('min_discrepancy_percentage') minDiscrepancyPercentage?: string,
+    @Query('organization_id') _organizationId: string,
+    @Query('show_discrepancies_only') _showDiscrepanciesOnly?: string,
+    @Query('min_discrepancy_percentage') _minDiscrepancyPercentage?: string,
   ) {
     // TODO: Implement real calculation based on recipes and sales
     // For now, return empty array
@@ -35,7 +35,7 @@ export class InventoryAutomationController {
   @ApiOperation({ summary: 'Get theoretical stock for single item' })
   async getTheoreticalStock(
     @Param('id') inventoryItemId: string,
-    @Query('start_date') startDate?: string,
+    @Query('start_date') _startDate?: string,
   ) {
     // TODO: Implement real calculation
     return {
@@ -72,8 +72,8 @@ export class InventoryAutomationController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get reconciliation history' })
   async getReconciliationHistory(
-    @Param('id') inventoryItemId: string,
-    @Query('limit') limit?: string,
+    @Param('id') _inventoryItemId: string,
+    @Query('limit') _limit?: string,
   ) {
     // TODO: Implement real history
     return [];
@@ -82,7 +82,7 @@ export class InventoryAutomationController {
   @Post('reconciliation/bulk')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Bulk reconciliation' })
-  async bulkReconciliation(@Body() data: any) {
+  async bulkReconciliation(@Body() _data: any) {
     // TODO: Implement bulk reconciliation
     return {
       reconciled: 0,
@@ -122,7 +122,7 @@ export class InventoryAutomationController {
   @Post('deduct/order/:orderId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Deduct stock for order' })
-  async deductStockForOrder(@Param('orderId') orderId: string) {
+  async deductStockForOrder(@Param('orderId') _orderId: string) {
     // TODO: Implement real stock deduction
     return {
       deductions: [],
@@ -134,7 +134,7 @@ export class InventoryAutomationController {
   @Get('deduct/order/:orderId/preview')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Preview stock deduction' })
-  async previewStockDeduction(@Param('orderId') orderId: string) {
+  async previewStockDeduction(@Param('orderId') _orderId: string) {
     // TODO: Implement preview
     return {
       items: [],
@@ -145,7 +145,7 @@ export class InventoryAutomationController {
   @Post('deduct/order/:orderId/reverse')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reverse stock deduction' })
-  async reverseStockDeduction(@Param('orderId') orderId: string) {
+  async reverseStockDeduction(@Param('orderId') _orderId: string) {
     // TODO: Implement reverse
     return {
       reversed: 0,
@@ -156,7 +156,7 @@ export class InventoryAutomationController {
   @Get('deduction-logs')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get stock deduction logs' })
-  async getStockDeductionLogs(@Query() filters: any) {
+  async getStockDeductionLogs(@Query() _filters: any) {
     // TODO: Implement logs
     return [];
   }
@@ -164,7 +164,7 @@ export class InventoryAutomationController {
   @Get('recipes/:recipeId/links')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get recipe ingredient links' })
-  async getRecipeIngredientLinks(@Param('recipeId') recipeId: string) {
+  async getRecipeIngredientLinks(@Param('recipeId') _recipeId: string) {
     // TODO: Implement links
     return [];
   }
@@ -200,14 +200,14 @@ export class InventoryAutomationController {
   @Delete('links/:linkId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete recipe-inventory link' })
-  async deleteRecipeIngredientLink(@Param('linkId') linkId: string) {
+  async deleteRecipeIngredientLink(@Param('linkId') _linkId: string) {
     // TODO: Implement delete
   }
 
   @Post('recipes/:recipeId/auto-link')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Auto-link recipe ingredients' })
-  async autoLinkRecipeIngredients(@Param('recipeId') recipeId: string) {
+  async autoLinkRecipeIngredients(@Param('recipeId') _recipeId: string) {
     // TODO: Implement auto-linking
     return {
       linked: 0,
@@ -219,7 +219,7 @@ export class InventoryAutomationController {
   @Get('reports/accuracy')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get inventory accuracy report' })
-  async getInventoryAccuracyReport(@Query() params: any) {
+  async getInventoryAccuracyReport(@Query() _params: any) {
     // TODO: Implement report
     return {
       overall_accuracy: 0,
@@ -233,7 +233,7 @@ export class InventoryAutomationController {
   @Get('reports/usage')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get ingredient usage report' })
-  async getIngredientUsageReport(@Query() params: any) {
+  async getIngredientUsageReport(@Query() _params: any) {
     // TODO: Implement report
     return [];
   }

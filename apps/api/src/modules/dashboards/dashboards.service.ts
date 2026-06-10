@@ -1,31 +1,48 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import {
-  DashboardLayout,
+  ComparisonType,
   Dashboard,
+  DashboardAlert,
   DashboardCategory,
+  DashboardFavorite,
+  DashboardLayout,
+  DashboardSnapshot,
+  DashboardStats,
+  SystemKPI,
+  TimePeriod,
   WidgetConfig,
   WidgetData,
   WidgetType,
-  SystemKPI,
-  DashboardAlert,
-  DashboardSnapshot,
-  DashboardFavorite,
-  DashboardStats,
-  TimePeriod,
-  ComparisonType,
-  RefreshInterval,
-  WidgetSize,
 } from './interfaces/dashboard.interface';
 import {
+  AddWidgetDto,
+  CreateAlertDto,
   CreateDashboardDto,
   UpdateDashboardDto,
-  AddWidgetDto,
   UpdateWidgetDto,
-  CreateAlertDto,
 } from './dto';
 
+/**
+ * DashboardsService — in-memory storage for dashboards, alerts, favorites and
+ * snapshots.
+ *
+ * IMPORTANT: there are no Prisma models for Dashboard, DashboardAlert,
+ * DashboardFavorite or DashboardSnapshot in the current schema. All data
+ * stored by this service is held in memory and IS LOST ON PROCESS RESTART.
+ *
+ * TODO: persistence requires adding Prisma models:
+ *   - Dashboard (layout, widgets json, organization)
+ *   - DashboardAlert (kpi_code, condition json, recipients)
+ *   - DashboardFavorite (user_id, dashboard_id, order)
+ *   - DashboardSnapshot (dashboard_id, data json, created_by)
+ * and running `prisma migrate dev`.
+ *
+ * Widget data (getWidgetData) returns `{ available: false }` for every widget
+ * that does not have a real backing query yet. We no longer emit random values.
+ */
 @Injectable()
 export class DashboardsService {
+  // Ephemeral in-memory cache. Cleared on process restart.
   private dashboards: Map<string, DashboardLayout> = new Map();
   private alerts: Map<string, DashboardAlert> = new Map();
   private favorites: Map<string, DashboardFavorite> = new Map();
@@ -80,7 +97,9 @@ export class DashboardsService {
     let dashboards = Array.from(this.dashboards.values());
 
     if (organization_id) {
-      dashboards = dashboards.filter((d) => d.organization_id === organization_id);
+      dashboards = dashboards.filter(
+        (d) => d.organization_id === organization_id,
+      );
     }
 
     if (category) {
@@ -281,86 +300,90 @@ export class DashboardsService {
   }
 
   /**
-   * Obtener datos de un widget específico
+   * Obtener datos de un widget específico.
+   *
+   * No real data sources are wired yet. To avoid emitting fake values,
+   * we return a placeholder marked `available: false` for every widget.
+   *
+   * TODO: route by `widget.data_source` to the matching analytics service
+   * (SalesAnalyticsService, ProductAnalyticsService, etc.). Injecting those
+   * services here today would create a circular dependency through
+   * AnalyticsModule -> DashboardsModule.
    */
   private async getWidgetData(widget: WidgetConfig): Promise<WidgetData> {
-    // Aquí se llamaría al data_source real
-    // Por ahora generamos datos de ejemplo según el tipo
-
     const baseData: WidgetData = {
       widget_id: widget.id,
       type: widget.type,
       last_updated: new Date(),
     };
 
-    try {
-      switch (widget.type) {
-        case WidgetType.KPI:
-        case WidgetType.STAT:
-        case WidgetType.METRIC_CARD:
-          return {
-            ...baseData,
-            value: this.generateRandomValue(1000, 10000),
-            comparison: widget.comparison !== ComparisonType.NONE
-              ? this.generateComparison()
+    // Shape the response per widget-type so the contract holds, but every
+    // numeric value is null / every collection is empty.
+    switch (widget.type) {
+      case WidgetType.KPI:
+      case WidgetType.STAT:
+      case WidgetType.METRIC_CARD:
+        return {
+          ...baseData,
+          value: null as any,
+          available: false,
+          reason: 'not_implemented',
+          comparison:
+            widget.comparison && widget.comparison !== ComparisonType.NONE
+              ? {
+                  previous_value: null as any,
+                  change_percent: null as any,
+                  change_absolute: null as any,
+                  trend: 'stable',
+                  is_favorable: false,
+                }
               : undefined,
-          };
+        } as WidgetData;
 
-        case WidgetType.LINE_CHART:
-        case WidgetType.AREA_CHART:
-          return {
-            ...baseData,
-            series: [
-              {
-                name: 'Ventas',
-                data: this.generateTimeSeriesData(7),
-              },
-            ],
-          };
+      case WidgetType.LINE_CHART:
+      case WidgetType.AREA_CHART:
+        return {
+          ...baseData,
+          series: [],
+          available: false,
+          reason: 'not_implemented',
+        } as WidgetData;
 
-        case WidgetType.BAR_CHART:
-        case WidgetType.PIE_CHART:
-        case WidgetType.DOUGHNUT_CHART:
-          return {
-            ...baseData,
-            values: [
-              { label: 'Producto A', value: 450, color: '#4F46E5' },
-              { label: 'Producto B', value: 320, color: '#10B981' },
-              { label: 'Producto C', value: 280, color: '#F59E0B' },
-              { label: 'Producto D', value: 180, color: '#EF4444' },
-            ],
-          };
+      case WidgetType.BAR_CHART:
+      case WidgetType.PIE_CHART:
+      case WidgetType.DOUGHNUT_CHART:
+        return {
+          ...baseData,
+          values: [],
+          available: false,
+          reason: 'not_implemented',
+        } as WidgetData;
 
-        case WidgetType.TABLE:
-        case WidgetType.RANKING:
-          return {
-            ...baseData,
-            rows: [],
-          };
+      case WidgetType.TABLE:
+      case WidgetType.RANKING:
+        return {
+          ...baseData,
+          rows: [],
+          available: false,
+          reason: 'not_implemented',
+        } as WidgetData;
 
-        case WidgetType.GAUGE_CHART:
-          return {
-            ...baseData,
-            value: this.generateRandomValue(60, 90),
-          };
+      case WidgetType.GAUGE_CHART:
+      case WidgetType.PROGRESS_BAR:
+        return {
+          ...baseData,
+          value: null as any,
+          available: false,
+          reason: 'not_implemented',
+        } as WidgetData;
 
-        case WidgetType.PROGRESS_BAR:
-          return {
-            ...baseData,
-            value: this.generateRandomValue(70, 95),
-          };
-
-        default:
-          return {
-            ...baseData,
-            value: 0,
-          };
-      }
-    } catch (error) {
-      return {
-        ...baseData,
-        error: error.message,
-      };
+      default:
+        return {
+          ...baseData,
+          value: null as any,
+          available: false,
+          reason: 'not_implemented',
+        } as WidgetData;
     }
   }
 
@@ -566,7 +589,9 @@ export class DashboardsService {
   /**
    * Obtener snapshots de dashboard
    */
-  async getDashboardSnapshots(dashboard_id: string): Promise<DashboardSnapshot[]> {
+  async getDashboardSnapshots(
+    dashboard_id: string,
+  ): Promise<DashboardSnapshot[]> {
     return Array.from(this.snapshots.values())
       .filter((s) => s.dashboard_id === dashboard_id)
       .sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
@@ -623,12 +648,10 @@ export class DashboardsService {
       .slice(0, 5);
 
     const activeAlerts = orgAlerts.filter((a) => a.is_active);
-    const orgSnapshots = Array.from(this.snapshots.values()).filter(
-      (s) => {
-        const dashboard = this.dashboards.get(s.dashboard_id);
-        return dashboard?.organization_id === organization_id;
-      },
-    );
+    const orgSnapshots = Array.from(this.snapshots.values()).filter((s) => {
+      const dashboard = this.dashboards.get(s.dashboard_id);
+      return dashboard?.organization_id === organization_id;
+    });
 
     return {
       organization_id,
@@ -655,41 +678,6 @@ export class DashboardsService {
     return Array.from(this.favorites.values()).filter(
       (f) => f.user_id === user_id,
     ).length;
-  }
-
-  private generateRandomValue(min: number, max: number): number {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-  }
-
-  private generateComparison(): WidgetData['comparison'] {
-    const current = this.generateRandomValue(1000, 10000);
-    const previous = this.generateRandomValue(1000, 10000);
-    const change_absolute = current - previous;
-    const change_percent = (change_absolute / previous) * 100;
-
-    return {
-      previous_value: previous,
-      change_percent: parseFloat(change_percent.toFixed(2)),
-      change_absolute,
-      trend: change_absolute > 0 ? 'up' : change_absolute < 0 ? 'down' : 'stable',
-      is_favorable: change_absolute > 0,
-    };
-  }
-
-  private generateTimeSeriesData(days: number): Array<{ x: any; y: number }> {
-    const data: Array<{ x: any; y: number }> = [];
-    const now = new Date();
-
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-      data.push({
-        x: date.toISOString().split('T')[0],
-        y: this.generateRandomValue(500, 2000),
-      });
-    }
-
-    return data;
   }
 
   /**

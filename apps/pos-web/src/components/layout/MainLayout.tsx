@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { signOut } from 'next-auth/react';
 import { Sidebar } from './Sidebar';
 import LocationSelector from '@/components/LocationSelector';
-import { User, LogOut, Bell, Menu, X } from 'lucide-react';
+import { Bell, LogOut, Menu, User, X } from 'lucide-react';
 import { useState } from 'react';
 
 interface MainLayoutProps {

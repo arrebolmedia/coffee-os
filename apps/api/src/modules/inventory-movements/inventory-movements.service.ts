@@ -1,7 +1,7 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateInventoryMovementDto } from './dto/create-inventory-movement.dto';
@@ -57,31 +57,69 @@ export class InventoryMovementsService {
     }
 
     // Map DTO to schema fields
-    const created = await this.prisma.inventoryMovement.create({
-      data: {
-        locationId: createInventoryMovementDto.location || 'default-loc', // Schema needs locationId
-        inventoryItemId: createInventoryMovementDto.inventoryItemId,
-        type: createInventoryMovementDto.type,
-        quantity: createInventoryMovementDto.quantity,
-        unitCost: createInventoryMovementDto.unitCost,
-        reason: createInventoryMovementDto.reason,
-        reference: createInventoryMovementDto.referenceNumber,
-        notes: createInventoryMovementDto.notes,
-      },
-      include: {
-        inventoryItem: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
+    const locationId =
+      createInventoryMovementDto.locationId ??
+      (createInventoryMovementDto as any).location;
+
+    // Transactionally create movement + update InventoryItem.currentStock so
+    // stock is always consistent with movement history.
+    const created = await this.prisma.$transaction(async (tx) => {
+      const movement = await tx.inventoryMovement.create({
+        data: {
+          ...(locationId !== undefined && { locationId }),
+          inventoryItemId: createInventoryMovementDto.inventoryItemId,
+          type: createInventoryMovementDto.type,
+          quantity: createInventoryMovementDto.quantity,
+          unitCost: createInventoryMovementDto.unitCost,
+          reason: createInventoryMovementDto.reason,
+          reference: (createInventoryMovementDto as any).referenceNumber,
+          notes: createInventoryMovementDto.notes,
+        },
+        include: {
+          inventoryItem: {
+            select: { id: true, name: true, code: true },
           },
         },
-      },
+      });
+
+      // Persist currentStock based on movement type.
+      // IN  → increment by quantity
+      // OUT → decrement by quantity
+      // ADJUSTMENT → set absolute (quantity is the new value if non-negative);
+      //              if a signed delta semantic is desired, this can change.
+      // TRANSFER → no current-stock change for the receiving end here; treated
+      //              as net-zero for the item (out-of-scope without to/from).
+      const type = createInventoryMovementDto.type;
+      const quantity = createInventoryMovementDto.quantity;
+      if (type === MovementType.IN) {
+        await tx.inventoryItem.update({
+          where: { id: createInventoryMovementDto.inventoryItemId },
+          data: { currentStock: { increment: quantity } },
+        });
+      } else if (type === MovementType.OUT) {
+        await tx.inventoryItem.update({
+          where: { id: createInventoryMovementDto.inventoryItemId },
+          data: { currentStock: { decrement: quantity } },
+        });
+      } else if (type === MovementType.ADJUSTMENT) {
+        await tx.inventoryItem.update({
+          where: { id: createInventoryMovementDto.inventoryItemId },
+          data: { currentStock: quantity },
+        });
+      }
+      // TRANSFER: documented as no-op without explicit from/to fields.
+
+      return movement;
     });
 
-    // Attach computed currentStock
-    const currentStock = await this.getCurrentStock(createInventoryMovementDto.inventoryItemId);
-    return { ...created, inventoryItem: { ...created.inventoryItem, currentStock } };
+    // Attach computed currentStock for callers.
+    const currentStock = await this.getCurrentStock(
+      createInventoryMovementDto.inventoryItemId,
+    );
+    return {
+      ...created,
+      inventoryItem: { ...created.inventoryItem, currentStock },
+    };
   }
 
   async findAll(query: QueryInventoryMovementsDto) {
@@ -108,16 +146,10 @@ export class InventoryMovementsService {
         take: Number(take),
         include: {
           inventoryItem: {
-            select: {
-              id: true,
-              name: true,
-              code: true,
-            },
+            select: { id: true, name: true, code: true },
           },
         },
-        orderBy: {
-          createdAt: 'desc',
-        },
+        orderBy: { createdAt: 'desc' },
       }),
       this.prisma.inventoryMovement.count({ where }),
     ]);
@@ -134,17 +166,11 @@ export class InventoryMovementsService {
     return this.prisma.inventoryMovement.findMany({
       where: { type: type as MovementType },
       include: {
-          inventoryItem: {
-            select: {
-              id: true,
-              name: true,
-              code: true,
-            },
-          },
+        inventoryItem: {
+          select: { id: true, name: true, code: true },
+        },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -153,16 +179,10 @@ export class InventoryMovementsService {
       where: { inventoryItemId: itemId },
       include: {
         inventoryItem: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-          },
+          select: { id: true, name: true, code: true },
         },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -180,25 +200,17 @@ export class InventoryMovementsService {
       },
       include: {
         inventoryItem: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-          },
+          select: { id: true, name: true, code: true },
         },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
   async findOne(id: string) {
     const movement = await this.prisma.inventoryMovement.findUnique({
       where: { id },
-      include: {
-        inventoryItem: true,
-      },
+      include: { inventoryItem: true },
     });
 
     if (!movement) {
@@ -220,33 +232,58 @@ export class InventoryMovementsService {
       throw new NotFoundException(`Inventory movement with ID ${id} not found`);
     }
 
-    // Map DTO to schema fields
+    // Block mutating type/quantity because they change stock semantics.
+    // Allow only notes/reason updates to preserve audit integrity.
+    if (
+      updateInventoryMovementDto.type !== undefined &&
+      updateInventoryMovementDto.type !== movement.type
+    ) {
+      throw new BadRequestException(
+        'Movement type cannot be changed; create a reversing movement instead.',
+      );
+    }
+    if (
+      updateInventoryMovementDto.quantity !== undefined &&
+      updateInventoryMovementDto.quantity !== movement.quantity
+    ) {
+      throw new BadRequestException(
+        'Movement quantity cannot be changed; create a reversing movement instead.',
+      );
+    }
+
     const updateData: any = {};
-    if (updateInventoryMovementDto.type) updateData.type = updateInventoryMovementDto.type;
-    if (updateInventoryMovementDto.quantity !== undefined) updateData.quantity = updateInventoryMovementDto.quantity;
-    if (updateInventoryMovementDto.unitCost !== undefined) updateData.unitCost = updateInventoryMovementDto.unitCost;
-    if (updateInventoryMovementDto.reason) updateData.reason = updateInventoryMovementDto.reason;
-    if (updateInventoryMovementDto.referenceNumber) updateData.reference = updateInventoryMovementDto.referenceNumber;
-    if (updateInventoryMovementDto.notes) updateData.notes = updateInventoryMovementDto.notes;
+    if (updateInventoryMovementDto.unitCost !== undefined)
+      updateData.unitCost = updateInventoryMovementDto.unitCost;
+    if (updateInventoryMovementDto.reason)
+      updateData.reason = updateInventoryMovementDto.reason;
+    if ((updateInventoryMovementDto as any).referenceNumber)
+      updateData.reference = (
+        updateInventoryMovementDto as any
+      ).referenceNumber;
+    if (updateInventoryMovementDto.notes !== undefined)
+      updateData.notes = updateInventoryMovementDto.notes;
 
     const updated = await this.prisma.inventoryMovement.update({
       where: { id },
       data: updateData,
       include: {
         inventoryItem: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-          },
+          select: { id: true, name: true, code: true },
         },
       },
     });
 
     const currentStock = await this.getCurrentStock(updated.inventoryItemId);
-    return { ...updated, inventoryItem: { ...updated.inventoryItem, currentStock } };
+    return {
+      ...updated,
+      inventoryItem: { ...updated.inventoryItem, currentStock },
+    };
   }
 
+  /**
+   * Instead of hard-deleting movements (which corrupts stock history), create a
+   * reversing movement and annotate the original as voided in its notes.
+   */
   async remove(id: string) {
     const movement = await this.prisma.inventoryMovement.findUnique({
       where: { id },
@@ -256,21 +293,81 @@ export class InventoryMovementsService {
       throw new NotFoundException(`Inventory movement with ID ${id} not found`);
     }
 
-    await this.prisma.inventoryMovement.delete({
-      where: { id },
+    await this.prisma.$transaction(async (tx) => {
+      // Append void marker to notes (schema has no voidedBy field).
+      await tx.inventoryMovement.update({
+        where: { id },
+        data: {
+          notes:
+            (movement.notes ?? '') + `\n[VOIDED ${new Date().toISOString()}]`,
+        },
+      });
+
+      // Reverse: IN→OUT, OUT→IN, ADJUSTMENT→ADJUSTMENT (no auto inverse).
+      const inverseType =
+        movement.type === MovementType.IN
+          ? MovementType.OUT
+          : movement.type === MovementType.OUT
+            ? MovementType.IN
+            : null;
+
+      if (inverseType) {
+        await tx.inventoryMovement.create({
+          data: {
+            locationId: movement.locationId ?? undefined,
+            inventoryItemId: movement.inventoryItemId,
+            type: inverseType,
+            quantity: movement.quantity,
+            reason: 'REVERSAL',
+            reference: movement.id,
+            notes: `Reversal of movement ${movement.id}`,
+          },
+        });
+
+        // Apply reverse stock update to inventoryItem.currentStock.
+        if (inverseType === MovementType.IN) {
+          await tx.inventoryItem.update({
+            where: { id: movement.inventoryItemId },
+            data: { currentStock: { increment: movement.quantity } },
+          });
+        } else {
+          await tx.inventoryItem.update({
+            where: { id: movement.inventoryItemId },
+            data: { currentStock: { decrement: movement.quantity } },
+          });
+        }
+      }
     });
   }
 
+  /**
+   * Compute current stock by summing movements with signed semantics:
+   *   IN          → +quantity
+   *   OUT         → -quantity
+   *   ADJUSTMENT  → +quantity (treated as the absolute new amount delta;
+   *                 historical adjustments were not stored as net deltas, so
+   *                 we sum the raw values consistently)
+   *   TRANSFER    → ignored (no from/to fields on schema)
+   */
   private async getCurrentStock(inventoryItemId: string): Promise<number> {
-    // Sum movements to compute current stock: IN increases, OUT decreases
-    const result = await this.prisma.inventoryMovement.aggregate({
-      where: { inventoryItemId },
-      _sum: {
-        quantity: true,
-      },
-    });
-
-    // If there are no movements, stock is 0
-    return result._sum.quantity ?? 0;
+    const [inResult, outResult, adjResult] = await Promise.all([
+      this.prisma.inventoryMovement.aggregate({
+        where: { inventoryItemId, type: 'IN' },
+        _sum: { quantity: true },
+      }),
+      this.prisma.inventoryMovement.aggregate({
+        where: { inventoryItemId, type: 'OUT' },
+        _sum: { quantity: true },
+      }),
+      this.prisma.inventoryMovement.aggregate({
+        where: { inventoryItemId, type: 'ADJUSTMENT' },
+        _sum: { quantity: true },
+      }),
+    ]);
+    return (
+      (inResult._sum.quantity ?? 0) -
+      (outResult._sum.quantity ?? 0) +
+      (adjResult._sum.quantity ?? 0)
+    );
   }
 }

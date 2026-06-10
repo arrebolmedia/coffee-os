@@ -2,17 +2,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { WasteService } from '../waste.service';
 import {
-  WasteCategory,
-  WasteReason,
   DisposalMethod,
   SustainabilityMetricType,
+  WasteCategory,
+  WasteReason,
 } from '../interfaces/waste.interface';
 import {
-  CreateWasteLogDto,
-  UpdateWasteLogDto,
   CreateSustainabilityMetricDto,
   CreateSustainabilityTargetDto,
-  QueryWasteLogsDto,
+  CreateWasteLogDto,
 } from '../dto';
 
 describe('WasteService', () => {
@@ -24,7 +22,7 @@ describe('WasteService', () => {
     }).compile();
 
     service = module.get<WasteService>(WasteService);
-    
+
     // Clear maps before each test
     (service as any).wasteLogs.clear();
     (service as any).metrics.clear();
@@ -140,13 +138,17 @@ describe('WasteService', () => {
     });
 
     it('should filter by category', async () => {
-      const logs = await service.findAllWasteLogs({ category: WasteCategory.PLASTIC });
+      const logs = await service.findAllWasteLogs({
+        category: WasteCategory.PLASTIC,
+      });
       expect(logs).toHaveLength(1);
       expect(logs[0].category).toBe(WasteCategory.PLASTIC);
     });
 
     it('should filter by reason', async () => {
-      const logs = await service.findAllWasteLogs({ reason: WasteReason.EXPIRED });
+      const logs = await service.findAllWasteLogs({
+        reason: WasteReason.EXPIRED,
+      });
       expect(logs).toHaveLength(1);
       expect(logs[0].reason).toBe(WasteReason.EXPIRED);
     });
@@ -368,7 +370,9 @@ describe('WasteService', () => {
 
       expect(result).toBeDefined();
       expect(result.id).toMatch(/^metric-/);
-      expect(result.metric_type).toBe(SustainabilityMetricType.CARBON_FOOTPRINT);
+      expect(result.metric_type).toBe(
+        SustainabilityMetricType.CARBON_FOOTPRINT,
+      );
       expect(result.value).toBe(125.5);
       expect(result.created_at).toBeInstanceOf(Date);
     });
@@ -668,7 +672,10 @@ describe('WasteService', () => {
       expect(report.metrics.water_usage_liters).toBe(5000);
       expect(report.metrics.recycling_rate_percentage).toBe(65);
       expect(report.targets_progress).toHaveLength(1);
-      expect(report.targets_progress[0].progress_percentage).toBeCloseTo(86.67, 1);
+      expect(report.targets_progress[0].progress_percentage).toBeCloseTo(
+        86.67,
+        1,
+      );
       expect(report.improvements).toBeDefined();
     });
 
@@ -682,7 +689,7 @@ describe('WasteService', () => {
       const carbonImprovement = report.improvements.find(
         (i) => i.metric_type === SustainabilityMetricType.CARBON_FOOTPRINT,
       );
-      
+
       expect(carbonImprovement).toBeDefined();
       expect(carbonImprovement!.change_percentage).toBeCloseTo(-16.67, 1); // (100-120)/120 * 100
       expect(carbonImprovement!.trend).toBe('improving'); // Lower is better for carbon

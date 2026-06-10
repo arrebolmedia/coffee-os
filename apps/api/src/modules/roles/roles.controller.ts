@@ -1,27 +1,27 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Patch,
-  Delete,
   Body,
-  Param,
-  Query,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
 } from '@nestjs/common';
 import { RolesService } from './roles.service';
 import {
-  CreatePermissionDto,
-  CreateRoleDto,
   AssignRoleDto,
   CheckPermissionDto,
-  UpdatePermissionDto,
-  UpdateRoleDto,
+  CreatePermissionDto,
+  CreateRoleDto,
   QueryPermissionsDto,
   QueryRolesDto,
   QueryUserRolesDto,
+  UpdatePermissionDto,
+  UpdateRoleDto,
 } from './dto';
 
 @Controller('roles')
@@ -103,10 +103,7 @@ export class RolesController {
   }
 
   @Patch('revoke/:id')
-  revokeRole(
-    @Param('id') id: string,
-    @Body('revoked_by') revokedBy: string,
-  ) {
+  revokeRole(@Param('id') id: string, @Body('revoked_by') revokedBy: string) {
     return this.rolesService.revokeRole(id, revokedBy);
   }
 

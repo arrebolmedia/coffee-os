@@ -5,38 +5,34 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import {
+  useCreateSupplier,
+  useDeleteSupplier,
   useSuppliers,
   useSupplierStats,
-  useCreateSupplier,
   useUpdateSupplier,
-  useDeleteSupplier,
 } from '@/hooks/use-suppliers';
 import { SupplierFormModal } from '@/components/suppliers/SupplierFormModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Supplier } from '@/services/suppliers.service';
 import {
-  Truck,
-  Search,
   AlertCircle,
   CheckCircle,
-  Star,
-  Phone,
-  MapPin,
-  Plus,
-  Edit,
-  Trash2,
-  Loader2,
-  Package,
   DollarSign,
-  XCircle,
   Download,
+  Edit,
   Filter,
-  Eye,
+  Loader2,
   Mail,
-  ArrowUpDown,
+  Phone,
+  Plus,
+  Search,
+  Star,
+  Trash2,
+  Truck,
+  XCircle,
 } from 'lucide-react';
 
 interface SupplierDisplay {

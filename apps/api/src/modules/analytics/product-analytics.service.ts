@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { QueryAnalyticsDto } from './dto';
-import { ProductPerformance, CategoryPerformance } from './interfaces';
+import { CategoryPerformance, ProductPerformance } from './interfaces';
 import { PrismaService } from '../database/prisma.service';
 
 @Injectable()
@@ -43,7 +43,10 @@ export class ProductAnalyticsService {
     const periodDuration = endDate.getTime() - startDate.getTime();
     const prevStart = new Date(startDate.getTime() - periodDuration);
     const prevEnd = new Date(startDate.getTime() - 1);
-    const prevTicketWhere = { ...ticketWhere, closedAt: { gte: prevStart, lte: prevEnd } };
+    const prevTicketWhere = {
+      ...ticketWhere,
+      closedAt: { gte: prevStart, lte: prevEnd },
+    };
 
     const prevLines = await this.prisma.ticketLine.findMany({
       where: { ticket: prevTicketWhere },
@@ -53,7 +56,10 @@ export class ProductAnalyticsService {
     // Build previous period map
     const prevMap = new Map<string, { quantity: number; revenue: number }>();
     for (const line of prevLines) {
-      const existing = prevMap.get(line.productId) || { quantity: 0, revenue: 0 };
+      const existing = prevMap.get(line.productId) || {
+        quantity: 0,
+        revenue: 0,
+      };
       prevMap.set(line.productId, {
         quantity: existing.quantity + line.quantity,
         revenue: existing.revenue + line.total,
@@ -63,16 +69,26 @@ export class ProductAnalyticsService {
     // Aggregate current period by product
     const productMap = new Map<
       string,
-      { name: string; category: string; quantity: number; revenue: number; cost: number }
+      {
+        name: string;
+        category: string;
+        quantity: number;
+        revenue: number;
+        cost: number;
+        cost_unknown: boolean;
+      }
     >();
 
     for (const line of lines) {
+      const productCost = line.product?.cost;
       const existing = productMap.get(line.productId) || {
         name: line.product.name,
         category: line.product.category?.name ?? 'Sin Categoría',
         quantity: 0,
         revenue: 0,
-        cost: line.product.cost ?? 0,
+        cost: productCost ?? 0,
+        // null/undefined cost means we cannot compute true profit
+        cost_unknown: productCost == null,
       };
       existing.quantity += line.quantity;
       existing.revenue += line.total;
@@ -113,23 +129,31 @@ export class ProductAnalyticsService {
         rank_by_profit: 0,
         trend,
         vs_previous_period_percent: Math.round(vsPrevPeriodPercent * 100) / 100,
+        cost_unknown: data.cost_unknown,
       };
     });
 
-    // Assign ranks
-    const byQuantity = [...performances].sort(
-      (a, b) => b.total_sold - a.total_sold,
+    // Assign ranks via index-Maps — O(n log n) instead of O(n²) findIndex.
+    const rankByQuantity = new Map(
+      [...performances]
+        .sort((a, b) => b.total_sold - a.total_sold)
+        .map((p, i) => [p.product_id, i + 1]),
     );
-    const byRevenue = [...performances].sort((a, b) => b.revenue - a.revenue);
-    const byProfit = [...performances].sort((a, b) => b.profit - a.profit);
+    const rankByRevenue = new Map(
+      [...performances]
+        .sort((a, b) => b.revenue - a.revenue)
+        .map((p, i) => [p.product_id, i + 1]),
+    );
+    const rankByProfit = new Map(
+      [...performances]
+        .sort((a, b) => b.profit - a.profit)
+        .map((p, i) => [p.product_id, i + 1]),
+    );
 
     for (const p of performances) {
-      p.rank_by_quantity =
-        byQuantity.findIndex((x) => x.product_id === p.product_id) + 1;
-      p.rank_by_revenue =
-        byRevenue.findIndex((x) => x.product_id === p.product_id) + 1;
-      p.rank_by_profit =
-        byProfit.findIndex((x) => x.product_id === p.product_id) + 1;
+      p.rank_by_quantity = rankByQuantity.get(p.product_id) ?? 0;
+      p.rank_by_revenue = rankByRevenue.get(p.product_id) ?? 0;
+      p.rank_by_profit = rankByProfit.get(p.product_id) ?? 0;
     }
 
     return performances.sort((a, b) => a.rank_by_revenue - b.rank_by_revenue);
@@ -194,9 +218,7 @@ export class ProductAnalyticsService {
           ? 'revenue'
           : 'profit';
 
-    return products
-      .sort((a, b) => b[sortKey] - a[sortKey])
-      .slice(0, limit);
+    return products.sort((a, b) => b[sortKey] - a[sortKey]).slice(0, limit);
   }
 
   async getLowPerformers(
@@ -208,8 +230,7 @@ export class ProductAnalyticsService {
     return products
       .filter((p) => p.trend === 'DOWN' || p.vs_previous_period_percent < -10)
       .sort(
-        (a, b) =>
-          a.vs_previous_period_percent - b.vs_previous_period_percent,
+        (a, b) => a.vs_previous_period_percent - b.vs_previous_period_percent,
       )
       .slice(0, limit);
   }

@@ -1,17 +1,21 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Param,
+  Controller,
   Delete,
-  Query,
-  Patch,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
 } from '@nestjs/common';
 import { OnboardingService } from './onboarding.service';
-import { CreateOnboardingPlanDto, CompleteOnboardingTaskDto, QueryOnboardingPlansDto } from './dto';
+import {
+  CompleteOnboardingTaskDto,
+  CreateOnboardingPlanDto,
+  QueryOnboardingPlansDto,
+} from './dto';
 import { OnboardingPlan } from './interfaces';
 
 @Controller('hr/onboarding')
@@ -28,12 +32,16 @@ export class OnboardingController {
   }
 
   @Get()
-  async findAll(@Query() query: QueryOnboardingPlansDto): Promise<OnboardingPlan[]> {
+  async findAll(
+    @Query() query: QueryOnboardingPlansDto,
+  ): Promise<OnboardingPlan[]> {
     return this.onboardingService.findAll(query);
   }
 
   @Get('stats')
-  async getStats(@Query('organization_id') organizationId: string): Promise<any> {
+  async getStats(
+    @Query('organization_id') organizationId: string,
+  ): Promise<any> {
     return this.onboardingService.getStats(organizationId);
   }
 

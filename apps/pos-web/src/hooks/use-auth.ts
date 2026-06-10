@@ -1,8 +1,3 @@
-/**
- * CoffeeOS POS Web - useAuth Hook
- * Hook personalizado para acceder a la sesión de NextAuth
- */
-
 'use client';
 
 import { useSession } from 'next-auth/react';

@@ -4,10 +4,10 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
-import { InputField, SelectField } from '@/components/ui/FormField';
+import { InputField } from '@/components/ui/FormField';
 import { Save } from 'lucide-react';
 
 interface CategoryModalProps {
@@ -49,7 +49,7 @@ export function CategoryModal({
     try {
       await onSave(categoryName.trim());
       onClose();
-    } catch (err) {
+    } catch {
       setError('Error al crear categoría');
     }
   };

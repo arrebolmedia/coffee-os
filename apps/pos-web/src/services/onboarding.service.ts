@@ -1,8 +1,8 @@
 import { api } from '@/lib/api';
 import {
+  OnboardingPeriod,
   OnboardingPlan,
   OnboardingStats,
-  OnboardingPeriod,
   TaskCategory,
 } from '@/types';
 

@@ -7,26 +7,26 @@
 
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { useLocations } from '@/hooks/use-locations';
 import {
+  AlertCircle,
+  Calendar,
+  CheckCircle,
+  Clock,
+  DollarSign,
+  Edit,
+  Eye,
+  Mail,
   MapPin,
+  Package,
+  Phone,
   Plus,
   Search,
-  Edit,
-  Trash2,
-  Clock,
-  Phone,
-  Mail,
-  User,
-  TrendingUp,
-  DollarSign,
-  Users,
-  Package,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
   Settings,
-  Eye,
-  Calendar,
+  TrendingUp,
+  User,
+  Users,
+  XCircle,
 } from 'lucide-react';
 
 interface Location {
@@ -71,19 +71,22 @@ export default function LocationsPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
 
-  // Locations (empty - to be populated from API)
-  const locations: Location[] = [];
+  const { data: apiLocations = [] } = useLocations();
+  const locations: Location[] = apiLocations as Location[];
 
   // Calcular estadísticas
   const stats = {
     total: locations.length,
     active: locations.filter((l) => l.status === 'active').length,
     maintenance: locations.filter((l) => l.status === 'maintenance').length,
-    totalEmployees: locations.reduce((sum, l) => sum + l.metrics.employees, 0),
+    totalEmployees: locations.reduce(
+      (sum, l) => sum + (l.metrics?.employees ?? 0),
+      0,
+    ),
     avgSales:
       locations.length > 0
         ? Math.round(
-            locations.reduce((sum, l) => sum + l.metrics.avgSales, 0) /
+            locations.reduce((sum, l) => sum + (l.metrics?.avgSales ?? 0), 0) /
               locations.length,
           )
         : 0,
@@ -92,9 +95,9 @@ export default function LocationsPage() {
   // Filtrar sucursales
   const filteredLocations = locations.filter((location) => {
     const matchesSearch =
-      location.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      location.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      location.address.city.toLowerCase().includes(searchQuery.toLowerCase());
+      location.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      location.code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      location.address?.city?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus =
       filterStatus === 'all' || location.status === filterStatus;
     const matchesType = filterType === 'all' || location.type === filterType;

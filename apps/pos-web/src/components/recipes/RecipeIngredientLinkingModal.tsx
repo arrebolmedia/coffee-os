@@ -5,26 +5,25 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  useRecipeIngredientLinks,
-  useLinkRecipeIngredient,
-  useDeleteRecipeIngredientLink,
   useAutoLinkRecipeIngredients,
+  useDeleteRecipeIngredientLink,
+  useLinkRecipeIngredient,
+  useRecipeIngredientLinks,
 } from '@/hooks/use-inventory-automation';
 import { useRecipe, useRecipeIngredients } from '@/hooks/use-recipes';
 import { useInventory } from '@/hooks/use-inventory';
 import {
-  X,
-  Link as LinkIcon,
-  Unlink,
-  Loader2,
-  AlertCircle,
   CheckCircle,
-  Zap,
+  Link as LinkIcon,
+  Loader2,
   Package,
-  TrendingUp,
   Search,
+  TrendingUp,
+  Unlink,
+  X,
+  Zap,
 } from 'lucide-react';
 
 interface RecipeIngredientLinkingModalProps {

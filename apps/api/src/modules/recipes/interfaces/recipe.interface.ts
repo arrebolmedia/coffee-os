@@ -1,12 +1,10 @@
 import {
-  RecipeCategory,
-  DifficultyLevel,
-  PreparationMethod,
   AllergenType,
-  RecipeIngredientDto,
-  RecipeStepDto,
-  PreparationParametersDto,
+  DifficultyLevel,
   NutritionalInfoDto,
+  PreparationMethod,
+  PreparationParametersDto,
+  RecipeCategory,
 } from '../dto';
 
 export interface Recipe {

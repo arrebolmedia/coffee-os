@@ -8,7 +8,7 @@ import { CreateCustomerDto, CustomerStatus } from '../dto';
 describe('CustomersService', () => {
   let service: CustomersService;
 
-  const mockPrismaService = {
+  const mockPrismaService: any = {
     customer: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -19,6 +19,8 @@ describe('CustomersService', () => {
       aggregate: jest.fn(),
       groupBy: jest.fn(),
     },
+    $queryRaw: jest.fn(),
+    $transaction: jest.fn(async (cb: any) => cb(mockPrismaService)),
   };
 
   const mockRfmService = {
@@ -150,14 +152,18 @@ describe('CustomersService', () => {
 
   describe('findAll', () => {
     it('should return mapped customers', async () => {
-      mockPrismaService.customer.findMany.mockResolvedValue([mockPrismaCustomer]);
+      mockPrismaService.customer.findMany.mockResolvedValue([
+        mockPrismaCustomer,
+      ]);
       const result = await service.findAll({});
       expect(result).toHaveLength(1);
       expect(result[0].first_name).toBe('Juan');
     });
 
     it('should pass organization_id filter to Prisma', async () => {
-      mockPrismaService.customer.findMany.mockResolvedValue([mockPrismaCustomer]);
+      mockPrismaService.customer.findMany.mockResolvedValue([
+        mockPrismaCustomer,
+      ]);
       await service.findAll({ organization_id: 'org_1' });
       expect(mockPrismaService.customer.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -167,7 +173,9 @@ describe('CustomersService', () => {
     });
 
     it('should pass status filter to Prisma', async () => {
-      mockPrismaService.customer.findMany.mockResolvedValue([mockPrismaCustomer]);
+      mockPrismaService.customer.findMany.mockResolvedValue([
+        mockPrismaCustomer,
+      ]);
       await service.findAll({ status: CustomerStatus.ACTIVE });
       expect(mockPrismaService.customer.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -191,7 +199,9 @@ describe('CustomersService', () => {
     });
 
     it('should return mapped customer when found', async () => {
-      mockPrismaService.customer.findUnique.mockResolvedValue(mockPrismaCustomer);
+      mockPrismaService.customer.findUnique.mockResolvedValue(
+        mockPrismaCustomer,
+      );
       const result = await service.findOne('cust-id-123');
       expect(result).toBeDefined();
       expect(result!.id).toBe('cust-id-123');
@@ -208,8 +218,13 @@ describe('CustomersService', () => {
     });
 
     it('should update customer fields', async () => {
-      const updatedCustomer = { ...mockPrismaCustomer, phone: '+52 55 9999 8888' };
-      mockPrismaService.customer.findUnique.mockResolvedValue(mockPrismaCustomer);
+      const updatedCustomer = {
+        ...mockPrismaCustomer,
+        phone: '+52 55 9999 8888',
+      };
+      mockPrismaService.customer.findUnique.mockResolvedValue(
+        mockPrismaCustomer,
+      );
       mockPrismaService.customer.update.mockResolvedValue(updatedCustomer);
 
       const result = await service.update('cust-id-123', {
@@ -225,7 +240,9 @@ describe('CustomersService', () => {
         status: 'BLOCKED',
         blockedReason: 'Fraudulent activity',
       };
-      mockPrismaService.customer.findUnique.mockResolvedValue(mockPrismaCustomer);
+      mockPrismaService.customer.findUnique.mockResolvedValue(
+        mockPrismaCustomer,
+      );
       mockPrismaService.customer.update.mockResolvedValue(blockedCustomer);
 
       const result = await service.update('cust-id-123', {

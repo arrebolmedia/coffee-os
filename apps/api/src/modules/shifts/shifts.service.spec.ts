@@ -1,13 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ShiftsService, ShiftStatus } from './shifts.service';
 import { PrismaService } from '../database/prisma.service';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('ShiftsService', () => {
   let service: ShiftsService;
   let prisma: PrismaService;
 
-  const mockPrismaService = {
+  const mockPrismaService: any = {
     shift: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -16,7 +16,23 @@ describe('ShiftsService', () => {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    payment: { aggregate: jest.fn() },
+    cashExpense: { aggregate: jest.fn() },
+    $transaction: jest.fn(async (cbOrArr: any) => {
+      if (typeof cbOrArr === 'function') return cbOrArr(mockPrismaService);
+      return Promise.all(cbOrArr);
+    }),
   };
+
+  beforeEach(() => {
+    // Reset default aggregate return values per test.
+    mockPrismaService.payment.aggregate.mockResolvedValue({
+      _sum: { amount: 0 },
+    });
+    mockPrismaService.cashExpense.aggregate.mockResolvedValue({
+      _sum: { amount: 0 },
+    });
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

@@ -6,7 +6,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MapPin, Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, MapPin } from 'lucide-react';
 
 interface Location {
   id: string;

@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SalesAnalyticsService } from '../sales-analytics.service';
 import { PrismaService } from '../../database/prisma.service';
-import { TimeGranularity } from '../dto';
 
 const mockTickets = [
   {
@@ -38,6 +37,9 @@ const mockPrismaService = {
   },
   ticketLine: {
     findMany: jest.fn(),
+  },
+  customer: {
+    count: jest.fn().mockResolvedValue(0),
   },
 };
 
@@ -183,13 +185,25 @@ describe('SalesAnalyticsService', () => {
           productId: 'prod-1',
           quantity: 10,
           total: 500,
-          product: { id: 'prod-1', name: 'Latte', cost: 20, categoryId: 'cat-1', category: { name: 'Café' } },
+          product: {
+            id: 'prod-1',
+            name: 'Latte',
+            cost: 20,
+            categoryId: 'cat-1',
+            category: { name: 'Café' },
+          },
         },
         {
           productId: 'prod-2',
           quantity: 5,
           total: 200,
-          product: { id: 'prod-2', name: 'Americano', cost: 15, categoryId: 'cat-1', category: { name: 'Café' } },
+          product: {
+            id: 'prod-2',
+            name: 'Americano',
+            cost: 15,
+            categoryId: 'cat-1',
+            category: { name: 'Café' },
+          },
         },
       ]);
 
@@ -221,12 +235,22 @@ describe('SalesAnalyticsService', () => {
         productId: `prod-${i}`,
         quantity: 1,
         total: 100 - i,
-        product: { id: `prod-${i}`, name: `Product ${i}`, cost: 10, categoryId: 'cat-1', category: { name: 'Café' } },
+        product: {
+          id: `prod-${i}`,
+          name: `Product ${i}`,
+          cost: 10,
+          categoryId: 'cat-1',
+          category: { name: 'Café' },
+        },
       }));
       mockPrismaService.ticketLine.findMany.mockResolvedValue(manyLines);
 
       const products = await service.getTopSellingProducts(
-        { organization_id: 'org_1', start_date: '2024-01-01', end_date: '2024-01-31' },
+        {
+          organization_id: 'org_1',
+          start_date: '2024-01-01',
+          end_date: '2024-01-31',
+        },
         5,
       );
 

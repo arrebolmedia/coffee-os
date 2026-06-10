@@ -1,27 +1,27 @@
 import {
+  BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
-  ConflictException,
-  BadRequestException,
 } from '@nestjs/common';
 import {
-  Notification,
-  NotificationTemplate,
-  NotificationStatus,
   Channel,
-  NotificationStats,
-  NotificationPreference,
+  Notification,
   NotificationBatch,
   NotificationLog,
+  NotificationPreference,
   NotificationPriority,
+  NotificationStats,
+  NotificationStatus,
+  NotificationTemplate,
   TemplateCategory,
 } from './interfaces';
 import {
+  CreateBatchDto,
   CreateNotificationDto,
+  CreatePreferenceDto,
   CreateTemplateDto,
   UpdateTemplateDto,
-  CreatePreferenceDto,
-  CreateBatchDto,
 } from './dto';
 
 @Injectable()
@@ -102,9 +102,7 @@ export class NotificationsService {
   ): Promise<NotificationTemplate> {
     const template = Array.from(this.templates.values()).find(
       (t) =>
-        t.organization_id === organization_id &&
-        t.code === code &&
-        t.is_active,
+        t.organization_id === organization_id && t.code === code && t.is_active,
     );
     if (!template) throw new NotFoundException('Template not found');
     return template;
@@ -133,9 +131,7 @@ export class NotificationsService {
 
   // ==================== NOTIFICATIONS ====================
 
-  async createNotification(
-    dto: CreateNotificationDto,
-  ): Promise<Notification> {
+  async createNotification(dto: CreateNotificationDto): Promise<Notification> {
     let tpl: NotificationTemplate | undefined;
 
     const notif: Notification = {
@@ -172,7 +168,9 @@ export class NotificationsService {
 
       notif.subject =
         notif.subject ||
-        (tpl.subject ? this.interpolate(tpl.subject, notif.data || {}) : undefined);
+        (tpl.subject
+          ? this.interpolate(tpl.subject, notif.data || {})
+          : undefined);
       notif.body = notif.body || this.interpolate(tpl.body, notif.data || {});
       if (tpl.html_body) {
         notif.html_body =
@@ -189,7 +187,8 @@ export class NotificationsService {
       );
       if (!canSend) {
         notif.status = NotificationStatus.FAILED;
-        notif.last_error = 'User has disabled this notification channel/category';
+        notif.last_error =
+          'User has disabled this notification channel/category';
       }
     }
 
@@ -477,7 +476,7 @@ export class NotificationsService {
           priority: NotificationPriority.NORMAL,
         });
         batch.sent_count++;
-      } catch (error) {
+      } catch {
         batch.failed_count++;
       }
     }
@@ -525,8 +524,7 @@ export class NotificationsService {
 
       // Delivery time
       if (n.sent_at && n.delivered_at) {
-        total_delivery_time +=
-          n.delivered_at.getTime() - n.sent_at.getTime();
+        total_delivery_time += n.delivered_at.getTime() - n.sent_at.getTime();
         delivery_count++;
       }
     });
@@ -615,7 +613,7 @@ export class NotificationsService {
   }
 
   private interpolate(template: string, data: Record<string, any>): string {
-    return template.replace(/{{\s*([\w\.]+)\s*}}/g, (_, key) => {
+    return template.replace(/{{\s*([\w.]+)\s*}}/g, (_, key) => {
       const val = data[key];
       return val !== undefined ? String(val) : '';
     });

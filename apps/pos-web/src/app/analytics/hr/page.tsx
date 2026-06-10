@@ -3,20 +3,18 @@
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import {
-  Users,
-  TrendingUp,
-  TrendingDown,
+  ArrowDownRight,
+  ArrowUpRight,
+  Award,
   Clock,
   DollarSign,
-  Award,
-  Calendar,
-  Filter,
   Download,
-  ArrowUpRight,
-  ArrowDownRight,
-  UserCheck,
-  UserX,
+  Filter,
   Target,
+  TrendingUp,
+  UserCheck,
+  Users,
+  UserX,
 } from 'lucide-react';
 
 // Interfaces
@@ -262,10 +260,6 @@ const AnalyticsHRPage = () => {
   const excellentEmployees = mockEmployeeMetrics.filter(
     (emp) => emp.status === 'excellent',
   ).length;
-  const criticalEmployees = mockEmployeeMetrics.filter(
-    (emp) => emp.status === 'critical',
-  ).length;
-
   const maxProductivity = Math.max(
     ...mockProductivityTrends.map((t) => t.avgProductivity),
   );

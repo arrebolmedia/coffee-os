@@ -1,18 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { MaintenanceService } from '../maintenance.service';
 import {
-  AssetType,
   AssetStatus,
-  MaintenanceType,
-  MaintenanceStatus,
+  AssetType,
   MaintenancePriority,
+  MaintenanceStatus,
+  MaintenanceType,
 } from '../interfaces/maintenance.interface';
 import {
-  CreateAssetDto,
-  UpdateAssetDto,
-  CreateMaintenanceRecordDto,
   CompleteMaintenanceDto,
+  CreateAssetDto,
+  CreateMaintenanceRecordDto,
 } from '../dto';
 
 describe('MaintenanceService', () => {
@@ -517,7 +516,9 @@ describe('MaintenanceService', () => {
       // 2024-01-15 + 30 days = 2024-02-14
       const expectedDate = new Date('2024-01-15');
       expectedDate.setDate(expectedDate.getDate() + 30);
-      expect(asset.next_maintenance_date!.getDate()).toBe(expectedDate.getDate());
+      expect(asset.next_maintenance_date!.getDate()).toBe(
+        expectedDate.getDate(),
+      );
     });
 
     it('should throw BadRequestException if not in progress', async () => {

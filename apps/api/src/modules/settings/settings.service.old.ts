@@ -1,6 +1,16 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
-import { Setting, SettingsStats, SettingType, SettingCategory } from './interfaces';
-import { CreateSettingDto, UpdateSettingDto, QuerySettingsDto } from './dto';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  Setting,
+  SettingCategory,
+  SettingsStats,
+  SettingType,
+} from './interfaces';
+import { CreateSettingDto, QuerySettingsDto, UpdateSettingDto } from './dto';
 
 @Injectable()
 export class SettingsService {

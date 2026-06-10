@@ -3,8 +3,8 @@
  * Gestión de base de datos local con idb para soporte offline
  */
 
-import { openDB, DBSchema, IDBPDatabase } from 'idb';
-import { Product, Category, Modifier, Order, SyncQueueItem } from '@/types';
+import { DBSchema, IDBPDatabase, openDB } from 'idb';
+import { Category, Modifier, Order, Product, SyncQueueItem } from '@/types';
 
 // ============================================================================
 // DATABASE SCHEMA
@@ -74,12 +74,14 @@ export async function initDB(): Promise<IDBPDatabase<CoffeeOSDB>> {
   }
 
   dbInstance = await openDB<CoffeeOSDB>(DB_NAME, DB_VERSION, {
-    upgrade(db, oldVersion, newVersion, transaction) {
+    upgrade(db, oldVersion, newVersion, _transaction) {
       console.log(`Upgrading DB from version ${oldVersion} to ${newVersion}`);
 
       // Products store
       if (!db.objectStoreNames.contains('products')) {
-        const productsStore = db.createObjectStore('products', { keyPath: 'id' });
+        const productsStore = db.createObjectStore('products', {
+          keyPath: 'id',
+        });
         productsStore.createIndex('by-category', 'category_id');
         productsStore.createIndex('by-sku', 'sku');
         productsStore.createIndex('by-status', 'status');
@@ -87,7 +89,9 @@ export async function initDB(): Promise<IDBPDatabase<CoffeeOSDB>> {
 
       // Categories store
       if (!db.objectStoreNames.contains('categories')) {
-        const categoriesStore = db.createObjectStore('categories', { keyPath: 'id' });
+        const categoriesStore = db.createObjectStore('categories', {
+          keyPath: 'id',
+        });
         categoriesStore.createIndex('by-sort-order', 'sort_order');
       }
 
@@ -160,7 +164,9 @@ export async function getProduct(id: string): Promise<Product | undefined> {
   return await db.get('products', id);
 }
 
-export async function getProductBySku(sku: string): Promise<Product | undefined> {
+export async function getProductBySku(
+  sku: string,
+): Promise<Product | undefined> {
   const db = await getDB();
   const products = await db.getAllFromIndex('products', 'by-sku', sku);
   return products[0];
@@ -176,7 +182,7 @@ export async function searchProducts(query: string): Promise<Product[]> {
       product.name.toLowerCase().includes(lowerQuery) ||
       product.sku.toLowerCase().includes(lowerQuery) ||
       product.description?.toLowerCase().includes(lowerQuery) ||
-      product.barcode?.toLowerCase().includes(lowerQuery)
+      product.barcode?.toLowerCase().includes(lowerQuery),
   );
 }
 
@@ -255,7 +261,9 @@ export async function addToSyncQueue(item: SyncQueueItem): Promise<void> {
   await db.put('syncQueue', item);
 }
 
-export async function getSyncQueue(status?: SyncQueueItem['status']): Promise<SyncQueueItem[]> {
+export async function getSyncQueue(
+  status?: SyncQueueItem['status'],
+): Promise<SyncQueueItem[]> {
   const db = await getDB();
 
   if (status) {
@@ -267,7 +275,7 @@ export async function getSyncQueue(status?: SyncQueueItem['status']): Promise<Sy
 
 export async function updateSyncQueueItem(
   id: string,
-  updates: Partial<SyncQueueItem>
+  updates: Partial<SyncQueueItem>,
 ): Promise<void> {
   const db = await getDB();
   const item = await db.get('syncQueue', id);
@@ -339,13 +347,14 @@ export async function getDatabaseStats(): Promise<{
 }> {
   const db = await getDB();
 
-  const [products, categories, modifiers, orders, syncQueue] = await Promise.all([
-    db.count('products'),
-    db.count('categories'),
-    db.count('modifiers'),
-    db.count('orders'),
-    db.count('syncQueue'),
-  ]);
+  const [products, categories, modifiers, orders, syncQueue] =
+    await Promise.all([
+      db.count('products'),
+      db.count('categories'),
+      db.count('modifiers'),
+      db.count('orders'),
+      db.count('syncQueue'),
+    ]);
 
   return {
     products,
@@ -382,15 +391,23 @@ export async function importDatabase(jsonData: string): Promise<void> {
   // Import all stores
   const tx = db.transaction(
     ['products', 'categories', 'modifiers', 'orders', 'syncQueue', 'metadata'],
-    'readwrite'
+    'readwrite',
   );
 
   await Promise.all([
-    ...data.products.map((item: Product) => tx.objectStore('products').put(item)),
-    ...data.categories.map((item: Category) => tx.objectStore('categories').put(item)),
-    ...data.modifiers.map((item: Modifier) => tx.objectStore('modifiers').put(item)),
+    ...data.products.map((item: Product) =>
+      tx.objectStore('products').put(item),
+    ),
+    ...data.categories.map((item: Category) =>
+      tx.objectStore('categories').put(item),
+    ),
+    ...data.modifiers.map((item: Modifier) =>
+      tx.objectStore('modifiers').put(item),
+    ),
     ...data.orders.map((item: Order) => tx.objectStore('orders').put(item)),
-    ...data.syncQueue.map((item: SyncQueueItem) => tx.objectStore('syncQueue').put(item)),
+    ...data.syncQueue.map((item: SyncQueueItem) =>
+      tx.objectStore('syncQueue').put(item),
+    ),
     ...data.metadata.map((item: any) => tx.objectStore('metadata').put(item)),
     tx.done,
   ]);

@@ -1,4 +1,4 @@
-import { IsUUID, IsArray, IsBoolean, IsOptional } from 'class-validator';
+import { IsArray, IsBoolean, IsOptional, IsUUID } from 'class-validator';
 
 export class ImportSettingsDto {
   @IsUUID()

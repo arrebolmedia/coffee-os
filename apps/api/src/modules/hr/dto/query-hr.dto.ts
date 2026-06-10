@@ -1,7 +1,14 @@
-import { IsOptional, IsString, IsEnum } from 'class-validator';
-import { EmployeeStatus, EmploymentType, EmployeeRole } from './create-employee.dto';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
+import {
+  EmployeeRole,
+  EmployeeStatus,
+  EmploymentType,
+} from './create-employee.dto';
 import { OnboardingPeriod } from './create-onboarding-plan.dto';
-import { CertificationType, CertificationStatus } from './create-certification.dto';
+import {
+  CertificationStatus,
+  CertificationType,
+} from './create-certification.dto';
 import { EvaluationPeriod, PerformanceRating } from './create-evaluation.dto';
 
 export class QueryEmployeesDto {

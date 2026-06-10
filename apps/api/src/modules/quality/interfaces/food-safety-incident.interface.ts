@@ -1,4 +1,4 @@
-import { IncidentType, IncidentSeverity, IncidentStatus } from '../dto';
+import { IncidentSeverity, IncidentStatus, IncidentType } from '../dto';
 
 export interface FoodSafetyIncident {
   id: string;

@@ -3,7 +3,7 @@
  * Banner estándar para módulos que están en desarrollo
  */
 
-import { Construction, AlertCircle } from 'lucide-react';
+import { AlertCircle, Construction } from 'lucide-react';
 
 interface ModuleInDevelopmentProps {
   moduleName: string;
@@ -57,9 +57,9 @@ export function ModuleInDevelopment({
           <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
             <p className="text-sm text-gray-700 leading-relaxed">
               Este módulo está siendo desarrollado actualmente. La interfaz y
-              funcionalidades estarán disponibles próximamente. Si tienes
-              alguna pregunta o sugerencia sobre este módulo, por favor
-              contacta al equipo de desarrollo.
+              funcionalidades estarán disponibles próximamente. Si tienes alguna
+              pregunta o sugerencia sobre este módulo, por favor contacta al
+              equipo de desarrollo.
             </p>
           </div>
 

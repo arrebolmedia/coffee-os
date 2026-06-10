@@ -3,16 +3,15 @@
  * Modal para crear/editar recetas
  */
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import {
   InputField,
-  TextareaField,
   SelectField,
+  TextareaField,
 } from '@/components/ui/FormField';
 import { Button } from '@/components/ui/Button';
 import { IngredientsList, RecipeIngredientInput } from './IngredientsList';
-import { Coffee } from 'lucide-react';
 
 interface RecipeModalProps {
   isOpen: boolean;

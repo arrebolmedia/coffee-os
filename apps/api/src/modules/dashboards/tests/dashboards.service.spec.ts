@@ -1,13 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { DashboardsService } from '../dashboards.service';
 import {
-  DashboardCategory,
-  WidgetType,
-  WidgetSize,
-  TimePeriod,
   ComparisonType,
+  DashboardCategory,
   RefreshInterval,
+  WidgetSize,
+  WidgetType,
 } from '../interfaces/dashboard.interface';
 import { CreateDashboardDto } from '../dto/create-dashboard.dto';
 import { UpdateDashboardDto } from '../dto/update-dashboard.dto';
@@ -140,9 +139,9 @@ describe('DashboardsService', () => {
           DashboardCategory.SALES,
         );
         expect(result.length).toBeGreaterThanOrEqual(1);
-        expect(result.every((d) => d.category === DashboardCategory.SALES)).toBe(
-          true,
-        );
+        expect(
+          result.every((d) => d.category === DashboardCategory.SALES),
+        ).toBe(true);
       });
 
       it('should filter dashboards by is_template', async () => {
@@ -223,9 +222,9 @@ describe('DashboardsService', () => {
       });
 
       it('should throw NotFoundException for non-existent dashboard', async () => {
-        await expect(service.deleteDashboard('non-existent-id')).rejects.toThrow(
-          NotFoundException,
-        );
+        await expect(
+          service.deleteDashboard('non-existent-id'),
+        ).rejects.toThrow(NotFoundException);
       });
     });
 
@@ -435,7 +434,9 @@ describe('DashboardsService', () => {
       expect(result.layout).toBeDefined();
       expect(result.data).toBeDefined();
       expect(result.data['widget-1']).toBeDefined();
-      expect(result.data['widget-1'].value).toBeDefined();
+      // We no longer emit random values — widget is marked unavailable
+      expect(result.data['widget-1'].available).toBe(false);
+      expect(result.data['widget-1'].reason).toBe('not_implemented');
       expect(result.data['widget-1'].comparison).toBeDefined();
       expect(result.metadata.last_updated).toBeDefined();
       expect(result.metadata.loading_time_ms).toBeGreaterThanOrEqual(0);
@@ -513,9 +514,9 @@ describe('DashboardsService', () => {
 
       it('should filter KPIs by category', async () => {
         const result = await service.getSystemKPIs(DashboardCategory.SALES);
-        expect(result.every((k) => k.category === DashboardCategory.SALES)).toBe(
-          true,
-        );
+        expect(
+          result.every((k) => k.category === DashboardCategory.SALES),
+        ).toBe(true);
       });
     });
 
@@ -527,9 +528,9 @@ describe('DashboardsService', () => {
       });
 
       it('should throw NotFoundException for invalid code', async () => {
-        await expect(
-          service.getSystemKPIByCode('invalid_kpi'),
-        ).rejects.toThrow(NotFoundException);
+        await expect(service.getSystemKPIByCode('invalid_kpi')).rejects.toThrow(
+          NotFoundException,
+        );
       });
     });
   });
@@ -818,9 +819,9 @@ describe('DashboardsService', () => {
         const result = await service.getDashboardStats(mockOrgId);
 
         expect(result.dashboards_by_category[DashboardCategory.SALES]).toBe(1);
-        expect(result.dashboards_by_category[DashboardCategory.OPERATIONS]).toBe(
-          1,
-        );
+        expect(
+          result.dashboards_by_category[DashboardCategory.OPERATIONS],
+        ).toBe(1);
       });
 
       it('should identify most used widgets', async () => {

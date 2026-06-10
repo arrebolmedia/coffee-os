@@ -5,19 +5,11 @@
 
 'use client';
 
-import { useState } from 'react';
-import { Search, User, Gift, X, Phone, Mail, Award } from 'lucide-react';
-
-interface Customer {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-  loyaltyPoints: number;
-  segment: 'vip' | 'frequent' | 'regular' | 'new';
-  totalPurchases: number;
-  lastVisit: string;
-}
+import { useCallback, useRef, useState } from 'react';
+import { Award, Gift, Phone, Search, User, X } from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
+import { customersService } from '@/services/customers.service';
+import type { Customer } from '@/types';
 
 interface CustomerSearchProps {
   onCustomerSelect: (customer: Customer | null) => void;
@@ -28,26 +20,39 @@ export default function CustomerSearch({
   onCustomerSelect,
   selectedCustomer,
 }: CustomerSearchProps) {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Customer[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Mock customers data (en producción, esto vendría del API)
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
+  const handleSearch = useCallback(
+    (query: string) => {
+      setSearchQuery(query);
 
-    if (query.length >= 3) {
-      setIsSearching(true);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
 
-      // TODO: Implementar API call para búsqueda de clientes
-      setTimeout(() => {
+      if (query.length >= 3 && user?.organizationId) {
+        setIsSearching(true);
+        debounceRef.current = setTimeout(async () => {
+          try {
+            const results = await customersService.searchCustomers(
+              user.organizationId,
+              query,
+            );
+            setSearchResults(results);
+          } catch {
+            setSearchResults([]);
+          } finally {
+            setIsSearching(false);
+          }
+        }, 300);
+      } else {
         setSearchResults([]);
-        setIsSearching(false);
-      }, 300);
-    } else {
-      setSearchResults([]);
-    }
-  };
+      }
+    },
+    [user?.organizationId],
+  );
 
   const handleSelectCustomer = (customer: Customer) => {
     onCustomerSelect(customer);
@@ -61,29 +66,27 @@ export default function CustomerSearch({
     setSearchResults([]);
   };
 
-  const getSegmentBadge = (segment: string) => {
-    switch (segment) {
-      case 'vip':
+  const getTierBadge = (tier?: string) => {
+    switch (tier) {
+      case 'PLATINUM':
         return 'bg-purple-100 text-purple-800 border-purple-300';
-      case 'frequent':
+      case 'GOLD':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'SILVER':
         return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'regular':
-        return 'bg-green-100 text-green-800 border-green-300';
-      case 'new':
-        return 'bg-gray-100 text-gray-800 border-gray-300';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
 
-  const getSegmentLabel = (segment: string) => {
+  const getTierLabel = (tier?: string) => {
     const labels: Record<string, string> = {
-      vip: 'VIP',
-      frequent: 'Frecuente',
-      regular: 'Regular',
-      new: 'Nuevo',
+      PLATINUM: 'Platino',
+      GOLD: 'Oro',
+      SILVER: 'Plata',
+      BRONZE: 'Bronce',
     };
-    return labels[segment] || segment;
+    return labels[tier ?? ''] || 'Regular';
   };
 
   return (
@@ -107,11 +110,21 @@ export default function CustomerSearch({
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                  {selectedCustomer.name.charAt(0)}
+                  {(
+                    [selectedCustomer.firstName, selectedCustomer.lastName]
+                      .filter(Boolean)
+                      .join(' ') ||
+                    selectedCustomer.phone ||
+                    '?'
+                  ).charAt(0)}
                 </div>
                 <div>
                   <h4 className="font-semibold text-gray-800">
-                    {selectedCustomer.name}
+                    {[selectedCustomer.firstName, selectedCustomer.lastName]
+                      .filter(Boolean)
+                      .join(' ') ||
+                      selectedCustomer.phone ||
+                      'Cliente'}
                   </h4>
                   <div className="flex items-center gap-1 text-xs text-gray-600">
                     <Phone className="w-3 h-3" />
@@ -120,9 +133,9 @@ export default function CustomerSearch({
                 </div>
               </div>
               <span
-                className={`px-2 py-1 rounded-full text-xs font-medium border ${getSegmentBadge(selectedCustomer.segment)}`}
+                className={`px-2 py-1 rounded-full text-xs font-medium border ${getTierBadge(selectedCustomer.rfmSegment)}`}
               >
-                {getSegmentLabel(selectedCustomer.segment)}
+                {getTierLabel(selectedCustomer.rfmSegment)}
               </span>
             </div>
 
@@ -130,38 +143,25 @@ export default function CustomerSearch({
             <div className="bg-white/80 rounded-lg p-3 border border-purple-200">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-gray-700">
-                  Programa 9+1
+                  Puntos de lealtad
                 </span>
                 <Gift className="w-5 h-5 text-purple-600" />
               </div>
 
               <div className="flex items-center gap-2 mb-2">
-                <div className="flex-1 bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
-                    style={{
-                      width: `${(selectedCustomer.loyaltyPoints / 9) * 100}%`,
-                    }}
-                  ></div>
-                </div>
                 <span className="text-sm font-bold text-purple-600">
-                  {selectedCustomer.loyaltyPoints}/9
+                  {selectedCustomer.loyaltyPoints ?? 0} pts
                 </span>
               </div>
 
-              {selectedCustomer.loyaltyPoints >= 9 ? (
+              {(selectedCustomer.loyaltyPoints ?? 0) >= 9 ? (
                 <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 rounded px-2 py-1">
                   <Award className="w-4 h-4" />
                   <span className="font-semibold">
                     ¡Bebida GRATIS disponible!
                   </span>
                 </div>
-              ) : (
-                <p className="text-xs text-gray-600">
-                  Faltan {9 - selectedCustomer.loyaltyPoints} compras para
-                  bebida gratis
-                </p>
-              )}
+              ) : null}
             </div>
 
             {/* Customer Stats */}
@@ -169,19 +169,13 @@ export default function CustomerSearch({
               <div className="bg-white/60 rounded px-2 py-1">
                 <p className="text-xs text-gray-600">Total Compras</p>
                 <p className="text-sm font-semibold text-gray-800">
-                  {selectedCustomer.totalPurchases}
+                  {selectedCustomer.totalVisits ?? 0}
                 </p>
               </div>
               <div className="bg-white/60 rounded px-2 py-1">
-                <p className="text-xs text-gray-600">Última Visita</p>
+                <p className="text-xs text-gray-600">Total Gastado</p>
                 <p className="text-sm font-semibold text-gray-800">
-                  {new Date(selectedCustomer.lastVisit).toLocaleDateString(
-                    'es-MX',
-                    {
-                      day: '2-digit',
-                      month: 'short',
-                    },
-                  )}
+                  ${(selectedCustomer.totalSpent ?? 0).toLocaleString('es-MX')}
                 </p>
               </div>
             </div>
@@ -218,11 +212,21 @@ export default function CustomerSearch({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold">
-                        {customer.name.charAt(0)}
+                        {(
+                          [customer.firstName, customer.lastName]
+                            .filter(Boolean)
+                            .join(' ') ||
+                          customer.phone ||
+                          '?'
+                        ).charAt(0)}
                       </div>
                       <div>
                         <p className="font-medium text-gray-800">
-                          {customer.name}
+                          {[customer.firstName, customer.lastName]
+                            .filter(Boolean)
+                            .join(' ') ||
+                            customer.phone ||
+                            'Cliente'}
                         </p>
                         <div className="flex items-center gap-2 text-xs text-gray-600">
                           <Phone className="w-3 h-3" />
@@ -233,12 +237,12 @@ export default function CustomerSearch({
                     <div className="text-right">
                       <div className="flex items-center gap-1 text-sm text-purple-600 font-semibold">
                         <Gift className="w-4 h-4" />
-                        {customer.loyaltyPoints}/9
+                        {customer.loyaltyPoints ?? 0} pts
                       </div>
                       <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-xs border ${getSegmentBadge(customer.segment)}`}
+                        className={`inline-block px-2 py-0.5 rounded-full text-xs border ${getTierBadge(customer.rfmSegment)}`}
                       >
-                        {getSegmentLabel(customer.segment)}
+                        {getTierLabel(customer.rfmSegment)}
                       </span>
                     </div>
                   </div>

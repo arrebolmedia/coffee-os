@@ -1,19 +1,19 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 import {
   CreatePurchaseOrderDto,
-  UpdatePurchaseOrderDto,
   QueryPurchaseOrdersDto,
   ReceivePurchaseOrderDto,
+  UpdatePurchaseOrderDto,
 } from './dto';
 import {
   PurchaseOrder,
   PurchaseOrderItem,
-  PurchaseOrderStatus,
   PurchaseOrderStats,
+  PurchaseOrderStatus,
 } from './interfaces';
 
 @Injectable()
@@ -110,8 +110,10 @@ export class PurchaseOrdersService {
       let aValue: any = a[sortBy as keyof PurchaseOrder];
       let bValue: any = b[sortBy as keyof PurchaseOrder];
 
-      if (aValue === undefined) aValue = order === 'asc' ? '' : Number.MIN_VALUE;
-      if (bValue === undefined) bValue = order === 'asc' ? '' : Number.MIN_VALUE;
+      if (aValue === undefined)
+        aValue = order === 'asc' ? '' : Number.MIN_VALUE;
+      if (bValue === undefined)
+        bValue = order === 'asc' ? '' : Number.MIN_VALUE;
 
       if (aValue instanceof Date && bValue instanceof Date) {
         return order === 'asc'
@@ -143,13 +145,18 @@ export class PurchaseOrdersService {
     return order;
   }
 
-  async findByOrderNumber(orderNumber: string): Promise<PurchaseOrder | undefined> {
+  async findByOrderNumber(
+    orderNumber: string,
+  ): Promise<PurchaseOrder | undefined> {
     return Array.from(this.purchaseOrders.values()).find(
       (po) => po.order_number === orderNumber,
     );
   }
 
-  async update(id: string, updateDto: UpdatePurchaseOrderDto): Promise<PurchaseOrder> {
+  async update(
+    id: string,
+    updateDto: UpdatePurchaseOrderDto,
+  ): Promise<PurchaseOrder> {
     const order = await this.findById(id);
 
     if (order.status === PurchaseOrderStatus.RECEIVED) {
@@ -161,18 +168,23 @@ export class PurchaseOrdersService {
     }
 
     // Start with current order
-    let updatedOrder: PurchaseOrder = {
+    const updatedOrder: PurchaseOrder = {
       ...order,
       updated_at: new Date(),
     };
 
     // Apply updates
     if (updateDto.supplier_id) updatedOrder.supplier_id = updateDto.supplier_id;
-    if (updateDto.tax_amount !== undefined) updatedOrder.tax_amount = updateDto.tax_amount;
-    if (updateDto.discount_amount !== undefined) updatedOrder.discount_amount = updateDto.discount_amount;
-    if (updateDto.shipping_cost !== undefined) updatedOrder.shipping_cost = updateDto.shipping_cost;
-    if (updateDto.expected_delivery_date) updatedOrder.expected_delivery_date = updateDto.expected_delivery_date;
-    if (updateDto.requested_by) updatedOrder.requested_by = updateDto.requested_by;
+    if (updateDto.tax_amount !== undefined)
+      updatedOrder.tax_amount = updateDto.tax_amount;
+    if (updateDto.discount_amount !== undefined)
+      updatedOrder.discount_amount = updateDto.discount_amount;
+    if (updateDto.shipping_cost !== undefined)
+      updatedOrder.shipping_cost = updateDto.shipping_cost;
+    if (updateDto.expected_delivery_date)
+      updatedOrder.expected_delivery_date = updateDto.expected_delivery_date;
+    if (updateDto.requested_by)
+      updatedOrder.requested_by = updateDto.requested_by;
     if (updateDto.notes !== undefined) updatedOrder.notes = updateDto.notes;
 
     // Recalculate if items changed
@@ -189,7 +201,10 @@ export class PurchaseOrdersService {
       }));
 
       updatedOrder.items = items;
-      updatedOrder.subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
+      updatedOrder.subtotal = items.reduce(
+        (sum, item) => sum + item.subtotal,
+        0,
+      );
     }
 
     // Recalculate total
@@ -216,8 +231,13 @@ export class PurchaseOrdersService {
   async approve(id: string, approvedBy: string): Promise<PurchaseOrder> {
     const order = await this.findById(id);
 
-    if (order.status !== PurchaseOrderStatus.DRAFT && order.status !== PurchaseOrderStatus.PENDING) {
-      throw new BadRequestException('Only draft or pending orders can be approved');
+    if (
+      order.status !== PurchaseOrderStatus.DRAFT &&
+      order.status !== PurchaseOrderStatus.PENDING
+    ) {
+      throw new BadRequestException(
+        'Only draft or pending orders can be approved',
+      );
     }
 
     const updatedOrder: PurchaseOrder = {
@@ -236,7 +256,9 @@ export class PurchaseOrdersService {
     const order = await this.findById(id);
 
     if (order.status !== PurchaseOrderStatus.APPROVED) {
-      throw new BadRequestException('Only approved orders can be sent to supplier');
+      throw new BadRequestException(
+        'Only approved orders can be sent to supplier',
+      );
     }
 
     const updatedOrder: PurchaseOrder = {
@@ -249,11 +271,19 @@ export class PurchaseOrdersService {
     return updatedOrder;
   }
 
-  async receive(id: string, receiveDto: ReceivePurchaseOrderDto): Promise<PurchaseOrder> {
+  async receive(
+    id: string,
+    receiveDto: ReceivePurchaseOrderDto,
+  ): Promise<PurchaseOrder> {
     const order = await this.findById(id);
 
-    if (order.status !== PurchaseOrderStatus.ORDERED && order.status !== PurchaseOrderStatus.PARTIALLY_RECEIVED) {
-      throw new BadRequestException('Only ordered or partially received orders can be received');
+    if (
+      order.status !== PurchaseOrderStatus.ORDERED &&
+      order.status !== PurchaseOrderStatus.PARTIALLY_RECEIVED
+    ) {
+      throw new BadRequestException(
+        'Only ordered or partially received orders can be received',
+      );
     }
 
     const updatedItems = order.items.map((item) => {
@@ -264,7 +294,8 @@ export class PurchaseOrdersService {
       if (received) {
         return {
           ...item,
-          quantity_received: item.quantity_received + received.quantity_received,
+          quantity_received:
+            item.quantity_received + received.quantity_received,
           notes: received.notes || item.notes,
         };
       }
@@ -281,8 +312,8 @@ export class PurchaseOrdersService {
     const newStatus = allReceived
       ? PurchaseOrderStatus.RECEIVED
       : anyReceived
-      ? PurchaseOrderStatus.PARTIALLY_RECEIVED
-      : order.status;
+        ? PurchaseOrderStatus.PARTIALLY_RECEIVED
+        : order.status;
 
     const updatedOrder: PurchaseOrder = {
       ...order,
@@ -343,7 +374,10 @@ export class PurchaseOrdersService {
       byStatus[order.status]++;
       totalAmount += order.total_amount;
 
-      if (order.status === PurchaseOrderStatus.PENDING || order.status === PurchaseOrderStatus.DRAFT) {
+      if (
+        order.status === PurchaseOrderStatus.PENDING ||
+        order.status === PurchaseOrderStatus.DRAFT
+      ) {
         pendingApprovalCount++;
       }
 

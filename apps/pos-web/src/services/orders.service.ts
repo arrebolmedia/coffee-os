@@ -3,13 +3,13 @@
  * Servicio para gestión de órdenes y ventas
  */
 
-import { apiClient } from '@/lib/api-client';
+import { api } from '@/lib/api';
 import {
-  Order,
   Cart,
+  Order,
   OrderFilters,
-  PaginationParams,
   PaginatedResponse,
+  PaginationParams,
   PaymentMethod,
 } from '@/types';
 
@@ -44,25 +44,22 @@ class OrdersService {
     if (pagination?.sort_order)
       params.append('sort_order', pagination.sort_order);
 
-    const response = await apiClient.get<PaginatedResponse<Order>>(
+    return await api.get<PaginatedResponse<Order>>(
       `${this.baseUrl}?${params.toString()}`,
     );
-    return response.data;
   }
 
   async getOrderById(id: string): Promise<Order> {
-    const response = await apiClient.get<Order>(`${this.baseUrl}/${id}`);
-    return response.data;
+    return await api.get<Order>(`${this.baseUrl}/${id}`);
   }
 
   async getOrderByNumber(
     orderNumber: string,
     organizationId: string,
   ): Promise<Order> {
-    const response = await apiClient.get<Order>(
+    return await api.get<Order>(
       `${this.baseUrl}/number/${orderNumber}?organization_id=${organizationId}`,
     );
-    return response.data;
   }
 
   // ============================================================================
@@ -100,8 +97,7 @@ class OrdersService {
       notes: data.notes ?? data.cart.notes,
     };
 
-    const response = await apiClient.post<Order>(this.baseUrl, orderData);
-    return response.data;
+    return await api.post<Order>(this.baseUrl, orderData);
   }
 
   // ============================================================================
@@ -109,24 +105,15 @@ class OrdersService {
   // ============================================================================
 
   async updateOrder(id: string, data: Partial<Order>): Promise<Order> {
-    const response = await apiClient.put<Order>(`${this.baseUrl}/${id}`, data);
-    return response.data;
+    return await api.put<Order>(`${this.baseUrl}/${id}`, data);
   }
 
   async updateOrderStatus(id: string, status: Order['status']): Promise<Order> {
-    const response = await apiClient.patch<Order>(
-      `${this.baseUrl}/${id}/status`,
-      { status },
-    );
-    return response.data;
+    return await api.patch<Order>(`${this.baseUrl}/${id}/status`, { status });
   }
 
   async cancelOrder(id: string, reason?: string): Promise<Order> {
-    const response = await apiClient.post<Order>(
-      `${this.baseUrl}/${id}/cancel`,
-      { reason },
-    );
-    return response.data;
+    return await api.post<Order>(`${this.baseUrl}/${id}/cancel`, { reason });
   }
 
   // ============================================================================
@@ -141,11 +128,7 @@ class OrdersService {
       reference?: string;
     },
   ): Promise<Order> {
-    const response = await apiClient.post<Order>(
-      `${this.baseUrl}/${orderId}/payments`,
-      data,
-    );
-    return response.data;
+    return await api.post<Order>(`${this.baseUrl}/${orderId}/payments`, data);
   }
 
   async refundOrder(
@@ -153,14 +136,10 @@ class OrdersService {
     amount?: number,
     reason?: string,
   ): Promise<Order> {
-    const response = await apiClient.post<Order>(
-      `${this.baseUrl}/${orderId}/refund`,
-      {
-        amount,
-        reason,
-      },
-    );
-    return response.data;
+    return await api.post<Order>(`${this.baseUrl}/${orderId}/refund`, {
+      amount,
+      reason,
+    });
   }
 
   // ============================================================================
@@ -168,22 +147,21 @@ class OrdersService {
   // ============================================================================
 
   async getReceipt(orderId: string): Promise<{ url: string; html: string }> {
-    const response = await apiClient.get<{ url: string; html: string }>(
+    return await api.get<{ url: string; html: string }>(
       `${this.baseUrl}/${orderId}/receipt`,
     );
-    return response.data;
   }
 
   async printReceipt(orderId: string): Promise<void> {
-    await apiClient.post(`${this.baseUrl}/${orderId}/print`);
+    await api.post(`${this.baseUrl}/${orderId}/print`);
   }
 
   async emailReceipt(orderId: string, email: string): Promise<void> {
-    await apiClient.post(`${this.baseUrl}/${orderId}/email`, { email });
+    await api.post(`${this.baseUrl}/${orderId}/email`, { email });
   }
 
   async whatsappReceipt(orderId: string, phone: string): Promise<void> {
-    await apiClient.post(`${this.baseUrl}/${orderId}/whatsapp`, { phone });
+    await api.post(`${this.baseUrl}/${orderId}/whatsapp`, { phone });
   }
 
   // ============================================================================
@@ -205,17 +183,15 @@ class OrdersService {
       revenue: number;
     }>;
   }> {
-    const response = await apiClient.get<any>(
+    return await api.get<any>(
       `${this.baseUrl}/stats/daily?organization_id=${organizationId}&date=${date.toISOString()}`,
     );
-    return response.data;
   }
 
   async getWeeklySales(organizationId: string, startDate: Date): Promise<any> {
-    const response = await apiClient.get<any>(
+    return await api.get<any>(
       `${this.baseUrl}/stats/weekly?organization_id=${organizationId}&start_date=${startDate.toISOString()}`,
     );
-    return response.data;
   }
 
   async getMonthlySales(
@@ -223,10 +199,9 @@ class OrdersService {
     year: number,
     month: number,
   ): Promise<any> {
-    const response = await apiClient.get<any>(
+    return await api.get<any>(
       `${this.baseUrl}/stats/monthly?organization_id=${organizationId}&year=${year}&month=${month}`,
     );
-    return response.data;
   }
 }
 

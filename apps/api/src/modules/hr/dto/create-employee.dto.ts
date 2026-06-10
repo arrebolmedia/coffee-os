@@ -1,4 +1,12 @@
-import { IsNotEmpty, IsString, IsEmail, IsOptional, IsEnum, IsDateString, IsNumber } from 'class-validator';
+import {
+  IsDateString,
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export enum EmployeeStatus {
   ACTIVE = 'ACTIVE',
@@ -49,6 +57,16 @@ export class CreateEmployeeDto {
   @IsNotEmpty()
   @IsString()
   location_id: string;
+
+  /**
+   * The Prisma Role row this user binds to. Required because `User.roleId`
+   * is a non-null foreign key — we used to default it to the
+   * `organization_id`, which corrupted the database. Pass the real role id
+   * obtained from the roles service.
+   */
+  @IsNotEmpty()
+  @IsString()
+  role_id: string;
 
   @IsEnum(EmployeeRole)
   role: EmployeeRole;

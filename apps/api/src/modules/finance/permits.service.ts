@@ -1,185 +1,40 @@
-import { Injectable } from '@nestjs/common';
-import { CreatePermitDto, UpdatePermitDto, QueryFinanceDto, PermitStatus } from './dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../database/prisma.service';
+import {
+  CreatePermitDto,
+  PermitStatus,
+  QueryFinanceDto,
+  UpdatePermitDto,
+} from './dto';
 import { Permit } from './interfaces';
 
 @Injectable()
 export class PermitsService {
-  private permits: Map<string, Permit> = new Map();
+  constructor(private readonly prisma: PrismaService) {}
 
-  async create(createDto: CreatePermitDto): Promise<Permit> {
-    const id = this.generateId();
-    const now = new Date();
-
-    const permit: Permit = {
-      id,
-      organization_id: createDto.organization_id,
-      location_id: createDto.location_id,
-      type: createDto.type,
-      permit_number: createDto.permit_number,
-      issuing_authority: createDto.issuing_authority,
-      issue_date: new Date(createDto.issue_date),
-      expiry_date: new Date(createDto.expiry_date),
-      status: PermitStatus.ACTIVE,
-      cost: createDto.cost,
-      renewal_frequency: createDto.renewal_frequency,
-      responsible_person: createDto.responsible_person,
-      notes: createDto.notes,
-      document_url: createDto.document_url,
-      created_at: now,
-      updated_at: now,
+  private map(p: any): Permit {
+    const mapped: Permit = {
+      id: p.id,
+      organization_id: p.organizationId,
+      location_id: p.locationId,
+      type: p.type,
+      permit_number: p.permitNumber,
+      issuing_authority: p.authority,
+      issue_date: p.issuedDate ?? new Date(),
+      expiry_date: p.expiryDate ?? new Date(),
+      status: p.status,
+      cost: p.cost ?? undefined,
+      renewal_frequency: p.renewalFrequency ?? undefined,
+      last_renewal_date: p.lastRenewalDate ?? undefined,
+      renewal_cost: p.renewalCost ?? undefined,
+      responsible_person: p.responsiblePerson ?? undefined,
+      notes: p.notes ?? undefined,
+      document_url: p.documentUrl ?? undefined,
+      created_at: p.createdAt,
+      updated_at: p.updatedAt,
     };
-
-    // Calculate days until expiry
-    this.calculateExpiryInfo(permit);
-
-    this.permits.set(id, permit);
-    return permit;
-  }
-
-  async findAll(query: QueryFinanceDto): Promise<Permit[]> {
-    let permits = Array.from(this.permits.values());
-
-    if (query.organization_id) {
-      permits = permits.filter((p) => p.organization_id === query.organization_id);
-    }
-
-    if (query.location_id) {
-      permits = permits.filter((p) => p.location_id === query.location_id);
-    }
-
-    if (query.search) {
-      const search = query.search.toLowerCase();
-      permits = permits.filter(
-        (p) =>
-          p.permit_number.toLowerCase().includes(search) ||
-          p.issuing_authority.toLowerCase().includes(search) ||
-          p.type.toLowerCase().includes(search),
-      );
-    }
-
-    // Recalculate expiry info for all permits
-    permits.forEach((p) => this.calculateExpiryInfo(p));
-
-    return permits.sort((a, b) => {
-      // Sort by expiry date (soonest first)
-      return a.expiry_date.getTime() - b.expiry_date.getTime();
-    });
-  }
-
-  async findOne(id: string): Promise<Permit | null> {
-    const permit = this.permits.get(id);
-    if (permit) {
-      this.calculateExpiryInfo(permit);
-    }
-    return permit || null;
-  }
-
-  async update(id: string, updateDto: UpdatePermitDto): Promise<Permit> {
-    const permit = this.permits.get(id);
-    if (!permit) {
-      throw new Error('Permit not found');
-    }
-
-    Object.assign(permit, updateDto);
-    
-    if (updateDto.expiry_date) {
-      permit.expiry_date = new Date(updateDto.expiry_date);
-    }
-    if (updateDto.last_renewal_date) {
-      permit.last_renewal_date = new Date(updateDto.last_renewal_date);
-    }
-    
-    permit.updated_at = new Date();
-    
-    this.calculateExpiryInfo(permit);
-    this.permits.set(id, permit);
-    return permit;
-  }
-
-  async renewPermit(id: string, newExpiryDate: Date, renewalCost?: number): Promise<Permit> {
-    const permit = this.permits.get(id);
-    if (!permit) {
-      throw new Error('Permit not found');
-    }
-
-    permit.last_renewal_date = new Date();
-    permit.expiry_date = newExpiryDate;
-    permit.renewal_cost = renewalCost;
-    permit.status = PermitStatus.ACTIVE;
-    permit.updated_at = new Date();
-
-    this.calculateExpiryInfo(permit);
-    this.permits.set(id, permit);
-    return permit;
-  }
-
-  async delete(id: string): Promise<void> {
-    this.permits.delete(id);
-  }
-
-  async getExpiringSoon(organizationId: string, daysThreshold: number = 30): Promise<Permit[]> {
-    const permits = Array.from(this.permits.values()).filter(
-      (p) => p.organization_id === organizationId,
-    );
-
-    return permits.filter((p) => {
-      this.calculateExpiryInfo(p);
-      return (
-        p.days_until_expiry !== undefined &&
-        p.days_until_expiry <= daysThreshold &&
-        p.days_until_expiry >= 0
-      );
-    });
-  }
-
-  async getExpired(organizationId: string): Promise<Permit[]> {
-    const permits = Array.from(this.permits.values()).filter(
-      (p) => p.organization_id === organizationId,
-    );
-
-    return permits.filter((p) => {
-      this.calculateExpiryInfo(p);
-      return p.status === PermitStatus.EXPIRED || (p.days_until_expiry !== undefined && p.days_until_expiry < 0);
-    });
-  }
-
-  async getStats(organizationId: string, locationId?: string): Promise<any> {
-    let permits = Array.from(this.permits.values()).filter(
-      (p) => p.organization_id === organizationId,
-    );
-
-    if (locationId) {
-      permits = permits.filter((p) => p.location_id === locationId);
-    }
-
-    // Update statuses
-    permits.forEach((p) => {
-      this.calculateExpiryInfo(p);
-      if (p.days_until_expiry !== undefined && p.days_until_expiry < 0) {
-        p.status = PermitStatus.EXPIRED;
-      } else if (p.days_until_expiry !== undefined && p.days_until_expiry <= 30) {
-        p.status = PermitStatus.RENEWAL_DUE;
-      }
-    });
-
-    const total = permits.length;
-    const active = permits.filter((p) => p.status === PermitStatus.ACTIVE).length;
-    const renewalDue = permits.filter((p) => p.status === PermitStatus.RENEWAL_DUE).length;
-    const expired = permits.filter((p) => p.status === PermitStatus.EXPIRED).length;
-
-    const byType = permits.reduce((acc, p) => {
-      acc[p.type] = (acc[p.type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    return {
-      total_permits: total,
-      active: active,
-      renewal_due: renewalDue,
-      expired: expired,
-      by_type: byType,
-      expiring_soon: permits.filter((p) => p.is_expiring_soon).length,
-    };
+    this.calculateExpiryInfo(mapped);
+    return mapped;
   }
 
   private calculateExpiryInfo(permit: Permit): void {
@@ -187,19 +42,174 @@ export class PermitsService {
     const daysUntilExpiry = Math.floor(
       (permit.expiry_date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
     );
-
     permit.days_until_expiry = daysUntilExpiry;
     permit.is_expiring_soon = daysUntilExpiry >= 0 && daysUntilExpiry <= 30;
-
-    // Auto-update status
-    if (daysUntilExpiry < 0) {
-      permit.status = PermitStatus.EXPIRED;
-    } else if (daysUntilExpiry <= 30) {
-      permit.status = PermitStatus.RENEWAL_DUE;
-    }
   }
 
-  private generateId(): string {
-    return `permit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  async create(createDto: CreatePermitDto): Promise<Permit> {
+    const permit = await this.prisma.permit.create({
+      data: {
+        organizationId: createDto.organization_id,
+        locationId: createDto.location_id,
+        type: createDto.type as any,
+        name: createDto.permit_number,
+        authority: createDto.issuing_authority,
+        permitNumber: createDto.permit_number,
+        status: PermitStatus.ACTIVE as any,
+        issuedDate: new Date(createDto.issue_date),
+        expiryDate: new Date(createDto.expiry_date),
+        cost: createDto.cost,
+        renewalFrequency: createDto.renewal_frequency,
+        responsiblePerson: createDto.responsible_person,
+        notes: createDto.notes,
+        documentUrl: createDto.document_url,
+      },
+    });
+    return this.map(permit);
+  }
+
+  async findAll(query: QueryFinanceDto): Promise<Permit[]> {
+    const where: any = {};
+
+    if (query.organization_id) where.organizationId = query.organization_id;
+    if (query.location_id) where.locationId = query.location_id;
+
+    if (query.search) {
+      where.OR = [
+        { permitNumber: { contains: query.search, mode: 'insensitive' } },
+        { authority: { contains: query.search, mode: 'insensitive' } },
+        { type: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+
+    const permits = await this.prisma.permit.findMany({
+      where,
+      orderBy: { expiryDate: 'asc' },
+    });
+    return permits.map((p) => this.map(p));
+  }
+
+  async findOne(id: string): Promise<Permit | null> {
+    const permit = await this.prisma.permit.findUnique({ where: { id } });
+    return permit ? this.map(permit) : null;
+  }
+
+  async update(id: string, updateDto: UpdatePermitDto): Promise<Permit> {
+    const existing = await this.prisma.permit.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Permit not found');
+
+    const permit = await this.prisma.permit.update({
+      where: { id },
+      data: {
+        ...(updateDto.status && { status: updateDto.status as any }),
+        ...(updateDto.expiry_date && {
+          expiryDate: new Date(updateDto.expiry_date),
+        }),
+        ...(updateDto.last_renewal_date && {
+          lastRenewalDate: new Date(updateDto.last_renewal_date),
+        }),
+        ...(updateDto.renewal_cost !== undefined && {
+          renewalCost: updateDto.renewal_cost,
+        }),
+        ...(updateDto.responsible_person !== undefined && {
+          responsiblePerson: updateDto.responsible_person,
+        }),
+        ...(updateDto.notes !== undefined && { notes: updateDto.notes }),
+        ...(updateDto.document_url !== undefined && {
+          documentUrl: updateDto.document_url,
+        }),
+      },
+    });
+    return this.map(permit);
+  }
+
+  async renewPermit(
+    id: string,
+    newExpiryDate: Date,
+    renewalCost?: number,
+  ): Promise<Permit> {
+    const existing = await this.prisma.permit.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Permit not found');
+
+    const permit = await this.prisma.permit.update({
+      where: { id },
+      data: {
+        expiryDate: newExpiryDate,
+        lastRenewalDate: new Date(),
+        renewalCost,
+        status: PermitStatus.ACTIVE as any,
+      },
+    });
+    return this.map(permit);
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.prisma.permit.delete({ where: { id } });
+  }
+
+  async getExpiringSoon(
+    organizationId: string,
+    daysThreshold = 30,
+  ): Promise<Permit[]> {
+    const now = new Date();
+    const threshold = new Date(
+      now.getTime() + daysThreshold * 24 * 60 * 60 * 1000,
+    );
+
+    const permits = await this.prisma.permit.findMany({
+      where: {
+        organizationId,
+        expiryDate: { gte: now, lte: threshold },
+      },
+    });
+    return permits.map((p) => this.map(p));
+  }
+
+  async getExpired(organizationId: string): Promise<Permit[]> {
+    const permits = await this.prisma.permit.findMany({
+      where: {
+        organizationId,
+        expiryDate: { lt: new Date() },
+      },
+    });
+    return permits.map((p) => this.map(p));
+  }
+
+  async getStats(organizationId: string, locationId?: string): Promise<any> {
+    const where: any = { organizationId };
+    if (locationId) where.locationId = locationId;
+
+    const now = new Date();
+    const in30days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    const [total, expired, expiringSoon, byType] = await Promise.all([
+      this.prisma.permit.count({ where }),
+      this.prisma.permit.count({
+        where: { ...where, expiryDate: { lt: now } },
+      }),
+      this.prisma.permit.count({
+        where: { ...where, expiryDate: { gte: now, lte: in30days } },
+      }),
+      this.prisma.permit.groupBy({ by: ['type'], where, _count: { id: true } }),
+    ]);
+
+    const active = total - expired - expiringSoon;
+
+    const byTypeMap = byType.reduce(
+      (acc, row) => {
+        acc[row.type] = row._count.id;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    return {
+      total_permits: total,
+      active: Math.max(0, active),
+      renewal_due: expiringSoon,
+      expired,
+      by_type: byTypeMap,
+      expiring_soon: expiringSoon,
+    };
   }
 }

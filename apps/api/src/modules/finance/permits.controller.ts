@@ -1,6 +1,15 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { PermitsService } from './permits.service';
-import { CreatePermitDto, UpdatePermitDto, QueryFinanceDto } from './dto';
+import { CreatePermitDto, QueryFinanceDto, UpdatePermitDto } from './dto';
 
 @Controller('finance/permits')
 export class PermitsController {
@@ -29,7 +38,10 @@ export class PermitsController {
     @Query('organization_id') organizationId: string,
     @Query('days') days?: number,
   ) {
-    return this.permitsService.getExpiringSoon(organizationId, days ? parseInt(days as any) : 30);
+    return this.permitsService.getExpiringSoon(
+      organizationId,
+      days ? parseInt(days as any) : 30,
+    );
   }
 
   @Get('expired')
@@ -52,7 +64,11 @@ export class PermitsController {
     @Param('id') id: string,
     @Body() body: { expiry_date: string; renewal_cost?: number },
   ) {
-    return this.permitsService.renewPermit(id, new Date(body.expiry_date), body.renewal_cost);
+    return this.permitsService.renewPermit(
+      id,
+      new Date(body.expiry_date),
+      body.renewal_cost,
+    );
   }
 
   @Delete(':id')

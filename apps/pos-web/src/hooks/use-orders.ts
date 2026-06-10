@@ -3,18 +3,11 @@
  * React Query hooks para órdenes y ventas
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ordersService } from '@/services/orders.service';
 import { useAuth } from '@/hooks/use-auth';
 import { useUIStore } from '@/store/ui.store';
-import { useOfflineStore } from '@/store/offline.store';
-import {
-  Order,
-  Cart,
-  OrderFilters,
-  PaginationParams,
-  PaymentMethod,
-} from '@/types';
+import { Order, OrderFilters, PaginationParams, PaymentMethod } from '@/types';
 
 // ============================================================================
 // QUERY KEYS
@@ -62,88 +55,9 @@ export function useOrder(id: string, enabled = true) {
   });
 }
 
-export function useCreateOrder() {
-  const queryClient = useQueryClient();
-  const showToast = useUIStore((state) => state.showToast);
-  const { user } = useAuth();
-  const isOnline = useOfflineStore((state) => state.isOnline);
-  const addToSyncQueue = useOfflineStore((state) => state.addToSyncQueue);
-
-  return useMutation({
-    mutationFn: async (data: {
-      cart: Cart;
-      customer_id?: string;
-      payment_method?: PaymentMethod;
-      notes?: string;
-    }) => {
-      if (!user?.organizationId)
-        throw new Error('No user organization available');
-
-      const orderData = {
-        organization_id: user.organizationId,
-        location_id: user.locationId || '',
-        cashier_id: user.id,
-        ...data,
-      };
-
-      if (isOnline) {
-        // Online: Send directly to server
-        return await ordersService.createOrder(orderData);
-      } else {
-        // Offline: Add to sync queue and return optimistic response
-        const optimisticOrder: Order = {
-          id: `offline-${Date.now()}`,
-          organization_id: user.organizationId,
-          location_id: user.locationId || '',
-          order_number: `OFF-${Date.now()}`,
-          status: 'PENDING' as any,
-          customer_id: data.customer_id,
-          items: data.cart.items.map((item) => ({
-            id: item.id,
-            product_id: item.product.id,
-            product_name: item.product.name,
-            product_sku: item.product.sku,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            modifiers: item.selected_modifiers,
-            subtotal: item.subtotal,
-            notes: item.notes,
-          })),
-          subtotal: data.cart.subtotal,
-          tax: data.cart.tax,
-          discount: data.cart.discount,
-          total: data.cart.total,
-          payment_method: data.payment_method,
-          payment_status: 'PENDING' as any,
-          payments: [],
-          cashier_id: user?.id || 'offline',
-          cashier_name: user?.name || 'Offline User',
-          notes: data.notes,
-          created_at: new Date(),
-          updated_at: new Date(),
-        };
-
-        addToSyncQueue('ORDER', 'CREATE', orderData);
-        return optimisticOrder;
-      }
-    },
-    onSuccess: (order: Order) => {
-      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-      showToast('success', `Orden ${order.order_number} creada exitosamente`);
-
-      if (!isOnline) {
-        showToast(
-          'info',
-          'Orden guardada offline. Se sincronizará cuando haya conexión.',
-          7000,
-        );
-      }
-    },
-    onError: (error: any) => {
-      showToast('error', error.message || 'Error al crear orden');
-    },
-  });
-}
+// useCreateOrder is consolidated in use-pos.ts (which targets the /pos/orders
+// transactional endpoint). Re-exported here to preserve existing imports.
+export { useCreateOrder } from '@/hooks/use-pos';
 
 export function useUpdateOrderStatus() {
   const queryClient = useQueryClient();

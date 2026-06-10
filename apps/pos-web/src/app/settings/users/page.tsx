@@ -1,37 +1,49 @@
-/**
- * CoffeeOS - Users Management Page
- * Gestión completa de usuarios y permisos
- */
-
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { useEmployees } from '@/hooks/use-employees';
 import {
-  Users,
-  Shield,
+  Check,
   Edit,
+  Loader2,
+  Mail,
+  MapPin,
+  Phone,
+  Search,
+  Shield,
   Trash2,
   UserPlus,
-  Search,
-  Mail,
-  Phone,
-  MapPin,
-  Check,
+  Users,
   X,
-  Lock,
 } from 'lucide-react';
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  role: string;
-  status: 'active' | 'inactive' | 'pending';
-  locations: string[];
-  lastLogin: string;
-  createdAt: string;
+const ROLE_LABELS: Record<string, string> = {
+  SUPER_ADMIN: 'Super Admin',
+  ORG_ADMIN: 'Admin',
+  MANAGER: 'Gerente',
+  CASHIER: 'Cajero',
+  BARISTA: 'Barista',
+  VIEWER: 'Visor',
+};
+
+const ROLE_BADGE: Record<string, string> = {
+  SUPER_ADMIN: 'bg-red-100 text-red-800 border-red-300',
+  ORG_ADMIN: 'bg-blue-100 text-blue-800 border-blue-300',
+  MANAGER: 'bg-green-100 text-green-800 border-green-300',
+  CASHIER: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+  BARISTA: 'bg-orange-100 text-orange-800 border-orange-300',
+  VIEWER: 'bg-gray-100 text-gray-800 border-gray-300',
+};
+
+function getRoleBadge(roleName?: string) {
+  return (
+    ROLE_BADGE[roleName ?? ''] ?? 'bg-gray-100 text-gray-800 border-gray-300'
+  );
+}
+
+function getRoleLabel(roleName?: string) {
+  return ROLE_LABELS[roleName ?? ''] ?? roleName ?? '—';
 }
 
 export default function UsersManagementPage() {
@@ -39,109 +51,36 @@ export default function UsersManagementPage() {
   const [filterRole, setFilterRole] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
-  const users: User[] = [
-    {
-      id: '1',
-      name: 'Juan Pérez',
-      email: 'juan.perez@cafecentral.mx',
-      phone: '55 1234 5678',
-      role: 'Admin',
-      status: 'active',
-      locations: ['Sucursal Centro', 'Sucursal Polanco'],
-      lastLogin: '2025-10-23T10:30:00',
-      createdAt: '2025-01-15',
-    },
-    {
-      id: '2',
-      name: 'Ana Rodríguez',
-      email: 'ana.rodriguez@cafecentral.mx',
-      phone: '55 2345 6789',
-      role: 'Gerente',
-      status: 'active',
-      locations: ['Sucursal Centro'],
-      lastLogin: '2025-10-23T09:15:00',
-      createdAt: '2025-02-20',
-    },
-    {
-      id: '3',
-      name: 'Carlos Hernández',
-      email: 'carlos.h@cafecentral.mx',
-      phone: '55 3456 7890',
-      role: 'Cajero',
-      status: 'active',
-      locations: ['Sucursal Polanco'],
-      lastLogin: '2025-10-22T18:45:00',
-      createdAt: '2025-03-10',
-    },
-    {
-      id: '4',
-      name: 'Laura Martínez',
-      email: 'laura.m@cafecentral.mx',
-      phone: '55 4567 8901',
-      role: 'Barista',
-      status: 'active',
-      locations: ['Sucursal Centro'],
-      lastLogin: '2025-10-23T08:00:00',
-      createdAt: '2025-04-05',
-    },
-    {
-      id: '5',
-      name: 'Nuevo Usuario',
-      email: 'nuevo@cafecentral.mx',
-      phone: '55 5678 9012',
-      role: 'Cajero',
-      status: 'pending',
-      locations: [],
-      lastLogin: '',
-      createdAt: '2025-10-23',
-    },
-  ];
+  const { data: employees = [], isLoading, isError } = useEmployees();
+
+  const filtered = useMemo(() => {
+    return employees.filter((emp) => {
+      const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+      const matchesSearch =
+        !searchQuery ||
+        fullName.includes(searchQuery.toLowerCase()) ||
+        emp.email.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const roleName = emp.role?.name ?? '';
+      const matchesRole = filterRole === 'all' || roleName === filterRole;
+      const matchesStatus =
+        filterStatus === 'all' ||
+        (filterStatus === 'active' && emp.active) ||
+        (filterStatus === 'inactive' && !emp.active);
+
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [employees, searchQuery, filterRole, filterStatus]);
 
   const stats = {
-    total: users.length,
-    active: users.filter((u) => u.status === 'active').length,
-    pending: users.filter((u) => u.status === 'pending').length,
-    inactive: users.filter((u) => u.status === 'inactive').length,
+    total: employees.length,
+    active: employees.filter((e) => e.active).length,
+    inactive: employees.filter((e) => !e.active).length,
   };
 
-  const roles = ['Admin', 'Gerente', 'Cajero', 'Barista'];
-
-  const getRoleBadge = (role: string) => {
-    switch (role) {
-      case 'Admin':
-        return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'Gerente':
-        return 'bg-green-100 text-green-800 border-green-300';
-      case 'Cajero':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'Barista':
-        return 'bg-orange-100 text-orange-800 border-orange-300';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800 border-green-300';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'inactive':
-        return 'bg-red-100 text-red-800 border-red-300';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    const labels: Record<string, string> = {
-      active: 'Activo',
-      pending: 'Pendiente',
-      inactive: 'Inactivo',
-    };
-    return labels[status] || status;
-  };
+  const uniqueRoles = Array.from(
+    new Set(employees.map((e) => e.role?.name).filter((r): r is string => !!r)),
+  );
 
   return (
     <MainLayout>
@@ -174,7 +113,7 @@ export default function UsersManagementPage() {
 
         <div className="container mx-auto px-4 py-8">
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -195,17 +134,6 @@ export default function UsersManagementPage() {
                   </p>
                 </div>
                 <Check className="w-8 h-8 text-green-400" />
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Pendientes</p>
-                  <p className="text-2xl font-bold text-yellow-600">
-                    {stats.pending}
-                  </p>
-                </div>
-                <Lock className="w-8 h-8 text-yellow-400" />
               </div>
             </div>
             <div className="bg-white rounded-lg shadow p-4">
@@ -240,9 +168,9 @@ export default function UsersManagementPage() {
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
                 <option value="all">Todos los roles</option>
-                {roles.map((role) => (
+                {uniqueRoles.map((role) => (
                   <option key={role} value={role}>
-                    {role}
+                    {getRoleLabel(role)}
                   </option>
                 ))}
               </select>
@@ -253,136 +181,140 @@ export default function UsersManagementPage() {
               >
                 <option value="all">Todos los estados</option>
                 <option value="active">Activos</option>
-                <option value="pending">Pendientes</option>
                 <option value="inactive">Inactivos</option>
               </select>
             </div>
           </div>
 
           {/* Users Table */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Usuario
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Contacto
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Rol
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Ubicaciones
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Estado
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Último Acceso
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold mr-3">
-                          {user.name.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {user.name}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+              <span className="ml-3 text-gray-500">Cargando usuarios...</span>
+            </div>
+          ) : isError ? (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center text-red-600">
+              Error al cargar usuarios. Verifica la conexión con el servidor.
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Usuario
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Contacto
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Rol
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Ubicaciones
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Estado
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-6 py-12 text-center text-gray-400"
+                      >
+                        No se encontraron usuarios con los filtros aplicados.
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map((emp) => (
+                      <tr key={emp.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center">
+                            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold mr-3">
+                              {emp.firstName.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {emp.firstName} {emp.lastName}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                Desde:{' '}
+                                {new Date(emp.createdAt).toLocaleDateString(
+                                  'es-MX',
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-500">
-                            Desde:{' '}
-                            {new Date(user.createdAt).toLocaleDateString(
-                              'es-MX',
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900 space-y-1">
+                            <div className="flex items-center gap-1">
+                              <Mail className="w-3 h-3 text-gray-400" />
+                              {emp.email}
+                            </div>
+                            {emp.phone && (
+                              <div className="flex items-center gap-1">
+                                <Phone className="w-3 h-3 text-gray-400" />
+                                {emp.phone}
+                              </div>
                             )}
                           </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 space-y-1">
-                        <div className="flex items-center gap-1">
-                          <Mail className="w-3 h-3 text-gray-400" />
-                          {user.email}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Phone className="w-3 h-3 text-gray-400" />
-                          {user.phone}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleBadge(user.role)}`}
-                      >
-                        <Shield className="w-3 h-3" />
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {user.locations.length > 0 ? (
-                        <div className="text-xs text-gray-600 space-y-1">
-                          {user.locations.map((loc, idx) => (
-                            <div key={idx} className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3" />
-                              {loc}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleBadge(emp.role?.name)}`}
+                          >
+                            <Shield className="w-3 h-3" />
+                            {getRoleLabel(emp.role?.name)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          {emp.locations && emp.locations.length > 0 ? (
+                            <div className="text-xs text-gray-600 space-y-1">
+                              {emp.locations.map((loc) => (
+                                <div
+                                  key={loc.id}
+                                  className="flex items-center gap-1"
+                                >
+                                  <MapPin className="w-3 h-3" />
+                                  {loc.name}
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400 italic">
-                          Sin asignar
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadge(user.status)}`}
-                      >
-                        {getStatusLabel(user.status)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {user.lastLogin ? (
-                        <div className="text-xs text-gray-600">
-                          {new Date(user.lastLogin).toLocaleDateString('es-MX')}
-                          <br />
-                          {new Date(user.lastLogin).toLocaleTimeString(
-                            'es-MX',
-                            {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            },
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">
+                              Sin asignar
+                            </span>
                           )}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400 italic">
-                          Nunca
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right space-x-2">
-                      <button className="text-blue-600 hover:text-blue-900 text-sm">
-                        <Edit className="w-4 h-4 inline" />
-                      </button>
-                      <button className="text-red-600 hover:text-red-900 text-sm">
-                        <Trash2 className="w-4 h-4 inline" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${emp.active ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-800 border-red-300'}`}
+                          >
+                            {emp.active ? 'Activo' : 'Inactivo'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right space-x-2">
+                          <button className="text-blue-600 hover:text-blue-900 text-sm">
+                            <Edit className="w-4 h-4 inline" />
+                          </button>
+                          <button className="text-red-600 hover:text-red-900 text-sm">
+                            <Trash2 className="w-4 h-4 inline" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>

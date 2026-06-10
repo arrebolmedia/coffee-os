@@ -2,9 +2,27 @@
 
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { FileCheck, Search, Filter, Calendar, AlertTriangle, CheckCircle, Clock, FileText, XCircle, Check, Trash2, Loader2, Building } from 'lucide-react';
-import { useAudits, useAuditStats, useOpenActions, useDeleteAudit, useCompleteAudit } from '@/hooks/use-audits';
-import { AuditType, AuditResult } from '@/types';
+import {
+  AlertTriangle,
+  Check,
+  CheckCircle,
+  Clock,
+  FileCheck,
+  FileText,
+  Filter,
+  Loader2,
+  Search,
+  Trash2,
+  XCircle,
+} from 'lucide-react';
+import {
+  useAudits,
+  useAuditStats,
+  useCompleteAudit,
+  useDeleteAudit,
+  useOpenActions,
+} from '@/hooks/use-audits';
+import { AuditResult, AuditType } from '@/types';
 
 export default function AuditsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -19,14 +37,16 @@ export default function AuditsPage() {
   const completeAudit = useCompleteAudit();
 
   const filteredAudits = audits.filter((audit) => {
-    const matchesSearch = !searchTerm || 
+    const matchesSearch =
+      !searchTerm ||
       audit.auditor_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       audit.findings.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesType = filterType === 'all' || audit.type === filterType;
-    const matchesResult = filterResult === 'all' || audit.result === filterResult;
+    const matchesResult =
+      filterResult === 'all' || audit.result === filterResult;
     const matchesOpen = !showOpenOnly || !audit.is_completed;
-    
+
     return matchesSearch && matchesType && matchesResult && matchesOpen;
   });
 
@@ -68,7 +88,9 @@ export default function AuditsPage() {
   const getResultIcon = (result: AuditResult) => {
     const icons = {
       [AuditResult.APPROVED]: <CheckCircle className="h-4 w-4" />,
-      [AuditResult.APPROVED_WITH_OBSERVATIONS]: <AlertTriangle className="h-4 w-4" />,
+      [AuditResult.APPROVED_WITH_OBSERVATIONS]: (
+        <AlertTriangle className="h-4 w-4" />
+      ),
       [AuditResult.REJECTED]: <XCircle className="h-4 w-4" />,
       [AuditResult.PENDING]: <Clock className="h-4 w-4" />,
     };
@@ -82,7 +104,10 @@ export default function AuditsPage() {
   };
 
   const handleComplete = (id: string) => {
-    const completionDate = prompt('Fecha de completación (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+    const completionDate = prompt(
+      'Fecha de completación (YYYY-MM-DD):',
+      new Date().toISOString().split('T')[0],
+    );
     if (completionDate) {
       completeAudit.mutate({ id, completionDate });
     }
@@ -117,7 +142,9 @@ export default function AuditsPage() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Auditorías</h1>
-            <p className="text-gray-600 mt-1">Gestión de auditorías y cumplimiento</p>
+            <p className="text-gray-600 mt-1">
+              Gestión de auditorías y cumplimiento
+            </p>
           </div>
           <FileCheck className="h-12 w-12 text-blue-600" />
         </div>
@@ -126,8 +153,12 @@ export default function AuditsPage() {
           <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-100 text-sm font-medium">Total Auditorías</p>
-                <p className="text-3xl font-bold mt-1">{stats?.total_audits || 0}</p>
+                <p className="text-blue-100 text-sm font-medium">
+                  Total Auditorías
+                </p>
+                <p className="text-3xl font-bold mt-1">
+                  {stats?.total_audits || 0}
+                </p>
               </div>
               <FileCheck className="h-12 w-12 text-blue-200" />
             </div>
@@ -137,7 +168,9 @@ export default function AuditsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-green-100 text-sm font-medium">Aprobadas</p>
-                <p className="text-3xl font-bold mt-1">{stats?.approved || 0}</p>
+                <p className="text-3xl font-bold mt-1">
+                  {stats?.approved || 0}
+                </p>
               </div>
               <CheckCircle className="h-12 w-12 text-green-200" />
             </div>
@@ -146,8 +179,12 @@ export default function AuditsPage() {
           <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-yellow-100 text-sm font-medium">Con Observaciones</p>
-                <p className="text-3xl font-bold mt-1">{stats?.with_observations || 0}</p>
+                <p className="text-yellow-100 text-sm font-medium">
+                  Con Observaciones
+                </p>
+                <p className="text-3xl font-bold mt-1">
+                  {stats?.with_observations || 0}
+                </p>
               </div>
               <AlertTriangle className="h-12 w-12 text-yellow-200" />
             </div>
@@ -156,8 +193,12 @@ export default function AuditsPage() {
           <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-6 text-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-red-100 text-sm font-medium">Acciones Abiertas</p>
-                <p className="text-3xl font-bold mt-1">{stats?.open_actions || 0}</p>
+                <p className="text-red-100 text-sm font-medium">
+                  Acciones Abiertas
+                </p>
+                <p className="text-3xl font-bold mt-1">
+                  {stats?.open_actions || 0}
+                </p>
               </div>
               <Clock className="h-12 w-12 text-red-200" />
             </div>
@@ -172,12 +213,18 @@ export default function AuditsPage() {
                   <FileText className="h-6 w-6 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-purple-600 font-medium">Calificación Promedio</p>
-                  <p className="text-2xl font-bold text-purple-900">{stats.average_score.toFixed(1)} / 100</p>
+                  <p className="text-sm text-purple-600 font-medium">
+                    Calificación Promedio
+                  </p>
+                  <p className="text-2xl font-bold text-purple-900">
+                    {stats.average_score.toFixed(1)} / 100
+                  </p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-xs text-purple-600">Basado en {stats.total_audits} auditorías</p>
+                <p className="text-xs text-purple-600">
+                  Basado en {stats.total_audits} auditorías
+                </p>
               </div>
             </div>
           </div>
@@ -188,7 +235,10 @@ export default function AuditsPage() {
             <div className="flex items-center">
               <AlertTriangle className="h-5 w-5 text-red-400 mr-2" />
               <p className="text-sm text-red-700">
-                <strong>{openActions.length}</strong> {openActions.length === 1 ? 'acción correctiva pendiente' : 'acciones correctivas pendientes'}
+                <strong>{openActions.length}</strong>{' '}
+                {openActions.length === 1
+                  ? 'acción correctiva pendiente'
+                  : 'acciones correctivas pendientes'}
               </p>
             </div>
           </div>
@@ -221,7 +271,9 @@ export default function AuditsPage() {
                 <option value={AuditType.TAX}>Fiscal</option>
                 <option value={AuditType.LABOR}>Laboral</option>
                 <option value={AuditType.ENVIRONMENTAL}>Ambiental</option>
-                <option value={AuditType.FOOD_SAFETY}>Seguridad Alimentaria</option>
+                <option value={AuditType.FOOD_SAFETY}>
+                  Seguridad Alimentaria
+                </option>
               </select>
               <select
                 value={filterResult}
@@ -230,7 +282,9 @@ export default function AuditsPage() {
               >
                 <option value="all">Todos los resultados</option>
                 <option value={AuditResult.APPROVED}>Aprobado</option>
-                <option value={AuditResult.APPROVED_WITH_OBSERVATIONS}>Con Observaciones</option>
+                <option value={AuditResult.APPROVED_WITH_OBSERVATIONS}>
+                  Con Observaciones
+                </option>
                 <option value={AuditResult.REJECTED}>Rechazado</option>
                 <option value={AuditResult.PENDING}>Pendiente</option>
               </select>
@@ -250,8 +304,14 @@ export default function AuditsPage() {
         {filteredAudits.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <FileCheck className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay auditorías</h3>
-            <p className="text-gray-600">{searchTerm ? 'No se encontraron resultados' : 'Comienza registrando una auditoría'}</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              No hay auditorías
+            </h3>
+            <p className="text-gray-600">
+              {searchTerm
+                ? 'No se encontraron resultados'
+                : 'Comienza registrando una auditoría'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6">
@@ -261,8 +321,12 @@ export default function AuditsPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <FileText className="h-5 w-5 text-gray-400" />
-                      <h3 className="text-lg font-semibold text-gray-900">{getTypeLabel(audit.type)}</h3>
-                      <span className={`px-2 py-1 text-xs font-medium rounded flex items-center gap-1 ${getResultColor(audit.result)}`}>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {getTypeLabel(audit.type)}
+                      </h3>
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded flex items-center gap-1 ${getResultColor(audit.result)}`}
+                      >
                         {getResultIcon(audit.result)}
                         {getResultLabel(audit.result)}
                       </span>
@@ -274,8 +338,15 @@ export default function AuditsPage() {
                       )}
                     </div>
                     <div className="space-y-1 text-sm text-gray-600">
-                      <p><strong>Auditor:</strong> {audit.auditor_name}{audit.auditor_organization && ` (${audit.auditor_organization})`}</p>
-                      <p><strong>Fecha:</strong> {new Date(audit.audit_date).toLocaleDateString()}</p>
+                      <p>
+                        <strong>Auditor:</strong> {audit.auditor_name}
+                        {audit.auditor_organization &&
+                          ` (${audit.auditor_organization})`}
+                      </p>
+                      <p>
+                        <strong>Fecha:</strong>{' '}
+                        {new Date(audit.audit_date).toLocaleDateString()}
+                      </p>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -301,7 +372,9 @@ export default function AuditsPage() {
                   {audit.score !== undefined && audit.score !== null && (
                     <div className="text-center p-3 bg-gray-50 rounded-lg">
                       <p className="text-xs text-gray-600 mb-1">Calificación</p>
-                      <p className={`text-lg font-semibold ${audit.score >= 80 ? 'text-green-600' : audit.score >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                      <p
+                        className={`text-lg font-semibold ${audit.score >= 80 ? 'text-green-600' : audit.score >= 60 ? 'text-yellow-600' : 'text-red-600'}`}
+                      >
                         {audit.score} / 100
                       </p>
                     </div>
@@ -310,7 +383,9 @@ export default function AuditsPage() {
                     <div className="text-center p-3 bg-gray-50 rounded-lg">
                       <p className="text-xs text-gray-600 mb-1">Fecha Límite</p>
                       <p className="text-sm font-semibold text-gray-900">
-                        {new Date(audit.completion_deadline).toLocaleDateString()}
+                        {new Date(
+                          audit.completion_deadline,
+                        ).toLocaleDateString()}
                       </p>
                     </div>
                   )}
@@ -328,24 +403,36 @@ export default function AuditsPage() {
                   <div className="p-3 bg-red-50 rounded-lg border border-red-200">
                     <div className="flex items-center gap-2 mb-2">
                       <AlertTriangle className="h-4 w-4 text-red-600" />
-                      <p className="text-sm font-medium text-red-900">Hallazgos</p>
+                      <p className="text-sm font-medium text-red-900">
+                        Hallazgos
+                      </p>
                     </div>
-                    <p className="text-sm text-red-800 whitespace-pre-wrap">{audit.findings}</p>
+                    <p className="text-sm text-red-800 whitespace-pre-wrap">
+                      {audit.findings}
+                    </p>
                   </div>
 
                   <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                     <div className="flex items-center gap-2 mb-2">
                       <CheckCircle className="h-4 w-4 text-blue-600" />
-                      <p className="text-sm font-medium text-blue-900">Acciones Correctivas</p>
+                      <p className="text-sm font-medium text-blue-900">
+                        Acciones Correctivas
+                      </p>
                     </div>
-                    <p className="text-sm text-blue-800 whitespace-pre-wrap">{audit.corrective_actions}</p>
+                    <p className="text-sm text-blue-800 whitespace-pre-wrap">
+                      {audit.corrective_actions}
+                    </p>
                   </div>
                 </div>
 
                 {audit.notes && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
-                    <p className="text-sm font-medium text-gray-700 mb-1">Notas:</p>
-                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{audit.notes}</p>
+                    <p className="text-sm font-medium text-gray-700 mb-1">
+                      Notas:
+                    </p>
+                    <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                      {audit.notes}
+                    </p>
                   </div>
                 )}
 
@@ -368,7 +455,11 @@ export default function AuditsPage() {
         )}
 
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm text-blue-800">💡 <strong>Gestión de Auditorías:</strong> Registra todas las auditorías internas y externas. Documenta hallazgos y acciones correctivas para mantener el cumplimiento normativo.</p>
+          <p className="text-sm text-blue-800">
+            💡 <strong>Gestión de Auditorías:</strong> Registra todas las
+            auditorías internas y externas. Documenta hallazgos y acciones
+            correctivas para mantener el cumplimiento normativo.
+          </p>
         </div>
       </div>
     </MainLayout>

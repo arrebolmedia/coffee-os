@@ -12,7 +12,6 @@ jest.mock('@/lib/api', () => ({
 
 describe('QualityControlService', () => {
   const mockOrganizationId = 'org-123';
-  const mockTemplateId = 'template-456';
   const mockExecutionId = 'execution-789';
 
   beforeEach(() => {

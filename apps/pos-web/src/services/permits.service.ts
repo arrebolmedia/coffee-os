@@ -4,7 +4,7 @@
  */
 
 import { api } from '@/lib/api';
-import { Permit, PermitType, PermitStatus, PermitStats } from '@/types';
+import { Permit, PermitStats, PermitStatus, PermitType } from '@/types';
 
 export interface CreatePermitDto {
   organization_id: string;

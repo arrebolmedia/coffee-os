@@ -5,39 +5,37 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import {
-  useInventory,
-  useInventoryStats,
   useCreateInventoryItem,
-  useUpdateInventoryItem,
   useDeleteInventoryItem,
+  useInventory,
+  useUpdateInventoryItem,
 } from '@/hooks/use-inventory';
 import {
-  useOrganizationTheoreticalStock,
   useCreateReconciliation,
-  useStockStatus,
+  useOrganizationTheoreticalStock,
 } from '@/hooks/use-inventory-automation';
 import { useAuth } from '@/hooks/use-auth';
 import { InventoryItemModal } from '@/components/inventory/InventoryItemModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import {
-  Package,
-  Search,
   AlertCircle,
-  TrendingDown,
-  TrendingUp,
-  Filter,
-  Download,
-  Plus,
-  Edit,
-  Trash2,
-  Loader2,
   CheckCircle,
-  XCircle,
+  Download,
+  Edit,
+  Filter,
+  Loader2,
+  Package,
+  Plus,
   RefreshCw,
   Scale,
+  Search,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  XCircle,
 } from 'lucide-react';
 
 interface InventoryItemDisplay {
@@ -75,7 +73,6 @@ export default function InventoryPage() {
 
   // Obtener datos del backend
   const { data: inventoryData, isLoading, error } = useInventory();
-  const { data: stats } = useInventoryStats();
 
   // Mutations para CRUD
   const createMutation = useCreateInventoryItem();
@@ -191,7 +188,8 @@ export default function InventoryPage() {
   const handleSaveItem = async (item: any) => {
     try {
       if (item.id) {
-        await updateMutation.mutateAsync({ id: item.id, data: item });
+        const { id, ...data } = item;
+        await updateMutation.mutateAsync({ id, data });
       } else {
         await createMutation.mutateAsync(item);
       }

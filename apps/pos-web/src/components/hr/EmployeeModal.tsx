@@ -3,7 +3,7 @@
  * Modal para crear/editar empleados con datos completos de RH
  */
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import {
   InputField,
@@ -12,12 +12,12 @@ import {
 } from '@/components/ui/FormField';
 import { Button } from '@/components/ui/Button';
 import {
-  User,
+  AlertCircle,
   Briefcase,
   FileText,
-  MapPin,
   Heart,
-  AlertCircle,
+  MapPin,
+  User,
 } from 'lucide-react';
 
 interface EmployeeModalProps {

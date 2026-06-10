@@ -2,18 +2,27 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CFDIService } from '../cfdi/cfdi.service';
 import {
-  CreateCFDIDto,
   CancelCFDIDto,
-  TipoComprobante,
-  MetodoPago,
+  CreateCFDIDto,
   FormaPago,
-  UsoCFDI,
-  RegimenFiscal,
+  MetodoPago,
   MotivoCancelacion,
+  RegimenFiscal,
+  TipoComprobante,
+  UsoCFDI,
 } from '../cfdi/dto';
 
 describe('CFDIService', () => {
   let service: CFDIService;
+
+  beforeAll(() => {
+    process.env.PAC_API_URL = 'https://api.pac-test.test';
+    process.env.PAC_API_KEY = 'test-api-key';
+    process.env.RFC_EMISOR = 'XAXX010101000';
+    process.env.NOMBRE_EMISOR = 'Mi Cafetería Test S.A. de C.V.';
+    process.env.REGIMEN_FISCAL = '601';
+    process.env.LUGAR_EXPEDICION = '06600';
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -166,7 +175,7 @@ describe('CFDIService', () => {
 
     it('should reject cancelling non-stamped CFDI', async () => {
       const dto = createValidCFDIDto();
-      const cfdi = await service.create(dto);
+      await service.create(dto);
 
       const cancelDto: CancelCFDIDto = {
         uuid: 'fake-uuid',
@@ -240,7 +249,9 @@ describe('CFDIService', () => {
       await service.create(dto1);
       await service.create(dto2);
 
-      const cfdis = await service.findAll('org-123', { location_id: 'loc-111' });
+      const cfdis = await service.findAll('org-123', {
+        location_id: 'loc-111',
+      });
 
       expect(cfdis.every((c) => c.location_id === 'loc-111')).toBe(true);
     });

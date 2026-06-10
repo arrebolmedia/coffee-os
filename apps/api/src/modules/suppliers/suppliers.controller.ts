@@ -1,12 +1,11 @@
 import {
+  Body,
   Controller,
+  Delete,
   Get,
+  Param,
   Post,
   Put,
-  Patch,
-  Delete,
-  Body,
-  Param,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -59,15 +58,6 @@ export class SuppliersController {
     return this.suppliersService.getStats(organizationId);
   }
 
-  @Get('organization/:organizationId/category/:category')
-  findByCategory(
-    @Param('organizationId') organizationId: string,
-    @Param('category') category: string,
-  ) {
-    // Category filtering will be added to service later
-    return this.suppliersService.findAll({ organization_id: organizationId });
-  }
-
   @Get('organization/:organizationId/search')
   search(
     @Param('organizationId') organizationId: string,
@@ -95,18 +85,6 @@ export class SuppliersController {
     @Body() updateSupplierDto: UpdateSupplierDto,
   ) {
     return this.suppliersService.update(id, updateSupplierDto);
-  }
-
-  @Patch(':id/rating')
-  updateRating(
-    @Param('id') id: string,
-    @Body() body: { rating: number; on_time_delivery_rate?: number },
-  ) {
-    return this.suppliersService.updateRating(
-      id,
-      body.rating,
-      body.on_time_delivery_rate,
-    );
   }
 
   @Delete(':id')

@@ -1,27 +1,27 @@
 import {
-  Controller,
-  Post,
-  Get,
-  Patch,
-  Delete,
-  Param,
   Body,
-  Query,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import {
+  CreateBatchDto,
   CreateNotificationDto,
+  CreatePreferenceDto,
   CreateTemplateDto,
   UpdateTemplateDto,
-  CreatePreferenceDto,
-  CreateBatchDto,
 } from './dto';
 import {
   Channel,
-  NotificationStatus,
   NotificationPriority,
+  NotificationStatus,
   TemplateCategory,
 } from './interfaces';
 
@@ -43,7 +43,8 @@ export class NotificationsController {
     @Query('category') category?: TemplateCategory,
     @Query('is_active') is_active?: string,
   ) {
-    const isActiveBoolean = is_active === 'true' ? true : is_active === 'false' ? false : undefined;
+    const isActiveBoolean =
+      is_active === 'true' ? true : is_active === 'false' ? false : undefined;
     return this.service.findAllTemplates(
       organization_id,
       channel,

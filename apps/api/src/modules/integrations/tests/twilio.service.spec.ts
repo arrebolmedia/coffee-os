@@ -4,6 +4,13 @@ import { TwilioService } from '../twilio/twilio.service';
 describe('TwilioService', () => {
   let service: TwilioService;
 
+  beforeAll(() => {
+    process.env.TWILIO_ACCOUNT_SID = 'AC_test_account_sid';
+    process.env.TWILIO_AUTH_TOKEN = 'test_auth_token';
+    process.env.TWILIO_WHATSAPP_FROM = 'whatsapp:+14155238886';
+    process.env.TWILIO_SMS_FROM = '+14155551234';
+  });
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [TwilioService],

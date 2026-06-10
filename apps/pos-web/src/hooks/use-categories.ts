@@ -2,13 +2,12 @@
  * Categories Hooks - React Query hooks for category management
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
   categoriesService,
-  type Category,
-  type QueryCategoriesParams,
   type CreateCategoryDto,
+  type QueryCategoriesParams,
 } from '@/services/categories.service';
 
 // Query Keys

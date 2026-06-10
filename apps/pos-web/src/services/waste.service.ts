@@ -1,10 +1,10 @@
 import api from '@/lib/api';
 import {
-  WasteLog,
-  WasteStats,
-  WasteCategory,
-  WasteReason,
   DisposalMethod,
+  WasteCategory,
+  WasteLog,
+  WasteReason,
+  WasteStats,
 } from '@/types';
 
 export interface CreateWasteLogDto {

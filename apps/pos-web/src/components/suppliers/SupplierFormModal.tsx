@@ -5,27 +5,25 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  X,
-  Save,
-  Loader2,
   Building2,
-  User,
-  Phone,
-  Mail,
-  MapPin,
-  FileText,
-  Star,
   DollarSign,
+  Loader2,
+  MapPin,
   Package,
+  Save,
+  Star,
+  User,
+  X,
 } from 'lucide-react';
 import { Supplier } from '@/services/suppliers.service';
+import { useCreateSupplier, useUpdateSupplier } from '@/hooks/use-suppliers';
 
 interface SupplierFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  onSubmit?: (data: any) => void;
   supplier?: Supplier | null;
   isLoading?: boolean;
 }
@@ -59,8 +57,15 @@ export function SupplierFormModal({
   onClose,
   onSubmit,
   supplier,
-  isLoading = false,
+  isLoading: isLoadingProp = false,
 }: SupplierFormModalProps) {
+  const createSupplier = useCreateSupplier();
+  const updateSupplier = useUpdateSupplier();
+  const isLoading =
+    isLoadingProp ||
+    (createSupplier as any).isPending ||
+    (updateSupplier as any).isPending ||
+    false;
   const [formData, setFormData] = useState({
     name: '',
     business_name: '',
@@ -124,7 +129,12 @@ export function SupplierFormModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    if (supplier?.id) {
+      updateSupplier.mutate({ id: supplier.id, data: formData });
+    } else {
+      createSupplier.mutate(formData as any);
+    }
+    onSubmit?.(formData);
   };
 
   const handleChange = (
@@ -190,10 +200,14 @@ export function SupplierFormModal({
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Nombre Comercial *
                 </label>
                 <input
+                  id="name"
                   type="text"
                   name="name"
                   value={formData.name}
@@ -204,10 +218,14 @@ export function SupplierFormModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="business_name"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Razón Social *
                 </label>
                 <input
+                  id="business_name"
                   type="text"
                   name="business_name"
                   value={formData.business_name}
@@ -218,10 +236,14 @@ export function SupplierFormModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="rfc"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   RFC
                 </label>
                 <input
+                  id="rfc"
                   type="text"
                   name="rfc"
                   value={formData.rfc}
@@ -257,6 +279,7 @@ export function SupplierFormModal({
                     <button
                       key={rating}
                       type="button"
+                      aria-label={`star ${rating}`}
                       onClick={() =>
                         setFormData((prev) => ({ ...prev, rating }))
                       }
@@ -313,7 +336,6 @@ export function SupplierFormModal({
                   name="contact_name"
                   value={formData.contact_name}
                   onChange={handleChange}
-                  required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder="Juan Pérez"
                 />
@@ -327,16 +349,19 @@ export function SupplierFormModal({
                   name="contact_phone"
                   value={formData.contact_phone}
                   onChange={handleChange}
-                  required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder="555-123-4567"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="contact_email"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Email
                 </label>
                 <input
+                  id="contact_email"
                   type="email"
                   name="contact_email"
                   value={formData.contact_email}
@@ -450,7 +475,7 @@ export function SupplierFormModal({
                       }
                     }}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Ej: Café arábica, Leche entera..."
+                    placeholder="Agregar producto..."
                   />
                   <button
                     type="button"
@@ -470,6 +495,7 @@ export function SupplierFormModal({
                       {product}
                       <button
                         type="button"
+                        aria-label="×"
                         onClick={() => removeProduct(product)}
                         className="ml-1 text-indigo-600 hover:text-indigo-800"
                       >
@@ -497,17 +523,9 @@ export function SupplierFormModal({
               disabled={isLoading}
               className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Guardando...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  <span>{supplier ? 'Actualizar' : 'Crear'} Proveedor</span>
-                </>
-              )}
+              {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {!isLoading && <Save className="w-4 h-4" />}
+              <span>{supplier ? 'Guardar Cambios' : 'Crear Proveedor'}</span>
             </button>
           </div>
         </form>

@@ -4,7 +4,7 @@
  */
 
 import { Plus, Trash2 } from 'lucide-react';
-import { SelectField, InputField } from '@/components/ui/FormField';
+import { InputField, SelectField } from '@/components/ui/FormField';
 
 export interface RecipeIngredientInput {
   inventoryItemId: string;

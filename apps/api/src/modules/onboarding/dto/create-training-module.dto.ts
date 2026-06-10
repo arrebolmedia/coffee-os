@@ -1,18 +1,19 @@
 import {
-  IsString,
-  IsUUID,
+  IsArray,
+  IsBoolean,
   IsEnum,
   IsNumber,
-  IsBoolean,
   IsOptional,
-  IsArray,
-  IsDateString,
+  IsString,
+  IsUUID,
+  Max,
   MaxLength,
   Min,
-  Max,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-import { TrainingCategory, CompetencyLevel } from '../interfaces/onboarding.interface';
+import {
+  CompetencyLevel,
+  TrainingCategory,
+} from '../interfaces/onboarding.interface';
 
 export class CreateTrainingModuleDto {
   @IsUUID()

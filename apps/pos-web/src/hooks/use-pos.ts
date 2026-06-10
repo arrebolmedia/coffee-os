@@ -4,8 +4,10 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { POSService, CreateOrderDTO, Order } from '@/services/pos.service';
+import { CreateOrderDTO, Order, POSService } from '@/services/pos.service';
 import { useAuth } from '@/hooks/use-auth';
+import { useOfflineStore } from '@/store/offline.store';
+import { Cart, PaymentMethod } from '@/types';
 import toast from 'react-hot-toast';
 
 // Query keys
@@ -24,16 +26,90 @@ export const posKeys = {
     [...posKeys.all, 'cash-register', orgId] as const,
 };
 
+type CreateOrderInput =
+  | CreateOrderDTO
+  | {
+      cart: Cart;
+      payment_method?: PaymentMethod;
+      customer_id?: string;
+      notes?: string;
+      payment_details?: CreateOrderDTO['payment_details'];
+    };
+
 /**
- * Hook to create order
+ * Hook to create order via POS transactional endpoint (/pos/orders).
+ * Accepts either a pre-built CreateOrderDTO or a shorthand { cart, payment_method } shape.
  */
 export function useCreateOrder() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
+  const isOnline = useOfflineStore((state) => state.isOnline);
+  const addToSyncQueue = useOfflineStore((state) => state.addToSyncQueue);
 
   return useMutation({
-    mutationFn: (data: CreateOrderDTO) => POSService.createOrder(data),
+    mutationFn: (input: CreateOrderInput): Promise<Order> => {
+      if (!user?.organizationId)
+        throw new Error('No user organization available');
+
+      // Shorthand shape: { cart, payment_method, ... }
+      if ('cart' in input) {
+        const { cart, payment_method, customer_id, notes, payment_details } =
+          input;
+
+        if (!isOnline) {
+          const optimisticOrder: Order = {
+            id: `offline-${Date.now()}`,
+            organization_id: user.organizationId,
+            customer_id,
+            order_number: `OFF-${Date.now()}`,
+            subtotal: cart.subtotal,
+            tax: cart.tax,
+            discount: cart.discount,
+            total: cart.total,
+            status: 'pending',
+            payment_method: payment_method ?? PaymentMethod.CASH,
+            payment_status: 'pending',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          addToSyncQueue('ORDER', 'CREATE', {
+            cart,
+            payment_method,
+            customer_id,
+            notes,
+          });
+          return Promise.resolve(optimisticOrder);
+        }
+
+        const dto: CreateOrderDTO = {
+          organization_id: user.organizationId,
+          customer_id,
+          items: cart.items.map((item) => ({
+            product_id: item.product.id,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            modifiers: item.selected_modifiers.map((m) => ({
+              id: m.modifier_id,
+              name: m.modifier_name,
+              price: m.price_adjustment,
+            })),
+            notes: item.notes,
+          })),
+          subtotal: cart.subtotal,
+          tax: cart.tax,
+          discount: cart.discount,
+          total: cart.total,
+          payment_method: payment_method ?? PaymentMethod.CASH,
+          payment_details,
+          notes: notes ?? cart.notes,
+        };
+        return POSService.createOrder(dto);
+      }
+
+      // Pre-built DTO shape
+      return POSService.createOrder(input);
+    },
     onSuccess: (order) => {
       queryClient.invalidateQueries({ queryKey: posKeys.orders() });
       queryClient.invalidateQueries({
@@ -66,8 +142,8 @@ export function useOrder(orderId: string, enabled = true) {
  * Hook to get today's orders
  */
 export function useTodayOrders() {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: posKeys.todayOrders(organizationId),
@@ -86,8 +162,8 @@ export function useOrdersByDateRange(
   endDate: string,
   enabled = true,
 ) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: posKeys.dateRangeOrders(organizationId, startDate, endDate),
@@ -102,8 +178,8 @@ export function useOrdersByDateRange(
  * Hook to get daily sales stats
  */
 export function useDailySalesStats(date?: string) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: posKeys.dailyStats(organizationId, date),
@@ -118,8 +194,8 @@ export function useDailySalesStats(date?: string) {
  */
 export function useCancelOrder() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: ({ orderId, reason }: { orderId: string; reason: string }) =>
@@ -148,8 +224,8 @@ export function useCancelOrder() {
  */
 export function useRefundOrder() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: ({
@@ -207,9 +283,9 @@ export function usePrintReceipt() {
  */
 export function useOpenCashRegister() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
-  const userId = session?.user?.id || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
+  const userId = user?.id || '';
 
   return useMutation({
     mutationFn: (initialAmount: number) =>
@@ -231,8 +307,8 @@ export function useOpenCashRegister() {
  */
 export function useCloseCashRegister() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: ({
@@ -267,8 +343,8 @@ export function useCloseCashRegister() {
  * Hook to get current cash register
  */
 export function useCurrentCashRegister() {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: posKeys.cashRegister(organizationId),

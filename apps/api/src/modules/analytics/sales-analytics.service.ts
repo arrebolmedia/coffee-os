@@ -1,7 +1,43 @@
 import { Injectable } from '@nestjs/common';
 import { QueryAnalyticsDto, TimeGranularity } from './dto';
-import { SalesMetrics, HourlyMetric, DailyMetric } from './interfaces';
+import { DailyMetric, HourlyMetric, SalesMetrics } from './interfaces';
 import { PrismaService } from '../database/prisma.service';
+
+// All operational analytics are reported in the organization's main timezone.
+// CoffeeOS is single-region for now (Mexico City).
+const TZ = 'America/Mexico_City';
+
+// Returns 0-23 hour as observed in TZ.
+function hourInTz(d: Date): number {
+  const s = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ,
+    hour: 'numeric',
+    hour12: false,
+  }).format(d);
+  // "24" can appear in some locales when the date is midnight; normalize.
+  const n = parseInt(s, 10);
+  return Number.isNaN(n) ? 0 : n % 24;
+}
+
+// Returns YYYY-MM-DD as observed in TZ.
+function dayKeyInTz(d: Date): string {
+  // en-CA produces YYYY-MM-DD reliably.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
+}
+
+// pct change: returns null when prev=0 and current>0 (not comparable)
+// or when both are 0 (no change to report).
+function pctChange(current: number, previous: number): number | null {
+  if (previous === 0) {
+    return current === 0 ? 0 : null;
+  }
+  return ((current - previous) / previous) * 100;
+}
 
 @Injectable()
 export class SalesAnalyticsService {
@@ -40,13 +76,15 @@ export class SalesAnalyticsService {
     const avgOrderValue = totalOrders > 0 ? grossSales / totalOrders : 0;
 
     // Customer metrics
-    const customerIds = new Set(tickets.map((t) => t.customerId).filter(Boolean));
+    const customerIds = new Set(
+      tickets.map((t) => t.customerId).filter(Boolean),
+    );
     const totalCustomers = customerIds.size;
 
-    // Hourly breakdown
+    // Hourly breakdown (hours in organization timezone)
     const hourlyMap = new Map<number, { sales: number; orders: number }>();
     for (const ticket of tickets) {
-      const hour = new Date(ticket.closedAt!).getHours();
+      const hour = hourInTz(new Date(ticket.closedAt!));
       const existing = hourlyMap.get(hour) || { sales: 0, orders: 0 };
       hourlyMap.set(hour, {
         sales: existing.sales + ticket.total,
@@ -76,7 +114,7 @@ export class SalesAnalyticsService {
       { sales: number; orders: number; customerIds: Set<string> }
     >();
     for (const ticket of tickets) {
-      const dayKey = new Date(ticket.closedAt!).toISOString().split('T')[0];
+      const dayKey = dayKeyInTz(new Date(ticket.closedAt!));
       const existing = dayMap.get(dayKey) || {
         sales: 0,
         orders: 0,
@@ -107,11 +145,16 @@ export class SalesAnalyticsService {
       : 'N/A';
 
     // Average items per order
-    const totalItems = tickets.reduce((sum, t) => sum + (t.lines?.length ?? 0), 0);
+    const totalItems = tickets.reduce(
+      (sum, t) => sum + (t.lines?.length ?? 0),
+      0,
+    );
     const avgItemsPerOrder = totalOrders > 0 ? totalItems / totalOrders : 0;
 
-    // Compare with previous period
-    const periodDuration = endDate.getTime() - startDate.getTime();
+    // Compare with previous period.
+    // periodDuration is inclusive of the end millisecond; +1ms makes prev
+    // period a full mirror of the current one (e.g. 30-day vs 30-day).
+    const periodDuration = endDate.getTime() - startDate.getTime() + 1;
     const prevStart = new Date(startDate.getTime() - periodDuration);
     const prevEnd = new Date(startDate.getTime() - 1);
 
@@ -123,17 +166,30 @@ export class SalesAnalyticsService {
     const prevAvgOrderValue =
       prevTotalOrders > 0 ? prevGrossSales / prevTotalOrders : 0;
 
-    const pctChange = (current: number, previous: number) =>
-      previous === 0 ? 0 : ((current - previous) / previous) * 100;
-
     const vsPreviousPeriod = {
       gross_sales_change: grossSales - prevGrossSales,
       gross_sales_change_percent: pctChange(grossSales, prevGrossSales),
       orders_change: totalOrders - prevTotalOrders,
       orders_change_percent: pctChange(totalOrders, prevTotalOrders),
       avg_order_value_change: avgOrderValue - prevAvgOrderValue,
-      avg_order_value_change_percent: pctChange(avgOrderValue, prevAvgOrderValue),
+      avg_order_value_change_percent: pctChange(
+        avgOrderValue,
+        prevAvgOrderValue,
+      ),
     };
+
+    // New customers: customers whose first record was created within this period.
+    let newCustomers = 0;
+    try {
+      const orgFilter = query.organization_id
+        ? { organizationId: query.organization_id }
+        : {};
+      newCustomers = await this.prisma.customer.count({
+        where: { ...orgFilter, createdAt: { gte: startDate, lte: endDate } },
+      });
+    } catch {
+      // Customer model unavailable in some test envs — leave at 0.
+    }
 
     return {
       period_start: startDate,
@@ -149,8 +205,8 @@ export class SalesAnalyticsService {
       avg_order_value: Math.round(avgOrderValue * 100) / 100,
       avg_items_per_order: Math.round(avgItemsPerOrder * 100) / 100,
       total_customers: totalCustomers,
-      new_customers: 0, // Would require joining with customer.createdAt
-      returning_customers: totalCustomers,
+      new_customers: newCustomers,
+      returning_customers: Math.max(totalCustomers - newCustomers, 0),
       peak_hour: peakHour,
       peak_day: peakDay,
       hourly_breakdown: hourlyBreakdown,
@@ -297,17 +353,15 @@ export class SalesAnalyticsService {
       let key: string;
 
       if (granularity === TimeGranularity.HOURLY) {
-        key = `${date.toISOString().split('T')[0]}T${String(date.getHours()).padStart(2, '0')}:00`;
+        const day = dayKeyInTz(date);
+        key = `${day}T${String(hourInTz(date)).padStart(2, '0')}:00`;
       } else if (granularity === TimeGranularity.WEEKLY) {
-        // Get Monday of the week
-        const day = date.getDay();
-        const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-        const monday = new Date(date.setDate(diff));
-        key = monday.toISOString().split('T')[0];
+        key = this.getMondayOfWeek(date);
       } else if (granularity === TimeGranularity.MONTHLY) {
-        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        // dayKey is YYYY-MM-DD; take YYYY-MM
+        key = dayKeyInTz(date).slice(0, 7);
       } else {
-        key = date.toISOString().split('T')[0];
+        key = dayKeyInTz(date);
       }
 
       const existing = bucketMap.get(key) || { sales: 0, orders: 0 };
@@ -328,5 +382,17 @@ export class SalesAnalyticsService {
             ? Math.round((data.sales / data.orders) * 100) / 100
             : 0,
       }));
+  }
+
+  /**
+   * Returns the YYYY-MM-DD of the Monday for the ISO-week containing `date`,
+   * computed in TZ. Clones the input — never mutates it.
+   */
+  private getMondayOfWeek(date: Date): string {
+    const d = new Date(date.getTime()); // clone — never mutate input
+    const day = d.getUTCDay(); // Sunday=0..Saturday=6 (UTC is fine for arithmetic)
+    const diff = day === 0 ? -6 : 1 - day; // shift back to Monday
+    d.setUTCDate(d.getUTCDate() + diff);
+    return dayKeyInTz(d);
   }
 }

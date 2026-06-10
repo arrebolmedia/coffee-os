@@ -1,21 +1,24 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import {
-  ReportTemplate,
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
   Report,
-  ReportSchedule,
   ReportCategory,
-  ReportType,
-  ReportStatus,
-  ExportFormat,
-  ScheduleFrequency,
-  ReportStats,
   ReportResult,
+  ReportSchedule,
+  ReportStats,
+  ReportStatus,
+  ReportTemplate,
+  ReportType,
+  ScheduleFrequency,
 } from './interfaces/report.interface';
 import {
-  CreateReportTemplateDto,
-  UpdateReportTemplateDto,
-  GenerateReportDto,
   CreateReportScheduleDto,
+  CreateReportTemplateDto,
+  GenerateReportDto,
+  UpdateReportTemplateDto,
 } from './dto';
 
 @Injectable()
@@ -29,7 +32,9 @@ export class ReportsService {
   /**
    * Crear template de reporte
    */
-  async createReportTemplate(dto: CreateReportTemplateDto): Promise<ReportTemplate> {
+  async createReportTemplate(
+    dto: CreateReportTemplateDto,
+  ): Promise<ReportTemplate> {
     const id = `template-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     const template: ReportTemplate = {
@@ -56,7 +61,9 @@ export class ReportsService {
     let templates = Array.from(this.templates.values());
 
     if (organization_id) {
-      templates = templates.filter((t) => t.organization_id === organization_id);
+      templates = templates.filter(
+        (t) => t.organization_id === organization_id,
+      );
     }
     if (category) {
       templates = templates.filter((t) => t.category === category);
@@ -68,7 +75,9 @@ export class ReportsService {
       templates = templates.filter((t) => t.is_active === is_active);
     }
 
-    return templates.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+    return templates.sort(
+      (a, b) => b.created_at.getTime() - a.created_at.getTime(),
+    );
   }
 
   /**
@@ -165,7 +174,10 @@ export class ReportsService {
   /**
    * Ejecutar generación de reporte (simulado)
    */
-  private async executeReportGeneration(reportId: string, startTime: number): Promise<void> {
+  private async executeReportGeneration(
+    reportId: string,
+    startTime: number,
+  ): Promise<void> {
     const report = this.reports.get(reportId);
     if (!report) return;
 
@@ -209,7 +221,8 @@ export class ReportsService {
       const failed: Report = {
         ...report,
         status: ReportStatus.FAILED,
-        error_message: error.message || 'Unknown error during report generation',
+        error_message:
+          error.message || 'Unknown error during report generation',
         updated_at: new Date(),
       };
       this.reports.set(reportId, failed);
@@ -238,7 +251,7 @@ export class ReportsService {
   /**
    * Generar datos de ventas diarias (simulado)
    */
-  private generateDailySalesData(report: Report): any[] {
+  private generateDailySalesData(_report: Report): any[] {
     // TODO: Query actual sales data from transactions
     return [];
   }
@@ -246,7 +259,7 @@ export class ReportsService {
   /**
    * Generar datos de niveles de inventario (simulado)
    */
-  private generateInventoryLevelsData(report: Report): any[] {
+  private generateInventoryLevelsData(_report: Report): any[] {
     // TODO: Query actual inventory data
     return [];
   }
@@ -254,7 +267,7 @@ export class ReportsService {
   /**
    * Generar datos de P&L (simulado)
    */
-  private generateProfitLossData(report: Report): any {
+  private generateProfitLossData(_report: Report): any {
     // TODO: Calculate actual P&L from transactions and expenses
     return {
       revenue: {
@@ -280,7 +293,7 @@ export class ReportsService {
   /**
    * Generar datos de performance de empleados (simulado)
    */
-  private generateEmployeePerformanceData(report: Report): any[] {
+  private generateEmployeePerformanceData(_report: Report): any[] {
     // TODO: Query actual employee performance metrics
     return [];
   }
@@ -288,9 +301,9 @@ export class ReportsService {
   /**
    * Generar datos genéricos (simulado)
    */
-  private generateGenericData(report: Report): any[] {
+  private generateGenericData(_report: Report): any[] {
     const data = [];
-    
+
     for (let i = 0; i < 20; i++) {
       data.push({
         id: i + 1,
@@ -307,7 +320,7 @@ export class ReportsService {
    */
   private async exportReport(
     report: Report,
-    data: any,
+    _data: any,
   ): Promise<{ url: string; size: number }> {
     // Simular exportación
     const format = report.export_format!;
@@ -342,7 +355,9 @@ export class ReportsService {
       reports = reports.filter((r) => r.requested_by === requested_by);
     }
 
-    return reports.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+    return reports.sort(
+      (a, b) => b.created_at.getTime() - a.created_at.getTime(),
+    );
   }
 
   /**
@@ -370,7 +385,9 @@ export class ReportsService {
       report,
       columns: this.generateColumns(report),
       summary: this.generateSummary(report),
-      charts: report.parameters.include_charts ? this.generateCharts(report) : undefined,
+      charts: report.parameters.include_charts
+        ? this.generateCharts(report)
+        : undefined,
       total_rows: report.row_count,
       page: report.parameters.page || 1,
       total_pages: report.row_count
@@ -388,9 +405,19 @@ export class ReportsService {
       case ReportType.DAILY_SALES:
         return [
           { name: 'date', label: 'Date', type: 'date' },
-          { name: 'total_sales', label: 'Total Sales', type: 'number', format: 'currency' },
+          {
+            name: 'total_sales',
+            label: 'Total Sales',
+            type: 'number',
+            format: 'currency',
+          },
           { name: 'transactions', label: 'Transactions', type: 'number' },
-          { name: 'average_ticket', label: 'Avg Ticket', type: 'number', format: 'currency' },
+          {
+            name: 'average_ticket',
+            label: 'Avg Ticket',
+            type: 'number',
+            format: 'currency',
+          },
         ];
       case ReportType.INVENTORY_LEVELS:
         return [
@@ -415,8 +442,14 @@ export class ReportsService {
 
     // Calcular totales y promedios según el tipo
     if (report.type === ReportType.DAILY_SALES) {
-      const totalSales = report.data.reduce((sum, row) => sum + (row.total_sales || 0), 0);
-      const totalTransactions = report.data.reduce((sum, row) => sum + (row.transactions || 0), 0);
+      const totalSales = report.data.reduce(
+        (sum, row) => sum + (row.total_sales || 0),
+        0,
+      );
+      const totalTransactions = report.data.reduce(
+        (sum, row) => sum + (row.transactions || 0),
+        0,
+      );
 
       return {
         totals: {
@@ -472,14 +505,19 @@ export class ReportsService {
   /**
    * Crear schedule de reporte
    */
-  async createReportSchedule(dto: CreateReportScheduleDto): Promise<ReportSchedule> {
+  async createReportSchedule(
+    dto: CreateReportScheduleDto,
+  ): Promise<ReportSchedule> {
     // Validar que el template existe
     await this.findReportTemplateById(dto.template_id);
 
     const id = `schedule-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     // Calcular next_run_date basado en frequency
-    const next_run_date = this.calculateNextRunDate(dto.start_date, dto.frequency);
+    const next_run_date = this.calculateNextRunDate(
+      dto.start_date,
+      dto.frequency,
+    );
 
     const schedule: ReportSchedule = {
       id,
@@ -509,7 +547,10 @@ export class ReportsService {
   /**
    * Calcular próxima fecha de ejecución
    */
-  private calculateNextRunDate(startDate: Date, frequency: ScheduleFrequency): Date {
+  private calculateNextRunDate(
+    startDate: Date,
+    frequency: ScheduleFrequency,
+  ): Date {
     const next = new Date(startDate);
 
     switch (frequency) {
@@ -545,13 +586,17 @@ export class ReportsService {
     let schedules = Array.from(this.schedules.values());
 
     if (organization_id) {
-      schedules = schedules.filter((s) => s.organization_id === organization_id);
+      schedules = schedules.filter(
+        (s) => s.organization_id === organization_id,
+      );
     }
     if (is_active !== undefined) {
       schedules = schedules.filter((s) => s.is_active === is_active);
     }
 
-    return schedules.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+    return schedules.sort(
+      (a, b) => b.created_at.getTime() - a.created_at.getTime(),
+    );
   }
 
   /**
@@ -637,7 +682,9 @@ export class ReportsService {
 
     const reportsByCategory = {} as Record<ReportCategory, number>;
     Object.values(ReportCategory).forEach((cat) => {
-      reportsByCategory[cat] = orgReports.filter((r) => r.category === cat).length;
+      reportsByCategory[cat] = orgReports.filter(
+        (r) => r.category === cat,
+      ).length;
     });
 
     const reportsByType = {} as Record<string, number>;
@@ -647,18 +694,25 @@ export class ReportsService {
 
     const reportsByStatus = {} as Record<ReportStatus, number>;
     Object.values(ReportStatus).forEach((status) => {
-      reportsByStatus[status] = orgReports.filter((r) => r.status === status).length;
+      reportsByStatus[status] = orgReports.filter(
+        (r) => r.status === status,
+      ).length;
     });
 
-    const completedReports = orgReports.filter((r) => r.status === ReportStatus.COMPLETED);
-    const avgGenerationTime = completedReports.length > 0
-      ? completedReports.reduce((sum, r) => sum + (r.generation_time_ms || 0), 0) / completedReports.length
-      : 0;
+    const completedReports = orgReports.filter(
+      (r) => r.status === ReportStatus.COMPLETED,
+    );
+    const avgGenerationTime =
+      completedReports.length > 0
+        ? completedReports.reduce(
+            (sum, r) => sum + (r.generation_time_ms || 0),
+            0,
+          ) / completedReports.length
+        : 0;
 
-    const totalFileSize = completedReports.reduce(
-      (sum, r) => sum + (r.file_size || 0),
-      0,
-    ) / (1024 * 1024); // Convert to MB
+    const totalFileSize =
+      completedReports.reduce((sum, r) => sum + (r.file_size || 0), 0) /
+      (1024 * 1024); // Convert to MB
 
     // Most generated type
     let mostGeneratedType = ReportType.DAILY_SALES;
@@ -671,7 +725,11 @@ export class ReportsService {
     });
 
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
     const weekStart = new Date(now);
     weekStart.setDate(weekStart.getDate() - 7);
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -683,13 +741,19 @@ export class ReportsService {
       reports_by_type: reportsByType,
       reports_by_status: reportsByStatus,
       active_schedules: orgSchedules.filter((s) => s.is_active).length,
-      total_scheduled_runs: orgSchedules.reduce((sum, s) => sum + s.run_count, 0),
+      total_scheduled_runs: orgSchedules.reduce(
+        (sum, s) => sum + s.run_count,
+        0,
+      ),
       average_generation_time_ms: Math.round(avgGenerationTime),
       total_file_size_mb: Math.round(totalFileSize * 100) / 100,
       most_generated_type: mostGeneratedType,
-      reports_today: orgReports.filter((r) => r.created_at >= todayStart).length,
-      reports_this_week: orgReports.filter((r) => r.created_at >= weekStart).length,
-      reports_this_month: orgReports.filter((r) => r.created_at >= monthStart).length,
+      reports_today: orgReports.filter((r) => r.created_at >= todayStart)
+        .length,
+      reports_this_week: orgReports.filter((r) => r.created_at >= weekStart)
+        .length,
+      reports_this_month: orgReports.filter((r) => r.created_at >= monthStart)
+        .length,
     };
   }
 }

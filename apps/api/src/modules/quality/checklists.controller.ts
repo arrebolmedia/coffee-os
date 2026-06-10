@@ -1,17 +1,21 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Param,
+  Controller,
   Delete,
-  Query,
-  Patch,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
 } from '@nestjs/common';
 import { ChecklistsService } from './checklists.service';
-import { CreateChecklistDto, CompleteChecklistDto, QueryChecklistsDto } from './dto';
+import {
+  CompleteChecklistDto,
+  CreateChecklistDto,
+  QueryChecklistsDto,
+} from './dto';
 import { Checklist } from './interfaces';
 
 @Controller('quality/checklists')
@@ -20,7 +24,9 @@ export class ChecklistsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createChecklistDto: CreateChecklistDto): Promise<Checklist> {
+  async create(
+    @Body() createChecklistDto: CreateChecklistDto,
+  ): Promise<Checklist> {
     return this.checklistsService.create(createChecklistDto);
   }
 
@@ -34,7 +40,10 @@ export class ChecklistsController {
     @Query('organization_id') organizationId: string,
     @Query('location_id') locationId?: string,
   ): Promise<any> {
-    return this.checklistsService.getComplianceStats(organizationId, locationId);
+    return this.checklistsService.getComplianceStats(
+      organizationId,
+      locationId,
+    );
   }
 
   @Get(':id')
@@ -47,7 +56,10 @@ export class ChecklistsController {
   }
 
   @Patch(':id/complete')
-  async complete(@Param('id') id: string, @Body() completeDto: CompleteChecklistDto): Promise<Checklist> {
+  async complete(
+    @Param('id') id: string,
+    @Body() completeDto: CompleteChecklistDto,
+  ): Promise<Checklist> {
     return this.checklistsService.complete(id, completeDto);
   }
 

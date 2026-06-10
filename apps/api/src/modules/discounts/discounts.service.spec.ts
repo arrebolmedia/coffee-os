@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DiscountsService, DiscountType } from './discounts.service';
 import { PrismaService } from '../database/prisma.service';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('DiscountsService', () => {
   let service: DiscountsService;
@@ -12,6 +12,7 @@ describe('DiscountsService', () => {
       create: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     },
@@ -46,7 +47,7 @@ describe('DiscountsService', () => {
         organizationId: 'org-1',
       };
 
-      mockPrismaService.discount.findUnique.mockResolvedValue(null);
+      mockPrismaService.discount.findFirst.mockResolvedValue(null);
       mockPrismaService.discount.create.mockResolvedValue({ id: '1', ...dto });
 
       const result = await service.create(dto);
@@ -73,7 +74,7 @@ describe('DiscountsService', () => {
         organizationId: 'org-1',
       };
 
-      mockPrismaService.discount.findUnique.mockResolvedValue({
+      mockPrismaService.discount.findFirst.mockResolvedValue({
         id: '1',
         code: 'SUMMER20',
       });
@@ -90,7 +91,7 @@ describe('DiscountsService', () => {
         organizationId: 'org-1',
       };
 
-      mockPrismaService.discount.findUnique.mockResolvedValue(null);
+      mockPrismaService.discount.findFirst.mockResolvedValue(null);
 
       await expect(service.create(dto)).rejects.toThrow(BadRequestException);
     });
@@ -104,7 +105,7 @@ describe('DiscountsService', () => {
         organizationId: 'org-1',
       };
 
-      mockPrismaService.discount.findUnique.mockResolvedValue(null);
+      mockPrismaService.discount.findFirst.mockResolvedValue(null);
 
       await expect(service.create(dto)).rejects.toThrow(BadRequestException);
     });
@@ -120,7 +121,7 @@ describe('DiscountsService', () => {
         organizationId: 'org-1',
       };
 
-      mockPrismaService.discount.findUnique.mockResolvedValue(null);
+      mockPrismaService.discount.findFirst.mockResolvedValue(null);
 
       await expect(service.create(dto)).rejects.toThrow(BadRequestException);
     });
@@ -213,18 +214,18 @@ describe('DiscountsService', () => {
       const code = 'SUMMER20';
       const discount = { id: '1', code };
 
-      mockPrismaService.discount.findUnique.mockResolvedValue(discount);
+      mockPrismaService.discount.findFirst.mockResolvedValue(discount);
 
       const result = await service.findByCode(code);
 
       expect(result).toEqual(discount);
-      expect(prisma.discount.findUnique).toHaveBeenCalledWith({
+      expect(prisma.discount.findFirst).toHaveBeenCalledWith({
         where: { code },
       });
     });
 
     it('should throw NotFoundException if code not found', async () => {
-      mockPrismaService.discount.findUnique.mockResolvedValue(null);
+      mockPrismaService.discount.findFirst.mockResolvedValue(null);
 
       await expect(service.findByCode('NOTFOUND')).rejects.toThrow(
         NotFoundException,
@@ -273,9 +274,17 @@ describe('DiscountsService', () => {
       const id = '1';
       const dto = { code: 'EXISTING' };
 
+      // findOne() -> findUnique({where:{id}}) returns existing
+      // then current org lookup -> findUnique returns {organizationId}
+      // then findFirst returns conflicting discount
       mockPrismaService.discount.findUnique
         .mockResolvedValueOnce({ id: '1', code: 'OLD' })
-        .mockResolvedValueOnce({ id: '2', code: 'EXISTING' });
+        .mockResolvedValueOnce({ organizationId: 'org-1' });
+      mockPrismaService.discount.findFirst.mockResolvedValueOnce({
+        id: '2',
+        code: 'EXISTING',
+        organizationId: 'org-1',
+      });
 
       await expect(service.update(id, dto)).rejects.toThrow(
         BadRequestException,

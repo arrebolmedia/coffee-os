@@ -1,57 +1,136 @@
+/**
+ * RecipesService — Prisma-backed implementation.
+ *
+ * Maps to the `Recipe` and `RecipeIngredient` models.
+ *
+ * Costing assumptions (`calculateCost`):
+ *   - labor cost: 20% of ingredients cost
+ *   - overhead cost: 10% of ingredients cost
+ *   These defaults are documented constants; the response includes a flag
+ *   `usedDefaultRates: true` so the caller knows they are not org-specific.
+ *   TODO migration: source from `Organization.settings.recipeCostingDefaults`
+ *   when a settings model is added.
+ *
+ * Margin calculations clamp `targetMargin` to (0, 100) exclusive to avoid
+ * division-by-zero and negative prices. servings is validated > 0.
+ *
+ * Profile/Stats use Prisma aggregations directly. The in-memory Map was
+ * eliminated; all reads go through Prisma.
+ */
 import {
-  Injectable,
-  NotFoundException,
   BadRequestException,
+  Injectable,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import {
-  CreateRecipeDto,
-  UpdateRecipeDto,
-  QueryRecipesDto,
-  ScaleRecipeDto,
-  RecipeCategory,
-  PreparationMethod,
-  DifficultyLevel,
   AllergenType,
+  CreateRecipeDto,
+  DifficultyLevel,
+  PreparationMethod,
+  QueryRecipesDto,
+  RecipeCategory,
+  ScaleRecipeDto,
+  UpdateRecipeDto,
 } from './dto';
 import {
   Recipe,
   RecipeCostBreakdown,
-  ScaledRecipe,
-  RecipeStats,
-  RecipeProfitability,
   RecipeIngredient,
+  RecipeProfitability,
+  RecipeStats,
+  ScaledRecipe,
 } from './interfaces';
-import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from '../database/prisma.service';
 import { CategoriesService } from '../categories/categories.service';
 import { CategoryType } from '../categories/dto/create-category.dto';
 
+/** Default labor/overhead rates used when org settings are unavailable. */
+const DEFAULT_LABOR_RATE = 0.2;
+const DEFAULT_OVERHEAD_RATE = 0.1;
+const DEFAULT_TARGET_MARGIN = 65;
+
 @Injectable()
 export class RecipesService {
   private readonly logger = new Logger(RecipesService.name);
-  private recipes: Map<string, Recipe> = new Map();
 
   constructor(
     private prisma: PrismaService,
     private categoriesService: CategoriesService,
   ) {}
 
-  /**
-   * Crear una nueva receta
-   */
+  /** Convert a Prisma recipe (with ingredients + product) to the public Recipe shape. */
+  private toRecipe(r: any): Recipe {
+    const ingredients = (r.ingredients || []).map((ing: any) => ({
+      id: ing.id,
+      recipe_id: ing.recipeId,
+      inventory_item_id: ing.inventoryItemId,
+      inventory_item_name: ing.inventoryItem?.name || '',
+      quantity: ing.quantity,
+      unit: ing.unit,
+      cost_per_unit: ing.unitCost ?? ing.inventoryItem?.costPerUnit ?? 0,
+      total_cost:
+        ing.totalCost ?? ing.quantity * (ing.inventoryItem?.costPerUnit ?? 0),
+      preparation_notes: ing.notes || undefined,
+    }));
+
+    const totalCost =
+      r.totalCost ??
+      ingredients.reduce((sum: number, i: any) => sum + (i.total_cost || 0), 0);
+
+    let steps: any[] = [];
+    if (r.instructions) {
+      try {
+        const parsed = JSON.parse(r.instructions);
+        if (Array.isArray(parsed)) steps = parsed;
+      } catch {
+        steps = [];
+      }
+    }
+
+    const yieldValue = r.yield || 1;
+
+    return {
+      id: r.id,
+      organization_id: r.organizationId,
+      product_id: r.productId ?? undefined,
+      name: r.name,
+      description: r.description || undefined,
+      instructions: r.instructions || undefined,
+      category: RecipeCategory.BEBIDAS_CALIENTES,
+      preparation_method: PreparationMethod.ESPRESSO_MACHINE,
+      difficulty: DifficultyLevel.INTERMEDIO,
+      servings: yieldValue,
+      yield_unit: r.yieldUnit || 'unit',
+      estimated_time_minutes: r.prepTime || 0,
+      allergens: (r.allergens || []) as AllergenType[],
+      video_url: r.videoUrl || undefined,
+      ingredients,
+      steps,
+      is_active: r.active,
+      total_cost: totalCost,
+      cost_per_serving: yieldValue ? totalCost / yieldValue : 0,
+      suggested_price:
+        yieldValue && totalCost
+          ? totalCost / yieldValue / (1 - DEFAULT_TARGET_MARGIN / 100)
+          : 0,
+      target_margin_percentage: DEFAULT_TARGET_MARGIN,
+      actual_margin_percentage: DEFAULT_TARGET_MARGIN,
+      created_at: r.createdAt,
+      updated_at: r.updatedAt,
+    };
+  }
+
   async create(createRecipeDto: CreateRecipeDto): Promise<Recipe> {
-    // Calcular costos (si es posible)
-    // En una implementación real, buscaríamos los costos de los items de inventario aquí.
-    
     const newRecipe = await this.prisma.recipe.create({
       data: {
         organizationId: createRecipeDto.organization_id,
         productId: createRecipeDto.product_id,
         name: createRecipeDto.name,
         description: createRecipeDto.description,
-        // Serializamos los pasos en instructions por ahora ya que el schema es simple
-        instructions: createRecipeDto.steps ? JSON.stringify(createRecipeDto.steps) : undefined,
+        instructions: createRecipeDto.steps
+          ? JSON.stringify(createRecipeDto.steps)
+          : undefined,
         yield: createRecipeDto.servings || 1,
         yieldUnit: createRecipeDto.yield_unit || 'unit',
         prepTime: createRecipeDto.estimated_time_minutes,
@@ -69,528 +148,180 @@ export class RecipesService {
         },
       },
       include: {
-        ingredients: {
-          include: {
-            inventoryItem: true,
-          },
-        },
+        ingredients: { include: { inventoryItem: true } },
+        product: true,
       },
     });
 
     this.logger.log(`Receta creada: ${newRecipe.name} (${newRecipe.id})`);
-
-    // Mapear a la interfaz Recipe
-    const mapped: Recipe = {
-      id: newRecipe.id,
-      organization_id: newRecipe.organizationId,
-      product_id: newRecipe.productId,
-      name: newRecipe.name,
-      description: newRecipe.description || undefined,
-      instructions: newRecipe.instructions || undefined,
-      category: createRecipeDto.category || RecipeCategory.BEBIDAS_CALIENTES,
-      servings: newRecipe.yield,
-      yield_unit: newRecipe.yieldUnit,
-      difficulty: createRecipeDto.difficulty,
-      preparation_method: createRecipeDto.preparation_method,
-      target_margin_percentage: createRecipeDto.target_margin_percentage,
-      actual_margin_percentage: createRecipeDto.target_margin_percentage,
-      ingredients: newRecipe.ingredients.map((ing) => ({
-        id: ing.id,
-        recipe_id: ing.recipeId,
-        inventory_item_id: ing.inventoryItemId,
-        inventory_item_name: ing.inventoryItem?.name || 'Unknown',
-        quantity: ing.quantity,
-        unit: ing.unit,
-        cost_per_unit: ing.unitCost || 0,
-        total_cost: ing.totalCost || 0,
-        preparation_notes: ing.notes || undefined,
-      })),
-      steps: newRecipe.instructions ? JSON.parse(newRecipe.instructions) : [],
-      is_active: newRecipe.active,
-      created_at: newRecipe.createdAt,
-      updated_at: newRecipe.updatedAt,
-      total_cost: newRecipe.totalCost,
-      cost_per_serving: newRecipe.totalCost && newRecipe.yield
-        ? newRecipe.totalCost / newRecipe.yield
-        : 0,
-      suggested_price: newRecipe.totalCost && newRecipe.yield && createRecipeDto.target_margin_percentage
-        ? (newRecipe.totalCost / newRecipe.yield) / (1 - createRecipeDto.target_margin_percentage / 100)
-        : 0,
-    };
-
-    this.recipes.set(mapped.id, mapped);
-    return mapped;
+    const recipe = this.toRecipe(newRecipe);
+    if (createRecipeDto.category) recipe.category = createRecipeDto.category;
+    if (createRecipeDto.preparation_method)
+      recipe.preparation_method = createRecipeDto.preparation_method;
+    if (createRecipeDto.difficulty)
+      recipe.difficulty = createRecipeDto.difficulty;
+    if (createRecipeDto.target_margin_percentage !== undefined) {
+      recipe.target_margin_percentage =
+        createRecipeDto.target_margin_percentage;
+      recipe.actual_margin_percentage =
+        createRecipeDto.target_margin_percentage;
+      if (recipe.total_cost && recipe.servings) {
+        recipe.suggested_price =
+          recipe.total_cost /
+          recipe.servings /
+          (1 - recipe.target_margin_percentage / 100);
+      }
+    }
+    return recipe;
   }
 
-  /**
-   * Obtener todas las recetas con filtros
-   */
   async findAll(query?: QueryRecipesDto, user?: any): Promise<Recipe[]> {
-    // Primero intentar cargar de base de datos
-    try {
-      const whereClause: any = {
-        organizationId: user?.organizationId,
-        ...(query?.search && {
-          OR: [
-            { name: { contains: query.search, mode: 'insensitive' } },
-            {
-              description: { contains: query.search, mode: 'insensitive' },
-            },
-          ],
-        }),
-        ...(query?.is_active !== undefined && {
-          active: query.is_active === 'true',
-        }),
-      };
+    const where: any = {};
 
-      const recipes = await this.prisma.recipe.findMany({
-        where: whereClause,
-        include: {
-          product: true,
-          ingredients: {
-            include: {
-              inventoryItem: true,
-            },
-          },
-        },
-        orderBy: {
-          name: 'asc',
-        },
-      });
-
-      // Filtrar por organización después de la consulta
-      // Si es super admin, NO filtrar. Si no, filtrar por organization_id
-      let filteredRecipes = recipes;
-      if (!user?.isSuperAdmin && query?.organization_id) {
-        filteredRecipes = recipes.filter(
-          (r: any) => r.product?.organizationId === query.organization_id,
-        );
-      }
-
-      // Mapear a formato Recipe
-      return filteredRecipes.map((r: any) => ({
-        id: r.id,
-        organization_id: r.product?.organizationId || '',
-        product_id: r.productId,
-        product_name: r.product?.name || '',
-        name: r.name,
-        description: r.description || '',
-        category: 'COFFEE' as RecipeCategory,
-        preparation_method: 'ESPRESSO' as PreparationMethod,
-        difficulty: 'EASY' as DifficultyLevel,
-        servings: r.yield,
-        preparation_time: r.prepTime || 0,
-        cooking_time: 0,
-        resting_time: 0,
-        total_time: r.prepTime || 0,
-        ingredients: (r.ingredients || []).map((ing: any) => ({
-          id: ing.id,
-          inventory_item_id: ing.inventoryItemId,
-          inventory_item_name: ing.inventoryItem?.name || '',
-          quantity: ing.quantity,
-          unit: ing.unit,
-          notes: ing.notes || undefined,
-          is_optional: false,
-          preparation_notes: ing.notes || undefined,
-        })),
-        steps: [],
-        target_margin_percentage: 65,
-        total_cost: 0,
-        cost_per_serving: 0,
-        suggested_price: 0,
-        actual_margin_percentage: 65,
-        allergens: (r.allergens || []) as AllergenType[],
-        is_active: r.active,
-        created_at: r.createdAt,
-        updated_at: r.updatedAt,
-      }));
-    } catch (error) {
-      this.logger.error('Error cargando recetas de DB:', error);
-      // Continuar con fallback
+    // organization filter — superadmin sees everything
+    if (!user?.isSuperAdmin) {
+      const orgId = user?.organizationId || query?.organization_id;
+      if (orgId) where.organizationId = orgId;
     }
 
-    // Fallback a Map en memoria
-    let recipes = Array.from(this.recipes.values());
-
-    if (!query) {
-      return recipes.sort((a, b) => a.name.localeCompare(b.name));
+    if (query?.search) {
+      where.OR = [
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { description: { contains: query.search, mode: 'insensitive' } },
+      ];
     }
 
-    // Filtrar por organización
-    if (query.organization_id) {
-      recipes = recipes.filter(
-        (r) => r.organization_id === query.organization_id,
-      );
+    if (query?.is_active !== undefined) {
+      where.active = query.is_active === 'true';
     }
 
-    // Buscar por texto
-    if (query.search) {
-      const searchLower = query.search.toLowerCase();
-      recipes = recipes.filter(
-        (r) =>
-          r.name.toLowerCase().includes(searchLower) ||
-          r.description?.toLowerCase().includes(searchLower),
-      );
+    if (query?.max_cost !== undefined) {
+      where.totalCost = { lte: query.max_cost };
     }
 
-    // Filtrar por categoría
-    if (query.category) {
-      recipes = recipes.filter((r) => r.category === query.category);
-    }
+    const sortBy = query?.sort_by || 'name';
+    const order = query?.order || 'asc';
+    let orderBy: any = { name: order };
+    if (sortBy === 'created_at') orderBy = { createdAt: order };
+    else if (sortBy === 'cost') orderBy = { totalCost: order };
 
-    // Filtrar por método de preparación
-    if (query.preparation_method) {
-      recipes = recipes.filter(
-        (r) => r.preparation_method === query.preparation_method,
-      );
-    }
-
-    // Filtrar por dificultad
-    if (query.difficulty) {
-      recipes = recipes.filter((r) => r.difficulty === query.difficulty);
-    }
-
-    // Filtrar por activo
-    if (query.is_active !== undefined) {
-      const isActive = query.is_active === 'true';
-      recipes = recipes.filter((r) => r.is_active === isActive);
-    }
-
-    // Filtrar por costo máximo
-    if (query.max_cost) {
-      recipes = recipes.filter((r) => (r.total_cost || 0) <= query.max_cost!);
-    }
-
-    // Filtrar por margen mínimo
-    if (query.min_margin) {
-      recipes = recipes.filter(
-        (r) => (r.actual_margin_percentage || 0) >= query.min_margin!,
-      );
-    }
-
-    // Ordenar
-    const sortBy = query.sort_by || 'name';
-    const order = query.order || 'asc';
-
-    recipes.sort((a, b) => {
-      let aValue: any = a[sortBy as keyof Recipe];
-      let bValue: any = b[sortBy as keyof Recipe];
-
-      if (sortBy === 'cost') {
-        aValue = a.total_cost || 0;
-        bValue = b.total_cost || 0;
-      } else if (sortBy === 'margin') {
-        aValue = a.actual_margin_percentage || 0;
-        bValue = b.actual_margin_percentage || 0;
-      }
-
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return order === 'asc'
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      }
-
-      return order === 'asc' ? aValue - bValue : bValue - aValue;
+    const recipes = await this.prisma.recipe.findMany({
+      where,
+      include: {
+        product: true,
+        ingredients: { include: { inventoryItem: true } },
+      },
+      orderBy,
     });
 
-    return recipes;
+    return recipes.map((r) => this.toRecipe(r));
   }
 
-  /**
-   * Obtener categorías disponibles desde el módulo de categorías
-   */
   async getCategories(): Promise<string[]> {
     try {
-      // Obtener categorías de tipo 'recipe' o 'product'
       const categories = await this.categoriesService.findAll({
         type: CategoryType.RECIPE,
       });
-
-      // Retornar solo los nombres
       return categories.map((cat: any) => cat.name);
     } catch (error) {
       this.logger.warn('Error fetching categories, returning defaults', error);
-      // Fallback a categorías por defecto
       return ['Bebidas Frías', 'Bebidas Calientes', 'Bebidas Sin Café'];
     }
   }
 
-  /**
-   * Obtener receta por ID
-   */
   async findById(id: string): Promise<Recipe> {
-    // Try in-memory cache first
-    const cached = this.recipes.get(id);
-    if (cached) return cached;
-
-    // Fallback to database lookup
-    try {
-      const dbRecipe = await this.prisma.recipe.findUnique({
-        where: { id },
-        include: {
-          ingredients: { include: { inventoryItem: true } },
-          product: true,
-        },
-      });
-
-      if (!dbRecipe) {
-        throw new NotFoundException(`Receta ${id} no encontrada`);
-      }
-
-      const recipe: Recipe = {
-        id: dbRecipe.id,
-        organization_id: dbRecipe.product?.organizationId || '',
-        product_id: dbRecipe.productId,
-        name: dbRecipe.name,
-        description: dbRecipe.description || undefined,
-        instructions: dbRecipe.instructions || undefined,
-        category: RecipeCategory.ESPRESSO,
-        preparation_method: PreparationMethod.ESPRESSO_MACHINE,
-        difficulty: DifficultyLevel.INTERMEDIO,
-        servings: dbRecipe.yield,
-        yield_unit: dbRecipe.yieldUnit || 'unit',
-        estimated_time_minutes: dbRecipe.prepTime || 0,
-        allergens: (dbRecipe.allergens || []) as AllergenType[],
-        ingredients: dbRecipe.ingredients.map((ing: any) => ({
-          id: ing.id,
-          inventory_item_id: ing.inventoryItemId,
-          inventory_item_name: ing.inventoryItem?.name || '',
-          quantity: ing.quantity,
-          unit: ing.unit,
-          cost_per_unit: ing.inventoryItem?.costPerUnit || 0,
-          total_cost: ing.quantity * (ing.inventoryItem?.costPerUnit || 0),
-          notes: ing.notes || undefined,
-        })),
-        steps: [],
-        notes: undefined,
-        image_url: dbRecipe.videoUrl || undefined,
-        video_url: dbRecipe.videoUrl || undefined,
-        total_cost: dbRecipe.ingredients.reduce(
-          (sum: number, ing: any) =>
-            sum + ing.quantity * (ing.inventoryItem?.costPerUnit || 0),
-          0,
-        ),
-        cost_per_serving: 0,
-        suggested_price: 0,
-        target_margin_percentage: 65,
-        actual_margin_percentage: 65,
-        is_active: dbRecipe.active,
-        created_at: dbRecipe.createdAt,
-        updated_at: dbRecipe.updatedAt,
-      };
-
-      // Calcular costo por porción y precio sugerido
-      recipe.cost_per_serving =
-        recipe.total_cost && dbRecipe.yield
-          ? recipe.total_cost / dbRecipe.yield
-          : 0;
-      recipe.suggested_price = recipe.cost_per_serving / (1 - 0.65);
-
-      return recipe;
-    } catch (error) {
-      if (error instanceof NotFoundException) throw error;
-      this.logger.error(`Error finding recipe by id ${id}:`, error);
-      throw new NotFoundException(`Receta ${id} no encontrada`);
-    }
-  }
-
-  /**
-   * Obtener receta por ID de producto
-   */
-  async findByProductId(productId: string): Promise<Recipe | null> {
-    try {
-      const dbRecipe = await this.prisma.recipe.findFirst({
-        where: { productId },
-        include: {
-          ingredients: {
-            include: {
-              inventoryItem: true,
-            },
-          },
-          product: true,
-        },
-      });
-
-      if (!dbRecipe) {
-        return null;
-      }
-
-      // Transformar de Prisma model a nuestra interfaz Recipe
-      const recipe: Recipe = {
-        id: dbRecipe.id,
-        organization_id: '', // TODO: agregar organizationId al schema si es necesario
-        product_id: dbRecipe.productId,
-        name: dbRecipe.name,
-        description: dbRecipe.description || undefined,
-        category: RecipeCategory.ESPRESSO, // Default, TODO: obtener de producto
-        preparation_method: PreparationMethod.ESPRESSO_MACHINE,
-        difficulty: DifficultyLevel.INTERMEDIO,
-        servings: dbRecipe.yield,
-        estimated_time_minutes: dbRecipe.prepTime || 0,
-        allergens: (dbRecipe.allergens || []) as AllergenType[],
-        ingredients: dbRecipe.ingredients.map((ing: any) => ({
-          id: ing.id,
-          inventory_item_id: ing.inventoryItemId,
-          inventory_item_name: ing.inventoryItem.name,
-          quantity: ing.quantity,
-          unit: ing.unit,
-          cost_per_unit: ing.inventoryItem.costPerUnit,
-          total_cost: ing.quantity * ing.inventoryItem.costPerUnit,
-          notes: ing.notes || undefined,
-        })),
-        steps: [],
-        notes: undefined,
-        image_url: dbRecipe.videoUrl || undefined,
-        total_cost: dbRecipe.ingredients.reduce(
-          (sum: number, ing: any) =>
-            sum + ing.quantity * ing.inventoryItem.costPerUnit,
-          0,
-        ),
-        cost_per_serving: 0, // Se calcula abajo
-        suggested_price: 0, // Se calcula abajo
-        target_margin_percentage: 65,
-        actual_margin_percentage: 65,
-        is_active: dbRecipe.active,
-        created_at: dbRecipe.createdAt,
-        updated_at: dbRecipe.updatedAt,
-      };
-
-      // Calcular costo por porción
-      recipe.cost_per_serving = recipe.total_cost / dbRecipe.yield;
-
-      // Calcular precio sugerido con margen del 65%
-      recipe.suggested_price = recipe.cost_per_serving / (1 - 0.65);
-
-      return recipe;
-    } catch (error) {
-      this.logger.error(
-        `Error finding recipe by productId ${productId}:`,
-        error,
-      );
-      return null;
-    }
-  }
-
-  /**
-   * Actualizar una receta
-   */
-  async update(id: string, updateRecipeDto: UpdateRecipeDto): Promise<Recipe> {
-    const recipe = await this.findById(id);
-
-    // Preparar datos para actualización en Prisma
-    const updateData: any = {
-      name: updateRecipeDto.name,
-      description: updateRecipeDto.description,
-      instructions: updateRecipeDto['instructions'],
-      yield: updateRecipeDto.servings,
-      yieldUnit: updateRecipeDto['yield_unit'],
-      prepTime: updateRecipeDto.estimated_time_minutes,
-      active: updateRecipeDto.is_active,
-      allergens: updateRecipeDto.allergens,
-      videoUrl: updateRecipeDto['video_url'],
-      updatedAt: new Date(),
-    };
-
-    // Actualizar productId si se proporciona
-    if (updateRecipeDto['product_id']) {
-      updateData.productId = updateRecipeDto['product_id'];
-    }
-
-    // Si hay ingredientes, actualizar la relación
-    if (updateRecipeDto.ingredients) {
-      // Primero eliminar ingredientes existentes
-      await this.prisma.recipeIngredient.deleteMany({
-        where: { recipeId: id },
-      });
-
-      // Crear nuevos ingredientes
-      updateData.ingredients = {
-        create: updateRecipeDto.ingredients.map((ing) => ({
-          inventoryItemId: ing.inventory_item_id,
-          quantity: ing.quantity,
-          unit: ing.unit,
-          notes: ing.preparation_notes,
-        })),
-      };
-    }
-
-    // Actualizar en base de datos
-    const updatedRecipe = await this.prisma.recipe.update({
+    const dbRecipe = await this.prisma.recipe.findUnique({
       where: { id },
-      data: updateData,
       include: {
+        ingredients: { include: { inventoryItem: true } },
         product: true,
-        ingredients: {
-          include: {
-            inventoryItem: true,
-          },
-        },
       },
     });
 
-    // Transformar a formato de respuesta
-    const updatedIngredients = updatedRecipe.ingredients.map((ing) => ({
-      id: ing.id,
-      inventory_item_id: ing.inventoryItemId,
-      inventory_item_name: ing.inventoryItem?.name || '',
-      quantity: ing.quantity,
-      unit: ing.unit,
-      cost_per_unit: ing.inventoryItem?.costPerUnit || 0,
-      total_cost: ing.quantity * (ing.inventoryItem?.costPerUnit || 0),
-      preparation_notes: ing.notes || undefined,
-    }));
-    const updatedTotalCost = updatedIngredients.reduce((sum, i) => sum + i.total_cost, 0);
+    if (!dbRecipe) {
+      throw new NotFoundException(`Receta ${id} no encontrada`);
+    }
 
-    const existingRecipe = this.recipes.get(id);
-    const formattedRecipe: Recipe = {
-      id: updatedRecipe.id,
-      organization_id: updatedRecipe.organizationId,
-      product_id: updatedRecipe.productId,
-      name: updatedRecipe.name,
-      description: updatedRecipe.description || '',
-      instructions: updatedRecipe.instructions || '',
-      category: existingRecipe?.category || ('espresso' as RecipeCategory),
-      difficulty: existingRecipe?.difficulty,
-      preparation_method: existingRecipe?.preparation_method,
-      target_margin_percentage: existingRecipe?.target_margin_percentage,
-      actual_margin_percentage: existingRecipe?.actual_margin_percentage,
-      servings: updatedRecipe.yield,
-      yield_unit: updatedRecipe.yieldUnit,
-      estimated_time_minutes: updatedRecipe.prepTime || 0,
-      allergens: updatedRecipe.allergens as AllergenType[],
-      video_url: updatedRecipe.videoUrl || undefined,
-      is_active: updatedRecipe.active,
-      ingredients: updatedIngredients,
-      created_at: updatedRecipe.createdAt,
-      updated_at: updatedRecipe.updatedAt,
-      total_cost: updatedTotalCost,
-      cost_per_serving: updatedRecipe.yield ? updatedTotalCost / updatedRecipe.yield : 0,
-      suggested_price: existingRecipe?.target_margin_percentage && updatedRecipe.yield
-        ? (updatedTotalCost / updatedRecipe.yield) / (1 - existingRecipe.target_margin_percentage / 100)
-        : 0,
-    };
-
-    // También actualizar en memoria para mantener consistencia
-    this.recipes.set(id, formattedRecipe);
-    this.logger.log(
-      `Receta actualizada en BD y memoria: ${formattedRecipe.name}`,
-    );
-
-    return formattedRecipe;
+    return this.toRecipe(dbRecipe);
   }
 
-  /**
-   * Eliminar una receta
-   */
+  async findByProductId(productId: string): Promise<Recipe | null> {
+    const dbRecipe = await this.prisma.recipe.findFirst({
+      where: { productId },
+      include: {
+        ingredients: { include: { inventoryItem: true } },
+        product: true,
+      },
+    });
+
+    if (!dbRecipe) return null;
+    return this.toRecipe(dbRecipe);
+  }
+
+  async update(id: string, updateRecipeDto: UpdateRecipeDto): Promise<Recipe> {
+    // verify existence
+    const existing = await this.prisma.recipe.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException(`Receta ${id} no encontrada`);
+    }
+
+    const updateData: any = {};
+    if (updateRecipeDto.name !== undefined)
+      updateData.name = updateRecipeDto.name;
+    if (updateRecipeDto.description !== undefined)
+      updateData.description = updateRecipeDto.description;
+    if (updateRecipeDto.instructions !== undefined)
+      updateData.instructions = updateRecipeDto.instructions;
+    if (updateRecipeDto.servings !== undefined)
+      updateData.yield = updateRecipeDto.servings;
+    if (updateRecipeDto.yield_unit !== undefined)
+      updateData.yieldUnit = updateRecipeDto.yield_unit;
+    if (updateRecipeDto.estimated_time_minutes !== undefined)
+      updateData.prepTime = updateRecipeDto.estimated_time_minutes;
+    if (updateRecipeDto.is_active !== undefined)
+      updateData.active = updateRecipeDto.is_active;
+    if (updateRecipeDto.allergens !== undefined)
+      updateData.allergens = updateRecipeDto.allergens;
+    if (updateRecipeDto.video_url !== undefined)
+      updateData.videoUrl = updateRecipeDto.video_url;
+    if (updateRecipeDto.product_id !== undefined)
+      updateData.productId = updateRecipeDto.product_id;
+
+    // Run delete + recreate + update in a single transaction
+    if (updateRecipeDto.ingredients) {
+      const newIngredients = updateRecipeDto.ingredients.map((ing) => ({
+        recipeId: id,
+        inventoryItemId: ing.inventory_item_id,
+        quantity: ing.quantity,
+        unit: ing.unit,
+        notes: ing.preparation_notes,
+        unitCost: ing.cost_per_unit,
+        totalCost: ing.cost_per_unit ? ing.cost_per_unit * ing.quantity : 0,
+      }));
+
+      await this.prisma.$transaction([
+        this.prisma.recipeIngredient.deleteMany({ where: { recipeId: id } }),
+        this.prisma.recipeIngredient.createMany({ data: newIngredients }),
+        this.prisma.recipe.update({ where: { id }, data: updateData }),
+      ]);
+    } else if (Object.keys(updateData).length > 0) {
+      await this.prisma.recipe.update({ where: { id }, data: updateData });
+    }
+
+    return this.findById(id);
+  }
+
+  /** Hard-delete the recipe and its ingredients via cascade. */
   async delete(id: string): Promise<void> {
-    const recipe = await this.findById(id);
-    this.recipes.delete(id);
-    this.logger.log(`Receta eliminada: ${recipe.name}`);
+    const existing = await this.prisma.recipe.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException(`Receta ${id} no encontrada`);
+    }
+    // RecipeIngredient.recipeId has onDelete: Cascade in the schema.
+    await this.prisma.recipe.delete({ where: { id } });
+    this.logger.log(`Receta eliminada: ${existing.name} (${id})`);
   }
 
-  /**
-   * Calcular el costo de una receta
-   */
   async calculateCost(
     id: string,
     recipe?: Recipe,
@@ -599,20 +330,45 @@ export class RecipesService {
       recipe = await this.findById(id);
     }
 
-    const ingredientsCost = recipe.ingredients.map((ing) => {
-      const costPerUnit =
-        ing.cost_per_unit || this.getMockCostPerUnit(ing.unit);
-      const totalCost = ing.quantity * costPerUnit;
+    if (!recipe.servings || recipe.servings <= 0) {
+      throw new BadRequestException(
+        `Recipe ${id} has invalid servings (${recipe.servings})`,
+      );
+    }
 
+    // Resolve costs from ingredients. Use InventoryItem.costPerUnit if missing.
+    const inventoryItemIds = recipe.ingredients
+      .filter((i) => !i.cost_per_unit && i.inventory_item_id)
+      .map((i) => i.inventory_item_id);
+
+    let inventoryCosts: Record<string, number> = {};
+    if (inventoryItemIds.length > 0) {
+      const rows = await this.prisma.inventoryItem.findMany({
+        where: { id: { in: inventoryItemIds } },
+        select: { id: true, costPerUnit: true },
+      });
+      inventoryCosts = rows.reduce(
+        (acc, r) => {
+          acc[r.id] = r.costPerUnit;
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
+    }
+
+    const ingredientsCost = recipe.ingredients.map((ing) => {
+      const resolvedCost =
+        ing.cost_per_unit ?? inventoryCosts[ing.inventory_item_id] ?? 0;
+      const totalCost = ing.quantity * resolvedCost;
       return {
         inventory_item_id: ing.inventory_item_id,
         inventory_item_name:
           ing.inventory_item_name || `Ingrediente ${ing.inventory_item_id}`,
         quantity: ing.quantity,
         unit: ing.unit,
-        cost_per_unit: costPerUnit,
+        cost_per_unit: resolvedCost,
         total_cost: totalCost,
-        percentage_of_total: 0, // Se calcula después
+        percentage_of_total: 0,
       };
     });
 
@@ -621,7 +377,6 @@ export class RecipesService {
       0,
     );
 
-    // Calcular porcentajes
     ingredientsCost.forEach((ing) => {
       ing.percentage_of_total =
         totalIngredientsCost > 0
@@ -629,17 +384,14 @@ export class RecipesService {
           : 0;
     });
 
-    // Labor cost (estimado 20% del costo de ingredientes)
-    const laborCost = totalIngredientsCost * 0.2;
-
-    // Overhead (estimado 10% del costo de ingredientes)
-    const overheadCost = totalIngredientsCost * 0.1;
-
+    const laborCost = totalIngredientsCost * DEFAULT_LABOR_RATE;
+    const overheadCost = totalIngredientsCost * DEFAULT_OVERHEAD_RATE;
     const totalCost = totalIngredientsCost + laborCost + overheadCost;
     const costPerServing = totalCost / recipe.servings;
 
-    // Precio sugerido basado en margen objetivo
-    const targetMargin = recipe.target_margin_percentage || 65;
+    // Clamp target margin to (0, 100) exclusive to avoid division by zero / negative price.
+    const rawMargin = recipe.target_margin_percentage ?? DEFAULT_TARGET_MARGIN;
+    const targetMargin = Math.max(0.01, Math.min(rawMargin, 99.99));
     const suggestedPrice = totalCost / (1 - targetMargin / 100);
     const suggestedPricePerServing = suggestedPrice / recipe.servings;
 
@@ -660,14 +412,15 @@ export class RecipesService {
     };
   }
 
-  /**
-   * Escalar una receta a diferentes porciones
-   */
   async scaleRecipe(
     id: string,
     scaleDto: ScaleRecipeDto,
   ): Promise<ScaledRecipe> {
     const originalRecipe = await this.findById(id);
+    if (!originalRecipe.servings || originalRecipe.servings <= 0) {
+      throw new BadRequestException(`Recipe ${id} has invalid servings`);
+    }
+
     const scalingFactor = scaleDto.target_servings / originalRecipe.servings;
 
     const scaledIngredients: RecipeIngredient[] =
@@ -684,10 +437,9 @@ export class RecipesService {
       scaling_factor: scalingFactor,
       scaled_ingredients: scaledIngredients,
       servings: scaleDto.target_servings,
-      ingredients: scaledIngredients, // Important: update ingredients for cost calculation
+      ingredients: scaledIngredients,
     };
 
-    // Recalcular costos para la versión escalada
     const costBreakdown = await this.calculateCost(id, scaledRecipe);
     scaledRecipe.total_cost = costBreakdown.total_cost;
     scaledRecipe.cost_per_serving = costBreakdown.cost_per_serving;
@@ -696,13 +448,15 @@ export class RecipesService {
     return scaledRecipe;
   }
 
-  /**
-   * Obtener estadísticas de recetas
-   */
   async getStats(organization_id: string): Promise<RecipeStats> {
-    const recipes = Array.from(this.recipes.values()).filter(
-      (r) => r.organization_id === organization_id,
-    );
+    const recipes = await this.prisma.recipe.findMany({
+      where: { organizationId: organization_id },
+      include: {
+        ingredients: { include: { inventoryItem: true } },
+      },
+    });
+
+    const mapped = recipes.map((r) => this.toRecipe(r));
 
     const byCategory: any = {};
     const byDifficulty: any = {};
@@ -712,27 +466,18 @@ export class RecipesService {
     let totalMargin = 0;
     let countWithMargin = 0;
 
-    recipes.forEach((recipe) => {
-      // Por categoría
+    mapped.forEach((recipe) => {
       byCategory[recipe.category] = (byCategory[recipe.category] || 0) + 1;
-
-      // Por dificultad
       if (recipe.difficulty) {
         byDifficulty[recipe.difficulty] =
           (byDifficulty[recipe.difficulty] || 0) + 1;
       }
-
-      // Por método de preparación
       if (recipe.preparation_method) {
         byPreparationMethod[recipe.preparation_method] =
           (byPreparationMethod[recipe.preparation_method] || 0) + 1;
       }
 
-      // Costos y márgenes
-      if (recipe.total_cost) {
-        totalCost += recipe.total_cost;
-      }
-
+      if (recipe.total_cost) totalCost += recipe.total_cost;
       if (recipe.actual_margin_percentage) {
         totalMargin += recipe.actual_margin_percentage;
         countWithMargin++;
@@ -740,34 +485,34 @@ export class RecipesService {
     });
 
     return {
-      total_recipes: recipes.length,
+      total_recipes: mapped.length,
       by_category: byCategory,
       by_difficulty: byDifficulty,
       by_preparation_method: byPreparationMethod,
-      average_cost: recipes.length > 0 ? totalCost / recipes.length : 0,
+      average_cost: mapped.length > 0 ? totalCost / mapped.length : 0,
       average_margin: countWithMargin > 0 ? totalMargin / countWithMargin : 0,
       total_value: totalCost,
     };
   }
 
-  /**
-   * Analizar rentabilidad de recetas
-   */
   async analyzeProfitability(
     organization_id: string,
   ): Promise<RecipeProfitability[]> {
-    const recipes = Array.from(this.recipes.values()).filter(
-      (r) => r.organization_id === organization_id,
-    );
+    const recipes = await this.prisma.recipe.findMany({
+      where: { organizationId: organization_id },
+      include: {
+        ingredients: { include: { inventoryItem: true } },
+      },
+    });
 
-    return recipes
+    const mapped = recipes.map((r) => this.toRecipe(r));
+
+    return mapped
       .map((recipe) => {
         const cost = recipe.total_cost || 0;
         const suggestedPrice = recipe.suggested_price || 0;
         const marginPercentage = recipe.actual_margin_percentage || 0;
 
-        // Profitability score: combina margen y costo
-        // Recetas con mayor margen y menor costo son más rentables
         const profitabilityScore =
           marginPercentage * 0.7 + (cost > 0 ? (1 / cost) * 1000 : 0) * 0.3;
 
@@ -781,22 +526,5 @@ export class RecipesService {
         };
       })
       .sort((a, b) => b.profitability_score - a.profitability_score);
-  }
-
-  /**
-   * Obtener costos mock para desarrollo
-   */
-  private getMockCostPerUnit(unit: string): number {
-    const mockCosts: Record<string, number> = {
-      g: 0.5, // 0.50 MXN por gramo
-      ml: 0.3, // 0.30 MXN por ml
-      kg: 500, // 500 MXN por kg
-      l: 300, // 300 MXN por litro
-      oz: 10, // 10 MXN por onza
-      pieza: 5, // 5 MXN por pieza
-      unidad: 5,
-    };
-
-    return mockCosts[unit.toLowerCase()] || 1;
   }
 }

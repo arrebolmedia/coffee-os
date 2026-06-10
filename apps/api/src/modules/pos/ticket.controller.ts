@@ -1,13 +1,15 @@
 import {
+  Body,
   Controller,
   Get,
-  Post,
-  Body,
   Param,
   Patch,
+  Post,
   Query,
+  ValidationPipe,
 } from '@nestjs/common';
 import { PosService } from './pos.service';
+import { CreateTicketDto } from './dto/create-ticket.dto';
 
 @Controller('pos/tickets')
 export class TicketController {
@@ -24,7 +26,10 @@ export class TicketController {
   }
 
   @Post()
-  async create(@Body() data: any) {
+  async create(
+    @Body(new ValidationPipe({ whitelist: true, transform: true }))
+    data: CreateTicketDto,
+  ) {
     return this.posService.createTicket(data);
   }
 

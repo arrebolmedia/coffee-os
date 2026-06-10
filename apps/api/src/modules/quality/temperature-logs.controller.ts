@@ -1,13 +1,13 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Param,
+  Controller,
   Delete,
-  Query,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Post,
+  Query,
 } from '@nestjs/common';
 import { TemperatureLogsService } from './temperature-logs.service';
 import { CreateTemperatureLogDto, QueryTemperatureLogsDto } from './dto';
@@ -15,16 +15,22 @@ import { TemperatureLog } from './interfaces';
 
 @Controller('quality/temperature-logs')
 export class TemperatureLogsController {
-  constructor(private readonly temperatureLogsService: TemperatureLogsService) {}
+  constructor(
+    private readonly temperatureLogsService: TemperatureLogsService,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createDto: CreateTemperatureLogDto): Promise<TemperatureLog> {
+  async create(
+    @Body() createDto: CreateTemperatureLogDto,
+  ): Promise<TemperatureLog> {
     return this.temperatureLogsService.create(createDto);
   }
 
   @Get()
-  async findAll(@Query() query: QueryTemperatureLogsDto): Promise<TemperatureLog[]> {
+  async findAll(
+    @Query() query: QueryTemperatureLogsDto,
+  ): Promise<TemperatureLog[]> {
     return this.temperatureLogsService.findAll(query);
   }
 

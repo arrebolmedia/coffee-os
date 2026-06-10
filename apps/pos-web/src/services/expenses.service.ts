@@ -3,11 +3,15 @@
  * Servicio para gestión de gastos operativos
  */
 
+import { getSession } from 'next-auth/react';
 import { api } from '@/lib/api';
-import { Expense, PaginationParams, PaginatedResponse } from '@/types';
+import { Expense, PaginatedResponse, PaginationParams } from '@/types';
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
 class ExpensesService {
-  private readonly baseUrl = '/expenses';
+  private readonly baseUrl = '/finance/expenses';
 
   // ============================================================================
   // EXPENSES CRUD
@@ -53,7 +57,7 @@ class ExpensesService {
   }
 
   async updateExpense(id: string, data: Partial<Expense>): Promise<Expense> {
-    return await api.put<Expense>(`${this.baseUrl}/${id}`, data);
+    return await api.patch<Expense>(`${this.baseUrl}/${id}`, data);
   }
 
   async deleteExpense(id: string): Promise<void> {
@@ -76,10 +80,8 @@ class ExpensesService {
     return await api.post<Expense>(`${this.baseUrl}/${id}/pay`, data);
   }
 
-  async cancelExpense(id: string, reason?: string): Promise<Expense> {
-    return await api.post<Expense>(`${this.baseUrl}/${id}/cancel`, {
-      reason,
-    });
+  async cancelExpense(_id: string, _reason?: string): Promise<Expense> {
+    throw new Error('cancelExpense is not supported by the backend');
   }
 
   // ============================================================================
@@ -102,9 +104,7 @@ class ExpensesService {
     if (startDate) params.append('start_date', startDate);
     if (endDate) params.append('end_date', endDate);
 
-    return await api.get<any>(
-      `${this.baseUrl}/stats/by-category?${params.toString()}`,
-    );
+    return await api.get<any>(`${this.baseUrl}/stats?${params.toString()}`);
   }
 
   async getExpensesSummary(
@@ -121,9 +121,7 @@ class ExpensesService {
     params.append('organization_id', organizationId);
     if (month) params.append('month', month);
 
-    return await api.get<any>(
-      `${this.baseUrl}/stats/summary?${params.toString()}`,
-    );
+    return await api.get<any>(`${this.baseUrl}/stats?${params.toString()}`);
   }
 
   // ============================================================================
@@ -134,18 +132,36 @@ class ExpensesService {
     expenseId: string,
     file: File,
   ): Promise<{ url: string }> {
+    // TODO: migrar a api.upload cuando esté soportado en lib/api.ts
     const formData = new FormData();
     formData.append('file', file);
 
-    return await api.post<{ url: string }>(
-      `${this.baseUrl}/${expenseId}/attachments`,
-      formData,
+    const session = await getSession();
+    const headers: Record<string, string> = {};
+    if (session?.accessToken)
+      headers['Authorization'] = `Bearer ${session.accessToken}`;
+    if (session?.user?.organizationId)
+      headers['X-Organization-Id'] = session.user.organizationId;
+    if (session?.user?.locationId)
+      headers['X-Location-Id'] = session.user.locationId;
+
+    const response = await fetch(
+      `${API_BASE_URL}${this.baseUrl}/${expenseId}/attachments`,
       {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        method: 'POST',
+        body: formData,
+        headers,
       },
     );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      throw new Error(
+        `Upload failed (${response.status}): ${errorText || response.statusText}`,
+      );
+    }
+
+    return (await response.json()) as { url: string };
   }
 }
 

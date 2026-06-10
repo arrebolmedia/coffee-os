@@ -8,29 +8,71 @@
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import {
+  useFormatCurrency,
   usePurchaseOrders,
   usePurchaseOrderStats,
-  usePOStatusBadge,
-  useFormatCurrency,
 } from '@/hooks/use-purchase-orders';
 import {
-  FileText,
-  Search,
-  Plus,
-  Filter,
-  Download,
-  Eye,
-  Edit,
+  AlertCircle,
   CheckCircle,
-  XCircle,
   Clock,
   DollarSign,
-  Package,
-  TrendingUp,
-  AlertCircle,
+  Download,
+  Edit,
+  Eye,
+  FileText,
+  Filter,
   Loader2,
+  Package,
+  Plus,
   Send,
 } from 'lucide-react';
+
+const statusBadgeMap: Record<
+  string,
+  { color: string; bgColor: string; label: string }
+> = {
+  draft: { color: 'text-gray-800', bgColor: 'bg-gray-100', label: 'Borrador' },
+  pending: {
+    color: 'text-yellow-800',
+    bgColor: 'bg-yellow-100',
+    label: 'Pendiente',
+  },
+  approved: {
+    color: 'text-blue-800',
+    bgColor: 'bg-blue-100',
+    label: 'Aprobada',
+  },
+  ordered: {
+    color: 'text-indigo-800',
+    bgColor: 'bg-indigo-100',
+    label: 'Ordenada',
+  },
+  partial: {
+    color: 'text-orange-800',
+    bgColor: 'bg-orange-100',
+    label: 'Parcial',
+  },
+  received: {
+    color: 'text-green-800',
+    bgColor: 'bg-green-100',
+    label: 'Recibida',
+  },
+  cancelled: {
+    color: 'text-red-800',
+    bgColor: 'bg-red-100',
+    label: 'Cancelada',
+  },
+};
+function getStatusBadge(status: string) {
+  return (
+    statusBadgeMap[status] || {
+      color: 'text-gray-800',
+      bgColor: 'bg-gray-100',
+      label: status,
+    }
+  );
+}
 
 export default function PurchaseOrdersPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -69,6 +111,7 @@ export default function PurchaseOrdersPage() {
         <div className="flex flex-col items-center justify-center h-screen text-red-600">
           <AlertCircle className="w-12 h-12 mb-4" />
           <p>Error al cargar órdenes de compra</p>
+          <p className="text-sm text-red-400 mt-2">{String(error)}</p>
         </div>
       </MainLayout>
     );
@@ -125,7 +168,7 @@ export default function PurchaseOrdersPage() {
                 <div>
                   <p className="text-sm text-gray-500">Pendientes</p>
                   <p className="text-2xl font-bold text-yellow-600">
-                    {stats?.pending_orders ?? 0}
+                    {stats?.by_status?.pending ?? 0}
                   </p>
                 </div>
                 <Clock className="w-8 h-8 text-yellow-400" />
@@ -136,7 +179,7 @@ export default function PurchaseOrdersPage() {
                 <div>
                   <p className="text-sm text-gray-500">Aprobadas</p>
                   <p className="text-2xl font-bold text-blue-600">
-                    {stats?.approved_orders ?? 0}
+                    {stats?.by_status?.approved ?? 0}
                   </p>
                 </div>
                 <CheckCircle className="w-8 h-8 text-blue-400" />
@@ -147,7 +190,7 @@ export default function PurchaseOrdersPage() {
                 <div>
                   <p className="text-sm text-gray-500">Recibidas</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {stats?.received_orders ?? 0}
+                    {stats?.by_status?.received ?? 0}
                   </p>
                 </div>
                 <Package className="w-8 h-8 text-green-400" />
@@ -158,7 +201,7 @@ export default function PurchaseOrdersPage() {
                 <div>
                   <p className="text-sm text-gray-500">Total Gastado</p>
                   <p className="text-2xl font-bold text-indigo-600">
-                    {formatCurrency(stats?.total_spent ?? 0)}
+                    {formatCurrency(stats?.total_amount ?? 0)}
                   </p>
                 </div>
                 <DollarSign className="w-8 h-8 text-indigo-400" />
@@ -254,7 +297,7 @@ export default function PurchaseOrdersPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {orders?.map((order) => {
-                  const statusBadge = usePOStatusBadge(order.status);
+                  const statusBadge = getStatusBadge(order.status);
                   return (
                     <tr
                       key={order.id}

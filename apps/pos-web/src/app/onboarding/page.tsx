@@ -1,30 +1,20 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import {
-  GraduationCap,
+  AlertTriangle,
   CheckCircle2,
   Clock,
+  Filter,
+  GraduationCap,
+  Loader2,
+  Search,
   TrendingUp,
   Users,
-  Filter,
-  Search,
-  Loader2,
-  AlertTriangle,
-  FileText,
-  Package,
-  Monitor,
-  Shield,
-  Heart,
-  BookOpen,
 } from 'lucide-react';
-import {
-  useOnboardingPlans,
-  useOnboardingStats,
-  useCompleteTask,
-} from '@/hooks/use-onboarding';
-import { OnboardingPeriod, TaskCategory } from '@/types';
+import { useOnboardingPlans, useOnboardingStats } from '@/hooks/use-onboarding';
+import { OnboardingPeriod } from '@/types';
 
 export default function OnboardingPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,7 +30,6 @@ export default function OnboardingPage() {
   );
 
   const { data: stats } = useOnboardingStats();
-  const completeTask = useCompleteTask();
 
   const filteredPlans = useMemo(() => {
     if (!searchTerm) return plans;
@@ -52,14 +41,6 @@ export default function OnboardingPage() {
       ),
     );
   }, [plans, searchTerm]);
-
-  const handleToggleTask = (
-    planId: string,
-    taskId: string,
-    completed: boolean,
-  ) => {
-    completeTask.mutate({ planId, taskId, completed: !completed });
-  };
 
   if (isLoading) {
     return (

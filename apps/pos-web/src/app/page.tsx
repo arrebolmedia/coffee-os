@@ -4,11 +4,11 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { Coffee, ShoppingCart, Users, BarChart3 } from 'lucide-react';
+import { BarChart3, Coffee, ShoppingCart, Users } from 'lucide-react';
 
 export default function HomePage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
 
   useEffect(() => {
     if (status === 'authenticated') {

@@ -1,17 +1,18 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Param,
+  Controller,
   Delete,
-  Query,
-  Patch,
+  Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Query,
 } from '@nestjs/common';
 import { EmployeesService } from './employees.service';
-import { CreateEmployeeDto, UpdateEmployeeDto, QueryEmployeesDto } from './dto';
+import { CreateEmployeeDto, QueryEmployeesDto, UpdateEmployeeDto } from './dto';
 import { Employee } from './interfaces';
 
 @Controller('hr/employees')
@@ -41,13 +42,16 @@ export class EmployeesController {
   async findOne(@Param('id') id: string): Promise<Employee> {
     const employee = await this.employeesService.findOne(id);
     if (!employee) {
-      throw new Error('Employee not found');
+      throw new NotFoundException('Employee not found');
     }
     return employee;
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateDto: UpdateEmployeeDto): Promise<Employee> {
+  async update(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateEmployeeDto,
+  ): Promise<Employee> {
     return this.employeesService.update(id, updateDto);
   }
 

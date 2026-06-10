@@ -4,6 +4,13 @@ import { MailrelayService } from '../mailrelay/mailrelay.service';
 describe('MailrelayService', () => {
   let service: MailrelayService;
 
+  beforeAll(() => {
+    process.env.MAILRELAY_API_KEY = 'test_api_key';
+    process.env.MAILRELAY_API_URL = 'https://api.mailrelay.test/v1';
+    process.env.MAILRELAY_FROM_EMAIL = 'hola@cafeteria.test';
+    process.env.MAILRELAY_FROM_NAME = 'Mi Cafetería Test';
+  });
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [MailrelayService],

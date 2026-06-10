@@ -1,15 +1,14 @@
 import {
-  IsString,
-  IsOptional,
-  IsBoolean,
-  IsNumber,
-  IsEnum,
   IsArray,
-  IsUUID,
+  IsBoolean,
+  IsEnum,
   IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Matches,
   MaxLength,
   Min,
-  Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -32,13 +31,13 @@ export enum UnitOfMeasure {
   GRAM = 'g',
   POUND = 'lb',
   OUNCE = 'oz',
-  
+
   // Volumen
   LITER = 'l',
   MILLILITER = 'ml',
   GALLON = 'gal',
   FLUID_OUNCE = 'fl_oz',
-  
+
   // Unidades
   UNIT = 'unit',
   PIECE = 'piece',
@@ -49,7 +48,8 @@ export enum UnitOfMeasure {
 }
 
 export class CreateInventoryItemDto {
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   organization_id: string;
 
   @IsOptional()

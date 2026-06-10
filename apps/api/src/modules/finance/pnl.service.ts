@@ -1,12 +1,18 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../database/prisma.service';
 import { ProfitAndLoss } from './interfaces';
-import { ExpenseCategory } from './dto';
+
+const DEFAULT_TAX_RATE = 0.3;
 
 @Injectable()
 export class PnLService {
-  // Mock data sources - in production these would query actual data
-  private mockRevenue: Map<string, any> = new Map();
-  private mockCOGS: Map<string, any> = new Map();
+  constructor(private readonly prisma: PrismaService) {}
+
+  /** Round to 2 decimal places preserving cents. */
+  private r2(value: number): number {
+    if (!Number.isFinite(value)) return 0;
+    return Number(value.toFixed(2));
+  }
 
   async calculatePnL(
     organizationId: string,
@@ -14,35 +20,100 @@ export class PnLService {
     endDate: Date,
     locationId?: string,
   ): Promise<ProfitAndLoss> {
-    // In a real implementation, this would query:
-    // 1. Transactions/Orders for revenue
-    // 2. Recipe costs for COGS
-    // 3. Expenses service for operating expenses
-    // 4. HR service for labor costs
+    // Resolve locationIds for this org in range
+    const locationWhere: any = { organizationId };
+    if (locationId) locationWhere.id = locationId;
+    const locations = await this.prisma.location.findMany({
+      where: locationWhere,
+      select: { id: true },
+    });
+    const locationIds = locations.map((l) => l.id);
 
-    // Mock calculation for demonstration
-    const grossRevenue = 150000; // From POS transactions
-    const discounts = 5000; // From discount module
-    const returns = 1000; // From returns/refunds
-    const netRevenue = grossRevenue - discounts - returns;
+    // Revenue from closed tickets
+    const revenueAgg = await this.prisma.ticket.aggregate({
+      where: {
+        locationId: { in: locationIds },
+        status: 'CLOSED' as any,
+        closedAt: { gte: startDate, lte: endDate },
+      },
+      _sum: { total: true, discount: true, subtotal: true },
+    });
 
-    const cogs = 40000; // From recipe costs * quantities sold
+    const grossRevenue = revenueAgg._sum.total ?? 0;
+    const discounts = revenueAgg._sum.discount ?? 0;
+    const returns = 0;
+    const netRevenue = grossRevenue - returns;
+
+    // COGS: real cost from closed ticket lines in period (quantity * product.cost)
+    let cogs = 0;
+    let cogsEstimated = false;
+    try {
+      const ticketLines = await this.prisma.ticketLine.findMany({
+        where: {
+          ticket: {
+            locationId: { in: locationIds },
+            status: 'CLOSED' as any,
+            closedAt: { gte: startDate, lte: endDate },
+          },
+        },
+        select: {
+          quantity: true,
+          product: { select: { cost: true } },
+        },
+      });
+      for (const line of ticketLines) {
+        const cost = line.product?.cost;
+        if (cost === null || cost === undefined) {
+          // Null cost contributes 0 but flags the response.
+          cogsEstimated = true;
+          continue;
+        }
+        cogs += (line.quantity ?? 0) * cost;
+      }
+    } catch {
+      // If ticketLine query fails for any reason, fall back to flagged value.
+      cogsEstimated = true;
+      cogs = 0;
+    }
+
     const grossProfit = netRevenue - cogs;
-    const grossMarginPercent = (grossProfit / netRevenue) * 100;
+    const grossMarginPercent =
+      netRevenue > 0 ? (grossProfit / netRevenue) * 100 : 0;
 
-    // Operating Expenses (from Expenses service)
-    const laborCost = 30000; // From HR payroll
-    const rent = 20000;
-    const utilities = 3000;
-    const marketing = 2000;
-    const supplies = 1500;
-    const equipmentMaintenance = 1000;
-    const insurance = 800;
-    const permitsLicenses = 500;
-    const professionalServices = 1200;
-    const wasteManagement = 400;
-    const security = 600;
-    const otherExpenses = 800;
+    // Operating expenses from Expense table (paid expenses in period)
+    const expenseGroups = await this.prisma.expense.groupBy({
+      by: ['category'],
+      where: {
+        organizationId,
+        ...(locationId ? { locationId } : {}),
+        status: 'PAID' as any,
+        paidDate: { gte: startDate, lte: endDate },
+      },
+      _sum: { totalAmount: true },
+    });
+
+    const expenseByCategory = expenseGroups.reduce(
+      (acc, row) => {
+        acc[row.category] = row._sum.totalAmount ?? 0;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    const get = (cat: string) => expenseByCategory[cat] ?? 0;
+
+    const laborCost = get('LABOR');
+    const rent = get('RENT');
+    const utilities = get('UTILITIES');
+    const marketing = get('MARKETING');
+    const supplies = get('SUPPLIES');
+    const equipmentMaintenance = get('EQUIPMENT');
+    const insurance = get('INSURANCE');
+    const permitsLicenses = get('PERMITS_LICENSES');
+    const professionalServices = get('PROFESSIONAL_SERVICES');
+    const wasteManagement = get('WASTE_MANAGEMENT');
+    const security = get('SECURITY');
+    const otherExpenses = get('OTHER') + get('TAXES');
 
     const totalOperatingExpenses =
       laborCost +
@@ -59,81 +130,129 @@ export class PnLService {
       otherExpenses;
 
     const ebitda = grossProfit - totalOperatingExpenses;
-    const depreciation = 2000; // Equipment depreciation
-    const amortization = 500; // Intangible assets
+    const depreciation = 0;
+    const amortization = 0;
     const ebit = ebitda - depreciation - amortization;
-    const interestExpense = 1000; // Loan interest
+    const interestExpense = 0;
     const ebt = ebit - interestExpense;
-    const taxes = ebt * 0.30; // 30% tax rate (ISR México)
-    const netProfit = ebt - taxes;
-    const netMarginPercent = (netProfit / netRevenue) * 100;
 
-    // Key Metrics
-    const laborPercent = (laborCost / netRevenue) * 100;
+    // Tax rate: try org settings, fall back to DEFAULT_TAX_RATE.
+    const { taxRate, taxRateDefaultUsed } =
+      await this.resolveTaxRate(organizationId);
+
+    const taxesAmount = ebt > 0 ? ebt * taxRate : 0;
+    const netProfit = ebt - taxesAmount;
+    const netMarginPercent =
+      netRevenue > 0 ? (netProfit / netRevenue) * 100 : 0;
+
+    const laborPercent = netRevenue > 0 ? (laborCost / netRevenue) * 100 : 0;
     const primeCost = cogs + laborCost;
-    const primeCostPercent = (primeCost / netRevenue) * 100;
+    const primeCostPercent =
+      netRevenue > 0 ? (primeCost / netRevenue) * 100 : 0;
 
-    // Break-even calculation
-    // Break-even = Fixed Costs / (1 - Variable Cost %)
     const fixedCosts = rent + insurance + permitsLicenses + security;
     const variableCosts = cogs + supplies + utilities;
-    const variableCostPercent = variableCosts / netRevenue;
-    const breakEvenPoint = fixedCosts / (1 - variableCostPercent);
+    const variableCostRatio = netRevenue > 0 ? variableCosts / netRevenue : 0;
 
-    const pnl: ProfitAndLoss = {
+    let breakEvenPoint: number | null = null;
+    let breakEvenNotReachable = false;
+    if (variableCostRatio < 1 && fixedCosts > 0) {
+      breakEvenPoint = this.r2(fixedCosts / (1 - variableCostRatio));
+    } else if (fixedCosts > 0 && variableCostRatio >= 1) {
+      breakEvenPoint = null;
+      breakEvenNotReachable = true;
+    } else {
+      breakEvenPoint = 0;
+    }
+
+    return {
       organization_id: organizationId,
       location_id: locationId,
       period_start: startDate,
       period_end: endDate,
-      gross_revenue: grossRevenue,
-      discounts: discounts,
-      returns: returns,
-      net_revenue: netRevenue,
-      cogs: cogs,
-      gross_profit: grossProfit,
-      gross_margin_percent: Math.round(grossMarginPercent * 10) / 10,
-      labor_cost: laborCost,
-      rent: rent,
-      utilities: utilities,
-      marketing: marketing,
-      supplies: supplies,
-      equipment_maintenance: equipmentMaintenance,
-      insurance: insurance,
-      permits_licenses: permitsLicenses,
-      professional_services: professionalServices,
-      waste_management: wasteManagement,
-      security: security,
-      other_expenses: otherExpenses,
-      total_operating_expenses: totalOperatingExpenses,
-      ebitda: ebitda,
-      depreciation: depreciation,
-      amortization: amortization,
-      ebit: ebit,
-      interest_expense: interestExpense,
-      ebt: ebt,
-      taxes: Math.round(taxes),
-      net_profit: Math.round(netProfit),
-      net_margin_percent: Math.round(netMarginPercent * 10) / 10,
-      labor_percent: Math.round(laborPercent * 10) / 10,
-      prime_cost: primeCost,
-      prime_cost_percent: Math.round(primeCostPercent * 10) / 10,
-      break_even_point: Math.round(breakEvenPoint),
+      gross_revenue: this.r2(grossRevenue),
+      discounts: this.r2(discounts),
+      returns: this.r2(returns),
+      net_revenue: this.r2(netRevenue),
+      cogs: this.r2(cogs),
+      gross_profit: this.r2(grossProfit),
+      gross_margin_percent: this.r2(grossMarginPercent),
+      labor_cost: this.r2(laborCost),
+      rent: this.r2(rent),
+      utilities: this.r2(utilities),
+      marketing: this.r2(marketing),
+      supplies: this.r2(supplies),
+      equipment_maintenance: this.r2(equipmentMaintenance),
+      insurance: this.r2(insurance),
+      permits_licenses: this.r2(permitsLicenses),
+      professional_services: this.r2(professionalServices),
+      waste_management: this.r2(wasteManagement),
+      security: this.r2(security),
+      other_expenses: this.r2(otherExpenses),
+      total_operating_expenses: this.r2(totalOperatingExpenses),
+      ebitda: this.r2(ebitda),
+      depreciation: this.r2(depreciation),
+      amortization: this.r2(amortization),
+      ebit: this.r2(ebit),
+      interest_expense: this.r2(interestExpense),
+      ebt: this.r2(ebt),
+      taxes: this.r2(taxesAmount),
+      net_profit: this.r2(netProfit),
+      net_margin_percent: this.r2(netMarginPercent),
+      labor_percent: this.r2(laborPercent),
+      prime_cost: this.r2(primeCost),
+      prime_cost_percent: this.r2(primeCostPercent),
+      break_even_point: breakEvenPoint,
+      cogs_estimated: cogsEstimated || undefined,
+      tax_rate_default_used: taxRateDefaultUsed || undefined,
+      break_even_not_reachable: breakEvenNotReachable || undefined,
     };
-
-    return pnl;
   }
 
-  async calculateMonthlyPnL(organizationId: string, year: number, month: number, locationId?: string): Promise<ProfitAndLoss> {
+  /**
+   * Resolve the corporate income-tax rate from organization settings if
+   * available; otherwise fall back to DEFAULT_TAX_RATE (0.30) and flag the
+   * response so callers know the default was used.
+   */
+  private async resolveTaxRate(
+    organizationId: string,
+  ): Promise<{ taxRate: number; taxRateDefaultUsed: boolean }> {
+    try {
+      const org = await this.prisma.organization.findUnique({
+        where: { id: organizationId },
+      });
+      const settings = (org as any)?.settings;
+      const rate =
+        settings && typeof settings === 'object'
+          ? Number(settings.corporate_tax_rate ?? settings.taxRate)
+          : NaN;
+      if (Number.isFinite(rate) && rate >= 0 && rate <= 1) {
+        return { taxRate: rate, taxRateDefaultUsed: false };
+      }
+    } catch {
+      // ignore; fall back to default
+    }
+    return { taxRate: DEFAULT_TAX_RATE, taxRateDefaultUsed: true };
+  }
+
+  async calculateMonthlyPnL(
+    organizationId: string,
+    year: number,
+    month: number,
+    locationId?: string,
+  ): Promise<ProfitAndLoss> {
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
-    
     return this.calculatePnL(organizationId, startDate, endDate, locationId);
   }
 
-  async calculateYearlyPnL(organizationId: string, year: number, locationId?: string): Promise<ProfitAndLoss> {
+  async calculateYearlyPnL(
+    organizationId: string,
+    year: number,
+    locationId?: string,
+  ): Promise<ProfitAndLoss> {
     const startDate = new Date(year, 0, 1);
     const endDate = new Date(year, 11, 31, 23, 59, 59);
-    
     return this.calculatePnL(organizationId, startDate, endDate, locationId);
   }
 
@@ -145,17 +264,27 @@ export class PnLService {
     period2End: Date,
     locationId?: string,
   ): Promise<any> {
-    const pnl1 = await this.calculatePnL(organizationId, period1Start, period1End, locationId);
-    const pnl2 = await this.calculatePnL(organizationId, period2Start, period2End, locationId);
+    const [pnl1, pnl2] = await Promise.all([
+      this.calculatePnL(organizationId, period1Start, period1End, locationId),
+      this.calculatePnL(organizationId, period2Start, period2End, locationId),
+    ]);
 
     return {
       period1: pnl1,
       period2: pnl2,
       changes: {
         revenue_change: pnl2.net_revenue - pnl1.net_revenue,
-        revenue_change_percent: ((pnl2.net_revenue - pnl1.net_revenue) / pnl1.net_revenue) * 100,
+        revenue_change_percent:
+          pnl1.net_revenue > 0
+            ? ((pnl2.net_revenue - pnl1.net_revenue) / pnl1.net_revenue) * 100
+            : 0,
         profit_change: pnl2.net_profit - pnl1.net_profit,
-        profit_change_percent: ((pnl2.net_profit - pnl1.net_profit) / pnl1.net_profit) * 100,
+        profit_change_percent:
+          pnl1.net_profit !== 0
+            ? ((pnl2.net_profit - pnl1.net_profit) /
+                Math.abs(pnl1.net_profit)) *
+              100
+            : 0,
         margin_change: pnl2.net_margin_percent - pnl1.net_margin_percent,
       },
     };

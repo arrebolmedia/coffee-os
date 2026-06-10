@@ -1,5 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value || value.trim().length === 0) {
+    throw new Error(
+      `${name} environment variable is required and must not be empty`,
+    );
+  }
+  return value;
+}
+
 export interface MailrelayConfig {
   apiKey: string;
   apiUrl: string;
@@ -50,11 +60,10 @@ export class MailrelayService {
 
   constructor() {
     this.config = {
-      apiKey: process.env.MAILRELAY_API_KEY || 'mock_api_key',
-      apiUrl: process.env.MAILRELAY_API_URL || 'https://api.mailrelay.com/v1',
-      defaultFromEmail:
-        process.env.MAILRELAY_FROM_EMAIL || 'hola@cafeteria.mx',
-      defaultFromName: process.env.MAILRELAY_FROM_NAME || 'Mi Cafetería',
+      apiKey: requireEnv('MAILRELAY_API_KEY'),
+      apiUrl: requireEnv('MAILRELAY_API_URL'),
+      defaultFromEmail: requireEnv('MAILRELAY_FROM_EMAIL'),
+      defaultFromName: requireEnv('MAILRELAY_FROM_NAME'),
     };
 
     this.initializeTemplates();
@@ -250,7 +259,11 @@ export class MailrelayService {
    * Send bulk emails (campaign)
    */
   async sendBulkEmails(
-    recipients: { email: string; name: string; variables?: Record<string, string> }[],
+    recipients: {
+      email: string;
+      name: string;
+      variables?: Record<string, string>;
+    }[],
     templateId: string,
     commonVariables: Record<string, string> = {},
   ): Promise<EmailResponse[]> {

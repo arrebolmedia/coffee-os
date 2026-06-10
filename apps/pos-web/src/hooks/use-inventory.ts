@@ -3,8 +3,8 @@
  * React Query hooks para inventario
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { inventoryService, InventoryItem } from '@/services/inventory.service';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { InventoryItem, inventoryService } from '@/services/inventory.service';
 import { useAuth } from '@/hooks/use-auth';
 import toast from 'react-hot-toast';
 

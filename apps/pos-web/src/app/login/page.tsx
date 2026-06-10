@@ -8,16 +8,30 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import { Coffee, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Coffee, Eye, EyeOff, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+// Only accept relative paths as callbackUrl to prevent open-redirect attacks
+// (e.g. ?callbackUrl=https://evil.com/phish or ?callbackUrl=//evil.com).
+function sanitizeCallbackUrl(raw: string | null): string {
+  if (!raw) return '/dashboard';
+  if (raw.startsWith('/') && !raw.startsWith('//')) return raw;
+  return '/dashboard';
+}
+
+// In production we ship empty credentials; in dev we prefill demo creds for
+// convenience.
+const IS_DEV = process.env.NODE_ENV !== 'production';
+const DEV_EMAIL_DEFAULT = IS_DEV ? 'owner@coffeedemo.mx' : '';
+const DEV_PASSWORD_DEFAULT = IS_DEV ? 'password123' : '';
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+  const callbackUrl = sanitizeCallbackUrl(searchParams.get('callbackUrl'));
 
-  const [email, setEmail] = useState('demo@coffeeos.com');
-  const [password, setPassword] = useState('demo123');
+  const [email, setEmail] = useState(DEV_EMAIL_DEFAULT);
+  const [password, setPassword] = useState(DEV_PASSWORD_DEFAULT);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -160,28 +174,32 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Demo Accounts */}
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-600 text-center mb-4">
-              Cuentas de demostración:
-            </p>
-            <div className="space-y-2">
-              {demoLogins.map((demo) => (
-                <button
-                  key={demo.email}
-                  onClick={() => handleDemoLogin(demo.email, demo.password)}
-                  className="w-full px-4 py-2 text-left border-2 border-gray-200 rounded-lg hover:border-amber-500 hover:bg-amber-50 transition-all text-sm"
-                >
-                  <div className="font-medium text-gray-900">{demo.role}</div>
-                  <div className="text-gray-500 text-xs">{demo.email}</div>
-                </button>
-              ))}
+          {/* Demo Accounts — only shown in development */}
+          {IS_DEV && (
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              <p className="text-sm text-gray-600 text-center mb-4">
+                Cuentas de demostración:
+              </p>
+              <div className="space-y-2">
+                {demoLogins.map((demo) => (
+                  <button
+                    key={demo.email}
+                    onClick={() => handleDemoLogin(demo.email, demo.password)}
+                    className="w-full px-4 py-2 text-left border-2 border-gray-200 rounded-lg hover:border-amber-500 hover:bg-amber-50 transition-all text-sm"
+                  >
+                    <div className="font-medium text-gray-900">{demo.role}</div>
+                    <div className="text-gray-500 text-xs">{demo.email}</div>
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 text-center mt-4">
+                Contraseña para todas:{' '}
+                <code className="bg-gray-100 px-2 py-1 rounded">
+                  password123
+                </code>
+              </p>
             </div>
-            <p className="text-xs text-gray-500 text-center mt-4">
-              Contraseña para todas:{' '}
-              <code className="bg-gray-100 px-2 py-1 rounded">password123</code>
-            </p>
-          </div>
+          )}
         </div>
 
         {/* Footer */}

@@ -1,31 +1,41 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import {
-  CreateCFDIDto,
-  CancelCFDIDto,
-  TipoComprobante,
-} from './dto';
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value || value.trim().length === 0) {
+    throw new Error(
+      `${name} environment variable is required and must not be empty`,
+    );
+  }
+  return value;
+}
+import { CancelCFDIDto, CreateCFDIDto } from './dto';
 import {
   CFDI,
-  CFDIValidationResult,
-  CFDIStampResponse,
   CFDICancelResponse,
+  CFDIStampResponse,
   CFDIStats,
   CFDITotales,
+  CFDIValidationResult,
 } from './interfaces';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class CFDIService {
   private cfdis: Map<string, CFDI> = new Map();
-  
-  // PAC Configuration (mock for development)
+
+  // PAC Configuration — credentials must come from environment, no defaults.
   private readonly pacConfig = {
-    apiUrl: process.env.PAC_API_URL || 'https://api.pac-provider.com',
-    apiKey: process.env.PAC_API_KEY || 'mock-api-key',
-    rfcEmisor: process.env.RFC_EMISOR || 'XAXX010101000',
-    nombreEmisor: process.env.NOMBRE_EMISOR || 'Mi Cafetería S.A. de C.V.',
-    regimenFiscal: process.env.REGIMEN_FISCAL || '601',
-    lugarExpedicion: process.env.LUGAR_EXPEDICION || '06600', // CDMX
+    apiUrl: requireEnv('PAC_API_URL'),
+    apiKey: requireEnv('PAC_API_KEY'),
+    rfcEmisor: requireEnv('RFC_EMISOR'),
+    nombreEmisor: requireEnv('NOMBRE_EMISOR'),
+    regimenFiscal: requireEnv('REGIMEN_FISCAL'),
+    lugarExpedicion: requireEnv('LUGAR_EXPEDICION'),
   };
 
   /**
@@ -234,9 +244,11 @@ export class CFDIService {
    */
   async downloadXML(id: string): Promise<string> {
     const cfdi = await this.findById(id);
-    
+
     if (cfdi.status !== 'stamped') {
-      throw new BadRequestException('Solo se puede descargar XML de CFDIs timbrados');
+      throw new BadRequestException(
+        'Solo se puede descargar XML de CFDIs timbrados',
+      );
     }
 
     if (!cfdi.xmlContent) {
@@ -377,8 +389,7 @@ export class CFDIService {
       descuento: Math.round(descuento * 100) / 100,
       totalImpuestosTrasladados:
         Math.round(totalImpuestosTrasladados * 100) / 100,
-      totalImpuestosRetenidos:
-        Math.round(totalImpuestosRetenidos * 100) / 100,
+      totalImpuestosRetenidos: Math.round(totalImpuestosRetenidos * 100) / 100,
       total: Math.round(total * 100) / 100,
     };
   }
@@ -433,7 +444,9 @@ export class CFDIService {
    * Generar sello digital (mock)
    */
   private generateSello(): string {
-    return Buffer.from(Math.random().toString()).toString('base64').slice(0, 50);
+    return Buffer.from(Math.random().toString())
+      .toString('base64')
+      .slice(0, 50);
   }
 
   /**

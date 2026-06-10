@@ -5,38 +5,35 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import {
-  useCustomers,
-  useCustomerStats,
   useCreateCustomer,
-  useUpdateCustomer,
+  useCustomers,
   useDeleteCustomer,
+  useUpdateCustomer,
 } from '@/hooks/use-customers';
 import { CustomerModal } from '@/components/customers/CustomerModal';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { Customer } from '@/types';
 import {
-  Users,
-  Search,
-  Plus,
-  Mail,
-  Phone,
-  Gift,
-  TrendingUp,
-  Calendar,
-  Heart,
-  Star,
-  MessageSquare,
   AlertCircle,
-  Loader2,
-  Edit,
-  Trash2,
-  Eye,
   Award,
   Download,
+  Edit,
+  Eye,
   Filter,
+  Gift,
+  Loader2,
+  Mail,
+  MessageSquare,
+  Phone,
+  Plus,
+  Search,
+  Star,
+  Trash2,
+  TrendingUp,
+  Users,
 } from 'lucide-react';
 
 export default function CustomersPage() {
@@ -70,22 +67,26 @@ export default function CustomersPage() {
   const filteredCustomers = useMemo(() => {
     return customers.filter((customer) => {
       const matchesSearch = searchQuery
-        ? customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ? [customer.firstName, customer.lastName]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
           (customer.phone && customer.phone.includes(searchQuery)) ||
           (customer.email &&
             customer.email.toLowerCase().includes(searchQuery.toLowerCase()))
         : true;
 
       const matchesSegment =
-        filterSegment === 'all' || customer.rfm_segment === filterSegment;
+        filterSegment === 'all' || customer.rfmSegment === filterSegment;
 
       const matchesLoyalty =
         filterLoyalty === 'all' ||
-        (filterLoyalty === 'eligible' && customer.loyalty_points >= 9) ||
+        (filterLoyalty === 'eligible' && customer.loyaltyPoints >= 9) ||
         (filterLoyalty === 'active' &&
-          customer.loyalty_points > 0 &&
-          customer.loyalty_points < 9) ||
-        (filterLoyalty === 'none' && customer.loyalty_points === 0);
+          customer.loyaltyPoints > 0 &&
+          customer.loyaltyPoints < 9) ||
+        (filterLoyalty === 'none' && customer.loyaltyPoints === 0);
 
       return matchesSearch && matchesSegment && matchesLoyalty;
     });
@@ -95,12 +96,12 @@ export default function CustomersPage() {
   const localStats = useMemo(
     () => ({
       total: customers.length,
-      vip: customers.filter((c) => c.rfm_segment === 'VIP').length,
-      regular: customers.filter((c) => c.rfm_segment === 'Regular').length,
-      atRisk: customers.filter((c) => c.rfm_segment === 'At Risk').length,
-      newCustomers: customers.filter((c) => c.rfm_segment === 'New').length,
-      eligibleRewards: customers.filter((c) => c.loyalty_points >= 9).length,
-      withLoyalty: customers.filter((c) => c.loyalty_points > 0).length,
+      vip: customers.filter((c) => c.rfmSegment === 'VIP').length,
+      regular: customers.filter((c) => c.rfmSegment === 'Regular').length,
+      atRisk: customers.filter((c) => c.rfmSegment === 'At Risk').length,
+      newCustomers: customers.filter((c) => c.rfmSegment === 'New').length,
+      eligibleRewards: customers.filter((c) => c.loyaltyPoints >= 9).length,
+      withLoyalty: customers.filter((c) => c.loyaltyPoints > 0).length,
     }),
     [customers],
   );
@@ -399,15 +400,25 @@ export default function CustomersPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center">
                         <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                          {customer.name.charAt(0)}
+                          {(
+                            [customer.firstName, customer.lastName]
+                              .filter(Boolean)
+                              .join(' ') ||
+                            customer.phone ||
+                            '?'
+                          ).charAt(0)}
                         </div>
                         <div className="ml-3">
                           <div className="text-sm font-medium text-gray-900">
-                            {customer.name}
+                            {[customer.firstName, customer.lastName]
+                              .filter(Boolean)
+                              .join(' ') ||
+                              customer.phone ||
+                              'Cliente'}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {customer.total_orders}{' '}
-                            {customer.total_orders === 1 ? 'compra' : 'compras'}
+                            {customer.totalVisits}{' '}
+                            {customer.totalVisits === 1 ? 'visita' : 'visitas'}
                           </div>
                         </div>
                       </div>
@@ -433,7 +444,7 @@ export default function CustomersPage() {
                             <div
                               key={i}
                               className={`w-2 h-2 rounded-full ${
-                                i < customer.loyalty_points
+                                i < customer.loyaltyPoints
                                   ? 'bg-pink-500'
                                   : 'bg-gray-300'
                               }`}
@@ -441,9 +452,9 @@ export default function CustomersPage() {
                           ))}
                         </div>
                         <span className="text-sm font-medium text-gray-700">
-                          {customer.loyalty_points}/9
+                          {customer.loyaltyPoints}/9
                         </span>
-                        {customer.loyalty_points >= 9 && (
+                        {customer.loyaltyPoints >= 9 && (
                           <Gift className="w-4 h-4 text-pink-500" />
                         )}
                       </div>
@@ -451,26 +462,26 @@ export default function CustomersPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm">
                         <div className="font-medium text-gray-900">
-                          ${customer.total_spent.toLocaleString('es-MX')}
+                          ${customer.totalSpent.toLocaleString('es-MX')}
                         </div>
                         <div className="text-gray-500">
-                          {customer.total_orders} órdenes
+                          {customer.totalVisits} visitas
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-gray-900">
                         {formatDate(
-                          customer.updated_at?.toString() ||
-                            customer.created_at.toString(),
+                          customer.updatedAt?.toString() ||
+                            customer.createdAt.toString(),
                         )}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${getSegmentBadge(customer.rfm_segment)}`}
+                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${getSegmentBadge(customer.rfmSegment)}`}
                       >
-                        {customer.rfm_segment || 'N/A'}
+                        {customer.rfmSegment || 'N/A'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -521,7 +532,7 @@ export default function CustomersPage() {
       <ConfirmDialog
         isOpen={isDeleteDialogOpen}
         title="Eliminar Cliente"
-        message={`¿Estás seguro de que deseas eliminar a ${customerToDelete?.name}? Esta acción no se puede deshacer y se perderán todos los puntos de lealtad.`}
+        message={`¿Estás seguro de que deseas eliminar a ${[customerToDelete?.firstName, customerToDelete?.lastName].filter(Boolean).join(' ') || customerToDelete?.phone || 'este cliente'}? Esta acción no se puede deshacer y se perderán todos los puntos de lealtad.`}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
         confirmText="Eliminar"

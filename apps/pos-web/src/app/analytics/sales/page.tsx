@@ -1,20 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import {
-  TrendingUp,
-  DollarSign,
-  ShoppingCart,
-  Users,
-  Calendar,
-  ArrowUpRight,
+  useSalesByCategory,
+  useSalesMetrics,
+  useTopProducts,
+} from '@/hooks/use-analytics';
+import {
   ArrowDownRight,
+  ArrowUpRight,
+  BarChart3,
+  Calendar,
+  DollarSign,
   Download,
   Filter,
-  BarChart3,
   PieChart,
-  TrendingDown,
+  ShoppingCart,
+  TrendingUp,
 } from 'lucide-react';
 
 // Interfaces
@@ -59,169 +62,69 @@ const AnalyticsSalesPage = () => {
     'month',
   );
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
-  const [dateRange, setDateRange] = useState({
-    start: '2024-11-01',
-    end: '2024-11-30',
-  });
 
-  // TODO: Fetch real sales data from API
+  const apiDateRange = useMemo(() => {
+    const end = new Date();
+    const start = new Date();
+    if (period === 'day') start.setDate(start.getDate() - 1);
+    else if (period === 'week') start.setDate(start.getDate() - 7);
+    else if (period === 'month') start.setMonth(start.getMonth() - 1);
+    else start.setFullYear(start.getFullYear() - 1);
+    return { start_date: start.toISOString(), end_date: end.toISOString() };
+  }, [period]);
+
+  const { data: salesMetrics } = useSalesMetrics(apiDateRange);
+  const { data: topProductsData = [] } = useTopProducts(apiDateRange);
+  const { data: categoryData = [] } = useSalesByCategory(apiDateRange);
+
   const mockSalesData: SalesData[] = [];
 
-  const mockProductSales: ProductSales[] = [
-    {
-      id: '1',
-      product: 'Latte',
-      category: 'Café Caliente',
-      quantity: 1245,
-      revenue: 74700,
-      margin: 68.5,
-      percentOfTotal: 18.2,
-    },
-    {
-      id: '2',
-      product: 'Americano',
-      category: 'Café Caliente',
-      quantity: 1089,
-      revenue: 54450,
-      margin: 72.3,
-      percentOfTotal: 13.3,
-    },
-    {
-      id: '3',
-      product: 'Capuchino',
-      category: 'Café Caliente',
-      quantity: 987,
-      revenue: 65169,
-      margin: 67.8,
-      percentOfTotal: 15.9,
-    },
-    {
-      id: '4',
-      product: 'Croissant',
-      category: 'Alimentos',
-      quantity: 876,
-      revenue: 43800,
-      margin: 55.2,
-      percentOfTotal: 10.7,
-    },
-    {
-      id: '5',
-      product: 'Frappé',
-      category: 'Café Frío',
-      quantity: 823,
-      revenue: 57610,
-      margin: 64.1,
-      percentOfTotal: 14.0,
-    },
-    {
-      id: '6',
-      product: 'Sandwich Club',
-      category: 'Alimentos',
-      quantity: 654,
-      revenue: 52320,
-      margin: 48.7,
-      percentOfTotal: 12.8,
-    },
-    {
-      id: '7',
-      product: 'Espresso',
-      category: 'Café Caliente',
-      quantity: 567,
-      revenue: 22680,
-      margin: 75.4,
-      percentOfTotal: 5.5,
-    },
-    {
-      id: '8',
-      product: 'Té Chai Latte',
-      category: 'Té',
-      quantity: 445,
-      revenue: 24475,
-      margin: 62.3,
-      percentOfTotal: 6.0,
-    },
-    {
-      id: '9',
-      product: 'Pastel de Zanahoria',
-      category: 'Postres',
-      quantity: 389,
-      revenue: 19450,
-      margin: 58.9,
-      percentOfTotal: 4.7,
-    },
-    {
-      id: '10',
-      product: 'Cold Brew',
-      category: 'Café Frío',
-      quantity: 334,
-      revenue: 23380,
-      margin: 69.2,
-      percentOfTotal: 5.7,
-    },
-  ];
-
-  const mockHourlySales: HourlySales[] = [
-    { hour: '07:00', revenue: 2800, transactions: 32 },
-    { hour: '08:00', revenue: 5600, transactions: 64 },
-    { hour: '09:00', revenue: 7200, transactions: 78 },
-    { hour: '10:00', revenue: 6400, transactions: 71 },
-    { hour: '11:00', revenue: 5800, transactions: 65 },
-    { hour: '12:00', revenue: 6200, transactions: 68 },
-    { hour: '13:00', revenue: 7800, transactions: 85 },
-    { hour: '14:00', revenue: 8200, transactions: 89 },
-    { hour: '15:00', revenue: 7400, transactions: 81 },
-    { hour: '16:00', revenue: 6800, transactions: 74 },
-    { hour: '17:00', revenue: 7600, transactions: 82 },
-    { hour: '18:00', revenue: 8400, transactions: 91 },
-    { hour: '19:00', revenue: 6600, transactions: 72 },
-    { hour: '20:00', revenue: 4200, transactions: 47 },
-  ];
-
-  const mockCategorySales: CategorySales[] = [
-    {
-      category: 'Café Caliente',
-      revenue: 216999,
-      percentage: 52.9,
-      color: 'bg-orange-500',
-    },
-    {
-      category: 'Café Frío',
-      revenue: 80990,
-      percentage: 19.7,
-      color: 'bg-blue-500',
-    },
-    {
-      category: 'Alimentos',
-      revenue: 96120,
-      percentage: 23.5,
-      color: 'bg-green-500',
-    },
-    {
-      category: 'Postres',
-      revenue: 19450,
-      percentage: 4.7,
-      color: 'bg-pink-500',
-    },
-    { category: 'Té', revenue: 24475, percentage: 6.0, color: 'bg-purple-500' },
-  ];
-
-  // Calculations
-  const totalRevenue = mockSalesData.reduce(
-    (sum, item) => sum + item.revenue,
-    0,
-  );
-  const totalTransactions = mockSalesData.reduce(
-    (sum, item) => sum + item.transactions,
-    0,
-  );
-  const avgTicket = totalRevenue / totalTransactions;
+  // Calculations from real API data
+  const totalRevenue = salesMetrics?.gross_sales ?? 0;
+  const totalTransactions = salesMetrics?.total_orders ?? 0;
+  const avgTicket = salesMetrics?.avg_order_value ?? 0;
   const avgGrowthRate =
-    mockSalesData.reduce((sum, item) => sum + item.growthRate, 0) /
-    mockSalesData.length;
+    salesMetrics?.vs_previous_period?.gross_sales_change_percent ?? 0;
+  const peakHour = salesMetrics?.peak_hour ?? 'N/A';
 
-  const maxHourlyRevenue = Math.max(...mockHourlySales.map((h) => h.revenue));
-  const peakHour =
-    mockHourlySales.find((h) => h.revenue === maxHourlyRevenue)?.hour || '';
+  const mockHourlySales: HourlySales[] = (
+    salesMetrics?.hourly_breakdown ?? []
+  ).map((h: any) => ({
+    hour: String(h.hour).padStart(2, '0') + ':00',
+    revenue: h.revenue ?? 0,
+    transactions: h.orders ?? 0,
+  }));
+  const maxHourlyRevenue =
+    mockHourlySales.length > 0
+      ? Math.max(...mockHourlySales.map((h) => h.revenue))
+      : 0;
+
+  const mockProductSales: ProductSales[] = (topProductsData as any[]).map(
+    (p: any, i: number) => ({
+      id: p.product_id || String(i),
+      product: p.product_name || p.name || '—',
+      category: p.category_name || p.category || '—',
+      quantity: p.quantity_sold ?? p.quantity ?? 0,
+      revenue: p.revenue ?? 0,
+      margin: p.margin ?? 0,
+      percentOfTotal: p.percent_of_total ?? 0,
+    }),
+  );
+
+  const mockCategorySales: CategorySales[] = (categoryData as any[]).map(
+    (c: any, i: number) => ({
+      category: c.category_name || c.category || '—',
+      revenue: c.revenue ?? 0,
+      percentage: c.percentage ?? 0,
+      color: [
+        'bg-orange-500',
+        'bg-blue-500',
+        'bg-green-500',
+        'bg-pink-500',
+        'bg-purple-500',
+      ][i % 5],
+    }),
+  );
 
   const getCategoryBadge = (category: SalesData['category']) => {
     const styles = {
@@ -297,26 +200,6 @@ const AnalyticsSalesPage = () => {
               <option value="santa-fe">Santa Fe</option>
               <option value="roma">Roma</option>
             </select>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                value={dateRange.start}
-                onChange={(e) =>
-                  setDateRange({ ...dateRange, start: e.target.value })
-                }
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <span className="text-gray-500">-</span>
-              <input
-                type="date"
-                value={dateRange.end}
-                onChange={(e) =>
-                  setDateRange({ ...dateRange, end: e.target.value })
-                }
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
           </div>
         </div>
 

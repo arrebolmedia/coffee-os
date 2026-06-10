@@ -1,18 +1,16 @@
 import {
-  IsOptional,
-  IsInt,
-  Min,
-  Max,
-  IsString,
-  IsUUID,
   IsEnum,
   IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
-  RecipeCategory,
-  PreparationMethod,
   DifficultyLevel,
+  PreparationMethod,
+  RecipeCategory,
 } from './create-recipe.dto';
 
 export class QueryRecipesDto {

@@ -1,5 +1,5 @@
-import { Controller, Post, Body, Get, Param, HttpCode } from '@nestjs/common';
-import { TwilioService, WhatsAppMessage, SMSMessage } from './twilio.service';
+import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { SMSMessage, TwilioService, WhatsAppMessage } from './twilio.service';
 
 @Controller('integrations/twilio')
 export class TwilioController {

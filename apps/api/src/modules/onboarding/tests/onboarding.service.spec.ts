@@ -1,13 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { OnboardingService } from '../onboarding.service';
 import {
-  TrainingCategory,
-  CompetencyLevel,
-  TrainingModuleStatus,
-  EvaluationType,
-  EvaluationStatus,
   CertificationStatus,
+  CompetencyLevel,
+  EvaluationStatus,
+  EvaluationType,
+  TrainingCategory,
+  TrainingModuleStatus,
 } from '../interfaces/onboarding.interface';
 
 describe('OnboardingService', () => {
@@ -19,7 +19,7 @@ describe('OnboardingService', () => {
     }).compile();
 
     service = module.get<OnboardingService>(OnboardingService);
-    
+
     // Limpiar almacenamiento
     (service as any).trainingModules.clear();
     (service as any).moduleProgress.clear();
@@ -42,7 +42,11 @@ describe('OnboardingService', () => {
         description: 'Learn the basics of espresso extraction',
         category: TrainingCategory.ESPRESSO,
         level: CompetencyLevel.NOVICE,
-        objectives: ['Understand espresso variables', 'Dial in grinder', 'Pull consistent shots'],
+        objectives: [
+          'Understand espresso variables',
+          'Dial in grinder',
+          'Pull consistent shots',
+        ],
         duration_minutes: 120,
         content_url: 'https://training.com/espresso-101',
         prerequisites: [],
@@ -148,19 +152,31 @@ describe('OnboardingService', () => {
     });
 
     it('should filter by category', async () => {
-      const result = await service.findAllTrainingModules(undefined, TrainingCategory.ESPRESSO);
+      const result = await service.findAllTrainingModules(
+        undefined,
+        TrainingCategory.ESPRESSO,
+      );
       expect(result).toHaveLength(1);
       expect(result[0].category).toBe(TrainingCategory.ESPRESSO);
     });
 
     it('should filter by level', async () => {
-      const result = await service.findAllTrainingModules(undefined, undefined, CompetencyLevel.NOVICE);
+      const result = await service.findAllTrainingModules(
+        undefined,
+        undefined,
+        CompetencyLevel.NOVICE,
+      );
       expect(result).toHaveLength(1);
       expect(result[0].level).toBe(CompetencyLevel.NOVICE);
     });
 
     it('should filter by is_active', async () => {
-      const result = await service.findAllTrainingModules(undefined, undefined, undefined, true);
+      const result = await service.findAllTrainingModules(
+        undefined,
+        undefined,
+        undefined,
+        true,
+      );
       expect(result).toHaveLength(2);
     });
 
@@ -191,7 +207,9 @@ describe('OnboardingService', () => {
     });
 
     it('should throw NotFoundException if module not found', async () => {
-      await expect(service.findTrainingModuleById('non-existent')).rejects.toThrow(NotFoundException);
+      await expect(
+        service.findTrainingModuleById('non-existent'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -238,7 +256,9 @@ describe('OnboardingService', () => {
 
       await service.deleteTrainingModule(created.id);
 
-      await expect(service.findTrainingModuleById(created.id)).rejects.toThrow(NotFoundException);
+      await expect(service.findTrainingModuleById(created.id)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw BadRequestException if module has progress', async () => {
@@ -255,7 +275,7 @@ describe('OnboardingService', () => {
         days_target: 10,
       });
 
-      const plan = await service.createOnboardingPlan({
+      await service.createOnboardingPlan({
         organization_id: 'org-1',
         employee_id: 'emp-1',
         name: 'Test Plan',
@@ -265,7 +285,9 @@ describe('OnboardingService', () => {
 
       await service.assignModuleToEmployee('emp-1', module.id);
 
-      await expect(service.deleteTrainingModule(module.id)).rejects.toThrow(BadRequestException);
+      await expect(service.deleteTrainingModule(module.id)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -290,12 +312,12 @@ describe('OnboardingService', () => {
       expect(result.id).toBeDefined();
       expect(result.employee_id).toBe('emp-1');
       expect(result.start_date).toEqual(start_date);
-      
+
       // Target completion date should be 90 days later
       const expected_completion = new Date(2024, 0, 1);
       expected_completion.setDate(expected_completion.getDate() + 90);
       expect(result.target_completion_date).toEqual(expected_completion);
-      
+
       expect(result.is_active).toBe(true);
       expect(result.is_completed).toBe(false);
       expect(result.progress_percentage).toBe(0);
@@ -392,7 +414,12 @@ describe('OnboardingService', () => {
     });
 
     it('should assign module to employee', async () => {
-      const result = await service.assignModuleToEmployee(employee_id, module_id, 'assigner-1', 'mentor-1');
+      const result = await service.assignModuleToEmployee(
+        employee_id,
+        module_id,
+        'assigner-1',
+        'mentor-1',
+      );
 
       expect(result.id).toBeDefined();
       expect(result.employee_id).toBe(employee_id);
@@ -586,7 +613,9 @@ describe('OnboardingService', () => {
 
       await service.startEvaluation(evaluation.id);
 
-      await expect(service.startEvaluation(evaluation.id)).rejects.toThrow(BadRequestException);
+      await expect(service.startEvaluation(evaluation.id)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -714,7 +743,11 @@ describe('OnboardingService', () => {
     });
 
     it('should filter by status', async () => {
-      const result = await service.findAllEvaluations(undefined, undefined, EvaluationStatus.PENDING);
+      const result = await service.findAllEvaluations(
+        undefined,
+        undefined,
+        EvaluationStatus.PENDING,
+      );
       expect(result).toHaveLength(2);
     });
   });
@@ -791,14 +824,17 @@ describe('OnboardingService', () => {
     });
 
     it('should filter by status', async () => {
-      const result = await service.findAllCertifications(undefined, undefined, CertificationStatus.ACTIVE);
+      const result = await service.findAllCertifications(
+        undefined,
+        undefined,
+        CertificationStatus.ACTIVE,
+      );
       expect(result).toHaveLength(2);
     });
   });
 
   describe('findExpiringCertifications', () => {
     it('should return certifications expiring within days', async () => {
-      const now = new Date();
       const soon = new Date();
       soon.setDate(soon.getDate() + 15);
       const later = new Date();
@@ -886,7 +922,7 @@ describe('OnboardingService', () => {
         days_target: 10,
       });
 
-      const plan = await service.createOnboardingPlan({
+      await service.createOnboardingPlan({
         organization_id: 'org-1',
         employee_id: 'emp-1',
         name: 'Test Plan',
@@ -907,7 +943,9 @@ describe('OnboardingService', () => {
     });
 
     it('should throw NotFoundException if no plan found', async () => {
-      await expect(service.getEmployeeProgressReport('non-existent')).rejects.toThrow(NotFoundException);
+      await expect(
+        service.getEmployeeProgressReport('non-existent'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

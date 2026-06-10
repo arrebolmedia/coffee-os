@@ -1,6 +1,22 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { CampaignsService } from './campaigns.service';
-import { CreateCampaignDto, QueryCampaignsDto, CampaignStatus, CampaignChannel } from './dto';
+import {
+  CampaignChannel,
+  CampaignStatus,
+  CreateCampaignDto,
+  QueryCampaignsDto,
+} from './dto';
 
 @Controller('crm/campaigns')
 export class CampaignsController {
@@ -33,7 +49,10 @@ export class CampaignsController {
   }
 
   @Patch(':id/status')
-  async updateStatus(@Param('id') id: string, @Body() body: { status: CampaignStatus }) {
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() body: { status: CampaignStatus },
+  ) {
     return this.campaignsService.updateStatus(id, body.status);
   }
 
@@ -45,8 +64,15 @@ export class CampaignsController {
 
   @Post(':id/recipients')
   @HttpCode(HttpStatus.CREATED)
-  async addRecipient(@Param('id') campaignId: string, @Body() body: { customer_id: string; channel: CampaignChannel }) {
-    return this.campaignsService.addRecipient(campaignId, body.customer_id, body.channel);
+  async addRecipient(
+    @Param('id') campaignId: string,
+    @Body() body: { customer_id: string; channel: CampaignChannel },
+  ) {
+    return this.campaignsService.addRecipient(
+      campaignId,
+      body.customer_id,
+      body.channel,
+    );
   }
 
   @Get(':id/recipients')

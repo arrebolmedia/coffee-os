@@ -38,8 +38,8 @@ export function useCustomers(
   },
   pagination?: PaginationParams,
 ) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: customersKeys.list(organizationId, { filters, pagination }),
@@ -66,8 +66,8 @@ export function useCustomer(customerId: string, enabled = true) {
  * Hook to search customers
  */
 export function useSearchCustomers(query: string, enabled = true) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: customersKeys.search(organizationId, query),
@@ -81,8 +81,8 @@ export function useSearchCustomers(query: string, enabled = true) {
  * Hook to get customer by phone
  */
 export function useCustomerByPhone(phone: string, enabled = true) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: [...customersKeys.all, 'phone', phone, organizationId],
@@ -97,8 +97,8 @@ export function useCustomerByPhone(phone: string, enabled = true) {
  */
 export function useCreateCustomer() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: (data: Partial<Customer>) =>
@@ -108,7 +108,9 @@ export function useCreateCustomer() {
       }),
     onSuccess: (customer) => {
       queryClient.invalidateQueries({ queryKey: customersKeys.lists() });
-      toast.success(`Cliente ${customer.name} creado exitosamente`);
+      toast.success(
+        `Cliente ${[customer.firstName, customer.lastName].filter(Boolean).join(' ') || customer.phone || 'nuevo'} creado exitosamente`,
+      );
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.message || 'Error al crear cliente');

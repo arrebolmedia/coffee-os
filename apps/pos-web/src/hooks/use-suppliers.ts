@@ -5,8 +5,8 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  SuppliersService,
   CreateSupplierDTO,
+  SuppliersService,
   UpdateSupplierDTO,
 } from '@/services/suppliers.service';
 import { useAuth } from '@/hooks/use-auth';
@@ -37,8 +37,8 @@ export function useSuppliers(filters?: {
   status?: string;
   search?: string;
 }) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: suppliersKeys.list(organizationId, filters),
@@ -64,8 +64,8 @@ export function useSupplier(supplierId: string, enabled = true) {
  * Hook to get supplier statistics
  */
 export function useSupplierStats() {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: suppliersKeys.stats(organizationId),
@@ -80,8 +80,8 @@ export function useSupplierStats() {
  */
 export function useCreateSupplier() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: (data: Omit<CreateSupplierDTO, 'organization_id'>) =>
@@ -107,8 +107,8 @@ export function useCreateSupplier() {
  */
 export function useUpdateSupplier() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateSupplierDTO }) =>
@@ -136,8 +136,8 @@ export function useUpdateSupplier() {
  */
 export function useDeleteSupplier() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: (id: string) => SuppliersService.deleteSupplier(id),
@@ -196,8 +196,8 @@ export function useUpdateSupplierRating() {
  * Hook to get suppliers by category
  */
 export function useSuppliersByCategory(category: string, enabled = true) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: suppliersKeys.category(organizationId, category),
@@ -212,8 +212,8 @@ export function useSuppliersByCategory(category: string, enabled = true) {
  * Hook to search suppliers
  */
 export function useSearchSuppliers(query: string, enabled = true) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: suppliersKeys.search(organizationId, query),

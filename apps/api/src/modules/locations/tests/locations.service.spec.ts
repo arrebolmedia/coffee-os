@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { LocationsService } from '../locations.service';
 import { CreateLocationDto } from '../dto';
-import { LocationStatus, LocationType } from '../interfaces';
-import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../database/prisma.service';
 
 describe('LocationsService', () => {
   let service: LocationsService;
@@ -11,104 +11,134 @@ describe('LocationsService', () => {
 
   const createDto: CreateLocationDto = {
     organization_id: orgId,
-    code: 'LOC-001',
     name: 'Café Centro',
-    type: LocationType.STANDARD,
-    status: LocationStatus.ACTIVE,
     address: 'Av. Reforma 123',
-    address_line_2: 'Piso 2',
     city: 'Ciudad de México',
     state: 'CDMX',
     postal_code: '06600',
-    country: 'México',
+    country: 'MX',
     phone: '+52 55 1234 5678',
     email: 'centro@cafeteria.mx',
-    coordinates: {
-      latitude: 19.4326,
-      longitude: -99.1332,
-    },
-    hours: [
-      { day_of_week: 1, open_time: '07:00', close_time: '20:00', is_closed: false },
-      { day_of_week: 2, open_time: '07:00', close_time: '20:00', is_closed: false },
-    ],
     timezone: 'America/Mexico_City',
-    seating_capacity: 30,
-    max_occupancy: 50,
-    manager_id: 'mgr-123',
-    opening_date: new Date('2024-01-15'),
-    allow_online_orders: true,
-    allow_delivery: true,
-    allow_pickup: true,
-    allow_dine_in: true,
-    image_url: 'https://example.com/cafe-centro.jpg',
-    notes: 'Flagship location',
+    tax_rate: 0.16,
+    currency: 'MXN',
+    active: true,
+  };
+
+  const makeRow = (overrides: any = {}) => ({
+    id: overrides.id || `loc-${Date.now()}-${Math.random()}`,
+    organizationId: overrides.organizationId || orgId,
+    name: overrides.name || 'Café Centro',
+    address: overrides.address ?? null,
+    city: overrides.city ?? null,
+    state: overrides.state ?? null,
+    postalCode: overrides.postalCode ?? null,
+    country: overrides.country || 'MX',
+    phone: overrides.phone ?? null,
+    email: overrides.email ?? null,
+    timezone: overrides.timezone || 'America/Mexico_City',
+    taxRate: overrides.taxRate ?? 0.16,
+    currency: overrides.currency || 'MXN',
+    active: overrides.active ?? true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  const store: any[] = [];
+
+  const mockPrismaService = {
+    location: {
+      create: jest.fn().mockImplementation((args: any) => {
+        const row = makeRow({
+          organizationId: args.data?.organizationId,
+          name: args.data?.name,
+          address: args.data?.address,
+          city: args.data?.city,
+          state: args.data?.state,
+          postalCode: args.data?.postalCode,
+          country: args.data?.country,
+          phone: args.data?.phone,
+          email: args.data?.email,
+          timezone: args.data?.timezone,
+          taxRate: args.data?.taxRate,
+          currency: args.data?.currency,
+          active: args.data?.active,
+        });
+        store.push(row);
+        return Promise.resolve(row);
+      }),
+      findMany: jest.fn().mockImplementation((args: any = {}) => {
+        let results = [...store];
+        const where = args?.where || {};
+        if (where.organizationId) {
+          results = results.filter(
+            (r) => r.organizationId === where.organizationId,
+          );
+        }
+        if (where.active !== undefined) {
+          results = results.filter((r) => r.active === where.active);
+        }
+        return Promise.resolve(results);
+      }),
+      findUnique: jest.fn().mockImplementation((args: any) => {
+        const found = store.find((r) => r.id === args?.where?.id);
+        return Promise.resolve(found || null);
+      }),
+      update: jest.fn().mockImplementation((args: any) => {
+        const idx = store.findIndex((r) => r.id === args?.where?.id);
+        if (idx < 0) return Promise.reject(new Error('Not found'));
+        store[idx] = { ...store[idx], ...args.data, updatedAt: new Date() };
+        return Promise.resolve(store[idx]);
+      }),
+      count: jest.fn().mockImplementation((args: any = {}) => {
+        let results = [...store];
+        const where = args?.where || {};
+        if (where.organizationId) {
+          results = results.filter(
+            (r) => r.organizationId === where.organizationId,
+          );
+        }
+        if (where.active !== undefined) {
+          results = results.filter((r) => r.active === where.active);
+        }
+        return Promise.resolve(results.length);
+      }),
+    },
   };
 
   beforeEach(async () => {
+    store.length = 0;
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [LocationsService],
+      providers: [
+        LocationsService,
+        { provide: PrismaService, useValue: mockPrismaService },
+      ],
     }).compile();
 
     service = module.get<LocationsService>(LocationsService);
-    (service as any).locations.clear();
   });
 
   describe('create', () => {
-    it('should create a location with full data', async () => {
+    it('should create a location', async () => {
       const result = await service.create(createDto);
-
-      expect(result).toBeDefined();
       expect(result.id).toBeDefined();
-      expect(result.code).toBe('LOC-001');
       expect(result.name).toBe('Café Centro');
-      expect(result.status).toBe(LocationStatus.ACTIVE);
-      expect(result.type).toBe(LocationType.STANDARD);
-      expect(result.coordinates).toEqual({
-        latitude: 19.4326,
-        longitude: -99.1332,
-      });
-      expect(result.hours).toHaveLength(2);
-      expect(result.created_at).toBeInstanceOf(Date);
+      expect(result.active).toBe(true);
+      expect(result.tax_rate).toBe(0.16);
+      expect(result.currency).toBe('MXN');
     });
 
-    it('should create location with defaults', async () => {
-      const minimalDto: CreateLocationDto = {
+    it('should apply defaults for country/timezone/taxRate/currency', async () => {
+      const minimal: CreateLocationDto = {
         organization_id: orgId,
-        code: 'LOC-002',
         name: 'Café Sur',
-        type: LocationType.KIOSK,
-        address: 'Calle 1',
-        city: 'CDMX',
-        state: 'CDMX',
-        postal_code: '01000',
-        country: 'México',
       };
-
-      const result = await service.create(minimalDto);
-
-      expect(result.status).toBe(LocationStatus.ACTIVE);
-      expect(result.allow_online_orders).toBe(true);
-      expect(result.allow_delivery).toBe(false);
-      expect(result.allow_pickup).toBe(true);
-      expect(result.allow_dine_in).toBe(true);
-    });
-
-    it('should throw ConflictException if code already exists', async () => {
-      await service.create(createDto);
-
-      await expect(service.create(createDto)).rejects.toThrow(
-        ConflictException,
-      );
-    });
-
-    it('should allow same code in different organizations', async () => {
-      await service.create(createDto);
-
-      const otherOrgDto = { ...createDto, organization_id: 'org-456' };
-      const result = await service.create(otherOrgDto);
-
-      expect(result).toBeDefined();
-      expect(result.code).toBe('LOC-001');
+      const result = await service.create(minimal);
+      expect(result.country).toBe('MX');
+      expect(result.timezone).toBe('America/Mexico_City');
+      expect(result.currency).toBe('MXN');
     });
   });
 
@@ -117,22 +147,19 @@ describe('LocationsService', () => {
       await service.create(createDto);
       await service.create({
         ...createDto,
-        code: 'LOC-002',
         name: 'Café Norte',
-        type: LocationType.KIOSK,
         city: 'Monterrey',
         state: 'Nuevo León',
-        status: LocationStatus.INACTIVE,
+        active: false,
       });
       await service.create({
         ...createDto,
-        code: 'LOC-003',
-        name: 'Café Sur',
         organization_id: 'org-456',
+        name: 'Café Otra Org',
       });
     });
 
-    it('should return all locations', async () => {
+    it('should return all locations when no filter', async () => {
       const result = await service.findAll({});
       expect(result).toHaveLength(3);
     });
@@ -142,43 +169,9 @@ describe('LocationsService', () => {
       expect(result).toHaveLength(2);
     });
 
-    it('should filter by status', async () => {
-      const result = await service.findAll({ status: LocationStatus.ACTIVE });
-      expect(result).toHaveLength(2);
-    });
-
-    it('should filter by type', async () => {
-      const result = await service.findAll({ type: LocationType.KIOSK });
-      expect(result).toHaveLength(1);
-      expect(result[0].type).toBe(LocationType.KIOSK);
-    });
-
-    it('should filter by city', async () => {
-      const result = await service.findAll({ city: 'Monterrey' });
-      expect(result).toHaveLength(1);
-      expect(result[0].city).toBe('Monterrey');
-    });
-
-    it('should filter by state', async () => {
-      const result = await service.findAll({ state: 'CDMX' });
-      expect(result).toHaveLength(2);
-    });
-
-    it('should filter by allow_delivery', async () => {
-      const result = await service.findAll({ allow_delivery: true });
-      expect(result).toHaveLength(3);
-    });
-
-    it('should search by name', async () => {
-      const result = await service.findAll({ search: 'Norte' });
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toBe('Café Norte');
-    });
-
-    it('should sort by name ascending', async () => {
-      const result = await service.findAll({ sort_by: 'name', order: 'asc' });
-      expect(result[0].name).toBe('Café Centro');
-      expect(result[2].name).toBe('Café Sur');
+    it('should filter by active', async () => {
+      const result = await service.findAll({ active: true });
+      expect(result.every((l) => l.active)).toBe(true);
     });
   });
 
@@ -186,8 +179,6 @@ describe('LocationsService', () => {
     it('should return location by id', async () => {
       const created = await service.create(createDto);
       const result = await service.findById(created.id);
-
-      expect(result).toBeDefined();
       expect(result.id).toBe(created.id);
     });
 
@@ -198,32 +189,15 @@ describe('LocationsService', () => {
     });
   });
 
-  describe('findByCode', () => {
-    it('should return location by organization and code', async () => {
-      await service.create(createDto);
-      const result = await service.findByCode(orgId, 'LOC-001');
-
-      expect(result).toBeDefined();
-      expect(result?.code).toBe('LOC-001');
-    });
-
-    it('should return undefined if not found', async () => {
-      const result = await service.findByCode(orgId, 'NON-EXISTENT');
-      expect(result).toBeUndefined();
-    });
-  });
-
   describe('update', () => {
     it('should update location fields', async () => {
       const created = await service.create(createDto);
       const result = await service.update(created.id, {
         name: 'Café Centro Updated',
-        seating_capacity: 40,
+        tax_rate: 0.08,
       });
-
       expect(result.name).toBe('Café Centro Updated');
-      expect(result.seating_capacity).toBe(40);
-      expect(result.code).toBe('LOC-001');
+      expect(result.tax_rate).toBe(0.08);
     });
 
     it('should throw NotFoundException if location not found', async () => {
@@ -231,25 +205,14 @@ describe('LocationsService', () => {
         service.update('non-existent', { name: 'Test' }),
       ).rejects.toThrow(NotFoundException);
     });
-
-    it('should throw ConflictException if code already exists', async () => {
-      const loc1 = await service.create(createDto);
-      await service.create({ ...createDto, code: 'LOC-002' });
-
-      await expect(
-        service.update(loc1.id, { code: 'LOC-002' }),
-      ).rejects.toThrow(ConflictException);
-    });
   });
 
-  describe('delete', () => {
-    it('should delete a location', async () => {
+  describe('delete (soft)', () => {
+    it('should soft delete by setting active=false', async () => {
       const created = await service.create(createDto);
       await service.delete(created.id);
-
-      await expect(service.findById(created.id)).rejects.toThrow(
-        NotFoundException,
-      );
+      const stillThere = await service.findById(created.id);
+      expect(stillThere.active).toBe(false);
     });
 
     it('should throw NotFoundException if location not found', async () => {
@@ -259,89 +222,30 @@ describe('LocationsService', () => {
     });
   });
 
-  describe('activate', () => {
+  describe('activate / deactivate', () => {
     it('should activate a location', async () => {
-      const created = await service.create({
-        ...createDto,
-        status: LocationStatus.INACTIVE,
-      });
+      const created = await service.create({ ...createDto, active: false });
       const result = await service.activate(created.id);
-
-      expect(result.status).toBe(LocationStatus.ACTIVE);
+      expect(result.active).toBe(true);
     });
-  });
 
-  describe('deactivate', () => {
     it('should deactivate a location', async () => {
       const created = await service.create(createDto);
       const result = await service.deactivate(created.id);
-
-      expect(result.status).toBe(LocationStatus.INACTIVE);
-    });
-  });
-
-  describe('updateHours', () => {
-    it('should update location hours', async () => {
-      const created = await service.create(createDto);
-      const newHours = [
-        { day_of_week: 1, open_time: '08:00', close_time: '22:00', is_closed: false },
-        { day_of_week: 0, open_time: '10:00', close_time: '18:00', is_closed: false },
-      ];
-
-      const result = await service.updateHours(created.id, newHours);
-
-      expect(result.hours).toHaveLength(2);
-      expect(result.hours![0].open_time).toBe('08:00');
-    });
-
-    it('should throw BadRequestException if more than 7 hours', async () => {
-      const created = await service.create(createDto);
-      const tooManyHours = Array(8).fill({
-        day_of_week: 1,
-        open_time: '08:00',
-        close_time: '22:00',
-        is_closed: false,
-      });
-
-      await expect(
-        service.updateHours(created.id, tooManyHours),
-      ).rejects.toThrow(BadRequestException);
+      expect(result.active).toBe(false);
     });
   });
 
   describe('getStats', () => {
-    beforeEach(async () => {
+    it('should return total/active/inactive counts', async () => {
       await service.create(createDto);
-      await service.create({
-        ...createDto,
-        code: 'LOC-002',
-        type: LocationType.KIOSK,
-        status: LocationStatus.INACTIVE,
-      });
-      await service.create({
-        ...createDto,
-        code: 'LOC-003',
-        type: LocationType.FLAGSHIP,
-        status: LocationStatus.COMING_SOON,
-      });
-      await service.create({
-        ...createDto,
-        code: 'LOC-004',
-        organization_id: 'org-456',
-      });
-    });
+      await service.create({ ...createDto, name: 'Otra', active: false });
+      await service.create({ ...createDto, name: 'Tercera' });
 
-    it('should return location statistics', async () => {
-      const result = await service.getStats(orgId);
-
-      expect(result.total_locations).toBe(3);
-      expect(result.by_status[LocationStatus.ACTIVE]).toBe(1);
-      expect(result.by_status[LocationStatus.INACTIVE]).toBe(1);
-      expect(result.by_status[LocationStatus.COMING_SOON]).toBe(1);
-      expect(result.by_type[LocationType.STANDARD]).toBe(1);
-      expect(result.by_type[LocationType.KIOSK]).toBe(1);
-      expect(result.by_type[LocationType.FLAGSHIP]).toBe(1);
-      expect(result.active_count).toBe(1);
+      const stats = await service.getStats(orgId);
+      expect(stats.total_locations).toBe(3);
+      expect(stats.active_count).toBe(2);
+      expect(stats.inactive_count).toBe(1);
     });
   });
 });

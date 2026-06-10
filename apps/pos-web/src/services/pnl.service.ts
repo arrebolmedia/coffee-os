@@ -1,5 +1,5 @@
 import { api } from '@/lib/api';
-import { ProfitAndLoss, PnLComparison } from '@/types';
+import { PnLComparison, ProfitAndLoss } from '@/types';
 
 interface PnLQueryParams {
   organization_id: string;

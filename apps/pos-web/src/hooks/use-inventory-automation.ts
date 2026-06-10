@@ -5,15 +5,15 @@
 
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
+  type AutoDeductConfig,
   inventoryAutomationService,
   type RecipeIngredientLink,
-  type TheoreticalStock,
-  type StockReconciliation,
   type StockDeductionLog,
-  type AutoDeductConfig,
+  type StockReconciliation,
+  type TheoreticalStock,
 } from '@/services/inventory-automation.service';
 
 // ============================================================================

@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsString, IsEnum, IsOptional, IsDateString, IsArray } from 'class-validator';
+import {
+  IsArray,
+  IsDateString,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export enum IncidentSeverity {
   LOW = 'LOW',

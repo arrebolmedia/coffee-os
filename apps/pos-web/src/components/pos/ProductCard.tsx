@@ -6,15 +6,9 @@
 'use client';
 
 import { Product, ProductStatus } from '@/types';
-import { useProductCOGS, useMarginBadge } from '@/hooks/use-costing';
+import { useMarginBadge, useProductCOGS } from '@/hooks/use-costing';
 import Image from 'next/image';
-import {
-  Coffee,
-  Package,
-  AlertCircle,
-  TrendingUp,
-  TrendingDown,
-} from 'lucide-react';
+import { AlertCircle, Package, TrendingDown, TrendingUp } from 'lucide-react';
 
 // Allow partial product for mock data
 type ProductCardProduct = Pick<
@@ -22,10 +16,10 @@ type ProductCardProduct = Pick<
   'id' | 'name' | 'sku' | 'price' | 'description'
 > & {
   status: ProductStatus | string;
-  image_url?: string | null;
+  image?: string | null;
   category?: { name: string };
   track_inventory?: boolean;
-  current_stock?: number;
+  currentStock?: number;
 };
 
 interface ProductCardProps {
@@ -39,13 +33,18 @@ export function ProductCard({
   onSelect,
   isSelected = false,
 }: ProductCardProps) {
-  const isOutOfStock = (product as any).status === 'out_of_stock';
+  const stock = product.currentStock;
+  const isOutOfStock =
+    String(product.status).toUpperCase() === 'OUT_OF_STOCK' ||
+    (stock !== undefined && stock === 0);
   const isInactive = product.status === ProductStatus.INACTIVE;
   const isDisabled = isOutOfStock || isInactive;
-  const IVA_RATE = 0.16;
+  const isLowStock = stock !== undefined && stock > 0 && stock <= 5;
 
-  // Fetch COGS data for margin display
-  const { data: cogsData } = useProductCOGS(product.id, true);
+  // Fetch COGS data for margin display.
+  // Disabled by default to avoid N+1 in catalog views; consumers can enable
+  // on-demand via a detail view by passing the product id explicitly.
+  const { data: cogsData } = useProductCOGS(product.id, false);
   const marginBadge = useMarginBadge(cogsData?.margin_percentage || 0);
 
   const formatPrice = (price: number) => {
@@ -55,7 +54,7 @@ export function ProductCard({
     }).format(price);
   };
 
-  const priceWithTax = product.price * (1 + IVA_RATE);
+  const displayPrice = product.price;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (isDisabled) return;
@@ -70,31 +69,38 @@ export function ProductCard({
       onClick={() => !isDisabled && onSelect(product)}
       onKeyDown={handleKeyDown}
       disabled={isDisabled}
-      aria-label={`${product.name} - ${formatPrice(priceWithTax)}${isDisabled ? ' (No disponible)' : ''}`}
+      aria-label={`${product.name} - ${formatPrice(displayPrice)}${isDisabled ? ' (No disponible)' : ''}`}
       aria-pressed={isSelected}
       className={`
         relative w-full rounded-xl overflow-hidden transition-all duration-200
         ${isSelected ? 'ring-4 ring-amber-500 ring-offset-2' : ''}
-        ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-xl hover:scale-105 cursor-pointer'}
-        ${!isDisabled && !isSelected ? 'shadow-md hover:shadow-xl' : ''}
+        ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg hover:shadow-xl hover:scale-105 cursor-pointer'}
+        ${!isDisabled && !isSelected ? 'shadow-md hover:shadow-lg hover:shadow-xl' : ''}
         bg-white
       `}
     >
       {/* Image */}
       <div className="aspect-square relative bg-gradient-to-br from-amber-50 to-orange-100">
-        {product.image_url ? (
-          <Image
-            src={product.image_url}
-            alt={product.name}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Coffee className="w-16 h-16 text-amber-300" strokeWidth={1.5} />
-          </div>
-        )}
+        {(() => {
+          const imgSrc = product.image;
+          return imgSrc ? (
+            <Image
+              src={imgSrc}
+              alt={product.name}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+            />
+          ) : (
+            <Image
+              src="/images/placeholder.png"
+              alt={product.name}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+            />
+          );
+        })()}
 
         {/* Status Badge */}
         {isOutOfStock && (
@@ -126,12 +132,19 @@ export function ProductCard({
         )}
 
         {/* Stock Indicator */}
-        {product.track_inventory &&
-          product.current_stock !== undefined &&
+        {isLowStock && (
+          <div className="absolute bottom-2 left-2 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-lg flex items-center gap-1">
+            <Package className="w-3 h-3" />
+            <span className="font-medium">quedan {stock}</span>
+          </div>
+        )}
+        {!isLowStock &&
+          product.track_inventory &&
+          product.currentStock !== undefined &&
           !isOutOfStock && (
             <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm text-gray-700 text-xs px-2 py-1 rounded-lg flex items-center gap-1">
               <Package className="w-3 h-3" />
-              <span className="font-medium">{product.current_stock}</span>
+              <span className="font-medium">{product.currentStock}</span>
             </div>
           )}
       </div>
@@ -151,7 +164,7 @@ export function ProductCard({
         <div className="flex items-center justify-between">
           <div>
             <span className="text-xl font-bold text-amber-600">
-              {formatPrice(priceWithTax)}
+              {formatPrice(displayPrice)}
             </span>
             {cogsData && cogsData.has_recipe && (
               <p className="text-xs text-gray-500 mt-0.5">

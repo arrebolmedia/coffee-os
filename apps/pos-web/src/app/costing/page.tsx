@@ -10,21 +10,20 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { useAuth } from '@/hooks/use-auth';
 import { useProfitabilityReport } from '@/hooks/use-costing';
 import {
+  AlertTriangle,
+  BarChart3,
   Calculator,
-  Plus,
-  Search,
-  Filter,
-  TrendingUp,
-  TrendingDown,
+  CheckCircle,
   DollarSign,
-  Percent,
-  Package,
   Edit,
   Eye,
-  AlertTriangle,
-  CheckCircle,
-  BarChart3,
+  Filter,
   Loader2,
+  Package,
+  Percent,
+  Plus,
+  Search,
+  TrendingDown,
 } from 'lucide-react';
 
 interface CostingItem {
@@ -47,15 +46,19 @@ interface CostingItem {
 export default function CostingPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const organizationId = user?.organizationId || '';
-  
+
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
   // Obtener datos reales del backend
-  const { data: profitabilityData, isLoading, error } = useProfitabilityReport(
+  const {
+    data: profitabilityData,
+    isLoading,
+    error,
+  } = useProfitabilityReport(
     organizationId,
-    isAuthenticated && !!organizationId
+    isAuthenticated && !!organizationId,
   );
 
   // Extraer todos los productos del reporte (eliminar duplicados por product_id)
@@ -65,8 +68,8 @@ export default function CostingPage() {
           [
             ...(profitabilityData.top_profitable || []),
             ...(profitabilityData.least_profitable || []),
-          ].map((item) => [item.product_id, item])
-        ).values()
+          ].map((item) => [item.product_id, item]),
+        ).values(),
       )
     : [];
 
@@ -233,7 +236,8 @@ export default function CostingPage() {
               Error al cargar datos
             </h3>
             <p className="text-red-600 text-center">
-              No se pudo obtener el análisis de costeo. Intenta recargar la página.
+              No se pudo obtener el análisis de costeo. Intenta recargar la
+              página.
             </p>
           </div>
         </div>

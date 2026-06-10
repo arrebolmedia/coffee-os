@@ -5,14 +5,17 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Edit, Trash2 } from 'lucide-react';
-import { InventoryItemModal, type InventoryItem } from '@/components/inventory/InventoryItemModal';
+import { Edit, Plus, Trash2 } from 'lucide-react';
+import {
+  type InventoryItem,
+  InventoryItemModal,
+} from '@/components/inventory/InventoryItemModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Button } from '@/components/ui/Button';
 import {
   useCreateInventoryItem,
-  useUpdateInventoryItem,
   useDeleteInventoryItem,
+  useUpdateInventoryItem,
 } from '@/hooks/use-inventory';
 
 interface InventoryManagerProps {
@@ -20,7 +23,10 @@ interface InventoryManagerProps {
   organizationId: string;
 }
 
-export function InventoryManager({ items, organizationId }: InventoryManagerProps) {
+export function InventoryManager({
+  items: _items,
+  organizationId,
+}: InventoryManagerProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -33,16 +39,6 @@ export function InventoryManager({ items, organizationId }: InventoryManagerProp
   const handleCreate = () => {
     setSelectedItem(null);
     setIsModalOpen(true);
-  };
-
-  const handleEdit = (item: InventoryItem) => {
-    setSelectedItem(item);
-    setIsModalOpen(true);
-  };
-
-  const handleDeleteClick = (item: InventoryItem) => {
-    setItemToDelete(item);
-    setIsDeleteDialogOpen(true);
   };
 
   const handleSave = async (item: InventoryItem) => {

@@ -1,6 +1,10 @@
-import { IsOptional, IsUUID, IsEnum, IsDateString } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
-import { WasteCategory, WasteReason, DisposalMethod } from '../interfaces/waste.interface';
+import {
+  DisposalMethod,
+  WasteCategory,
+  WasteReason,
+} from '../interfaces/waste.interface';
 
 export class QueryWasteLogsDto {
   @IsOptional()

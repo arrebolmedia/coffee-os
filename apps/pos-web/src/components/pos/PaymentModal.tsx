@@ -7,29 +7,18 @@
 
 import { useState } from 'react';
 import { useCartStore } from '@/store/cart.store';
-import { useCreateOrder } from '@/hooks/use-orders';
-import { PaymentMethod, Cart } from '@/types';
+import { useCreateOrder } from '@/hooks/use-pos';
+import { Cart, Customer, PaymentMethod } from '@/types';
 import {
-  X,
-  CreditCard,
-  Banknote,
   ArrowLeftRight,
+  Banknote,
   Check,
-  Loader2,
+  CreditCard,
   Gift,
+  Loader2,
+  X,
 } from 'lucide-react';
 import { NumPad } from './NumPad';
-
-interface Customer {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-  loyaltyPoints: number;
-  segment: 'vip' | 'frequent' | 'regular' | 'new';
-  totalPurchases: number;
-  lastVisit: string;
-}
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -57,7 +46,7 @@ export function PaymentModal({
   const [applyLoyaltyDiscount, setApplyLoyaltyDiscount] = useState(false);
 
   // Calcular si se puede aplicar descuento de lealtad
-  const canApplyLoyalty = customer && customer.loyaltyPoints >= 9;
+  const canApplyLoyalty = customer && (customer.loyaltyPoints ?? 0) >= 9;
   const loyaltyDiscount = canApplyLoyalty && applyLoyaltyDiscount ? 50 : 0; // $50 de descuento
   const finalTotal = cart.total - loyaltyDiscount;
 
@@ -106,10 +95,38 @@ export function PaymentModal({
     if (!isPaymentValid()) return;
 
     try {
-      const result = await createOrderMutation.mutateAsync({
-        cart,
-        payment_method: paymentMethod!,
-      });
+      // Apply loyalty discount to a cart COPY (do not mutate the store's cart)
+      const adjustedCart: Cart = {
+        ...cart,
+        discount: cart.discount + loyaltyDiscount,
+        total: finalTotal,
+      };
+
+      const payload: {
+        cart: Cart;
+        payment_method: PaymentMethod;
+        payment_details?: {
+          cash?: number;
+          card?: number;
+          transfer?: number;
+        };
+      } = {
+        cart: adjustedCart,
+        payment_method: paymentMethod as PaymentMethod,
+      };
+
+      if (paymentMethod === PaymentMethod.MIXED) {
+        payload.payment_details = {
+          cash: parseAmount(cashAmount),
+          card: parseAmount(cardAmount),
+        };
+      } else if (paymentMethod === PaymentMethod.CASH) {
+        payload.payment_details = {
+          cash: parseAmount(cashReceived),
+        };
+      }
+
+      const result = await createOrderMutation.mutateAsync(payload);
 
       clearCart();
       onSuccess(result.id);
@@ -131,7 +148,11 @@ export function PaymentModal({
             <div className="mt-1 space-y-1">
               {customer && (
                 <p className="text-sm text-purple-600 font-medium">
-                  Cliente: {customer.name} ({customer.phone})
+                  Cliente:{' '}
+                  {[customer.firstName, customer.lastName]
+                    .filter(Boolean)
+                    .join(' ') || customer.phone}{' '}
+                  ({customer.phone})
                 </p>
               )}
               {canApplyLoyalty && (
@@ -238,7 +259,7 @@ export function PaymentModal({
                 </div>
 
                 {paymentMethod === PaymentMethod.CASH &&
-                  parseAmount(cashReceived) >= cart.total && (
+                  parseAmount(cashReceived) >= finalTotal && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <p className="text-sm text-green-800 font-medium mb-2">
                         Cambio:

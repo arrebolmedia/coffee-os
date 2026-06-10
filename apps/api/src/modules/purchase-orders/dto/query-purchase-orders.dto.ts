@@ -1,20 +1,14 @@
-import {
-  IsOptional,
-  IsUUID,
-  IsEnum,
-  IsDate,
-  IsString,
-} from 'class-validator';
+import { IsDate, IsEnum, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PurchaseOrderStatus } from '../interfaces';
 
 export class QueryPurchaseOrdersDto {
   @IsOptional()
-  @IsUUID()
+  @IsString()
   organization_id?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   supplier_id?: string;
 
   @IsOptional()

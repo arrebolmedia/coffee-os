@@ -1,31 +1,31 @@
 import {
+  BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
-  ConflictException,
-  BadRequestException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import {
-  Setting,
-  SettingType,
-  SettingCategory,
-  SettingsStats,
-  SettingHistory,
-  SettingTemplate,
   BulkUpdateResult,
+  Setting,
+  SettingCategory,
   SettingExport,
+  SettingHistory,
+  SettingsStats,
+  SettingTemplate,
+  SettingType,
   ValidationRule,
   ValidationRuleType,
 } from './interfaces/setting.interface';
 import {
-  CreateSettingDto,
-  UpdateSettingDto,
-  QuerySettingsDto,
   BulkUpdateDto,
-  ImportSettingsDto,
-  ExportSettingsDto,
-  SetValidationRuleDto,
+  CreateSettingDto,
   CreateTemplateDto,
+  ExportSettingsDto,
+  ImportSettingsDto,
+  QuerySettingsDto,
+  SetValidationRuleDto,
+  UpdateSettingDto,
 } from './dto';
 import * as crypto from 'crypto';
 
@@ -34,8 +34,18 @@ export class SettingsService {
   private settings = new Map<string, Setting>();
   private history = new Map<string, SettingHistory[]>();
   private templates = new Map<string, SettingTemplate>();
-  private readonly ENCRYPTION_KEY = process.env.SETTINGS_ENCRYPTION_KEY || 'default-key-change-in-prod';
+  private readonly ENCRYPTION_KEY: string;
   private readonly ALGORITHM = 'aes-256-cbc';
+
+  constructor() {
+    const key = process.env.SETTINGS_ENCRYPTION_KEY;
+    if (!key || key.trim().length === 0) {
+      throw new Error(
+        'SETTINGS_ENCRYPTION_KEY environment variable is required and must not be empty',
+      );
+    }
+    this.ENCRYPTION_KEY = key;
+  }
 
   // ========== BASIC CRUD ==========
 
@@ -85,7 +95,9 @@ export class SettingsService {
     let result = Array.from(this.settings.values());
 
     if (query.organization_id) {
-      result = result.filter((s) => s.organization_id === query.organization_id);
+      result = result.filter(
+        (s) => s.organization_id === query.organization_id,
+      );
     }
 
     if (query.category) {
@@ -110,13 +122,7 @@ export class SettingsService {
     result.sort((a, b) => {
       const aVal = a[sortBy] || '';
       const bVal = b[sortBy] || '';
-      return order === 'asc'
-        ? aVal > bVal
-          ? 1
-          : -1
-        : aVal < bVal
-          ? 1
-          : -1;
+      return order === 'asc' ? (aVal > bVal ? 1 : -1) : aVal < bVal ? 1 : -1;
     });
 
     return result.map((s) => this.sanitizeOutput(s));
@@ -144,7 +150,11 @@ export class SettingsService {
     return setting ? this.sanitizeOutput(setting) : undefined;
   }
 
-  async update(id: string, dto: UpdateSettingDto, updatedBy?: string): Promise<Setting> {
+  async update(
+    id: string,
+    dto: UpdateSettingDto,
+    updatedBy?: string,
+  ): Promise<Setting> {
     const setting = this.settings.get(id);
     if (!setting) {
       throw new NotFoundException(`Setting not found: ${id}`);
@@ -172,7 +182,8 @@ export class SettingsService {
     }
 
     if (dto.type !== undefined) setting.type = dto.type;
-    if (dto.default_value !== undefined) setting.default_value = dto.default_value;
+    if (dto.default_value !== undefined)
+      setting.default_value = dto.default_value;
     if (dto.description !== undefined) setting.description = dto.description;
     if (dto.is_public !== undefined) setting.is_public = dto.is_public;
     if (dto.is_encrypted !== undefined) {
@@ -233,14 +244,23 @@ export class SettingsService {
     setting.updated_by = updatedBy;
     setting.updated_at = new Date();
 
-    this.addHistory(id, oldValue, setting.default_value, updatedBy, 'Reset to default');
+    this.addHistory(
+      id,
+      oldValue,
+      setting.default_value,
+      updatedBy,
+      'Reset to default',
+    );
 
     return this.sanitizeOutput(setting);
   }
 
   // ========== BULK OPERATIONS ==========
 
-  async bulkUpdate(dto: BulkUpdateDto, updatedBy?: string): Promise<BulkUpdateResult> {
+  async bulkUpdate(
+    dto: BulkUpdateDto,
+    updatedBy?: string,
+  ): Promise<BulkUpdateResult> {
     const result: BulkUpdateResult = {
       success: 0,
       failed: 0,
@@ -280,9 +300,7 @@ export class SettingsService {
     );
 
     if (dto.categories && dto.categories.length > 0) {
-      settings = settings.filter((s) =>
-        dto.categories.includes(s.category),
-      );
+      settings = settings.filter((s) => dto.categories.includes(s.category));
     }
 
     if (!dto.include_readonly) {
@@ -311,7 +329,10 @@ export class SettingsService {
     return exportData;
   }
 
-  async importSettings(dto: ImportSettingsDto, createdBy?: string): Promise<BulkUpdateResult> {
+  async importSettings(
+    dto: ImportSettingsDto,
+    createdBy?: string,
+  ): Promise<BulkUpdateResult> {
     const result: BulkUpdateResult = {
       success: 0,
       failed: 0,
@@ -371,7 +392,10 @@ export class SettingsService {
 
   // ========== VALIDATION RULES ==========
 
-  async setValidationRule(id: string, dto: SetValidationRuleDto): Promise<Setting> {
+  async setValidationRule(
+    id: string,
+    dto: SetValidationRuleDto,
+  ): Promise<Setting> {
     const setting = this.settings.get(id);
     if (!setting) {
       throw new NotFoundException(`Setting not found: ${id}`);
@@ -398,7 +422,10 @@ export class SettingsService {
     return this.sanitizeOutput(setting);
   }
 
-  async removeValidationRule(id: string, ruleType: ValidationRuleType): Promise<Setting> {
+  async removeValidationRule(
+    id: string,
+    ruleType: ValidationRuleType,
+  ): Promise<Setting> {
     const setting = this.settings.get(id);
     if (!setting) {
       throw new NotFoundException(`Setting not found: ${id}`);
@@ -525,7 +552,7 @@ export class SettingsService {
       name: dto.name,
       description: dto.description,
       category: dto.category,
-      settings: dto.settings.map(s => ({
+      settings: dto.settings.map((s) => ({
         key: s.key,
         type: s.type as SettingType,
         value: s.value,
@@ -541,7 +568,9 @@ export class SettingsService {
     return template;
   }
 
-  async findAllTemplates(category?: SettingCategory): Promise<SettingTemplate[]> {
+  async findAllTemplates(
+    category?: SettingCategory,
+  ): Promise<SettingTemplate[]> {
     let result = Array.from(this.templates.values());
 
     if (category) {
@@ -674,7 +703,10 @@ export class SettingsService {
 
   // ========== INITIALIZATION ==========
 
-  async initializeDefaults(organizationId: string, createdBy?: string): Promise<number> {
+  async initializeDefaults(
+    organizationId: string,
+    createdBy?: string,
+  ): Promise<number> {
     const defaults = this.getDefaultSettings(organizationId, createdBy);
     let created = 0;
 
@@ -689,7 +721,7 @@ export class SettingsService {
           await this.create(dto);
           created++;
         }
-      } catch (error) {
+      } catch {
         // Skip if already exists or error
       }
     }

@@ -1,17 +1,16 @@
 import {
-  IsString,
-  IsNumber,
-  IsBoolean,
-  IsOptional,
-  IsNotEmpty,
-  IsUUID,
-  IsEnum,
   IsArray,
-  ValidateNested,
-  Min,
+  IsBoolean,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Matches,
   Max,
   MaxLength,
-  Matches,
+  Min,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -90,15 +89,15 @@ export class CreateProductVariantDto {
 
 export class CreateProductDto {
   @IsNotEmpty()
-  @IsUUID()
+  @IsString()
   organization_id: string;
 
   @IsNotEmpty()
-  @IsUUID()
+  @IsString()
   category_id: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   recipe_id?: string;
 
   @IsNotEmpty()

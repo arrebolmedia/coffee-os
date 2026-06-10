@@ -6,17 +6,17 @@
 import { useOfflineStore } from '@/store/offline.store';
 import { ordersService } from '@/services/orders.service';
 import { productsService } from '@/services/products.service';
+import { customersService } from '@/services/customers.service';
 import {
   getSyncQueue,
-  updateSyncQueueItem,
   removeSyncQueueItem,
-  saveProducts,
   saveCategories,
   saveModifiers,
-  getLastSyncTime,
   saveOrder,
+  saveProducts,
+  updateSyncQueueItem,
 } from '@/lib/db';
-import { SyncQueueItem, Product, Category, Modifier } from '@/types';
+import { Category, Modifier, Product, SyncQueueItem } from '@/types';
 
 const MAX_RETRY_ATTEMPTS = 3;
 const SYNC_INTERVAL = 60000; // 1 minute
@@ -121,7 +121,8 @@ export class SyncService {
   // ============================================================================
 
   private async downloadData(): Promise<void> {
-    const organizationId = useOfflineStore.getState().offlineData.products[0]?.organization_id;
+    const organizationId =
+      useOfflineStore.getState().offlineData.products[0]?.organization_id;
     if (!organizationId) {
       console.log('No organization context, skipping download');
       return;
@@ -129,10 +130,16 @@ export class SyncService {
 
     try {
       // Download products
-      const productsResponse = await productsService.getProducts(organizationId, {}, { limit: 1000 });
+      const productsResponse = await productsService.getProducts(
+        organizationId,
+        {},
+        { limit: 1000 },
+      );
       if (productsResponse.data.length > 0) {
         await saveProducts(productsResponse.data as Product[]);
-        useOfflineStore.getState().updateProducts(productsResponse.data as Product[]);
+        useOfflineStore
+          .getState()
+          .updateProducts(productsResponse.data as Product[]);
         console.log(`Downloaded ${productsResponse.data.length} products`);
       }
 
@@ -201,7 +208,7 @@ export class SyncService {
       // Mark as success and remove from queue
       await updateSyncQueueItem(item.id, { status: 'SUCCESS' });
       await removeSyncQueueItem(item.id);
-      
+
       console.log(`Successfully synced ${item.type} ${item.id}`);
     } catch (error: any) {
       console.error(`Error syncing ${item.type} ${item.id}:`, error);
@@ -235,12 +242,12 @@ export class SyncService {
   private async syncOrder(item: SyncQueueItem): Promise<void> {
     if (item.action === 'CREATE') {
       const order = await ordersService.createOrder(item.data);
-      
+
       // Update local order with server ID
       if (item.data.id?.startsWith('offline-')) {
         await saveOrder(order);
       }
-      
+
       console.log(`Order synced: ${order.order_number}`);
     } else if (item.action === 'UPDATE') {
       await ordersService.updateOrder(item.data.id, item.data);
@@ -258,8 +265,13 @@ export class SyncService {
   }
 
   private async syncCustomer(item: SyncQueueItem): Promise<void> {
-    // Customer sync logic (to be implemented)
-    console.log('Customer sync not implemented yet');
+    if (item.action === 'CREATE') {
+      await customersService.createCustomer(item.data);
+    } else if (item.action === 'UPDATE') {
+      await customersService.updateCustomer(item.data.id, item.data);
+    } else if (item.action === 'DELETE') {
+      await customersService.deleteCustomer(item.data.id);
+    }
   }
 
   // ============================================================================
@@ -288,9 +300,11 @@ export class SyncService {
 
   async resolveConflict(
     item: SyncQueueItem,
-    strategy: 'server-wins' | 'local-wins' | 'merge'
+    strategy: 'server-wins' | 'local-wins' | 'merge',
   ): Promise<void> {
-    console.log(`Resolving conflict for ${item.type} ${item.id} using ${strategy}`);
+    console.log(
+      `Resolving conflict for ${item.type} ${item.id} using ${strategy}`,
+    );
 
     switch (strategy) {
       case 'server-wins':
@@ -333,7 +347,7 @@ export class SyncService {
 
   async clearErroredItems(): Promise<void> {
     const errorItems = await getSyncQueue('ERROR');
-    
+
     for (const item of errorItems) {
       await removeSyncQueueItem(item.id);
     }

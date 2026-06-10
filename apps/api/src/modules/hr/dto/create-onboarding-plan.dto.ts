@@ -1,4 +1,12 @@
-import { IsNotEmpty, IsString, IsEnum, IsArray, IsOptional, IsBoolean, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum OnboardingPeriod {

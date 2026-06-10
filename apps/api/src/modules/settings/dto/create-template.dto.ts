@@ -1,4 +1,11 @@
-import { IsString, IsEnum, IsArray, ValidateNested, IsOptional, MaxLength } from 'class-validator';
+import {
+  IsArray,
+  IsEnum,
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { SettingCategory } from '../interfaces';
 

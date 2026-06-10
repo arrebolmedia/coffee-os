@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import {
-  CreateOnboardingPlanDto,
   CompleteOnboardingTaskDto,
-  QueryOnboardingPlansDto,
+  CreateOnboardingPlanDto,
   OnboardingPeriod,
+  QueryOnboardingPlansDto,
 } from './dto';
 import { OnboardingPlan, OnboardingTask } from './interfaces';
 
@@ -11,7 +11,10 @@ import { OnboardingPlan, OnboardingTask } from './interfaces';
 export class OnboardingService {
   private plans: Map<string, OnboardingPlan> = new Map();
 
-  async create(createDto: CreateOnboardingPlanDto, organizationId: string): Promise<OnboardingPlan> {
+  async create(
+    createDto: CreateOnboardingPlanDto,
+    organizationId: string,
+  ): Promise<OnboardingPlan> {
     const id = this.generateId();
     const now = new Date();
 
@@ -57,12 +60,16 @@ export class OnboardingService {
     }
 
     if (query.period) {
-      plans = plans.filter((p) => p.tasks.some((t) => t.period === query.period));
+      plans = plans.filter((p) =>
+        p.tasks.some((t) => t.period === query.period),
+      );
     }
 
     if (query.completed !== undefined) {
       const isCompleted = query.completed === 'true';
-      plans = plans.filter((p) => p.completion_percentage === 100 === isCompleted);
+      plans = plans.filter(
+        (p) => (p.completion_percentage === 100) === isCompleted,
+      );
     }
 
     return plans;
@@ -72,7 +79,10 @@ export class OnboardingService {
     return this.plans.get(id) || null;
   }
 
-  async completeTask(planId: string, completeDto: CompleteOnboardingTaskDto): Promise<OnboardingPlan> {
+  async completeTask(
+    planId: string,
+    completeDto: CompleteOnboardingTaskDto,
+  ): Promise<OnboardingPlan> {
     const plan = this.plans.get(planId);
     if (!plan) {
       throw new Error('Onboarding plan not found');
@@ -84,7 +94,9 @@ export class OnboardingService {
     }
 
     task.completed = completeDto.completed;
-    task.completed_by = completeDto.completed ? completeDto.completed_by_user_id : undefined;
+    task.completed_by = completeDto.completed
+      ? completeDto.completed_by_user_id
+      : undefined;
     task.completed_at = completeDto.completed
       ? completeDto.completed_at
         ? new Date(completeDto.completed_at)
@@ -94,12 +106,20 @@ export class OnboardingService {
 
     // Calculate completion percentage
     const completedTasks = plan.tasks.filter((t) => t.completed).length;
-    plan.completion_percentage = Math.round((completedTasks / plan.tasks.length) * 100);
+    plan.completion_percentage = Math.round(
+      (completedTasks / plan.tasks.length) * 100,
+    );
 
     // Check period completions
-    const day30Tasks = plan.tasks.filter((t) => t.period === OnboardingPeriod.DAY_30);
-    const day60Tasks = plan.tasks.filter((t) => t.period === OnboardingPeriod.DAY_60);
-    const day90Tasks = plan.tasks.filter((t) => t.period === OnboardingPeriod.DAY_90);
+    const day30Tasks = plan.tasks.filter(
+      (t) => t.period === OnboardingPeriod.DAY_30,
+    );
+    const day60Tasks = plan.tasks.filter(
+      (t) => t.period === OnboardingPeriod.DAY_60,
+    );
+    const day90Tasks = plan.tasks.filter(
+      (t) => t.period === OnboardingPeriod.DAY_90,
+    );
 
     plan.day_30_completed = day30Tasks.every((t) => t.completed);
     plan.day_60_completed = day60Tasks.every((t) => t.completed);
@@ -121,7 +141,9 @@ export class OnboardingService {
     );
 
     const total = plans.length;
-    const completed = plans.filter((p) => p.completion_percentage === 100).length;
+    const completed = plans.filter(
+      (p) => p.completion_percentage === 100,
+    ).length;
     const inProgress = total - completed;
 
     const day30Completed = plans.filter((p) => p.day_30_completed).length;
@@ -130,7 +152,9 @@ export class OnboardingService {
 
     const avgCompletion =
       total > 0
-        ? Math.round(plans.reduce((sum, p) => sum + p.completion_percentage, 0) / total)
+        ? Math.round(
+            plans.reduce((sum, p) => sum + p.completion_percentage, 0) / total,
+          )
         : 0;
 
     return {

@@ -1,17 +1,20 @@
 import {
-  IsNotEmpty,
-  IsString,
-  IsNumber,
-  IsEnum,
-  IsOptional,
   IsDateString,
-  IsBoolean,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
   IsUUID,
-  Min,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { WasteCategory, WasteReason, DisposalMethod } from '../interfaces/waste.interface';
+import {
+  DisposalMethod,
+  WasteCategory,
+  WasteReason,
+} from '../interfaces/waste.interface';
 
 export class CreateWasteLogDto {
   @IsNotEmpty()

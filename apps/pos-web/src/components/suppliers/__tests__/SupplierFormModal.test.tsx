@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SupplierFormModal } from '../SupplierFormModal';
 import { useCreateSupplier, useUpdateSupplier } from '@/hooks/use-suppliers';
@@ -242,7 +242,7 @@ describe('SupplierFormModal', () => {
   it('should display loading state during submission', () => {
     (useCreateSupplier as jest.Mock).mockReturnValue({
       mutate: mockMutate,
-      isLoading: true,
+      isPending: true,
     });
 
     render(

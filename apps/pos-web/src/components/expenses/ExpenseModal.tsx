@@ -5,22 +5,13 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import {
-  X,
-  CreditCard,
-  Calendar,
-  Building,
-  User,
-  FileText,
-  DollarSign,
-  Upload,
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Calendar, CreditCard, DollarSign, User, X } from 'lucide-react';
 import {
   Expense,
   ExpenseCategory,
-  ExpenseStatus,
   ExpensePaymentMethod,
+  ExpenseStatus,
 } from '@/types';
 
 interface ExpenseFormData {

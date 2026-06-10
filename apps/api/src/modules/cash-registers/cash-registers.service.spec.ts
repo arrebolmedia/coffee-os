@@ -6,7 +6,7 @@ describe('CashRegistersService', () => {
   let service: CashRegistersService;
   let prisma: PrismaService;
 
-  const mockPrisma = {
+  const mockPrisma: any = {
     cashRegister: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -26,6 +26,10 @@ describe('CashRegistersService', () => {
       create: jest.fn(),
       findMany: jest.fn(),
     },
+    $transaction: jest.fn(async (cbOrArr: any) => {
+      if (typeof cbOrArr === 'function') return cbOrArr(mockPrisma);
+      return Promise.all(cbOrArr);
+    }),
   };
 
   beforeEach(async () => {
@@ -155,7 +159,7 @@ describe('CashRegistersService', () => {
   });
 
   describe('recordDenominations', () => {
-    it('should record denominations and calculate total', async () => {
+    it('should record denominations, replace previous, and update countedCash', async () => {
       const id = '1';
       const dto = {
         1000: 5,
@@ -170,16 +174,16 @@ describe('CashRegistersService', () => {
         1: 30,
         0.5: 40,
       };
-      // Total: 5000 + 5000 + 4000 + 1500 + 500 + 400 + 300 + 100 + 50 + 30 + 20 = 16900
-      const expectedTotal = 16900;
+      // 5000 + 5000 + 4000 + 1500 + 500 + 400 + 300 + 100 + 50 + 30 + 20 = 16900
       const mockRegister = {
         id,
-        countedCash: expectedTotal,
+        countedCash: 16900,
         denominations: [],
         expenses: [],
       };
 
       mockPrisma.cashRegister.findUnique.mockResolvedValue(mockRegister);
+      mockPrisma.cashDenomination.deleteMany.mockResolvedValue({ count: 0 });
       mockPrisma.cashDenomination.create.mockResolvedValue({
         id: 'denom-1',
         total: 1000,
@@ -189,35 +193,65 @@ describe('CashRegistersService', () => {
       const result = await service.recordDenominations(id, dto);
 
       expect(result).toEqual(mockRegister);
+      // Should clear previous denominations first
+      expect(prisma.cashDenomination.deleteMany).toHaveBeenCalledWith({
+        where: { cashRegisterId: id },
+      });
       expect(prisma.cashDenomination.create).toHaveBeenCalled();
       expect(prisma.cashRegister.update).toHaveBeenCalledWith({
         where: { id },
-        data: { countedCash: expect.any(Number) },
+        data: { countedCash: 16900 },
+      });
+    });
+
+    it('should skip invalid (NaN/negative) and non-whitelisted denominations', async () => {
+      const id = '1';
+      // Casting through any so we can include rogue keys.
+      const dto: any = {
+        1000: 1, // valid
+        500: NaN, // invalid
+        100: -5, // invalid
+        '999': 3, // not whitelisted
+        0.5: 'oops', // invalid
+      };
+      const mockRegister = {
+        id,
+        countedCash: 1000,
+        denominations: [],
+        expenses: [],
+      };
+
+      mockPrisma.cashRegister.findUnique.mockResolvedValue(mockRegister);
+      mockPrisma.cashDenomination.deleteMany.mockResolvedValue({ count: 0 });
+      mockPrisma.cashDenomination.create.mockResolvedValue({ total: 1000 });
+      mockPrisma.cashRegister.update.mockResolvedValue(mockRegister);
+
+      await service.recordDenominations(id, dto);
+
+      // Only the single valid entry (1000 * 1) should have been created.
+      expect(prisma.cashDenomination.create).toHaveBeenCalledTimes(1);
+      expect(prisma.cashRegister.update).toHaveBeenCalledWith({
+        where: { id },
+        data: { countedCash: 1000 },
       });
     });
   });
 
   describe('recordExpense', () => {
-    it('should record an expense and update total', async () => {
+    it('should record an expense and atomically increment totalExpenses', async () => {
       const id = '1';
       const dto = { amount: 500, description: 'Cambio' };
-      const existingExpenses = [{ amount: 200 }];
-      const newTotal = 700;
       const mockRegister = {
         id,
         expectedCash: 5000,
-        totalExpenses: newTotal,
+        totalExpenses: 700,
         denominations: [],
         expenses: [],
       };
 
-      // First call for findOne
       mockPrisma.cashRegister.findUnique.mockResolvedValue(mockRegister);
       mockPrisma.cashExpense.create.mockResolvedValue({ id: 'exp-1', ...dto });
-      mockPrisma.cashExpense.findMany.mockResolvedValue([{ amount: 200 }]); // Initial
       mockPrisma.cashRegister.update.mockResolvedValue(mockRegister);
-      // Second call for findOne at the end
-      mockPrisma.cashRegister.findUnique.mockResolvedValue(mockRegister);
 
       const result = await service.recordExpense(id, dto);
 
@@ -225,10 +259,10 @@ describe('CashRegistersService', () => {
       expect(prisma.cashExpense.create).toHaveBeenCalledWith({
         data: { cashRegisterId: id, ...dto },
       });
-      // Called AFTER create, so only sees the initial 200
+      // Atomic increment (race-free).
       expect(prisma.cashRegister.update).toHaveBeenCalledWith({
         where: { id },
-        data: { totalExpenses: 200 },
+        data: { totalExpenses: { increment: 500 } },
       });
     });
   });
@@ -271,6 +305,26 @@ describe('CashRegistersService', () => {
         expenses,
         notes: 'Test notes',
       });
+    });
+
+    it('should preserve a legitimate 0 countedCash rather than falling back to denominations', async () => {
+      const id = '1';
+      const cashRegister = {
+        id,
+        shiftId: 'shift-1',
+        expectedCash: 5000,
+        countedCash: 0,
+        denominations: [{ denomination: 100, count: 1, total: 100 }],
+        expenses: [],
+        notes: null,
+      };
+
+      mockPrisma.cashRegister.findUnique.mockResolvedValue(cashRegister);
+
+      const result = await service.getSummary(id);
+
+      expect(result.countedCash).toBe(0);
+      expect(result.variance).toBe(-5000);
     });
   });
 

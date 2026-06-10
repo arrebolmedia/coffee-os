@@ -1,11 +1,14 @@
 import {
-  IsUUID,
-  IsEnum,
   IsBoolean,
+  IsEnum,
   IsOptional,
   IsString,
+  IsUUID,
 } from 'class-validator';
-import { Channel, TemplateCategory } from '../interfaces/notification.interface';
+import {
+  Channel,
+  TemplateCategory,
+} from '../interfaces/notification.interface';
 
 export class CreatePreferenceDto {
   @IsUUID()

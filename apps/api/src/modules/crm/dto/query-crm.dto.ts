@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsEnum } from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { CustomerStatus } from './update-customer.dto';
 import { CampaignStatus, CampaignType } from './create-campaign.dto';
 import { LoyaltyTransactionType } from './create-loyalty-transaction.dto';

@@ -1,285 +1,153 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  BadRequestException,
-} from '@nestjs/common';
+/**
+ * SuppliersService — Prisma-backed implementation.
+ *
+ * Maps to the `Supplier` model in `packages/database/prisma/schema.prisma`:
+ *   id, organizationId, name, contactName, email, phone, address,
+ *   paymentTerms (free-form string), leadTime (int days), active.
+ *
+ * TODO migration: campos NO soportados por el schema actual y removidos del
+ * DTO/interface para no ocultar pérdida de datos:
+ *   - code (string)            → usar id (cuid) o agregar al schema
+ *   - legal_name
+ *   - status enum (active|inactive|suspended) → mapeado a boolean `active`
+ *   - website, city, state, postal_code, country, tax_id
+ *   - credit_limit, discount_percentage
+ *   - rating, on_time_delivery_rate, is_preferred
+ *   - categories, certifications, tags, notes
+ *
+ * Métodos removidos por dependencia con campos faltantes:
+ *   - findByCode (no hay `code`)
+ *   - updateRating (no hay `rating` ni `on_time_delivery_rate`)
+ *
+ * El endpoint findAll filtra estrictamente por organizationId.
+ */
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { CreateSupplierDto, SupplierStatus } from './dto/create-supplier.dto';
+import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 import { QuerySuppliersDto } from './dto/query-suppliers.dto';
 import { Supplier, SupplierStats } from './interfaces';
 
 @Injectable()
 export class SuppliersService {
-  private readonly suppliers = new Map<string, Supplier>();
+  constructor(private readonly prisma: PrismaService) {}
 
-  constructor(private prisma: PrismaService) {}
-
-  async create(createSupplierDto: CreateSupplierDto): Promise<Supplier> {
-    const existing = Array.from(this.suppliers.values()).find(
-      (s) =>
-        s.code === createSupplierDto.code &&
-        s.organization_id === createSupplierDto.organization_id,
-    );
-
-    if (existing) {
-      throw new ConflictException(
-        `Supplier with code ${createSupplierDto.code} already exists in this organization`,
-      );
-    }
-
-    const supplier: Supplier = {
-      id: `supplier-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      ...createSupplierDto,
-      status: createSupplierDto.status || SupplierStatus.ACTIVE,
-      on_time_delivery_rate: createSupplierDto.rating ? 85 : undefined,
-      created_at: new Date(),
-      updated_at: new Date(),
+  private toSupplier(row: any): Supplier {
+    return {
+      id: row.id,
+      organization_id: row.organizationId,
+      name: row.name,
+      contact_person: row.contactName ?? undefined,
+      email: row.email ?? undefined,
+      phone: row.phone ?? undefined,
+      address: row.address ?? undefined,
+      payment_terms: row.paymentTerms ?? undefined,
+      lead_time_days: row.leadTime ?? undefined,
+      active: row.active,
+      created_at: row.createdAt,
+      updated_at: row.updatedAt,
     };
-
-    this.suppliers.set(supplier.id, supplier);
-    return supplier;
   }
 
-  async findAll(query: QuerySuppliersDto, user?: any): Promise<Supplier[]> {
-    // Primero intentar cargar de base de datos
-    try {
-      const suppliers = await this.prisma.supplier.findMany({
-        where: {
-          ...(query.search && {
-            OR: [
-              { name: { contains: query.search, mode: 'insensitive' } },
-              { contactName: { contains: query.search, mode: 'insensitive' } },
-              { email: { contains: query.search, mode: 'insensitive' } },
-            ],
-          }),
-        },
-        orderBy: {
-          name: 'asc',
-        },
-      });
+  async create(createSupplierDto: CreateSupplierDto): Promise<Supplier> {
+    const created = await this.prisma.supplier.create({
+      data: {
+        organizationId: createSupplierDto.organization_id,
+        name: createSupplierDto.name,
+        contactName: createSupplierDto.contact_person,
+        email: createSupplierDto.email,
+        phone: createSupplierDto.phone,
+        address: createSupplierDto.address,
+        paymentTerms: createSupplierDto.payment_terms,
+        leadTime: createSupplierDto.lead_time_days,
+        active: createSupplierDto.active ?? true,
+      },
+    });
+    return this.toSupplier(created);
+  }
 
-      // Mapear a formato Supplier
-      return suppliers.map((s) => ({
-        id: s.id,
-        organization_id: query.organization_id || '', // Los suppliers no tienen org_id en schema
-        code: s.id.substring(0, 8), // Generar código de los primeros 8 chars del ID
-        name: s.name,
-        legal_name: s.name,
-        tax_id: undefined,
-        contact_person: s.contactName || undefined,
-        email: s.email || undefined,
-        phone: s.phone || undefined,
-        mobile: s.phone || undefined,
-        website: undefined,
-        address: s.address || undefined,
-        city: undefined,
-        state: undefined,
-        postal_code: undefined,
-        country: 'MX',
-        payment_terms: (s.paymentTerms as any) || undefined,
-        credit_days: s.leadTime || 0,
-        credit_limit: undefined,
-        lead_time_days: s.leadTime || 0,
-        min_order_amount: undefined,
-        rating: undefined,
-        is_preferred: false,
-        status: s.active ? SupplierStatus.ACTIVE : SupplierStatus.INACTIVE,
-        notes: undefined,
-        categories: [],
-        certifications: [],
-        on_time_delivery_rate: undefined,
-        quality_score: undefined,
-        created_at: s.createdAt,
-        updated_at: s.updatedAt,
-      }));
-    } catch (error) {
-      console.error('Error cargando suppliers de DB:', error);
-    }
-
-    // Fallback a Map en memoria
-    let suppliers = Array.from(this.suppliers.values());
+  async findAll(query: QuerySuppliersDto, _user?: any): Promise<Supplier[]> {
+    const where: any = {};
 
     if (query.organization_id) {
-      suppliers = suppliers.filter(
-        (s) => s.organization_id === query.organization_id,
-      );
+      where.organizationId = query.organization_id;
     }
-
-    if (query.status) {
-      suppliers = suppliers.filter((s) => s.status === query.status);
+    if (query.active !== undefined) {
+      where.active = query.active;
     }
-
-    if (query.is_preferred !== undefined) {
-      suppliers = suppliers.filter(
-        (s) => s.is_preferred === query.is_preferred,
-      );
-    }
-
-    if (query.min_rating !== undefined) {
-      suppliers = suppliers.filter(
-        (s) => s.rating !== undefined && s.rating >= query.min_rating!,
-      );
-    }
-
     if (query.search) {
-      const search = query.search.toLowerCase();
-      suppliers = suppliers.filter(
-        (s) =>
-          s.name.toLowerCase().includes(search) ||
-          s.code.toLowerCase().includes(search) ||
-          s.legal_name?.toLowerCase().includes(search) ||
-          s.contact_person?.toLowerCase().includes(search) ||
-          s.email?.toLowerCase().includes(search),
-      );
+      where.OR = [
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { contactName: { contains: query.search, mode: 'insensitive' } },
+        { email: { contains: query.search, mode: 'insensitive' } },
+      ];
     }
 
-    const sortBy = query.sort_by || 'name';
-    const order = query.order || 'asc';
+    const sortField =
+      query.sort_by === 'created_at' ? 'createdAt' : query.sort_by || 'name';
+    const orderBy: any = { [sortField]: query.order || 'asc' };
 
-    suppliers.sort((a, b) => {
-      let aValue: any = a[sortBy as keyof Supplier];
-      let bValue: any = b[sortBy as keyof Supplier];
-
-      if (aValue === undefined)
-        aValue = order === 'asc' ? '' : Number.MIN_VALUE;
-      if (bValue === undefined)
-        bValue = order === 'asc' ? '' : Number.MIN_VALUE;
-
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return order === 'asc'
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      }
-
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return order === 'asc' ? aValue - bValue : bValue - aValue;
-      }
-
-      return 0;
-    });
-
-    return suppliers;
+    const rows = await this.prisma.supplier.findMany({ where, orderBy });
+    return rows.map((r) => this.toSupplier(r));
   }
 
   async findById(id: string): Promise<Supplier> {
-    const supplier = this.suppliers.get(id);
-    if (!supplier) {
+    const row = await this.prisma.supplier.findUnique({ where: { id } });
+    if (!row) {
       throw new NotFoundException(`Supplier with ID ${id} not found`);
     }
-    return supplier;
-  }
-
-  async findByCode(
-    organizationId: string,
-    code: string,
-  ): Promise<Supplier | undefined> {
-    return Array.from(this.suppliers.values()).find(
-      (s) => s.organization_id === organizationId && s.code === code,
-    );
+    return this.toSupplier(row);
   }
 
   async update(
     id: string,
     updateSupplierDto: UpdateSupplierDto,
   ): Promise<Supplier> {
-    const supplier = await this.findById(id);
+    await this.findById(id);
 
-    if (updateSupplierDto.code && updateSupplierDto.code !== supplier.code) {
-      const existing = await this.findByCode(
-        supplier.organization_id,
-        updateSupplierDto.code,
-      );
-      if (existing) {
-        throw new ConflictException(
-          `Supplier with code ${updateSupplierDto.code} already exists in this organization`,
-        );
-      }
-    }
+    const data: any = {};
+    if (updateSupplierDto.name !== undefined)
+      data.name = updateSupplierDto.name;
+    if (updateSupplierDto.contact_person !== undefined)
+      data.contactName = updateSupplierDto.contact_person;
+    if (updateSupplierDto.email !== undefined)
+      data.email = updateSupplierDto.email;
+    if (updateSupplierDto.phone !== undefined)
+      data.phone = updateSupplierDto.phone;
+    if (updateSupplierDto.address !== undefined)
+      data.address = updateSupplierDto.address;
+    if (updateSupplierDto.payment_terms !== undefined)
+      data.paymentTerms = updateSupplierDto.payment_terms;
+    if (updateSupplierDto.lead_time_days !== undefined)
+      data.leadTime = updateSupplierDto.lead_time_days;
+    if (updateSupplierDto.active !== undefined)
+      data.active = updateSupplierDto.active;
 
-    const updatedSupplier: Supplier = {
-      ...supplier,
-      ...updateSupplierDto,
-      updated_at: new Date(),
-    };
-
-    this.suppliers.set(id, updatedSupplier);
-    return updatedSupplier;
+    const updated = await this.prisma.supplier.update({
+      where: { id },
+      data,
+    });
+    return this.toSupplier(updated);
   }
 
+  /** Soft delete: marca active=false. */
   async delete(id: string): Promise<void> {
-    const supplier = await this.findById(id);
-    this.suppliers.delete(supplier.id);
-  }
-
-  async updateRating(
-    id: string,
-    rating: number,
-    onTimeDeliveryRate?: number,
-  ): Promise<Supplier> {
-    if (rating < 0 || rating > 5) {
-      throw new BadRequestException('Rating must be between 0 and 5');
-    }
-
-    if (
-      onTimeDeliveryRate !== undefined &&
-      (onTimeDeliveryRate < 0 || onTimeDeliveryRate > 100)
-    ) {
-      throw new BadRequestException(
-        'On-time delivery rate must be between 0 and 100',
-      );
-    }
-
-    const supplier = await this.findById(id);
-
-    const updatedSupplier: Supplier = {
-      ...supplier,
-      rating,
-      on_time_delivery_rate:
-        onTimeDeliveryRate !== undefined
-          ? onTimeDeliveryRate
-          : supplier.on_time_delivery_rate,
-      updated_at: new Date(),
-    };
-
-    this.suppliers.set(id, updatedSupplier);
-    return updatedSupplier;
+    await this.findById(id);
+    await this.prisma.supplier.update({
+      where: { id },
+      data: { active: false },
+    });
   }
 
   async getStats(organizationId: string): Promise<SupplierStats> {
-    const suppliers = Array.from(this.suppliers.values()).filter(
-      (s) => s.organization_id === organizationId,
-    );
-
-    const byStatus: Record<SupplierStatus, number> = {
-      [SupplierStatus.ACTIVE]: 0,
-      [SupplierStatus.INACTIVE]: 0,
-      [SupplierStatus.SUSPENDED]: 0,
-    };
-
-    let totalRating = 0;
-    let ratedCount = 0;
-    let preferredCount = 0;
-
-    suppliers.forEach((supplier) => {
-      byStatus[supplier.status]++;
-
-      if (supplier.rating !== undefined) {
-        totalRating += supplier.rating;
-        ratedCount++;
-      }
-
-      if (supplier.is_preferred) {
-        preferredCount++;
-      }
-    });
-
+    const [total, activeCount] = await Promise.all([
+      this.prisma.supplier.count({ where: { organizationId } }),
+      this.prisma.supplier.count({ where: { organizationId, active: true } }),
+    ]);
     return {
-      total_suppliers: suppliers.length,
-      by_status: byStatus,
-      preferred_count: preferredCount,
-      average_rating: ratedCount > 0 ? totalRating / ratedCount : 0,
+      total_suppliers: total,
+      active_count: activeCount,
+      inactive_count: total - activeCount,
     };
   }
 }

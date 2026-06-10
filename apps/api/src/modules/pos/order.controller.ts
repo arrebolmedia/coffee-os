@@ -1,11 +1,11 @@
 import {
+  Body,
   Controller,
   Get,
-  Post,
-  Patch,
   Param,
+  Patch,
+  Post,
   Query,
-  Body,
 } from '@nestjs/common';
 import { PosService } from './pos.service';
 
@@ -19,6 +19,11 @@ export class OrderController {
     @Query('status') status?: string,
   ) {
     return this.posService.findAllOrders(locationId, status);
+  }
+
+  @Get('organization/:orgId/today')
+  async findTodayByOrg(@Param('orgId') orgId: string) {
+    return this.posService.findTodayOrdersByOrg(orgId);
   }
 
   @Get(':id')
@@ -44,5 +49,24 @@ export class OrderController {
   @Post(':id/served')
   async served(@Param('id') id: string) {
     return this.posService.markOrderServed(id);
+  }
+
+  @Post(':id/cancel')
+  async cancel(@Param('id') id: string, @Body('reason') reason: string) {
+    return this.posService.cancelTicket(id, reason ?? '');
+  }
+
+  @Post(':id/refund')
+  async refund(
+    @Param('id') id: string,
+    @Body('reason') reason: string,
+    @Body('amount') amount?: number,
+  ) {
+    return this.posService.refundTicket(id, reason ?? '', amount);
+  }
+
+  @Get(':id/receipt')
+  async receipt(@Param('id') id: string) {
+    return this.posService.getReceipt(id);
   }
 }

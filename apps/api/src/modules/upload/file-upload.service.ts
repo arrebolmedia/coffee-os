@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -28,8 +28,9 @@ export class FileUploadService {
 
   constructor(private readonly configService: ConfigService) {
     this.uploadDir = path.join(process.cwd(), 'uploads', 'products');
-    this.baseUrl = this.configService.get<string>('API_URL') || 'http://localhost:4000';
-    
+    this.baseUrl =
+      this.configService.get<string>('API_URL') || 'http://localhost:4000';
+
     // Crear directorio de uploads si no existe
     this.ensureUploadDirExists();
   }
@@ -70,7 +71,9 @@ export class FileUploadService {
   /**
    * Subir imagen de producto
    */
-  async uploadProductImage(file: Express.Multer.File): Promise<UploadedFileInfo> {
+  async uploadProductImage(
+    file: Express.Multer.File,
+  ): Promise<UploadedFileInfo> {
     this.validateFile(file);
 
     const fileExtension = path.extname(file.originalname);
@@ -111,7 +114,10 @@ export class FileUploadService {
   /**
    * Generar thumbnails de diferentes tamaños
    */
-  private async generateThumbnails(buffer: Buffer, filename: string): Promise<void> {
+  private async generateThumbnails(
+    buffer: Buffer,
+    filename: string,
+  ): Promise<void> {
     const baseFilename = filename.replace(/\.[^/.]+$/, '');
 
     for (const [size, dimensions] of Object.entries(this.thumbnailSizes)) {
@@ -147,7 +153,7 @@ export class FileUploadService {
         );
         try {
           await fs.unlink(thumbnailPath);
-        } catch (error) {
+        } catch {
           // Thumbnail might not exist, ignore error
         }
       }
@@ -162,9 +168,12 @@ export class FileUploadService {
   /**
    * Obtener URL de thumbnail
    */
-  getThumbnailUrl(filename: string, size: 'small' | 'medium' | 'large' = 'medium'): string {
+  getThumbnailUrl(
+    filename: string,
+    size: 'small' | 'medium' | 'large' = 'medium',
+  ): string {
     if (!filename) return '';
-    
+
     const baseFilename = filename.replace(/\.[^/.]+$/, '');
     return `${this.baseUrl}/uploads/products/${baseFilename}_${size}.webp`;
   }
@@ -184,7 +193,7 @@ export class FileUploadService {
         size: stats.size,
         mimetype: 'image/webp',
       };
-    } catch (error) {
+    } catch {
       return null;
     }
   }

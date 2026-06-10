@@ -2,9 +2,26 @@
 
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { FileCheck, Search, Filter, Calendar, AlertTriangle, CheckCircle, Clock, FileText, RefreshCw, Trash2, Loader2, Building } from 'lucide-react';
-import { usePermits, usePermitStats, useDeletePermit, useRenewPermit } from '@/hooks/use-permits';
-import { PermitType, PermitStatus } from '@/types';
+import {
+  AlertTriangle,
+  Calendar,
+  CheckCircle,
+  Clock,
+  FileCheck,
+  FileText,
+  Filter,
+  Loader2,
+  RefreshCw,
+  Search,
+  Trash2,
+} from 'lucide-react';
+import {
+  useDeletePermit,
+  usePermits,
+  usePermitStats,
+  useRenewPermit,
+} from '@/hooks/use-permits';
+import { PermitStatus, PermitType } from '@/types';
 
 export default function PermitsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,12 +33,14 @@ export default function PermitsPage() {
   const renewPermit = useRenewPermit();
 
   const filteredPermits = permits.filter((permit) => {
-    const matchesSearch = !searchTerm || 
+    const matchesSearch =
+      !searchTerm ||
       permit.permit_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
       permit.issuing_authority.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesLocation = filterLocation === 'all' || permit.location_id === filterLocation;
-    
+
+    const matchesLocation =
+      filterLocation === 'all' || permit.location_id === filterLocation;
+
     return matchesSearch && matchesLocation;
   });
 
@@ -107,7 +126,9 @@ export default function PermitsPage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Permisos y Licencias</h1>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Permisos y Licencias
+            </h1>
             <p className="text-gray-600 mt-1">Gestión de compliance legal</p>
           </div>
           <FileCheck className="h-12 w-12 text-blue-600" />
@@ -117,8 +138,12 @@ export default function PermitsPage() {
           <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-100 text-sm font-medium">Total Permisos</p>
-                <p className="text-3xl font-bold mt-1">{stats?.total_permits || 0}</p>
+                <p className="text-blue-100 text-sm font-medium">
+                  Total Permisos
+                </p>
+                <p className="text-3xl font-bold mt-1">
+                  {stats?.total_permits || 0}
+                </p>
               </div>
               <FileCheck className="h-12 w-12 text-blue-200" />
             </div>
@@ -137,8 +162,12 @@ export default function PermitsPage() {
           <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-yellow-100 text-sm font-medium">Por Renovar</p>
-                <p className="text-3xl font-bold mt-1">{stats?.renewal_due || 0}</p>
+                <p className="text-yellow-100 text-sm font-medium">
+                  Por Renovar
+                </p>
+                <p className="text-3xl font-bold mt-1">
+                  {stats?.renewal_due || 0}
+                </p>
               </div>
               <Clock className="h-12 w-12 text-yellow-200" />
             </div>
@@ -160,7 +189,8 @@ export default function PermitsPage() {
             <div className="flex items-center">
               <AlertTriangle className="h-5 w-5 text-yellow-400 mr-2" />
               <p className="text-sm text-yellow-700">
-                <strong>{stats.expiring_soon}</strong> permisos vencen en los próximos 30 días
+                <strong>{stats.expiring_soon}</strong> permisos vencen en los
+                próximos 30 días
               </p>
             </div>
           </div>
@@ -194,8 +224,14 @@ export default function PermitsPage() {
         {filteredPermits.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <FileCheck className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay permisos</h3>
-            <p className="text-gray-600">{searchTerm ? 'No se encontraron resultados' : 'Comienza registrando un permiso'}</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              No hay permisos
+            </h3>
+            <p className="text-gray-600">
+              {searchTerm
+                ? 'No se encontraron resultados'
+                : 'Comienza registrando un permiso'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6">
@@ -205,16 +241,28 @@ export default function PermitsPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <FileText className="h-5 w-5 text-gray-400" />
-                      <h3 className="text-lg font-semibold text-gray-900">{getTypeLabel(permit.type)}</h3>
-                      <span className={`px-2 py-1 text-xs font-medium rounded ${getStatusColor(permit.status)}`}>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {getTypeLabel(permit.type)}
+                      </h3>
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded ${getStatusColor(permit.status)}`}
+                      >
                         {getStatusLabel(permit.status)}
                       </span>
                     </div>
                     <div className="space-y-1 text-sm text-gray-600">
-                      <p><strong>Folio:</strong> {permit.permit_number}</p>
-                      <p><strong>Autoridad Emisora:</strong> {permit.issuing_authority}</p>
+                      <p>
+                        <strong>Folio:</strong> {permit.permit_number}
+                      </p>
+                      <p>
+                        <strong>Autoridad Emisora:</strong>{' '}
+                        {permit.issuing_authority}
+                      </p>
                       {permit.responsible_person && (
-                        <p><strong>Responsable:</strong> {permit.responsible_person}</p>
+                        <p>
+                          <strong>Responsable:</strong>{' '}
+                          {permit.responsible_person}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -250,7 +298,9 @@ export default function PermitsPage() {
                   </div>
                   <div className="text-center p-3 bg-gray-50 rounded-lg">
                     <p className="text-xs text-gray-600 mb-1">Días Restantes</p>
-                    <p className={`text-sm font-semibold ${permit.days_until_expiry && permit.days_until_expiry < 30 ? 'text-red-600' : 'text-gray-900'}`}>
+                    <p
+                      className={`text-sm font-semibold ${permit.days_until_expiry && permit.days_until_expiry < 30 ? 'text-red-600' : 'text-gray-900'}`}
+                    >
                       {permit.days_until_expiry || 0}
                     </p>
                   </div>
@@ -265,21 +315,32 @@ export default function PermitsPage() {
                 {permit.is_expiring_soon && (
                   <div className="flex items-center gap-2 p-3 bg-yellow-50 rounded-lg border border-yellow-200 mb-3">
                     <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                    <p className="text-sm text-yellow-700">Este permiso vence pronto</p>
+                    <p className="text-sm text-yellow-700">
+                      Este permiso vence pronto
+                    </p>
                   </div>
                 )}
 
                 {permit.last_renewal_date && (
                   <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
                     <Calendar className="h-4 w-4" />
-                    <span>Última renovación: {new Date(permit.last_renewal_date).toLocaleDateString()}</span>
-                    {permit.renewal_cost && <span className="ml-2">- Costo: ${permit.renewal_cost.toLocaleString()}</span>}
+                    <span>
+                      Última renovación:{' '}
+                      {new Date(permit.last_renewal_date).toLocaleDateString()}
+                    </span>
+                    {permit.renewal_cost && (
+                      <span className="ml-2">
+                        - Costo: ${permit.renewal_cost.toLocaleString()}
+                      </span>
+                    )}
                   </div>
                 )}
 
                 {permit.notes && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
-                    <p className="text-sm font-medium text-gray-700 mb-1">Notas:</p>
+                    <p className="text-sm font-medium text-gray-700 mb-1">
+                      Notas:
+                    </p>
                     <p className="text-sm text-gray-600">{permit.notes}</p>
                   </div>
                 )}
@@ -289,7 +350,11 @@ export default function PermitsPage() {
         )}
 
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm text-blue-800">📋 <strong>Compliance Legal:</strong> Gestiona todos los permisos y licencias requeridos para operación legal. Recibe alertas 30 días antes del vencimiento.</p>
+          <p className="text-sm text-blue-800">
+            📋 <strong>Compliance Legal:</strong> Gestiona todos los permisos y
+            licencias requeridos para operación legal. Recibe alertas 30 días
+            antes del vencimiento.
+          </p>
         </div>
       </div>
     </MainLayout>

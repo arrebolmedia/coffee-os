@@ -1,15 +1,14 @@
 import {
-  IsString,
-  IsOptional,
-  IsBoolean,
-  IsNumber,
-  IsNotEmpty,
-  IsUUID,
-  IsEnum,
   IsArray,
+  IsBoolean,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Matches,
   MaxLength,
   Min,
-  Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -27,7 +26,8 @@ export enum CategoryStatus {
 }
 
 export class CreateCategoryDto {
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   organization_id: string;
 
   @IsString()

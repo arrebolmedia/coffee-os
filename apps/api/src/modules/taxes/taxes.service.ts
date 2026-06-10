@@ -1,15 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { CreateTaxDto } from './dto/create-tax.dto';
+import { CreateTaxDto, TaxCategory } from './dto/create-tax.dto';
 import { UpdateTaxDto } from './dto/update-tax.dto';
 import { QueryTaxesDto } from './dto/query-taxes.dto';
-
-export enum TaxCategory {
-  IVA = 'IVA', // Impuesto al Valor Agregado
-  IEPS = 'IEPS', // Impuesto Especial sobre Producción y Servicios
-  ISR = 'ISR', // Impuesto Sobre la Renta
-  OTHER = 'OTHER',
-}
 
 @Injectable()
 export class TaxesService {
@@ -87,7 +80,8 @@ export class TaxesService {
       return 0;
     }
 
-    return (subtotal * tax.rate) / 100;
+    // tax.rate is stored as decimal (0.16 = 16%) per schema documentation.
+    return subtotal * tax.rate;
   }
 
   async calculateMultipleTaxes(
@@ -106,7 +100,8 @@ export class TaxesService {
 
     const breakdown = taxes.map((tax) => ({
       taxId: tax.id,
-      amount: (subtotal * tax.rate) / 100,
+      // tax.rate is stored as decimal (0.16 = 16%) per schema documentation.
+      amount: subtotal * tax.rate,
     }));
 
     const total = breakdown.reduce((sum, item) => sum + item.amount, 0);

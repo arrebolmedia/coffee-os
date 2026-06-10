@@ -4,10 +4,10 @@
  */
 
 import { api } from '@/lib/api';
-import { Customer, PaginationParams, PaginatedResponse } from '@/types';
+import { Customer, PaginatedResponse, PaginationParams } from '@/types';
 
 class CustomersService {
-  private readonly baseUrl = '/customers';
+  private readonly baseUrl = '/crm/customers';
 
   // ============================================================================
   // CUSTOMERS CRUD

@@ -1,4 +1,13 @@
-import { IsNotEmpty, IsString, IsEnum, IsOptional, IsDateString, IsBoolean, IsArray, IsNumber } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export enum CampaignType {
   BIRTHDAY = 'BIRTHDAY', // Automated birthday campaigns

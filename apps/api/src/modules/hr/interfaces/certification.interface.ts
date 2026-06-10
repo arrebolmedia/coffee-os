@@ -1,4 +1,4 @@
-import { CertificationType, CertificationStatus } from '../dto';
+import { CertificationStatus, CertificationType } from '../dto';
 
 export interface Certification {
   id: string;

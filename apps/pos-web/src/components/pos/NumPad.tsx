@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Delete } from 'lucide-react';
 
 interface NumPadProps {
@@ -28,6 +28,11 @@ export function NumPad({
   showConfirm = false,
 }: NumPadProps) {
   const [value, setValue] = useState(initialValue);
+
+  // Sync internal state when the parent resets/initialValue changes
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
 
   const handlePress = (digit: string) => {
     if (value.length >= maxLength) return;
@@ -79,7 +84,11 @@ export function NumPad({
     { label: '1', value: '1' },
     { label: '2', value: '2' },
     { label: '3', value: '3' },
-    { label: allowDecimal ? '.' : '0', value: allowDecimal ? '.' : '0', span: allowDecimal },
+    {
+      label: allowDecimal ? '.' : '0',
+      value: allowDecimal ? '.' : '0',
+      span: allowDecimal,
+    },
     { label: '0', value: '0' },
     { label: '⌫', value: 'backspace', icon: true },
   ];

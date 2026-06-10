@@ -4,7 +4,6 @@
  */
 
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
 import { withAuth } from 'next-auth/middleware';
 
 // Allow Playwright smoke tests to run without authentication when explicitly requested.
@@ -13,7 +12,7 @@ const DISABLE_AUTH =
   process.env.E2E_TEST === 'true';
 
 export default withAuth(
-  function middleware(req) {
+  function middleware(_req) {
     // Si el modo de test está activo, bypass la autenticación
     if (DISABLE_AUTH) {
       return NextResponse.next();
@@ -25,6 +24,12 @@ export default withAuth(
       authorized: ({ token }) => {
         // Si está en modo test, permitir acceso
         if (DISABLE_AUTH) return true;
+        // Si el refresh del token falló, la sesión es inválida
+        if (
+          token &&
+          (token as { error?: string }).error === 'RefreshAccessTokenError'
+        )
+          return false;
         // De lo contrario, verificar que exista un token
         return !!token;
       },

@@ -1,24 +1,24 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
   Body,
+  Controller,
+  Delete,
+  Get,
   Param,
+  Patch,
+  Post,
   Query,
 } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import {
-  CreateReportTemplateDto,
-  UpdateReportTemplateDto,
-  GenerateReportDto,
   CreateReportScheduleDto,
+  CreateReportTemplateDto,
+  GenerateReportDto,
+  UpdateReportTemplateDto,
 } from './dto';
 import {
   ReportCategory,
-  ReportType,
   ReportStatus,
+  ReportType,
 } from './interfaces/report.interface';
 
 @Controller('reports')
@@ -39,7 +39,8 @@ export class ReportsController {
     @Query('type') type?: ReportType,
     @Query('is_active') is_active?: string,
   ) {
-    const activeFilter = is_active !== undefined ? is_active === 'true' : undefined;
+    const activeFilter =
+      is_active !== undefined ? is_active === 'true' : undefined;
     return this.reportsService.findAllReportTemplates(
       organization_id,
       category,
@@ -115,8 +116,12 @@ export class ReportsController {
     @Query('organization_id') organization_id?: string,
     @Query('is_active') is_active?: string,
   ) {
-    const activeFilter = is_active !== undefined ? is_active === 'true' : undefined;
-    return this.reportsService.findAllReportSchedules(organization_id, activeFilter);
+    const activeFilter =
+      is_active !== undefined ? is_active === 'true' : undefined;
+    return this.reportsService.findAllReportSchedules(
+      organization_id,
+      activeFilter,
+    );
   }
 
   @Get('schedules/:id')

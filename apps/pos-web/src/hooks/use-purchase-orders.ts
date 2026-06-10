@@ -5,10 +5,10 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  PurchaseOrdersService,
   CreatePurchaseOrderDTO,
-  UpdatePurchaseOrderDTO,
+  PurchaseOrdersService,
   ReceivePurchaseOrderDTO,
+  UpdatePurchaseOrderDTO,
 } from '@/services/purchase-orders.service';
 import { useAuth } from '@/hooks/use-auth';
 import toast from 'react-hot-toast';
@@ -38,8 +38,8 @@ export function usePurchaseOrders(filters?: {
   date_from?: string;
   date_to?: string;
 }) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: purchaseOrdersKeys.list(organizationId, filters),
@@ -85,8 +85,8 @@ export function usePurchaseOrderStats(dateRange?: {
   from: string;
   to: string;
 }) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: purchaseOrdersKeys.stats(organizationId, dateRange),
@@ -101,8 +101,8 @@ export function usePurchaseOrderStats(dateRange?: {
  * Hook to get suggested reorder items
  */
 export function useSuggestedReorder(enabled = true) {
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useQuery({
     queryKey: purchaseOrdersKeys.suggestedReorder(organizationId),
@@ -117,8 +117,8 @@ export function useSuggestedReorder(enabled = true) {
  */
 export function useCreatePurchaseOrder() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: (
@@ -127,7 +127,7 @@ export function useCreatePurchaseOrder() {
       PurchaseOrdersService.createPurchaseOrder({
         ...data,
         organization_id: organizationId,
-        created_by: session?.user?.id || '',
+        created_by: user?.id || '',
       }),
     onSuccess: (po) => {
       queryClient.invalidateQueries({ queryKey: purchaseOrdersKeys.lists() });
@@ -149,8 +149,8 @@ export function useCreatePurchaseOrder() {
  */
 export function useUpdatePurchaseOrder() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdatePurchaseOrderDTO }) =>
@@ -178,8 +178,8 @@ export function useUpdatePurchaseOrder() {
  */
 export function useDeletePurchaseOrder() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: (id: string) => PurchaseOrdersService.deletePurchaseOrder(id),
@@ -203,11 +203,11 @@ export function useDeletePurchaseOrder() {
  */
 export function useApprovePurchaseOrder() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: (id: string) =>
-      PurchaseOrdersService.approvePurchaseOrder(id, session?.user?.id || ''),
+      PurchaseOrdersService.approvePurchaseOrder(id, user?.id || ''),
     onSuccess: (po) => {
       queryClient.invalidateQueries({ queryKey: purchaseOrdersKeys.lists() });
       queryClient.invalidateQueries({
@@ -251,8 +251,8 @@ export function useSendPurchaseOrder() {
  */
 export function useReceivePurchaseOrder() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const organizationId = session?.user?.organizationId || '';
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: ReceivePurchaseOrderDTO }) =>

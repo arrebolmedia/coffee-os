@@ -1,5 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value || value.trim().length === 0) {
+    throw new Error(
+      `${name} environment variable is required and must not be empty`,
+    );
+  }
+  return value;
+}
+
 export interface TwilioConfig {
   accountSid: string;
   authToken: string;
@@ -36,12 +46,11 @@ export class TwilioService {
   private mockMessages: Map<string, any> = new Map();
 
   constructor() {
-    // In production, get from environment variables
     this.config = {
-      accountSid: process.env.TWILIO_ACCOUNT_SID || 'AC_mock_account_sid',
-      authToken: process.env.TWILIO_AUTH_TOKEN || 'mock_auth_token',
-      whatsappFrom: process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+14155238886',
-      smsFrom: process.env.TWILIO_SMS_FROM || '+14155551234',
+      accountSid: requireEnv('TWILIO_ACCOUNT_SID'),
+      authToken: requireEnv('TWILIO_AUTH_TOKEN'),
+      whatsappFrom: requireEnv('TWILIO_WHATSAPP_FROM'),
+      smsFrom: requireEnv('TWILIO_SMS_FROM'),
     };
   }
 
@@ -116,8 +125,12 @@ export class TwilioService {
   /**
    * Send birthday greeting via WhatsApp
    */
-  async sendBirthdayGreeting(to: string, customerName: string): Promise<TwilioResponse> {
-    const message = `🎂 ¡Feliz Cumpleaños ${customerName}! 🎉\n\n` +
+  async sendBirthdayGreeting(
+    to: string,
+    customerName: string,
+  ): Promise<TwilioResponse> {
+    const message =
+      `🎂 ¡Feliz Cumpleaños ${customerName}! 🎉\n\n` +
       `En tu día especial, queremos regalarte un café. ` +
       `Muestra este mensaje en cualquiera de nuestras sucursales y ` +
       `disfruta de tu bebida favorita por nuestra cuenta.\n\n` +
@@ -137,15 +150,18 @@ export class TwilioService {
     let message = `¡Hola ${customerName}! 🎁\n\n`;
 
     if (rewardType === '9+1') {
-      message += `¡Felicidades! Has completado tu tarjeta 9+1. ` +
+      message +=
+        `¡Felicidades! Has completado tu tarjeta 9+1. ` +
         `Tu próximo café es GRATIS. 🎉\n\n` +
         `Muestra este mensaje en tu próxima visita.`;
     } else if (rewardType === 'birthday') {
-      message += `¡Es tu mes de cumpleaños! 🎂\n\n` +
+      message +=
+        `¡Es tu mes de cumpleaños! 🎂\n\n` +
         `Disfruta de un café GRATIS durante todo el mes. ` +
         `Solo muestra este mensaje al pagar.`;
     } else {
-      message += `Tenemos una promoción especial para ti. ` +
+      message +=
+        `Tenemos una promoción especial para ti. ` +
         `Visítanos pronto y disfruta de beneficios exclusivos.`;
     }
 
@@ -162,7 +178,8 @@ export class TwilioService {
     customerName: string,
     orderNumber: string,
   ): Promise<TwilioResponse> {
-    const message = `¡Hola ${customerName}! ☕\n\n` +
+    const message =
+      `¡Hola ${customerName}! ☕\n\n` +
       `Tu orden #${orderNumber} está lista para recoger.\n\n` +
       `Te esperamos en caja. ¡Gracias!`;
 

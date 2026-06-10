@@ -5,17 +5,8 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import {
-  X,
-  User,
-  Phone,
-  Mail,
-  Calendar,
-  MapPin,
-  Heart,
-  Gift,
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Calendar, Gift, Heart, MapPin, Phone, User, X } from 'lucide-react';
 import { Customer } from '@/types';
 
 interface CustomerFormData {
@@ -66,19 +57,19 @@ export function CustomerModal({
   useEffect(() => {
     if (customer) {
       setFormData({
-        name: customer.name || '',
+        name:
+          [customer.firstName, customer.lastName].filter(Boolean).join(' ') ||
+          '',
         email: customer.email || '',
         phone: customer.phone || '',
-        date_of_birth: customer.date_of_birth
-          ? new Date(customer.date_of_birth).toISOString().split('T')[0]
-          : customer.birthday
-            ? new Date(customer.birthday).toISOString().split('T')[0]
-            : '',
-        address: customer.address || '',
-        city: customer.city || '',
-        state: customer.state || '',
-        postal_code: customer.postal_code || '',
-        preferences: customer.preferences || '',
+        date_of_birth: customer.dateOfBirth
+          ? new Date(customer.dateOfBirth).toISOString().split('T')[0]
+          : '',
+        address: '',
+        city: '',
+        state: '',
+        postal_code: '',
+        preferences: customer.dietaryRestrictions || '',
         allergies: customer.allergies || '',
         notes: customer.notes || '',
       });
@@ -136,12 +127,19 @@ export function CustomerModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validate()) {
-      // Convert date_of_birth string back to Date if provided
+      // Map form fields to Prisma Customer fields
+      const nameParts = (formData.name || '').trim().split(/\s+/);
       const dataToSave: Partial<Customer> = {
-        ...formData,
-        date_of_birth: formData.date_of_birth
+        firstName: nameParts[0] || '',
+        lastName: nameParts.slice(1).join(' ') || '',
+        email: formData.email,
+        phone: formData.phone,
+        dateOfBirth: formData.date_of_birth
           ? new Date(formData.date_of_birth)
           : undefined,
+        dietaryRestrictions: formData.preferences,
+        allergies: formData.allergies,
+        notes: formData.notes,
       };
       onSave(dataToSave);
     }
@@ -401,25 +399,25 @@ export function CustomerModal({
                   <div>
                     <p className="text-xs text-gray-500">Puntos Actuales</p>
                     <p className="text-2xl font-bold text-pink-600">
-                      {customer.loyalty_points || 0}
+                      {customer.loyaltyPoints || 0}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Segmento RFM</p>
                     <p className="text-sm font-semibold text-purple-600">
-                      {customer.rfm_segment || 'N/A'}
+                      {customer.rfmSegment || 'N/A'}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Total Gastado</p>
                     <p className="text-lg font-semibold text-gray-700">
-                      ${(customer.total_spent || 0).toLocaleString('es-MX')}
+                      ${(customer.totalSpent || 0).toLocaleString('es-MX')}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Total Órdenes</p>
+                    <p className="text-xs text-gray-500">Total Visitas</p>
                     <p className="text-lg font-semibold text-gray-700">
-                      {customer.total_orders || 0}
+                      {customer.totalVisits || 0}
                     </p>
                   </div>
                 </div>

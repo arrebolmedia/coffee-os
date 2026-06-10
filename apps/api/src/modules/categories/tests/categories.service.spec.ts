@@ -2,11 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CategoriesService } from '../categories.service';
 import { PrismaService } from '../../database/prisma.service';
 import {
-  NotFoundException,
-  ConflictException,
   BadRequestException,
+  ConflictException,
+  NotFoundException,
 } from '@nestjs/common';
-import { CategoryType, CategoryStatus } from '../interfaces';
+import { CategoryStatus, CategoryType } from '../interfaces';
 
 describe('CategoriesService', () => {
   let service: CategoriesService;
@@ -84,7 +84,9 @@ describe('CategoriesService', () => {
     });
 
     it('should throw ConflictException if name already exists', async () => {
-      mockPrismaService.category.findFirst.mockResolvedValue(mockCategoryRecord);
+      mockPrismaService.category.findFirst.mockResolvedValue(
+        mockCategoryRecord,
+      );
 
       await expect(service.create(mockCategoryDto)).rejects.toThrow(
         ConflictException,
@@ -113,7 +115,10 @@ describe('CategoriesService', () => {
 
   describe('findAll', () => {
     it('should return all categories', async () => {
-      const mockCategories = [mockCategoryRecord, { ...mockCategoryRecord, id: 'cat-id-456', name: 'Alimentos' }];
+      const mockCategories = [
+        mockCategoryRecord,
+        { ...mockCategoryRecord, id: 'cat-id-456', name: 'Alimentos' },
+      ];
       mockPrismaService.category.findMany.mockResolvedValue(mockCategories);
 
       const categories = await service.findAll();
@@ -123,9 +128,13 @@ describe('CategoriesService', () => {
     });
 
     it('should filter by status active', async () => {
-      mockPrismaService.category.findMany.mockResolvedValue([mockCategoryRecord]);
+      mockPrismaService.category.findMany.mockResolvedValue([
+        mockCategoryRecord,
+      ]);
 
-      const categories = await service.findAll({ status: CategoryStatus.ACTIVE } as any);
+      const categories = await service.findAll({
+        status: CategoryStatus.ACTIVE,
+      } as any);
 
       expect(mockPrismaService.category.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -148,7 +157,9 @@ describe('CategoriesService', () => {
     });
 
     it('should apply search filter', async () => {
-      mockPrismaService.category.findMany.mockResolvedValue([mockCategoryRecord]);
+      mockPrismaService.category.findMany.mockResolvedValue([
+        mockCategoryRecord,
+      ]);
 
       await service.findAll({ search: 'bebidas' } as any);
 
@@ -170,7 +181,9 @@ describe('CategoriesService', () => {
 
   describe('findById', () => {
     it('should return category by id', async () => {
-      mockPrismaService.category.findUnique.mockResolvedValue(mockCategoryRecord);
+      mockPrismaService.category.findUnique.mockResolvedValue(
+        mockCategoryRecord,
+      );
 
       const found = await service.findById('cat-id-123');
 
@@ -192,8 +205,14 @@ describe('CategoriesService', () => {
 
   describe('update', () => {
     it('should update category fields', async () => {
-      const updatedRecord = { ...mockCategoryRecord, name: 'Bebidas Frías', description: 'Bebidas frías y refrescantes' };
-      mockPrismaService.category.findUnique.mockResolvedValue(mockCategoryRecord);
+      const updatedRecord = {
+        ...mockCategoryRecord,
+        name: 'Bebidas Frías',
+        description: 'Bebidas frías y refrescantes',
+      };
+      mockPrismaService.category.findUnique.mockResolvedValue(
+        mockCategoryRecord,
+      );
       mockPrismaService.category.findFirst.mockResolvedValue(null);
       mockPrismaService.category.update.mockResolvedValue(updatedRecord);
 
@@ -215,8 +234,14 @@ describe('CategoriesService', () => {
     });
 
     it('should throw ConflictException when updating to existing name', async () => {
-      const otherCategory = { ...mockCategoryRecord, id: 'other-id', name: 'Alimentos' };
-      mockPrismaService.category.findUnique.mockResolvedValue(mockCategoryRecord);
+      const otherCategory = {
+        ...mockCategoryRecord,
+        id: 'other-id',
+        name: 'Alimentos',
+      };
+      mockPrismaService.category.findUnique.mockResolvedValue(
+        mockCategoryRecord,
+      );
       mockPrismaService.category.findFirst.mockResolvedValue(otherCategory);
 
       await expect(
@@ -226,11 +251,15 @@ describe('CategoriesService', () => {
 
     it('should update active status from CategoryStatus', async () => {
       const updatedRecord = { ...mockCategoryRecord, active: false };
-      mockPrismaService.category.findUnique.mockResolvedValue(mockCategoryRecord);
+      mockPrismaService.category.findUnique.mockResolvedValue(
+        mockCategoryRecord,
+      );
       mockPrismaService.category.findFirst.mockResolvedValue(null);
       mockPrismaService.category.update.mockResolvedValue(updatedRecord);
 
-      await service.update('cat-id-123', { status: CategoryStatus.INACTIVE } as any);
+      await service.update('cat-id-123', {
+        status: CategoryStatus.INACTIVE,
+      } as any);
 
       expect(mockPrismaService.category.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -242,7 +271,9 @@ describe('CategoriesService', () => {
 
   describe('delete', () => {
     it('should delete category without products', async () => {
-      mockPrismaService.category.findUnique.mockResolvedValue(mockCategoryRecord);
+      mockPrismaService.category.findUnique.mockResolvedValue(
+        mockCategoryRecord,
+      );
       mockPrismaService.product.count.mockResolvedValue(0);
       mockPrismaService.category.delete.mockResolvedValue(mockCategoryRecord);
 
@@ -262,7 +293,9 @@ describe('CategoriesService', () => {
     });
 
     it('should throw BadRequestException if category has products', async () => {
-      mockPrismaService.category.findUnique.mockResolvedValue(mockCategoryRecord);
+      mockPrismaService.category.findUnique.mockResolvedValue(
+        mockCategoryRecord,
+      );
       mockPrismaService.product.count.mockResolvedValue(3);
 
       await expect(service.delete('cat-id-123')).rejects.toThrow(
@@ -274,9 +307,9 @@ describe('CategoriesService', () => {
   describe('getStats', () => {
     it('should return category statistics', async () => {
       mockPrismaService.category.count
-        .mockResolvedValueOnce(5)   // total
-        .mockResolvedValueOnce(4)   // active
-        .mockResolvedValueOnce(1);  // inactive
+        .mockResolvedValueOnce(5) // total
+        .mockResolvedValueOnce(4) // active
+        .mockResolvedValueOnce(1); // inactive
       mockPrismaService.product.count.mockResolvedValue(20);
 
       const stats = await service.getStats();

@@ -5,37 +5,36 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import {
-  useExpenses,
   useCreateExpense,
-  useUpdateExpense,
   useDeleteExpense,
-  useExpensesSummary,
+  useExpenses,
+  useUpdateExpense,
 } from '@/hooks/use-expenses';
 import { ExpenseModal } from '@/components/expenses/ExpenseModal';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { Expense, ExpenseCategory, ExpenseStatus } from '@/types';
 import {
-  CreditCard,
-  Plus,
-  Search,
-  Filter,
-  Calendar,
+  AlertTriangle,
   Building,
+  Calendar,
   CheckCircle,
   Clock,
-  XCircle,
-  AlertTriangle,
+  CreditCard,
   DollarSign,
-  FileText,
   Download,
-  Upload,
-  Tag,
-  Loader2,
   Edit,
+  FileText,
+  Filter,
+  Loader2,
+  Plus,
+  Search,
+  Tag,
   Trash2,
+  Upload,
+  XCircle,
 } from 'lucide-react';
 
 export default function ExpensesPage() {
@@ -51,8 +50,6 @@ export default function ExpensesPage() {
 
   // Get data from backend
   const { data: expensesData, isLoading, error } = useExpenses();
-  const { data: summaryData } = useExpensesSummary(filterMonth);
-
   // Mutations
   const createExpense = useCreateExpense();
   const updateExpense = useUpdateExpense();
@@ -86,7 +83,7 @@ export default function ExpensesPage() {
       const matchesLocation =
         filterLocation === 'all' || expense.location_id === filterLocation;
 
-      const expenseMonth = new Date(expense.created_at)
+      const expenseMonth = new Date(expense.createdAt)
         .toISOString()
         .substring(0, 7);
       const matchesMonth = expenseMonth === filterMonth;
@@ -488,7 +485,7 @@ export default function ExpensesPage() {
           {/* Expenses List */}
           <div className="space-y-4">
             {filteredExpenses.map((expense) => {
-              const expenseDate = new Date(expense.created_at);
+              const expenseDate = new Date(expense.createdAt);
               const folio = `GTO-${expenseDate.getFullYear()}-${expense.id.slice(0, 8).toUpperCase()}`;
 
               return (

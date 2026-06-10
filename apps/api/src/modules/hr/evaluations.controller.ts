@@ -1,13 +1,13 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Param,
+  Controller,
   Delete,
-  Query,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Post,
+  Query,
 } from '@nestjs/common';
 import { EvaluationsService } from './evaluations.service';
 import { CreateEvaluationDto, QueryEvaluationsDto } from './dto';
@@ -32,12 +32,16 @@ export class EvaluationsController {
   }
 
   @Get('stats')
-  async getStats(@Query('organization_id') organizationId: string): Promise<any> {
+  async getStats(
+    @Query('organization_id') organizationId: string,
+  ): Promise<any> {
     return this.evaluationsService.getStats(organizationId);
   }
 
   @Get('employee/:employeeId/history')
-  async getHistory(@Param('employeeId') employeeId: string): Promise<Evaluation[]> {
+  async getHistory(
+    @Param('employeeId') employeeId: string,
+  ): Promise<Evaluation[]> {
     return this.evaluationsService.getEmployeeHistory(employeeId);
   }
 

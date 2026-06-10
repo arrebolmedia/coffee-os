@@ -1,9 +1,11 @@
-import { ChecklistType, ChecklistCategory } from '../dto';
+import { ChecklistCategory, ChecklistType } from '../dto';
 
 export interface ChecklistItem {
   id: string;
   description: string;
-  category: ChecklistCategory;
+  // Not stored on the Prisma ChecklistItem model. Returned as null until a
+  // migration adds `category ChecklistCategory` to checklist_items.
+  category: ChecklistCategory | null;
   regulation_reference?: string;
   notes?: string;
   completed: boolean;
