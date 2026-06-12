@@ -6,7 +6,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { expensesService } from '@/services/expenses.service';
 import { useAuth } from '@/hooks/use-auth';
-import { Expense, PaginationParams } from '@/types';
+import { Expense } from '@/types';
 import toast from 'react-hot-toast';
 
 // Query keys
@@ -26,23 +26,18 @@ export const expensesKeys = {
 /**
  * Hook to get expenses list
  */
-export function useExpenses(
-  filters?: {
-    location_id?: string;
-    category?: string;
-    status?: string;
-    start_date?: string;
-    end_date?: string;
-  },
-  pagination?: PaginationParams,
-) {
+export function useExpenses(filters?: {
+  location_id?: string;
+  start_date?: string;
+  end_date?: string;
+  search?: string;
+}) {
   const { user } = useAuth();
   const organizationId = user?.organizationId || '';
 
   return useQuery({
-    queryKey: expensesKeys.list(organizationId, { filters, pagination }),
-    queryFn: () =>
-      expensesService.getExpenses(organizationId, filters, pagination),
+    queryKey: expensesKeys.list(organizationId, { filters }),
+    queryFn: () => expensesService.getExpenses(organizationId, filters),
     enabled: !!organizationId,
     staleTime: 120000, // 2 minutes
   });
@@ -155,9 +150,8 @@ export function useMarkExpenseAsPaid() {
       id: string;
       data: {
         payment_method: string;
-        payment_reference?: string;
+        reference?: string;
         paid_date?: string;
-        notes?: string;
       };
     }) => expensesService.markAsPaid(id, data),
     onSuccess: (expense) => {

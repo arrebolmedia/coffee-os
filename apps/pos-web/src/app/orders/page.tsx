@@ -102,9 +102,10 @@ export default function OrdersPage() {
       ['PENDING', 'IN_PROGRESS', 'CONFIRMED'].includes(o.status),
     ).length,
     cancelled: orders.filter((o) => o.status === 'CANCELLED').length,
+    // Los montos viven en el Ticket asociado, no en Order
     totalRevenue: orders
       .filter((o) => o.status === 'COMPLETED')
-      .reduce((sum, o) => sum + o.total, 0),
+      .reduce((sum, o) => sum + (o.ticket?.total ?? 0), 0),
   };
 
   return (
@@ -293,11 +294,11 @@ export default function OrdersPage() {
                       <tr key={order.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4">
                           <div className="text-sm font-medium text-gray-900">
-                            {order.order_number}
+                            {order.orderNumber}
                           </div>
                           <div className="text-xs text-gray-500 flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
-                            {order.location_id}
+                            {order.locationId}
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -315,15 +316,17 @@ export default function OrdersPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1 text-sm">
                             <User className="w-4 h-4 text-gray-400" />
-                            {order.customer ? (
+                            {/* GET /orders no incluye ticket.customer; usamos
+                                customerName del propio Order si existe */}
+                            {order.customerName ||
+                            order.ticket?.customer?.firstName ? (
+                              order.customerName ||
                               [
-                                order.customer.firstName,
-                                order.customer.lastName,
+                                order.ticket?.customer?.firstName,
+                                order.ticket?.customer?.lastName,
                               ]
                                 .filter(Boolean)
-                                .join(' ') ||
-                              order.customer.phone ||
-                              'Cliente'
+                                .join(' ')
                             ) : (
                               <span className="text-gray-400 italic">
                                 Cliente público
@@ -338,12 +341,14 @@ export default function OrdersPage() {
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-sm font-semibold text-green-600">
-                            ${order.total.toFixed(2)}
+                            ${(order.ticket?.total ?? 0).toFixed(2)}
                           </span>
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-sm text-gray-900">
-                            {order.payment_method || '—'}
+                            {/* Los pagos viven en el Ticket; el include actual
+                                no los trae, así que normalmente será "—" */}
+                            {order.ticket?.payments?.[0]?.method ?? '—'}
                           </span>
                         </td>
                         <td className="px-6 py-4">

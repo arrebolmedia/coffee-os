@@ -27,18 +27,24 @@ class ProductsService {
   ): Promise<PaginatedResponse<Product>> {
     const params = new URLSearchParams();
 
+    // Solo se envían los parámetros que QueryProductsDto del backend acepta
+    // (la API usa ValidationPipe con forbidNonWhitelisted: cualquier query
+    // param desconocido responde 400). Soportados: organization_id,
+    // category_id, search, type, status, is_available, is_featured,
+    // track_inventory, low_stock, min_price, max_price, sort_by, order.
     if (filters?.search) params.append('search', filters.search);
     if (filters?.category_id) params.append('category_id', filters.category_id);
     if (filters?.status) params.append('status', filters.status);
     if (filters?.type) params.append('type', filters.type);
-    if (filters?.in_stock !== undefined)
-      params.append('in_stock', String(filters.in_stock));
-
-    if (pagination?.page) params.append('page', String(pagination.page));
-    if (pagination?.limit) params.append('limit', String(pagination.limit));
+    if (filters?.min_price !== undefined)
+      params.append('min_price', String(filters.min_price));
+    if (filters?.max_price !== undefined)
+      params.append('max_price', String(filters.max_price));
+    // `in_stock` no existe en el backend — el POS re-filtra stock client-side.
+    // `page`/`limit` tampoco existen (el endpoint no pagina); la paginación
+    // del PaginatedResponse se resuelve client-side más abajo.
     if (pagination?.sort_by) params.append('sort_by', pagination.sort_by);
-    if (pagination?.sort_order)
-      params.append('sort_order', pagination.sort_order);
+    if (pagination?.sort_order) params.append('order', pagination.sort_order);
 
     const queryString = params.toString();
     const url = queryString ? `${this.baseUrl}?${queryString}` : this.baseUrl;
@@ -78,13 +84,14 @@ class ProductsService {
   }
 
   async getProductByBarcode(
-    barcode: string,
-    organizationId: string,
+    _barcode: string,
+    _organizationId: string,
   ): Promise<Product> {
-    const response = await api.get<any>(
-      `${this.baseUrl}/barcode/${barcode}?organization_id=${organizationId}`,
+    // TODO(backend): no existe GET /products/barcode/:barcode en la API.
+    // Cuando el backend lo exponga, implementar la llamada real aquí.
+    throw new Error(
+      'Búsqueda por código de barras no disponible: el backend no expone GET /products/barcode/:barcode',
     );
-    return this.unwrapSingle<Product>(response);
   }
 
   async createProduct(data: Partial<Product>): Promise<Product> {
@@ -123,7 +130,8 @@ class ProductsService {
   }
 
   async updateCategory(id: string, data: Partial<Category>): Promise<Category> {
-    const response = await api.put<any>(`/categories/${id}`, data);
+    // El backend solo expone @Patch(':id') en CategoriesController.
+    const response = await api.patch<any>(`/categories/${id}`, data);
     return this.unwrapSingle<Category>(response);
   }
 
@@ -166,10 +174,14 @@ class ProductsService {
   // ============================================================================
 
   async checkStock(
-    productId: string,
+    _productId: string,
   ): Promise<{ in_stock: boolean; quantity: number }> {
-    const response = await api.get<any>(`${this.baseUrl}/${productId}/stock`);
-    return this.unwrapSingle<{ in_stock: boolean; quantity: number }>(response);
+    // TODO(backend): no existe GET /products/:id/stock en la API (solo
+    // PATCH /products/:id/stock para ajustar). Mientras tanto, el stock se
+    // lee de Product.stockQuantity en GET /products/:id.
+    throw new Error(
+      'Consulta de stock no disponible: el backend no expone GET /products/:id/stock',
+    );
   }
 
   async updateStock(

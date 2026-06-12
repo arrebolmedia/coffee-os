@@ -21,6 +21,11 @@ interface CustomerFormData {
   preferences?: string;
   allergies?: string;
   notes?: string;
+  // LFPDPPP — el backend exige estos booleanos al crear
+  consent_marketing: boolean;
+  consent_whatsapp: boolean;
+  consent_email: boolean;
+  consent_sms: boolean;
 }
 
 interface CustomerModalProps {
@@ -50,6 +55,10 @@ export function CustomerModal({
     preferences: '',
     allergies: '',
     notes: '',
+    consent_marketing: false,
+    consent_whatsapp: false,
+    consent_email: false,
+    consent_sms: false,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -72,6 +81,10 @@ export function CustomerModal({
         preferences: customer.dietaryRestrictions || '',
         allergies: customer.allergies || '',
         notes: customer.notes || '',
+        consent_marketing: customer.consentMarketing ?? false,
+        consent_whatsapp: customer.consentWhatsapp ?? false,
+        consent_email: customer.consentEmail ?? false,
+        consent_sms: customer.consentSms ?? false,
       });
     } else {
       setFormData({
@@ -86,6 +99,10 @@ export function CustomerModal({
         preferences: '',
         allergies: '',
         notes: '',
+        consent_marketing: false,
+        consent_whatsapp: false,
+        consent_email: false,
+        consent_sms: false,
       });
     }
     setErrors({});
@@ -96,8 +113,12 @@ export function CustomerModal({
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >,
   ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target as HTMLInputElement;
+    const checked = (e.target as HTMLInputElement).checked;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
@@ -108,6 +129,9 @@ export function CustomerModal({
 
     if (!formData.name?.trim()) {
       newErrors.name = 'El nombre es requerido';
+    } else if (formData.name.trim().split(/\s+/).length < 2) {
+      // El backend (CreateCustomerDto) exige first_name Y last_name no vacíos
+      newErrors.name = 'Ingresa nombre y apellido';
     }
 
     if (!formData.phone?.trim()) {
@@ -127,19 +151,22 @@ export function CustomerModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validate()) {
-      // Map form fields to Prisma Customer fields
+      // El servicio mapea estos campos camelCase al DTO snake_case del backend
+      // (CreateCustomerDto exige first_name/last_name + consent_* booleanos).
       const nameParts = (formData.name || '').trim().split(/\s+/);
       const dataToSave: Partial<Customer> = {
         firstName: nameParts[0] || '',
         lastName: nameParts.slice(1).join(' ') || '',
         email: formData.email,
         phone: formData.phone,
-        dateOfBirth: formData.date_of_birth
-          ? new Date(formData.date_of_birth)
-          : undefined,
+        dateOfBirth: formData.date_of_birth || undefined,
         dietaryRestrictions: formData.preferences,
         allergies: formData.allergies,
         notes: formData.notes,
+        consentMarketing: formData.consent_marketing,
+        consentWhatsapp: formData.consent_whatsapp,
+        consentEmail: formData.consent_email,
+        consentSms: formData.consent_sms,
       };
       onSave(dataToSave);
     }
@@ -385,6 +412,56 @@ export function CustomerModal({
                     placeholder="Cliente frecuente, prefiere mesa junto a la ventana..."
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* Consentimientos LFPDPPP */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                <Phone className="w-4 h-4" />
+                Consentimientos de Contacto (LFPDPPP)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    name="consent_marketing"
+                    checked={formData.consent_marketing}
+                    onChange={handleChange}
+                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  />
+                  Acepta comunicaciones de marketing
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    name="consent_whatsapp"
+                    checked={formData.consent_whatsapp}
+                    onChange={handleChange}
+                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  />
+                  Acepta mensajes por WhatsApp
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    name="consent_email"
+                    checked={formData.consent_email}
+                    onChange={handleChange}
+                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  />
+                  Acepta comunicaciones por email
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    name="consent_sms"
+                    checked={formData.consent_sms}
+                    onChange={handleChange}
+                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  />
+                  Acepta mensajes SMS
+                </label>
               </div>
             </div>
 

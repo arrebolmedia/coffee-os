@@ -1,9 +1,20 @@
 /**
  * CoffeeOS - Supplier Performance Service
- * Servicio para evaluación de desempeño de proveedores
+ *
+ * MÓDULO SIN BACKEND: no existe ningún controller /supplier-performance,
+ * /supplier-evaluations ni /supplier-issues en CoffeeOS API. Los 17 métodos
+ * lanzan un Error explícito en lugar de pegar a rutas fantasma (404
+ * silencioso).
+ *
+ * TODO(backend): implementar los módulos supplier-performance /
+ * supplier-evaluations / supplier-issues en apps/api y reconectar estos
+ * métodos (las URLs originales quedaron documentadas en el historial de git).
  */
 
-import { api } from '@/lib/api';
+const NOT_IMPLEMENTED = (feature: string) =>
+  new Error(
+    `Módulo de desempeño de proveedores no disponible: el backend de ${feature} aún no existe en CoffeeOS API.`,
+  );
 
 export interface SupplierPerformanceMetrics {
   supplier_id: string;
@@ -145,205 +156,102 @@ export interface CreateIssueDTO {
 }
 
 export class SupplierPerformanceService {
-  /**
-   * Get supplier performance metrics
-   */
   static async getSupplierPerformance(
-    supplierId: string,
-    dateRange?: { from: string; to: string },
+    _supplierId: string,
+    _dateRange?: { from: string; to: string },
   ): Promise<SupplierPerformanceMetrics> {
-    let url = `/supplier-performance/${supplierId}`;
-
-    if (dateRange) {
-      url += `?from=${dateRange.from}&to=${dateRange.to}`;
-    }
-
-    return await api.get<SupplierPerformanceMetrics>(url);
+    throw NOT_IMPLEMENTED('métricas de desempeño');
   }
 
-  /**
-   * Get all suppliers performance for organization
-   */
   static async getAllSuppliersPerformance(
-    organizationId: string,
-    dateRange?: { from: string; to: string },
+    _organizationId: string,
+    _dateRange?: { from: string; to: string },
   ): Promise<SupplierPerformanceMetrics[]> {
-    let url = `/supplier-performance/organization/${organizationId}`;
-
-    if (dateRange) {
-      url += `?from=${dateRange.from}&to=${dateRange.to}`;
-    }
-
-    return await api.get<SupplierPerformanceMetrics[]>(url);
+    throw NOT_IMPLEMENTED('métricas de desempeño');
   }
 
-  /**
-   * Compare suppliers by category
-   */
   static async compareSuppliers(
-    organizationId: string,
-    category?: string,
-    dateRange?: { from: string; to: string },
+    _organizationId: string,
+    _category?: string,
+    _dateRange?: { from: string; to: string },
   ): Promise<SupplierComparison[]> {
-    let url = `/supplier-performance/organization/${organizationId}/compare`;
-    const params = new URLSearchParams();
-
-    if (category) params.append('category', category);
-    if (dateRange?.from) params.append('from', dateRange.from);
-    if (dateRange?.to) params.append('to', dateRange.to);
-
-    if (params.toString()) {
-      url += `?${params.toString()}`;
-    }
-
-    return await api.get<SupplierComparison[]>(url);
+    throw NOT_IMPLEMENTED('comparación de proveedores');
   }
 
-  /**
-   * Get supplier evaluations
-   */
   static async getSupplierEvaluations(
-    supplierId: string,
+    _supplierId: string,
   ): Promise<SupplierEvaluation[]> {
-    return await api.get<SupplierEvaluation[]>(
-      `/supplier-evaluations/supplier/${supplierId}`,
-    );
+    throw NOT_IMPLEMENTED('evaluaciones de proveedores');
   }
 
-  /**
-   * Get evaluation by ID
-   */
   static async getEvaluation(
-    evaluationId: string,
+    _evaluationId: string,
   ): Promise<SupplierEvaluation> {
-    return await api.get<SupplierEvaluation>(
-      `/supplier-evaluations/${evaluationId}`,
-    );
+    throw NOT_IMPLEMENTED('evaluaciones de proveedores');
   }
 
-  /**
-   * Create supplier evaluation
-   */
   static async createEvaluation(
-    data: CreateEvaluationDTO,
+    _data: CreateEvaluationDTO,
   ): Promise<SupplierEvaluation> {
-    return await api.post<SupplierEvaluation>('/supplier-evaluations', data);
+    throw NOT_IMPLEMENTED('evaluaciones de proveedores');
   }
 
-  /**
-   * Update supplier evaluation
-   */
   static async updateEvaluation(
-    evaluationId: string,
-    data: Partial<CreateEvaluationDTO>,
+    _evaluationId: string,
+    _data: Partial<CreateEvaluationDTO>,
   ): Promise<SupplierEvaluation> {
-    return await api.put<SupplierEvaluation>(
-      `/supplier-evaluations/${evaluationId}`,
-      data,
-    );
+    throw NOT_IMPLEMENTED('evaluaciones de proveedores');
   }
 
-  /**
-   * Delete supplier evaluation
-   */
-  static async deleteEvaluation(evaluationId: string): Promise<void> {
-    await api.delete(`/supplier-evaluations/${evaluationId}`);
+  static async deleteEvaluation(_evaluationId: string): Promise<void> {
+    throw NOT_IMPLEMENTED('evaluaciones de proveedores');
   }
 
-  /**
-   * Get supplier issues
-   */
   static async getSupplierIssues(
-    supplierId: string,
-    status?: string,
+    _supplierId: string,
+    _status?: string,
   ): Promise<SupplierIssue[]> {
-    let url = `/supplier-issues/supplier/${supplierId}`;
-
-    if (status) {
-      url += `?status=${status}`;
-    }
-
-    return await api.get<SupplierIssue[]>(url);
+    throw NOT_IMPLEMENTED('incidencias de proveedores');
   }
 
-  /**
-   * Get all issues for organization
-   */
   static async getOrganizationIssues(
-    organizationId: string,
-    filters?: {
+    _organizationId: string,
+    _filters?: {
       supplier_id?: string;
       status?: string;
       severity?: string;
       issue_type?: string;
     },
   ): Promise<SupplierIssue[]> {
-    let url = `/supplier-issues/organization/${organizationId}`;
-    const params = new URLSearchParams();
-
-    if (filters?.supplier_id) params.append('supplier_id', filters.supplier_id);
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.severity) params.append('severity', filters.severity);
-    if (filters?.issue_type) params.append('issue_type', filters.issue_type);
-
-    if (params.toString()) {
-      url += `?${params.toString()}`;
-    }
-
-    return await api.get<SupplierIssue[]>(url);
+    throw NOT_IMPLEMENTED('incidencias de proveedores');
   }
 
-  /**
-   * Create supplier issue
-   */
-  static async createIssue(data: CreateIssueDTO): Promise<SupplierIssue> {
-    return await api.post<SupplierIssue>('/supplier-issues', data);
+  static async createIssue(_data: CreateIssueDTO): Promise<SupplierIssue> {
+    throw NOT_IMPLEMENTED('incidencias de proveedores');
   }
 
-  /**
-   * Update supplier issue
-   */
   static async updateIssue(
-    issueId: string,
-    data: Partial<CreateIssueDTO>,
+    _issueId: string,
+    _data: Partial<CreateIssueDTO>,
   ): Promise<SupplierIssue> {
-    return await api.put<SupplierIssue>(`/supplier-issues/${issueId}`, data);
+    throw NOT_IMPLEMENTED('incidencias de proveedores');
   }
 
-  /**
-   * Resolve supplier issue
-   */
   static async resolveIssue(
-    issueId: string,
-    resolution: string,
-    resolvedBy: string,
+    _issueId: string,
+    _resolution: string,
+    _resolvedBy: string,
   ): Promise<SupplierIssue> {
-    return await api.post<SupplierIssue>(
-      `/supplier-issues/${issueId}/resolve`,
-      {
-        resolution,
-        resolved_by: resolvedBy,
-        resolved_date: new Date().toISOString(),
-      },
-    );
+    throw NOT_IMPLEMENTED('incidencias de proveedores');
   }
 
-  /**
-   * Close supplier issue
-   */
-  static async closeIssue(issueId: string): Promise<SupplierIssue> {
-    return await api.post<SupplierIssue>(
-      `/supplier-issues/${issueId}/close`,
-      {},
-    );
+  static async closeIssue(_issueId: string): Promise<SupplierIssue> {
+    throw NOT_IMPLEMENTED('incidencias de proveedores');
   }
 
-  /**
-   * Get performance trends
-   */
   static async getPerformanceTrends(
-    supplierId: string,
-    months: number = 12,
+    _supplierId: string,
+    _months: number = 12,
   ): Promise<
     {
       month: string;
@@ -354,42 +262,22 @@ export class SupplierPerformanceService {
       total_spent: number;
     }[]
   > {
-    return await api.get(
-      `/supplier-performance/${supplierId}/trends?months=${months}`,
-    );
+    throw NOT_IMPLEMENTED('tendencias de desempeño');
   }
 
-  /**
-   * Get top performing suppliers
-   */
   static async getTopPerformers(
-    organizationId: string,
-    limit: number = 10,
-    dateRange?: { from: string; to: string },
+    _organizationId: string,
+    _limit: number = 10,
+    _dateRange?: { from: string; to: string },
   ): Promise<SupplierPerformanceMetrics[]> {
-    let url = `/supplier-performance/organization/${organizationId}/top?limit=${limit}`;
-
-    if (dateRange) {
-      url += `&from=${dateRange.from}&to=${dateRange.to}`;
-    }
-
-    return await api.get<SupplierPerformanceMetrics[]>(url);
+    throw NOT_IMPLEMENTED('ranking de proveedores');
   }
 
-  /**
-   * Get underperforming suppliers
-   */
   static async getUnderperformers(
-    organizationId: string,
-    threshold: number = 3.0,
-    dateRange?: { from: string; to: string },
+    _organizationId: string,
+    _threshold: number = 3.0,
+    _dateRange?: { from: string; to: string },
   ): Promise<SupplierPerformanceMetrics[]> {
-    let url = `/supplier-performance/organization/${organizationId}/underperformers?threshold=${threshold}`;
-
-    if (dateRange) {
-      url += `&from=${dateRange.from}&to=${dateRange.to}`;
-    }
-
-    return await api.get<SupplierPerformanceMetrics[]>(url);
+    throw NOT_IMPLEMENTED('ranking de proveedores');
   }
 }

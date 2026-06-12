@@ -1,6 +1,10 @@
 /**
  * CoffeeOS POS Web - Employees Hooks
- * React Query hooks para gestión de empleados (Users)
+ * React Query hooks para gestión de empleados (HR)
+ *
+ * Contrato alineado al backend `/hr/employees`
+ * (apps/api/src/modules/hr/employees.service.ts): el wire format es
+ * snake_case y `role`/`employment_type` son strings de enum.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -8,83 +12,100 @@ import { useAuth } from '@/hooks/use-auth';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 
-// Types
+// Enums del backend (apps/api/src/modules/hr/dto/create-employee.dto.ts)
+export type EmployeeStatus = 'ACTIVE' | 'INACTIVE' | 'ON_LEAVE' | 'TERMINATED';
+
+export type EmploymentType =
+  | 'FULL_TIME'
+  | 'PART_TIME'
+  | 'TEMPORARY'
+  | 'CONTRACT';
+
+export type EmployeeRole =
+  | 'BARISTA'
+  | 'CASHIER'
+  | 'COOK'
+  | 'MANAGER'
+  | 'ASSISTANT_MANAGER'
+  | 'SHIFT_SUPERVISOR'
+  | 'CLEANER'
+  | 'DELIVERY';
+
+// Shape real que devuelve el backend (snake_case)
 export interface Employee {
   id: string;
-  organizationId: string;
-  roleId: string;
+  first_name: string;
+  last_name: string;
   email: string;
-  firstName: string;
-  lastName: string;
   phone: string;
-  avatar?: string;
-  active: boolean;
-  createdAt: string;
-  updatedAt: string;
-  role?: {
-    id: string;
-    name: string;
-  };
-  locations?: Array<{
-    id: string;
-    name: string;
-  }>;
-  // Extended HR fields (stored in metadata or separate table)
-  dateOfBirth?: string;
-  gender?: string;
-  bloodType?: string;
-  allergies?: string;
-  position?: string;
-  department?: string;
-  hireDate?: string;
-  salary?: number;
-  curp?: string;
-  rfc?: string;
-  nss?: string;
-  emergencyContact?: string;
-  emergencyContactPhone?: string;
-  emergencyContactRelation?: string;
+  organization_id: string;
+  location_id: string;
+  role: EmployeeRole | '';
+  employment_type: EmploymentType | '';
+  status: EmployeeStatus;
+  hire_date: string;
+  termination_date?: string;
+  termination_reason?: string;
+  hourly_rate?: number;
+  monthly_salary?: number;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
   address?: string;
   city?: string;
   state?: string;
-  postalCode?: string;
-  notes?: string;
+  postal_code?: string;
+  rfc?: string;
+  curp?: string;
+  nss?: string;
+  created_at: string;
+  updated_at: string;
 }
 
+// Espejo del CreateEmployeeDto real del backend
 export interface CreateEmployeeDTO {
-  firstName: string;
-  lastName: string;
+  first_name: string;
+  last_name: string;
   email: string;
   phone: string;
-  password: string; // Required for user creation
-  roleId: string;
-  organizationId: string;
-  locationIds: string[];
-  active: boolean;
-  // Extended fields
-  dateOfBirth?: string;
-  gender?: string;
-  bloodType?: string;
-  allergies?: string;
-  position?: string;
-  department?: string;
-  hireDate?: string;
-  salary?: number;
-  curp?: string;
-  rfc?: string;
-  nss?: string;
-  emergencyContact?: string;
-  emergencyContactPhone?: string;
-  emergencyContactRelation?: string;
+  organization_id: string;
+  location_id: string;
+  role_id: string; // Prisma Role id (User.roleId FK)
+  role: EmployeeRole;
+  employment_type: EmploymentType;
+  hire_date: string;
+  hourly_rate?: number;
+  monthly_salary?: number;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
   address?: string;
   city?: string;
   state?: string;
-  postalCode?: string;
-  notes?: string;
+  postal_code?: string;
+  rfc?: string;
+  curp?: string;
+  nss?: string;
 }
 
-export interface UpdateEmployeeDTO extends Partial<CreateEmployeeDTO> {
-  id: string;
+// Espejo del UpdateEmployeeDto real del backend
+export interface UpdateEmployeeDTO {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  location_id?: string;
+  role?: EmployeeRole;
+  employment_type?: EmploymentType;
+  status?: EmployeeStatus;
+  hourly_rate?: number;
+  monthly_salary?: number;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  termination_date?: string;
+  termination_reason?: string;
 }
 
 // Query keys
@@ -108,10 +129,8 @@ const employeesAPI = {
   createEmployee: (data: CreateEmployeeDTO): Promise<Employee> =>
     api.post('/hr/employees', data),
 
-  updateEmployee: (
-    id: string,
-    data: Partial<UpdateEmployeeDTO>,
-  ): Promise<Employee> => api.patch(`/hr/employees/${id}`, data),
+  updateEmployee: (id: string, data: UpdateEmployeeDTO): Promise<Employee> =>
+    api.patch(`/hr/employees/${id}`, data),
 
   deleteEmployee: (id: string): Promise<void> =>
     api.delete(`/hr/employees/${id}`),
@@ -124,8 +143,7 @@ const employeesAPI = {
  * Hook to get employees list
  */
 export function useEmployees(filters?: {
-  roleId?: string;
-  status?: 'active' | 'inactive';
+  status?: EmployeeStatus;
   search?: string;
 }) {
   const { user } = useAuth();
@@ -160,27 +178,18 @@ export function useCreateEmployee() {
   const organizationId = user?.organizationId || '';
 
   return useMutation({
-    mutationFn: (
-      data: Omit<CreateEmployeeDTO, 'organizationId' | 'password'> & {
-        password?: string;
-      },
-    ) => {
-      // Generate default password if not provided
-      const password =
-        data.password || `Temp${Math.random().toString(36).slice(-8)}!`;
-      return employeesAPI.createEmployee({
+    mutationFn: (data: Omit<CreateEmployeeDTO, 'organization_id'>) =>
+      employeesAPI.createEmployee({
         ...data,
-        organizationId,
-        password,
-      });
-    },
+        organization_id: organizationId,
+      }),
     onSuccess: (employee) => {
       queryClient.invalidateQueries({ queryKey: employeesKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: employeesKeys.stats(organizationId),
       });
       toast.success(
-        `Empleado ${employee.firstName} ${employee.lastName} creado exitosamente`,
+        `Empleado ${employee.first_name} ${employee.last_name} creado exitosamente`,
       );
     },
     onError: (error: any) => {
@@ -198,13 +207,8 @@ export function useUpdateEmployee() {
   const organizationId = user?.organizationId || '';
 
   return useMutation({
-    mutationFn: ({
-      id,
-      data,
-    }: {
-      id: string;
-      data: Partial<UpdateEmployeeDTO>;
-    }) => employeesAPI.updateEmployee(id, data),
+    mutationFn: ({ id, data }: { id: string; data: UpdateEmployeeDTO }) =>
+      employeesAPI.updateEmployee(id, data),
     onSuccess: (employee) => {
       queryClient.invalidateQueries({ queryKey: employeesKeys.lists() });
       queryClient.invalidateQueries({

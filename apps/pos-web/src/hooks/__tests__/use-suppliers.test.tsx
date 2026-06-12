@@ -35,8 +35,8 @@ describe('useSuppliers Hook', () => {
   describe('useSuppliers', () => {
     it('should fetch suppliers successfully', async () => {
       const mockSuppliers = [
-        { id: '1', name: 'Coffee Beans Co.', category: 'coffee' },
-        { id: '2', name: 'Milk Dairy', category: 'dairy' },
+        { id: '1', name: 'Coffee Beans Co.', active: true },
+        { id: '2', name: 'Milk Dairy', active: true },
       ];
 
       (SuppliersService.getSuppliers as jest.Mock).mockResolvedValue(
@@ -85,11 +85,12 @@ describe('useSuppliers Hook', () => {
       const newSupplier = {
         organization_id: mockOrganizationId,
         name: 'New Supplier',
-        business_name: 'New Supplier S.A.',
-        category: 'packaging',
-        contact_name: 'John Doe',
-        contact_email: 'john@supplier.com',
-        contact_phone: '555-1234',
+        contact_person: 'John Doe',
+        email: 'john@supplier.com',
+        phone: '555-1234',
+        payment_terms: '30 días',
+        lead_time_days: 5,
+        active: true,
       };
 
       const mockCreated = { id: 'new-supplier', ...newSupplier };
@@ -132,7 +133,7 @@ describe('useSuppliers Hook', () => {
   describe('useUpdateSupplier', () => {
     it('should update a supplier successfully', async () => {
       const supplierId = 'supplier-123';
-      const updateData = { name: 'Updated Name', rating: 5 };
+      const updateData = { name: 'Updated Name', payment_terms: '45 días' };
       const mockUpdated = { id: supplierId, ...updateData };
 
       (SuppliersService.updateSupplier as jest.Mock).mockResolvedValue(

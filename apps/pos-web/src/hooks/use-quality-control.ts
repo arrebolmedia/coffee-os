@@ -5,10 +5,15 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  ChecklistCategory,
+  ChecklistType,
+  CompleteChecklistDTO,
+  CreateChecklistDTO,
   CreateChecklistExecutionDTO,
   CreateCorrectiveActionDTO,
   CreateTemperatureLogDTO,
   QualityControlService,
+  TemperatureLogFilters,
   UpdateChecklistExecutionDTO,
 } from '@/services/quality-control.service';
 import { useAuth } from '@/hooks/use-auth';
@@ -17,6 +22,12 @@ import toast from 'react-hot-toast';
 // Query keys
 export const qualityControlKeys = {
   all: ['quality-control'] as const,
+
+  // Checklists (backend real)
+  checklists: (orgId: string, filters?: any) =>
+    [...qualityControlKeys.all, 'checklists', orgId, filters] as const,
+  checklistStats: (orgId: string, locationId?: string) =>
+    [...qualityControlKeys.all, 'checklist-stats', orgId, locationId] as const,
 
   // Checklist templates
   templates: (orgId: string) =>
@@ -33,8 +44,10 @@ export const qualityControlKeys = {
   // Temperature logs
   tempLogs: (orgId: string, filters?: any) =>
     [...qualityControlKeys.all, 'temp-logs', orgId, filters] as const,
-  tempAlerts: (orgId: string, acknowledged?: boolean) =>
-    [...qualityControlKeys.all, 'temp-alerts', orgId, acknowledged] as const,
+  tempAlerts: (orgId: string, locationId?: string) =>
+    [...qualityControlKeys.all, 'temp-alerts', orgId, locationId] as const,
+  tempStats: (orgId: string, locationId?: string) =>
+    [...qualityControlKeys.all, 'temp-stats', orgId, locationId] as const,
 
   // Compliance
   complianceReport: (orgId: string, dateRange: any) =>
@@ -51,7 +64,92 @@ export const qualityControlKeys = {
     [...qualityControlKeys.all, 'audit-trail', orgId, filters] as const,
 };
 
+// ============= CHECKLISTS (backend real: /quality/checklists) =============
+
+export function useChecklists(
+  filters?: {
+    location_id?: string;
+    type?: ChecklistType;
+    category?: ChecklistCategory;
+    start_date?: string;
+    end_date?: string;
+    completed?: boolean;
+  },
+  enabled = true,
+) {
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
+
+  return useQuery({
+    queryKey: qualityControlKeys.checklists(organizationId, filters),
+    queryFn: () => QualityControlService.getChecklists(organizationId, filters),
+    enabled: enabled && !!organizationId,
+    staleTime: 60000, // 1 minute
+  });
+}
+
+export function useChecklistStats(locationId?: string, enabled = true) {
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
+
+  return useQuery({
+    queryKey: qualityControlKeys.checklistStats(organizationId, locationId),
+    queryFn: () =>
+      QualityControlService.getChecklistComplianceStats(
+        organizationId,
+        locationId,
+      ),
+    enabled: enabled && !!organizationId,
+    staleTime: 300000, // 5 minutes
+  });
+}
+
+export function useCreateChecklist() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
+
+  return useMutation({
+    mutationFn: (data: Omit<CreateChecklistDTO, 'organization_id'>) =>
+      QualityControlService.createChecklist({
+        ...data,
+        organization_id: organizationId,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: qualityControlKeys.checklists(organizationId),
+      });
+      toast.success('Checklist creado exitosamente');
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || 'Error al crear checklist');
+    },
+  });
+}
+
+export function useCompleteChecklist() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: CompleteChecklistDTO }) =>
+      QualityControlService.completeChecklist(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: qualityControlKeys.checklists(organizationId),
+      });
+      toast.success('Checklist completado exitosamente');
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || 'Error al completar checklist');
+    },
+  });
+}
+
 // ============= CHECKLIST TEMPLATES =============
+// NOTA: el backend de templates/ejecuciones aún no existe. Estos hooks quedan
+// para cuando se implemente; el service lanza un Error explícito hoy.
 
 export function useChecklistTemplates(enabled = true) {
   const { user } = useAuth();
@@ -264,12 +362,7 @@ export function useCompleteChecklistExecution() {
 // ============= TEMPERATURE LOGS =============
 
 export function useTemperatureLogs(
-  filters?: {
-    equipment_type?: string;
-    date_from?: string;
-    date_to?: string;
-    out_of_range_only?: boolean;
-  },
+  filters?: TemperatureLogFilters,
   enabled = true,
 ) {
   const { user } = useAuth();
@@ -291,12 +384,15 @@ export function useCreateTemperatureLog() {
 
   return useMutation({
     mutationFn: (
-      data: Omit<CreateTemperatureLogDTO, 'organization_id' | 'recorded_by'>,
+      data: Omit<
+        CreateTemperatureLogDTO,
+        'organization_id' | 'recorded_by_user_id'
+      >,
     ) =>
       QualityControlService.createTemperatureLog({
         ...data,
         organization_id: organizationId,
-        recorded_by: user?.id || '',
+        recorded_by_user_id: user?.id || '',
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -315,16 +411,29 @@ export function useCreateTemperatureLog() {
   });
 }
 
-export function useTemperatureAlerts(acknowledged?: boolean, enabled = true) {
+export function useTemperatureAlerts(locationId?: string, enabled = true) {
   const { user } = useAuth();
   const organizationId = user?.organizationId || '';
 
   return useQuery({
-    queryKey: qualityControlKeys.tempAlerts(organizationId, acknowledged),
+    queryKey: qualityControlKeys.tempAlerts(organizationId, locationId),
     queryFn: () =>
-      QualityControlService.getTemperatureAlerts(organizationId, acknowledged),
+      QualityControlService.getTemperatureAlerts(organizationId, locationId),
     enabled: enabled && !!organizationId,
     staleTime: 30000, // 30 seconds
+  });
+}
+
+export function useTemperatureStats(locationId?: string, enabled = true) {
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
+
+  return useQuery({
+    queryKey: qualityControlKeys.tempStats(organizationId, locationId),
+    queryFn: () =>
+      QualityControlService.getTemperatureStats(organizationId, locationId),
+    enabled: enabled && !!organizationId,
+    staleTime: 300000, // 5 minutes
   });
 }
 

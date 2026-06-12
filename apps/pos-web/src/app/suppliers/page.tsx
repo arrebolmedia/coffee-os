@@ -20,16 +20,14 @@ import { Supplier } from '@/services/suppliers.service';
 import {
   AlertCircle,
   CheckCircle,
-  DollarSign,
+  Clock,
   Download,
   Edit,
-  Filter,
   Loader2,
   Mail,
   Phone,
   Plus,
   Search,
-  Star,
   Trash2,
   Truck,
   XCircle,
@@ -38,24 +36,17 @@ import {
 interface SupplierDisplay {
   id: string;
   name: string;
-  businessName: string;
-  rfc: string;
-  category: string;
-  rating: number;
-  status: 'active' | 'inactive' | 'pending';
-  contactName: string;
-  contactEmail: string;
-  contactPhone: string;
-  city: string;
-  state: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  address: string;
   paymentTerms: string;
-  productsSupplied: string[];
-  totalPurchases: number;
+  leadTimeDays: number | null;
+  active: boolean;
 }
 
 export default function SuppliersPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(
@@ -73,8 +64,7 @@ export default function SuppliersPage() {
     isLoading,
     error,
   } = useSuppliers({
-    category: filterCategory !== 'all' ? filterCategory : undefined,
-    status: filterStatus !== 'all' ? filterStatus : undefined,
+    active: filterStatus !== 'all' ? filterStatus === 'active' : undefined,
     search: searchQuery || undefined,
   });
   const { data: stats } = useSupplierStats();
@@ -91,19 +81,13 @@ export default function SuppliersPage() {
     return suppliersData.map((supplier) => ({
       id: supplier.id,
       name: supplier.name,
-      businessName: supplier.business_name,
-      rfc: supplier.rfc || '',
-      category: supplier.category,
-      rating: supplier.rating,
-      status: supplier.status,
-      contactName: supplier.contact_name,
-      contactEmail: supplier.contact_email || '',
-      contactPhone: supplier.contact_phone,
-      city: supplier.address_city || '',
-      state: supplier.address_state || '',
+      contactPerson: supplier.contact_person || '',
+      email: supplier.email || '',
+      phone: supplier.phone || '',
+      address: supplier.address || '',
       paymentTerms: supplier.payment_terms || '',
-      productsSupplied: supplier.products_supplied || [],
-      totalPurchases: supplier.total_purchases,
+      leadTimeDays: supplier.lead_time_days ?? null,
+      active: supplier.active,
     }));
   }, [suppliersData]);
 
@@ -112,26 +96,24 @@ export default function SuppliersPage() {
     return suppliers.filter((supplier) => {
       const matchesSearch = searchQuery
         ? supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          supplier.businessName
+          supplier.contactPerson
             .toLowerCase()
-            .includes(searchQuery.toLowerCase())
+            .includes(searchQuery.toLowerCase()) ||
+          supplier.email.toLowerCase().includes(searchQuery.toLowerCase())
         : true;
-      const matchesCategory =
-        filterCategory === 'all' || supplier.category === filterCategory;
       const matchesStatus =
-        filterStatus === 'all' || supplier.status === filterStatus;
-      return matchesSearch && matchesCategory && matchesStatus;
+        filterStatus === 'all' ||
+        (filterStatus === 'active' ? supplier.active : !supplier.active);
+      return matchesSearch && matchesStatus;
     });
-  }, [suppliers, searchQuery, filterCategory, filterStatus]);
+  }, [suppliers, searchQuery, filterStatus]);
 
   // Stats locales
   const localStats = useMemo(
     () => ({
       total: suppliers.length,
-      active: suppliers.filter((s) => s.status === 'active').length,
-      pending: suppliers.filter((s) => s.status === 'pending').length,
-      inactive: suppliers.filter((s) => s.status === 'inactive').length,
-      totalSpent: suppliers.reduce((sum, s) => sum + s.totalPurchases, 0),
+      active: suppliers.filter((s) => s.active).length,
+      inactive: suppliers.filter((s) => !s.active).length,
     }),
     [suppliers],
   );
@@ -148,19 +130,13 @@ export default function SuppliersPage() {
       id: supplier.id,
       organization_id: '', // Will be set by mutation
       name: supplier.name,
-      business_name: supplier.businessName,
-      rfc: supplier.rfc,
-      category: supplier.category,
-      rating: supplier.rating,
-      status: supplier.status,
-      contact_name: supplier.contactName,
-      contact_email: supplier.contactEmail,
-      contact_phone: supplier.contactPhone,
-      address_city: supplier.city,
-      address_state: supplier.state,
+      contact_person: supplier.contactPerson,
+      email: supplier.email,
+      phone: supplier.phone,
+      address: supplier.address,
       payment_terms: supplier.paymentTerms,
-      products_supplied: supplier.productsSupplied,
-      total_purchases: supplier.totalPurchases,
+      lead_time_days: supplier.leadTimeDays ?? undefined,
+      active: supplier.active,
       created_at: '',
       updated_at: '',
     };
@@ -260,7 +236,7 @@ export default function SuppliersPage() {
 
         <div className="container mx-auto px-4 py-8">
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -277,7 +253,7 @@ export default function SuppliersPage() {
                 <div>
                   <p className="text-sm text-gray-500">Activos</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {stats?.active_suppliers ?? localStats.active}
+                    {stats?.active_count ?? localStats.active}
                   </p>
                 </div>
                 <CheckCircle className="w-8 h-8 text-green-400" />
@@ -286,71 +262,29 @@ export default function SuppliersPage() {
             <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">Pendientes</p>
-                  <p className="text-2xl font-bold text-yellow-600">
-                    {stats?.pending_suppliers ?? localStats.pending}
-                  </p>
-                </div>
-                <AlertCircle className="w-8 h-8 text-yellow-400" />
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="flex items-center justify-between">
-                <div>
                   <p className="text-sm text-gray-500">Inactivos</p>
                   <p className="text-2xl font-bold text-red-600">
-                    {localStats.inactive}
+                    {stats?.inactive_count ?? localStats.inactive}
                   </p>
                 </div>
                 <XCircle className="w-8 h-8 text-red-400" />
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Total Comprado</p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    $
-                    {(
-                      stats?.total_purchases ?? localStats.totalSpent
-                    ).toLocaleString('es-MX')}
-                  </p>
-                </div>
-                <DollarSign className="w-8 h-8 text-blue-400" />
               </div>
             </div>
           </div>
 
           {/* Filters */}
           <div className="bg-white rounded-lg shadow p-4 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Search */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Buscar por nombre..."
+                  placeholder="Buscar por nombre, contacto o email..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-              </div>
-
-              {/* Category Filter */}
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <select
-                  value={filterCategory}
-                  onChange={(e) => setFilterCategory(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
-                >
-                  <option value="all">Todas las categorías</option>
-                  <option value="café">Café</option>
-                  <option value="lácteos">Lácteos</option>
-                  <option value="insumos">Insumos</option>
-                  <option value="empaque">Empaque</option>
-                  <option value="limpieza">Limpieza</option>
-                </select>
               </div>
 
               {/* Status Filter */}
@@ -364,7 +298,6 @@ export default function SuppliersPage() {
                   <option value="all">Todos los estados</option>
                   <option value="active">Activo</option>
                   <option value="inactive">Inactivo</option>
-                  <option value="pending">Pendiente</option>
                 </select>
               </div>
             </div>
@@ -379,16 +312,13 @@ export default function SuppliersPage() {
                     Proveedor
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    RFC
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Contacto
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Categoría
+                    Términos de Pago
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Calificación
+                    Tiempo de Entrega
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Estado
@@ -409,70 +339,54 @@ export default function SuppliersPage() {
                         <div className="text-sm font-medium text-gray-900">
                           {supplier.name}
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {supplier.businessName}
-                        </div>
+                        {supplier.address && (
+                          <div className="text-sm text-gray-500">
+                            {supplier.address}
+                          </div>
+                        )}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900 font-mono">
-                        {supplier.rfc || 'N/A'}
-                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm">
                         <div className="font-medium text-gray-900">
-                          {supplier.contactName}
+                          {supplier.contactPerson || '—'}
                         </div>
-                        <div className="text-gray-500 flex items-center gap-1 mt-1">
-                          <Phone className="w-3 h-3" />
-                          {supplier.contactPhone}
-                        </div>
-                        {supplier.contactEmail && (
+                        {supplier.phone && (
+                          <div className="text-gray-500 flex items-center gap-1 mt-1">
+                            <Phone className="w-3 h-3" />
+                            {supplier.phone}
+                          </div>
+                        )}
+                        {supplier.email && (
                           <div className="text-gray-500 flex items-center gap-1">
                             <Mail className="w-3 h-3" />
-                            {supplier.contactEmail}
+                            {supplier.email}
                           </div>
                         )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-gray-900">
-                        {supplier.category}
+                        {supplier.paymentTerms || '—'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-4 h-4 ${
-                              i < supplier.rating
-                                ? 'text-yellow-400 fill-yellow-400'
-                                : 'text-gray-300'
-                            }`}
-                          />
-                        ))}
-                        <span className="text-sm text-gray-600 ml-1">
-                          ({supplier.rating})
-                        </span>
+                      <div className="flex items-center gap-1 text-sm text-gray-900">
+                        <Clock className="w-4 h-4 text-gray-400" />
+                        {supplier.leadTimeDays != null
+                          ? `${supplier.leadTimeDays} días`
+                          : '—'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          supplier.status === 'active'
+                          supplier.active
                             ? 'bg-green-100 text-green-800'
-                            : supplier.status === 'pending'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-gray-100 text-gray-800'
+                            : 'bg-gray-100 text-gray-800'
                         }`}
                       >
-                        {supplier.status === 'active'
-                          ? 'Activo'
-                          : supplier.status === 'pending'
-                            ? 'Pendiente'
-                            : 'Inactivo'}
+                        {supplier.active ? 'Activo' : 'Inactivo'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -529,7 +443,7 @@ export default function SuppliersPage() {
           }}
           onConfirm={handleDeleteConfirm}
           title="Eliminar Proveedor"
-          message={`¿Estás seguro de que deseas eliminar al proveedor "${supplierToDelete?.name}"? Esta acción no se puede deshacer y eliminará también su historial de compras.`}
+          message={`¿Estás seguro de que deseas eliminar al proveedor "${supplierToDelete?.name}"? El proveedor quedará marcado como inactivo.`}
           confirmText="Eliminar"
           variant="danger"
           isLoading={deleteSupplierMutation.isPending}

@@ -30,7 +30,6 @@ import {
   Download,
   Edit,
   Eye,
-  Image as ImageIcon,
   Link as LinkIcon,
   Loader2,
   Package,
@@ -44,22 +43,24 @@ interface RecipeDisplay {
   name: string;
   description: string;
   category: string;
-  brewMethod: string;
-  status: 'ACTIVE' | 'INACTIVE' | 'DRAFT' | 'ARCHIVED';
-  preparationTime: number;
-  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+  isActive: boolean;
+  estimatedTimeMinutes: number;
+  difficulty: 'facil' | 'intermedio' | 'avanzado' | 'experto';
   servings: number;
-  imageUrl: string;
   totalCost: number;
   ingredientsCount: number;
-  productName: string;
-  tags: string[];
 }
+
+const DIFFICULTY_LABELS: Record<string, string> = {
+  facil: 'Fácil',
+  intermedio: 'Intermedio',
+  avanzado: 'Avanzado',
+  experto: 'Experto',
+};
 
 export default function RecipesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
-  const [filterBrewMethod, setFilterBrewMethod] = useState<string>('all');
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [linkingModalOpen, setLinkingModalOpen] = useState(false);
@@ -98,16 +99,12 @@ export default function RecipesPage() {
       name: recipe.name,
       description: recipe.description || '',
       category: recipe.category || 'Sin categoría',
-      brewMethod: recipe.brew_method || 'N/A',
-      status: recipe.status,
-      preparationTime: recipe.preparation_time || 0,
-      difficulty: recipe.difficulty || 'EASY',
+      isActive: recipe.is_active !== false,
+      estimatedTimeMinutes: recipe.estimated_time_minutes || 0,
+      difficulty: recipe.difficulty || 'intermedio',
       servings: recipe.servings || 1,
-      imageUrl: recipe.image_url || '',
       totalCost: recipe.total_cost || 0,
       ingredientsCount: recipe.ingredients?.length || 0,
-      productName: recipe.product?.name || '',
-      tags: recipe.tags || [],
     }));
   }, [recipesData]);
 
@@ -127,25 +124,24 @@ export default function RecipesPage() {
   // When recipe details are loaded, convert to form format and open modal
   useEffect(() => {
     if (recipeDetails && recipeIdToEdit) {
-      const details = recipeDetails as any; // Cast to any to handle API response structure
       const formData: RecipeFormData = {
         id: recipeDetails.id,
-        productId: details.product_id || '',
+        productId: recipeDetails.product_id || '',
         name: recipeDetails.name,
         description: recipeDetails.description || '',
-        instructions: details.instructions || '',
-        category: details.category || recipeDetails.category || '',
-        prepTime: details.estimated_time_minutes || 0,
+        instructions: recipeDetails.instructions || '',
+        category: recipeDetails.category || '',
+        prepTime: recipeDetails.estimated_time_minutes || 0,
         yield: recipeDetails.servings || 1,
-        yieldUnit: details.yield_unit || 'unit',
+        yieldUnit: recipeDetails.yield_unit || 'unit',
         allergens: recipeDetails.allergens || [],
-        videoUrl: details.video_url || '',
-        active: details.is_active !== false,
-        ingredients: (recipeDetails.ingredients || []).map((ing: any) => ({
-          inventoryItemId: ing.inventory_item_id || ing.inventoryItemId,
+        videoUrl: recipeDetails.video_url || '',
+        active: recipeDetails.is_active !== false,
+        ingredients: (recipeDetails.ingredients || []).map((ing) => ({
+          inventoryItemId: ing.inventory_item_id,
           quantity: ing.quantity,
           unit: ing.unit,
-          notes: ing.preparation_notes || ing.notes || '',
+          notes: ing.preparation_notes || '',
         })),
       };
       setSelectedRecipe(formData);
@@ -226,41 +222,31 @@ export default function RecipesPage() {
           r.name.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesCategory =
           filterCategory === 'all' || r.category === filterCategory;
-        const matchesBrewMethod =
-          filterBrewMethod === 'all' || r.brewMethod === filterBrewMethod;
         const matchesDifficulty =
           filterDifficulty === 'all' || r.difficulty === filterDifficulty;
         const matchesStatus =
-          filterStatus === 'all' || r.status === filterStatus;
+          filterStatus === 'all' ||
+          (filterStatus === 'active' ? r.isActive : !r.isActive);
         return (
-          matchesSearch &&
-          matchesCategory &&
-          matchesBrewMethod &&
-          matchesDifficulty &&
-          matchesStatus
+          matchesSearch && matchesCategory && matchesDifficulty && matchesStatus
         );
       }),
-    [
-      recipes,
-      searchQuery,
-      filterCategory,
-      filterBrewMethod,
-      filterDifficulty,
-      filterStatus,
-    ],
+    [recipes, searchQuery, filterCategory, filterDifficulty, filterStatus],
   );
 
   const localStats = useMemo(
     () => ({
       total: recipes.length,
-      active: recipes.filter((r) => r.status === 'ACTIVE').length,
-      easy: recipes.filter((r) => r.difficulty === 'EASY').length,
-      medium: recipes.filter((r) => r.difficulty === 'MEDIUM').length,
-      hard: recipes.filter((r) => r.difficulty === 'HARD').length,
+      active: recipes.filter((r) => r.isActive).length,
+      facil: recipes.filter((r) => r.difficulty === 'facil').length,
+      intermedio: recipes.filter((r) => r.difficulty === 'intermedio').length,
+      avanzado: recipes.filter(
+        (r) => r.difficulty === 'avanzado' || r.difficulty === 'experto',
+      ).length,
       totalCost: recipes.reduce((sum, r) => sum + r.totalCost, 0),
       avgPreparationTime:
         recipes.length > 0
-          ? recipes.reduce((sum, r) => sum + r.preparationTime, 0) /
+          ? recipes.reduce((sum, r) => sum + r.estimatedTimeMinutes, 0) /
             recipes.length
           : 0,
       totalIngredients: recipes.reduce((sum, r) => sum + r.ingredientsCount, 0),
@@ -289,20 +275,18 @@ export default function RecipesPage() {
     );
   }
 
-  const getStatusBadge = (s: string) =>
-    ({
-      ACTIVE: 'bg-green-100 text-green-800 border-green-300',
-      INACTIVE: 'bg-gray-100 text-gray-800 border-gray-300',
-      DRAFT: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      ARCHIVED: 'bg-red-100 text-red-800 border-red-300',
-    })[s] || 'bg-gray-100 text-gray-800 border-gray-300';
+  const getStatusBadge = (active: boolean) =>
+    active
+      ? 'bg-green-100 text-green-800 border-green-300'
+      : 'bg-gray-100 text-gray-800 border-gray-300';
 
   const getDifficultyBadge = (d: string) =>
     ({
-      EASY: 'bg-green-100 text-green-800',
-      MEDIUM: 'bg-yellow-100 text-yellow-800',
-      HARD: 'bg-red-100 text-red-800',
-    })[d] || 'bg-green-100 text-green-800';
+      facil: 'bg-green-100 text-green-800',
+      intermedio: 'bg-yellow-100 text-yellow-800',
+      avanzado: 'bg-orange-100 text-orange-800',
+      experto: 'bg-red-100 text-red-800',
+    })[d] || 'bg-yellow-100 text-yellow-800';
 
   return (
     <MainLayout>
@@ -356,21 +340,21 @@ export default function RecipesPage() {
               <div className="flex gap-3">
                 <div>
                   <p className="text-lg font-bold text-green-600">
-                    {localStats.easy}
+                    {localStats.facil}
                   </p>
                   <p className="text-xs">Fácil</p>
                 </div>
                 <div>
                   <p className="text-lg font-bold text-yellow-600">
-                    {localStats.medium}
+                    {localStats.intermedio}
                   </p>
-                  <p className="text-xs">Media</p>
+                  <p className="text-xs">Intermedio</p>
                 </div>
                 <div>
                   <p className="text-lg font-bold text-red-600">
-                    {localStats.hard}
+                    {localStats.avanzado}
                   </p>
-                  <p className="text-xs">Difícil</p>
+                  <p className="text-xs">Avanzado</p>
                 </div>
               </div>
             </div>
@@ -403,7 +387,7 @@ export default function RecipesPage() {
         </div>
 
         <div className="bg-white rounded-lg border p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <input
               type="text"
               placeholder="Buscar..."
@@ -425,25 +409,15 @@ export default function RecipesPage() {
                 ))}
             </select>
             <select
-              value={filterBrewMethod}
-              onChange={(e) => setFilterBrewMethod(e.target.value)}
-              className="px-4 py-2 border rounded-lg"
-            >
-              <option value="all">Todos los métodos</option>
-              <option value="ESPRESSO">Espresso</option>
-              <option value="FILTER">Filtro</option>
-              <option value="V60">V60</option>
-              <option value="COLD_BREW">Cold Brew</option>
-            </select>
-            <select
               value={filterDifficulty}
               onChange={(e) => setFilterDifficulty(e.target.value)}
               className="px-4 py-2 border rounded-lg"
             >
               <option value="all">Todas</option>
-              <option value="EASY">Fácil</option>
-              <option value="MEDIUM">Media</option>
-              <option value="HARD">Difícil</option>
+              <option value="facil">Fácil</option>
+              <option value="intermedio">Intermedio</option>
+              <option value="avanzado">Avanzado</option>
+              <option value="experto">Experto</option>
             </select>
             <select
               value={filterStatus}
@@ -451,8 +425,8 @@ export default function RecipesPage() {
               className="px-4 py-2 border rounded-lg"
             >
               <option value="all">Todos</option>
-              <option value="ACTIVE">Activa</option>
-              <option value="DRAFT">Borrador</option>
+              <option value="active">Activa</option>
+              <option value="inactive">Inactiva</option>
             </select>
           </div>
         </div>
@@ -464,22 +438,14 @@ export default function RecipesPage() {
               className="bg-white rounded-lg border overflow-hidden hover:shadow-lg transition"
             >
               <div className="relative h-48 bg-gradient-to-br from-indigo-500 to-purple-600">
-                {recipe.imageUrl ? (
-                  <img
-                    src={recipe.imageUrl}
-                    alt={recipe.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <ImageIcon className="w-16 h-16 text-white opacity-50" />
-                  </div>
-                )}
+                <div className="flex items-center justify-center h-full">
+                  <Coffee className="w-16 h-16 text-white opacity-50" />
+                </div>
                 <div className="absolute top-3 right-3">
                   <span
-                    className={`px-2 py-1 text-xs rounded-full border ${getStatusBadge(recipe.status)}`}
+                    className={`px-2 py-1 text-xs rounded-full border ${getStatusBadge(recipe.isActive)}`}
                   >
-                    {recipe.status}
+                    {recipe.isActive ? 'Activa' : 'Inactiva'}
                   </span>
                 </div>
               </div>
@@ -492,12 +458,8 @@ export default function RecipesPage() {
                 )}
                 <div className="flex gap-4 mb-3 text-sm text-gray-600">
                   <div className="flex items-center gap-1">
-                    <Coffee className="w-4 h-4" />
-                    {recipe.brewMethod}
-                  </div>
-                  <div className="flex items-center gap-1">
                     <Clock className="w-4 h-4" />
-                    {recipe.preparationTime}m
+                    {recipe.estimatedTimeMinutes}m
                   </div>
                   <div className="flex items-center gap-1">
                     <Users className="w-4 h-4" />
@@ -511,7 +473,7 @@ export default function RecipesPage() {
                   <span
                     className={`text-xs px-2 py-1 rounded ${getDifficultyBadge(recipe.difficulty)}`}
                   >
-                    {recipe.difficulty}
+                    {DIFFICULTY_LABELS[recipe.difficulty] || recipe.difficulty}
                   </span>
                 </div>
                 <div className="flex justify-between mb-4 text-sm">

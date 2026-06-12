@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import {
   Activity,
@@ -15,13 +16,32 @@ import {
 } from 'lucide-react';
 import { useDashboardSummary, useKPIDashboard } from '@/hooks/use-analytics';
 
+/**
+ * Formatea un KPI que el backend puede devolver como null (flag `unavailable`).
+ * Devuelve '—' cuando no hay dato para no crashear con .toFixed sobre null.
+ */
+const fmtKpi = (value: number | null | undefined, decimals = 1): string =>
+  value === null || value === undefined ? '—' : value.toFixed(decimals);
+
 export default function KPIsPage() {
-  const { data: kpis, isLoading: kpisLoading } = useKPIDashboard();
-  const { data: summary, isLoading: summaryLoading } = useDashboardSummary();
+  // QueryAnalyticsDto del backend exige start_date/end_date (@IsNotEmpty):
+  // sin rango la API responde 400. Default: mes actual.
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    return {
+      start_date: startOfMonth.toISOString(),
+      end_date: now.toISOString(),
+    };
+  }, []);
+
+  const { data: kpis, isLoading: kpisLoading } = useKPIDashboard(dateRange);
+  const { data: summary, isLoading: summaryLoading } =
+    useDashboardSummary(dateRange);
 
   const isLoading = kpisLoading || summaryLoading;
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | null) => {
     const colors = {
       GOOD: 'text-green-600',
       WARNING: 'text-yellow-600',
@@ -30,7 +50,7 @@ export default function KPIsPage() {
     return colors[status as keyof typeof colors] || 'text-gray-600';
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: string | null) => {
     if (status === 'GOOD')
       return <CheckCircle className="h-5 w-5 text-green-600" />;
     if (status === 'WARNING')
@@ -180,7 +200,7 @@ export default function KPIsPage() {
                   <p
                     className={`text-3xl font-bold ${getStatusColor(kpis.status.gross_margin)}`}
                   >
-                    {kpis.gross_margin_percent.toFixed(1)}%
+                    {fmtKpi(kpis.gross_margin_percent)}%
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Objetivo: &gt; 65%
@@ -193,7 +213,7 @@ export default function KPIsPage() {
                     <Activity className="h-5 w-5 text-gray-400" />
                   </div>
                   <p className="text-3xl font-bold text-gray-900">
-                    {kpis.net_margin_percent.toFixed(1)}%
+                    {fmtKpi(kpis.net_margin_percent)}%
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Objetivo: &gt; 15%
@@ -206,7 +226,7 @@ export default function KPIsPage() {
                     <TrendingUp className="h-5 w-5 text-gray-400" />
                   </div>
                   <p className="text-3xl font-bold text-gray-900">
-                    {kpis.ebitda_margin_percent.toFixed(1)}%
+                    {fmtKpi(kpis.ebitda_margin_percent)}%
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Objetivo: &gt; 20%
@@ -229,7 +249,7 @@ export default function KPIsPage() {
                   <p
                     className={`text-3xl font-bold ${getStatusColor(kpis.status.prime_cost)}`}
                   >
-                    {kpis.prime_cost_percent.toFixed(1)}%
+                    {fmtKpi(kpis.prime_cost_percent)}%
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Objetivo: &lt; 60%
@@ -244,7 +264,7 @@ export default function KPIsPage() {
                   <p
                     className={`text-3xl font-bold ${getStatusColor(kpis.status.labor_percent)}`}
                   >
-                    {kpis.labor_percent.toFixed(1)}%
+                    {fmtKpi(kpis.labor_percent)}%
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Objetivo: &lt; 25%
@@ -257,7 +277,7 @@ export default function KPIsPage() {
                     <Activity className="h-5 w-5 text-gray-400" />
                   </div>
                   <p className="text-3xl font-bold text-gray-900">
-                    {kpis.cogs_percent.toFixed(1)}%
+                    {fmtKpi(kpis.cogs_percent)}%
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Objetivo: &lt; 30%
@@ -302,7 +322,7 @@ export default function KPIsPage() {
                     <Clock className="h-5 w-5 text-gray-400" />
                   </div>
                   <p className="text-3xl font-bold text-gray-900">
-                    ${kpis.revenue_per_hour.toFixed(0)}
+                    ${fmtKpi(kpis.revenue_per_hour, 0)}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Por hora operativa
@@ -321,7 +341,7 @@ export default function KPIsPage() {
                     <Users className="h-5 w-5 text-gray-400" />
                   </div>
                   <p className="text-3xl font-bold text-gray-900">
-                    {kpis.customer_retention_rate.toFixed(0)}%
+                    {fmtKpi(kpis.customer_retention_rate, 0)}%
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Objetivo: &gt; 70%
@@ -336,7 +356,7 @@ export default function KPIsPage() {
                     <Activity className="h-5 w-5 text-gray-400" />
                   </div>
                   <p className="text-3xl font-bold text-gray-900">
-                    {kpis.avg_customer_visits.toFixed(1)}
+                    {fmtKpi(kpis.avg_customer_visits)}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">Por cliente/mes</p>
                 </div>
@@ -347,7 +367,7 @@ export default function KPIsPage() {
                     <TrendingUp className="h-5 w-5 text-gray-400" />
                   </div>
                   <p className="text-3xl font-bold text-gray-900">
-                    {kpis.nps_score}
+                    {kpis.nps_score ?? '—'}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Net Promoter Score
@@ -370,7 +390,7 @@ export default function KPIsPage() {
                   <p
                     className={`text-3xl font-bold ${getStatusColor(kpis.status.inventory_turnover)}`}
                   >
-                    {kpis.inventory_turnover.toFixed(1)}x
+                    {fmtKpi(kpis.inventory_turnover)}x
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Objetivo: &gt; 6x/año
@@ -385,7 +405,7 @@ export default function KPIsPage() {
                     <Package className="h-5 w-5 text-gray-400" />
                   </div>
                   <p className="text-3xl font-bold text-gray-900">
-                    {kpis.days_of_inventory.toFixed(0)}
+                    {fmtKpi(kpis.days_of_inventory, 0)}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">Días</p>
                 </div>
@@ -398,7 +418,7 @@ export default function KPIsPage() {
                   <p
                     className={`text-3xl font-bold ${getStatusColor(kpis.status.waste)}`}
                   >
-                    {kpis.waste_percent.toFixed(1)}%
+                    {fmtKpi(kpis.waste_percent)}%
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Objetivo: &lt; 3%

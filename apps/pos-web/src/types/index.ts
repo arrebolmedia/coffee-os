@@ -50,10 +50,12 @@ export interface Product extends BaseEntity, OrganizationContext {
   image?: string;
   barcode?: string;
   trackInventory?: boolean;
-  currentStock?: number;
-  minStock?: number;
+  stockQuantity?: number;
+  minimumStock?: number;
   maxStock?: number;
-  modifiers?: Modifier[];
+  // El backend incluye los modifiers vía la tabla pivote ProductModifier:
+  // productModifiers: [{ modifier: {...} }]
+  productModifiers?: Array<{ modifier: Modifier }>;
   tags?: string[];
 }
 
@@ -144,43 +146,80 @@ export interface Cart {
   notes?: string;
 }
 
-export interface Order extends BaseEntity, OrganizationContext {
-  order_number: string;
+/**
+ * Order — wire real del backend (modelo Prisma `Order`, camelCase).
+ * Los montos NO viven en Order: viven en el Ticket asociado
+ * (`order.ticket?.total`). El include de GET /orders trae `items` y `ticket`.
+ */
+export interface Order {
+  id: UUID;
+  locationId: UUID;
+  ticketId: UUID;
+  userId: UUID;
+  assignedToId?: UUID | null;
+  orderNumber: string;
+  type: string; // OrderType Prisma: DINE_IN, TAKE_OUT, etc.
   status: OrderStatus;
-  customer_id?: UUID;
-  customer?: Customer;
+  priority: string;
+  tableNumber?: string | null;
+  customerName?: string | null;
+  prepTimeEstimate?: number | null;
+  prepTimeActual?: number | null;
+  notes?: string | null;
+  specialRequests?: string | null;
+  orderedAt: string;
+  startedAt?: string | null;
+  readyAt?: string | null;
+  servedAt?: string | null;
+  canceledAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
   items: OrderItem[];
-  subtotal: number;
-  tax: number;
-  discount: number;
-  total: number;
-  payment_method?: PaymentMethod;
-  payment_status: PaymentStatus;
-  payments: Payment[];
-  cashier_id: UUID;
-  cashier_name: string;
-  notes?: string;
-  ticket_url?: string;
+  ticket?: OrderTicket | null;
 }
 
+/** OrderItem — wire real (modelo Prisma `OrderItem`). */
 export interface OrderItem {
   id: UUID;
-  product_id: UUID;
-  product_name: string;
-  product_sku: string;
+  orderId: UUID;
+  productId: UUID;
   quantity: number;
-  unit_price: number;
-  modifiers: SelectedModifier[];
-  subtotal: number;
-  notes?: string;
+  notes?: string | null;
+  status: string;
 }
 
+/**
+ * Ticket anidado en Order. `payments` y `customer` solo vienen si el backend
+ * amplía el include (hoy GET /orders incluye `ticket` plano).
+ */
+export interface OrderTicket {
+  id: UUID;
+  locationId: UUID;
+  userId: UUID;
+  customerId?: UUID | null;
+  ticketNumber: string;
+  status: string;
+  subtotal: number;
+  tax: number;
+  tip: number;
+  discount: number;
+  total: number;
+  openedAt: string;
+  closedAt?: string | null;
+  notes?: string | null;
+  payments?: Payment[];
+  customer?: Customer | null;
+}
+
+/** Payment — wire real (modelo Prisma `Payment`). */
 export interface Payment {
   id: UUID;
+  ticketId: UUID;
   method: PaymentMethod;
   amount: number;
-  reference?: string;
-  created_at: Date;
+  status: PaymentStatus;
+  reference?: string | null;
+  processedAt: string;
 }
 
 // ============================================================================
@@ -193,12 +232,19 @@ export enum CustomerStatus {
   BLOCKED = 'BLOCKED',
 }
 
-export interface Customer extends BaseEntity, OrganizationContext {
+/**
+ * Customer — representación camelCase usada por la UI.
+ * OJO: el wire de GET /crm/customers es snake_case; el mapeo wire→camelCase
+ * vive en services/customers.service.ts (CustomerWire → Customer).
+ * El backend no expone `location_id` ni `active` para customers.
+ */
+export interface Customer extends BaseEntity {
+  organization_id: UUID;
   email?: string;
   phone?: string;
   firstName?: string;
   lastName?: string;
-  dateOfBirth?: Date;
+  dateOfBirth?: string;
   gender?: string;
   preferredLanguage?: string;
   notes?: string;
@@ -207,7 +253,7 @@ export interface Customer extends BaseEntity, OrganizationContext {
   consentWhatsapp: boolean;
   consentEmail: boolean;
   consentSms: boolean;
-  consentDate?: Date;
+  consentDate?: string;
   // Preferences
   favoriteDrink?: string;
   dietaryRestrictions?: string;
@@ -219,13 +265,12 @@ export interface Customer extends BaseEntity, OrganizationContext {
   loyaltyPoints: number;
   totalVisits: number;
   totalSpent: number;
-  lastVisitDate?: Date;
+  lastVisitDate?: string;
   // RFM Segmentation
   rfmSegment?: string;
   recencyScore?: number;
   frequencyScore?: number;
   monetaryScore?: number;
-  active: boolean;
 }
 
 // ============================================================================
@@ -358,6 +403,20 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
+/**
+ * Forma de paginación que devuelve GET /orders del backend:
+ * { data, meta: { page, perPage, total, totalPages } }
+ */
+export interface MetaPaginatedResponse<T> {
+  data: T[];
+  meta: {
+    page: number;
+    perPage: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export interface ApiError {
   message: string;
   statusCode: number;
@@ -376,16 +435,21 @@ export interface ProductFilters {
   type?: ProductType;
   min_price?: number;
   max_price?: number;
-  in_stock?: boolean;
+  // NOTA: `in_stock` NO existe en QueryProductsDto del backend (la API usa
+  // forbidNonWhitelisted y respondería 400). El POS re-filtra stock
+  // client-side, así que se eliminó del contrato.
 }
 
+/**
+ * Filtros que soporta GET /orders del backend: status, search y date (un solo
+ * día). start_date/end_date se colapsan a `date` cuando son el mismo día;
+ * los rangos multi-día no tienen soporte server-side hoy.
+ */
 export interface OrderFilters {
   status?: OrderStatus;
-  payment_status?: PaymentStatus;
-  customer_id?: UUID;
-  date_from?: Date;
-  date_to?: Date;
-  cashier_id?: UUID;
+  search?: string;
+  start_date?: string;
+  end_date?: string;
 }
 
 export interface PaginationParams {
@@ -398,13 +462,6 @@ export interface PaginationParams {
 // ============================================================================
 // RECIPE TYPES
 // ============================================================================
-
-export enum RecipeStatus {
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-  DRAFT = 'DRAFT',
-  ARCHIVED = 'ARCHIVED',
-}
 
 export enum BrewMethod {
   ESPRESSO = 'ESPRESSO',
@@ -439,55 +496,71 @@ export enum MeasurementUnit {
   SHOTS = 'shots',
 }
 
+/** Niveles de dificultad reales del backend (apps/api recipes DTO). */
+export type RecipeDifficulty = 'facil' | 'intermedio' | 'avanzado' | 'experto';
+
+/**
+ * Recipe — alineado al wire real del backend (`toRecipe` en
+ * apps/api/src/modules/recipes/recipes.service.ts). El backend NO devuelve
+ * status/brew_method/preparation_time/image_url/tags/product/parameters.
+ */
 export interface Recipe extends BaseEntity, OrganizationContext {
   name: string;
   description?: string;
-  product_id?: UUID;
-  product?: Product;
-  category: string;
-  brew_method?: BrewMethod;
-  status: RecipeStatus;
-  preparation_time: number; // minutes
-  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
-  servings: number;
-  image_url?: string;
-  video_url?: string;
   instructions?: string;
-  total_cost?: number;
-  ingredients?: RecipeIngredient[];
-  parameters?: RecipeParameter[];
+  product_id?: UUID;
+  category: string;
+  preparation_method?: string;
+  difficulty?: RecipeDifficulty;
+  servings: number;
+  yield_unit?: string;
+  estimated_time_minutes: number;
   allergens?: string[];
-  tags?: string[];
+  video_url?: string;
+  ingredients: RecipeIngredient[];
+  steps?: RecipeStep[];
+  is_active: boolean;
+  total_cost?: number;
+  cost_per_serving?: number;
+  suggested_price?: number;
+  target_margin_percentage?: number;
+  actual_margin_percentage?: number;
 }
 
-export interface RecipeIngredient extends BaseEntity {
+/** RecipeIngredient — shape real devuelto por el backend. */
+export interface RecipeIngredient {
+  id: UUID;
   recipe_id: UUID;
-  inventory_item_id?: UUID;
+  inventory_item_id: UUID;
   inventory_item_name?: string;
-  name: string;
   quantity: number;
-  unit: MeasurementUnit;
-  unit_cost?: number;
-  subtotal_cost?: number;
-  is_optional: boolean;
-  notes?: string;
-  order: number;
+  unit: string;
+  cost_per_unit?: number;
+  total_cost?: number;
+  preparation_notes?: string;
 }
 
-export interface RecipeParameter extends BaseEntity {
-  recipe_id: UUID;
-  parameter_name: string;
-  parameter_value: string;
-  unit?: string;
-  notes?: string;
+export interface RecipeStep {
+  id?: UUID;
+  recipe_id?: UUID;
+  step_number: number;
+  instruction: string;
+  duration_seconds?: number;
+  image_url?: string;
+  is_critical?: boolean;
 }
 
+/**
+ * Filtros soportados por GET /recipes (QueryRecipesDto del backend):
+ * search, is_active, max_cost. category/difficulty/product_id se filtran
+ * client-side.
+ */
 export interface RecipeFilters {
   search?: string;
   category?: string;
-  brew_method?: BrewMethod;
-  status?: RecipeStatus;
   difficulty?: string;
+  is_active?: boolean;
+  max_cost?: number;
   product_id?: UUID;
 }
 
@@ -539,23 +612,33 @@ export enum ExpensePaymentMethod {
   CREDIT = 'CREDIT',
 }
 
-export interface Expense extends BaseEntity, OrganizationContext {
+/**
+ * Expense — wire real del módulo finance (snake_case, mapper del backend en
+ * apps/api/src/modules/finance/expenses.service.ts). Fechas serializadas como
+ * string ISO. GET /finance/expenses devuelve Expense[] plano (sin paginación).
+ */
+export interface Expense {
+  id: UUID;
+  organization_id: UUID;
+  location_id?: UUID | null;
   category: ExpenseCategory;
   description: string;
   amount: number;
   tax_amount?: number;
   total_amount: number;
-  due_date?: Date;
+  due_date?: string;
   status: ExpenseStatus;
   vendor_name?: string;
   vendor_rfc?: string;
   invoice_number?: string;
   payment_method?: ExpensePaymentMethod;
-  paid_date?: Date;
+  paid_date?: string;
   payment_reference?: string;
   attachment_url?: string;
   notes?: string;
   created_by_user_id?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // ============================================================================
@@ -856,6 +939,13 @@ export interface AuditStats {
 // ANALYTICS & KPI TYPES
 // ============================================================================
 
+export type KPIStatus = 'GOOD' | 'WARNING' | 'CRITICAL';
+
+/**
+ * Shape real de GET /analytics/dashboard/kpis.
+ * El backend devuelve `null` en los KPIs que aún no puede calcular y expone
+ * el mapa `unavailable` con la razón por campo.
+ */
 export interface DashboardKPIs {
   period_start: string;
   period_end: string;
@@ -863,38 +953,41 @@ export interface DashboardKPIs {
   location_id?: string;
 
   // Profitability
-  gross_margin_percent: number;
-  net_margin_percent: number;
-  ebitda_margin_percent: number;
+  gross_margin_percent: number | null;
+  net_margin_percent: number | null;
+  ebitda_margin_percent: number | null;
 
   // Efficiency
-  prime_cost_percent: number;
-  labor_percent: number;
-  cogs_percent: number;
+  prime_cost_percent: number | null;
+  labor_percent: number | null;
+  cogs_percent: number | null;
 
   // Operations
   avg_order_value: number;
   orders_per_day: number;
-  revenue_per_hour: number;
+  revenue_per_hour: number | null;
 
   // Customer
-  customer_retention_rate: number;
-  avg_customer_visits: number;
-  nps_score: number;
+  customer_retention_rate: number | null;
+  avg_customer_visits: number | null;
+  nps_score: number | null;
 
   // Inventory
-  inventory_turnover: number;
-  days_of_inventory: number;
-  waste_percent: number;
+  inventory_turnover: number | null;
+  days_of_inventory: number | null;
+  waste_percent: number | null;
 
-  // Status indicators
+  // Status indicators (null cuando el KPI base no está disponible)
   status: {
-    gross_margin: 'GOOD' | 'WARNING' | 'CRITICAL';
-    labor_percent: 'GOOD' | 'WARNING' | 'CRITICAL';
-    prime_cost: 'GOOD' | 'WARNING' | 'CRITICAL';
-    waste: 'GOOD' | 'WARNING' | 'CRITICAL';
-    inventory_turnover: 'GOOD' | 'WARNING' | 'CRITICAL';
+    gross_margin: KPIStatus | null;
+    labor_percent: KPIStatus | null;
+    prime_cost: KPIStatus | null;
+    waste: KPIStatus | null;
+    inventory_turnover: KPIStatus | null;
   };
+
+  // Flags de KPIs no disponibles: { campo: razón }
+  unavailable: Record<string, string>;
 }
 
 export type AlertType = 'INFO' | 'WARNING' | 'CRITICAL';

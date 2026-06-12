@@ -24,7 +24,7 @@ const createWrapper = () => {
 
 describe('SupplierFormModal', () => {
   const mockOnClose = jest.fn();
-  const mockOnSuccess = jest.fn();
+  const mockOnSubmit = jest.fn();
   const mockMutate = jest.fn();
 
   beforeEach(() => {
@@ -32,12 +32,12 @@ describe('SupplierFormModal', () => {
 
     (useCreateSupplier as jest.Mock).mockReturnValue({
       mutate: mockMutate,
-      isLoading: false,
+      isPending: false,
     });
 
     (useUpdateSupplier as jest.Mock).mockReturnValue({
       mutate: mockMutate,
-      isLoading: false,
+      isPending: false,
     });
   });
 
@@ -46,15 +46,18 @@ describe('SupplierFormModal', () => {
       <SupplierFormModal
         isOpen={true}
         onClose={mockOnClose}
-        onSubmit={mockOnSuccess}
+        onSubmit={mockOnSubmit}
       />,
       { wrapper: createWrapper() },
     );
 
     expect(screen.getByText('Nuevo Proveedor')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Nombre Comercial/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Razón Social/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/RFC/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Nombre \*/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Persona de Contacto/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Teléfono/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Email/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Términos de Pago/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Tiempo de Entrega/i)).toBeInTheDocument();
   });
 
   it('should render in edit mode with existing supplier data', () => {
@@ -62,21 +65,13 @@ describe('SupplierFormModal', () => {
       id: 'supplier-123',
       organization_id: 'org-123',
       name: 'Coffee Beans Co.',
-      business_name: 'Coffee Beans Company S.A. de C.V.',
-      rfc: 'CBC123456ABC',
-      category: 'coffee',
-      rating: 4,
-      status: 'active' as const,
-      contact_name: 'John Doe',
-      contact_email: 'john@coffeebeans.com',
-      contact_phone: '555-1234',
-      address_street: '123 Main St',
-      address_city: 'CDMX',
-      address_state: 'CDMX',
-      address_zip: '01234',
-      payment_terms: '30_days',
-      products_supplied: ['Café en grano', 'Café molido'],
-      total_purchases: 0,
+      contact_person: 'John Doe',
+      email: 'john@coffeebeans.com',
+      phone: '555-1234',
+      address: 'Av. Insurgentes Sur 123',
+      payment_terms: '30 días',
+      lead_time_days: 5,
+      active: true,
       created_at: '2025-01-01T00:00:00Z',
       updated_at: '2025-01-01T00:00:00Z',
     };
@@ -85,7 +80,7 @@ describe('SupplierFormModal', () => {
       <SupplierFormModal
         isOpen={true}
         onClose={mockOnClose}
-        onSubmit={mockOnSuccess}
+        onSubmit={mockOnSubmit}
         supplier={existingSupplier}
       />,
       { wrapper: createWrapper() },
@@ -93,8 +88,9 @@ describe('SupplierFormModal', () => {
 
     expect(screen.getByText('Editar Proveedor')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Coffee Beans Co.')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('CBC123456ABC')).toBeInTheDocument();
     expect(screen.getByDisplayValue('John Doe')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('555-1234')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('5')).toBeInTheDocument();
   });
 
   it('should display all form sections', () => {
@@ -102,87 +98,17 @@ describe('SupplierFormModal', () => {
       <SupplierFormModal
         isOpen={true}
         onClose={mockOnClose}
-        onSubmit={mockOnSuccess}
+        onSubmit={mockOnSubmit}
       />,
       { wrapper: createWrapper() },
     );
 
     expect(screen.getByText('Información General')).toBeInTheDocument();
     expect(screen.getByText('Información de Contacto')).toBeInTheDocument();
-    expect(screen.getByText('Dirección')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /Dirección/i }),
+    ).toBeInTheDocument();
     expect(screen.getByText('Términos Comerciales')).toBeInTheDocument();
-  });
-
-  it('should handle star rating interaction', () => {
-    render(
-      <SupplierFormModal
-        isOpen={true}
-        onClose={mockOnClose}
-        onSubmit={mockOnSuccess}
-      />,
-      { wrapper: createWrapper() },
-    );
-
-    // Find star rating elements (they should be buttons or clickable elements)
-    const stars = screen.getAllByRole('button', { name: /star/i });
-
-    // Click on the 4th star
-    if (stars.length >= 4) {
-      fireEvent.click(stars[3]);
-    }
-
-    // The form should now have a rating value set
-    // This would be verified through form submission
-  });
-
-  it('should allow adding product tags', () => {
-    render(
-      <SupplierFormModal
-        isOpen={true}
-        onClose={mockOnClose}
-        onSubmit={mockOnSuccess}
-      />,
-      { wrapper: createWrapper() },
-    );
-
-    const productInput = screen.getByPlaceholderText(/Agregar producto/i);
-
-    // Type a product name
-    fireEvent.change(productInput, { target: { value: 'Café en grano' } });
-
-    // Press Enter to add the tag
-    fireEvent.keyPress(productInput, { key: 'Enter', code: 13, charCode: 13 });
-
-    // The product should be added as a tag
-    expect(screen.getByText('Café en grano')).toBeInTheDocument();
-  });
-
-  it('should allow removing product tags', () => {
-    const supplierWithProducts = {
-      id: 'supplier-123',
-      organization_id: 'org-123',
-      name: 'Test Supplier',
-      products_supplied: ['Café en grano', 'Café molido'],
-    };
-
-    render(
-      <SupplierFormModal
-        isOpen={true}
-        onClose={mockOnClose}
-        onSubmit={mockOnSuccess}
-        supplier={supplierWithProducts as any}
-      />,
-      { wrapper: createWrapper() },
-    );
-
-    // Find and click the remove button for the first tag
-    const removeButtons = screen.getAllByRole('button', { name: /×/i });
-
-    if (removeButtons.length > 0) {
-      fireEvent.click(removeButtons[0]);
-    }
-
-    // One product should be removed
   });
 
   it('should call onClose when cancel button is clicked', () => {
@@ -190,7 +116,7 @@ describe('SupplierFormModal', () => {
       <SupplierFormModal
         isOpen={true}
         onClose={mockOnClose}
-        onSubmit={mockOnSuccess}
+        onSubmit={mockOnSubmit}
       />,
       { wrapper: createWrapper() },
     );
@@ -201,34 +127,63 @@ describe('SupplierFormModal', () => {
     expect(mockOnClose).toHaveBeenCalled();
   });
 
-  it('should submit form data when creating new supplier', async () => {
+  it('should submit form data via onSubmit when creating new supplier', async () => {
     render(
       <SupplierFormModal
         isOpen={true}
         onClose={mockOnClose}
-        onSubmit={mockOnSuccess}
+        onSubmit={mockOnSubmit}
       />,
       { wrapper: createWrapper() },
     );
 
-    // Fill in required fields
-    fireEvent.change(screen.getByLabelText(/Nombre Comercial/i), {
+    fireEvent.change(screen.getByLabelText(/^Nombre \*/i), {
       target: { value: 'New Supplier' },
     });
 
-    fireEvent.change(screen.getByLabelText(/Razón Social/i), {
-      target: { value: 'New Supplier S.A. de C.V.' },
-    });
-
-    fireEvent.change(screen.getByLabelText(/RFC/i), {
-      target: { value: 'NSU123456ABC' },
+    fireEvent.change(screen.getByLabelText(/Persona de Contacto/i), {
+      target: { value: 'John Doe' },
     });
 
     fireEvent.change(screen.getByLabelText(/Email/i), {
       target: { value: 'contact@newsupplier.com' },
     });
 
-    // Submit the form
+    fireEvent.change(screen.getByLabelText(/Tiempo de Entrega/i), {
+      target: { value: '7' },
+    });
+
+    const submitButton = screen.getByRole('button', {
+      name: /Crear Proveedor/i,
+    });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledWith({
+        name: 'New Supplier',
+        contact_person: 'John Doe',
+        email: 'contact@newsupplier.com',
+        phone: undefined,
+        address: undefined,
+        payment_terms: 'Contado',
+        lead_time_days: 7,
+        active: true,
+      });
+    });
+
+    // El padre es responsable de la mutación cuando provee onSubmit
+    expect(mockMutate).not.toHaveBeenCalled();
+  });
+
+  it('should mutate directly when no onSubmit handler is provided', async () => {
+    render(<SupplierFormModal isOpen={true} onClose={mockOnClose} />, {
+      wrapper: createWrapper(),
+    });
+
+    fireEvent.change(screen.getByLabelText(/^Nombre \*/i), {
+      target: { value: 'Standalone Supplier' },
+    });
+
     const submitButton = screen.getByRole('button', {
       name: /Crear Proveedor/i,
     });
@@ -249,7 +204,7 @@ describe('SupplierFormModal', () => {
       <SupplierFormModal
         isOpen={true}
         onClose={mockOnClose}
-        onSubmit={mockOnSuccess}
+        onSubmit={mockOnSubmit}
       />,
       { wrapper: createWrapper() },
     );
@@ -260,53 +215,20 @@ describe('SupplierFormModal', () => {
     expect(submitButton).toBeDisabled();
   });
 
-  it('should validate RFC format', async () => {
+  it('should toggle active checkbox', () => {
     render(
       <SupplierFormModal
         isOpen={true}
         onClose={mockOnClose}
-        onSubmit={mockOnSuccess}
+        onSubmit={mockOnSubmit}
       />,
       { wrapper: createWrapper() },
     );
 
-    const rfcInput = screen.getByLabelText(/RFC/i);
+    const activeCheckbox = screen.getByLabelText(/Proveedor activo/i);
+    expect(activeCheckbox).toBeChecked();
 
-    // Enter an invalid RFC
-    fireEvent.change(rfcInput, { target: { value: 'INVALID' } });
-    fireEvent.blur(rfcInput);
-
-    // Should show validation error
-    await waitFor(() => {
-      const errorMessage = screen.queryByText(/RFC debe tener/i);
-      if (errorMessage) {
-        expect(errorMessage).toBeInTheDocument();
-      }
-    });
-  });
-
-  it('should validate email format', async () => {
-    render(
-      <SupplierFormModal
-        isOpen={true}
-        onClose={mockOnClose}
-        onSubmit={mockOnSuccess}
-      />,
-      { wrapper: createWrapper() },
-    );
-
-    const emailInput = screen.getByLabelText(/Email/i);
-
-    // Enter an invalid email
-    fireEvent.change(emailInput, { target: { value: 'invalid-email' } });
-    fireEvent.blur(emailInput);
-
-    // Should show validation error
-    await waitFor(() => {
-      const errorMessage = screen.queryByText(/email válido/i);
-      if (errorMessage) {
-        expect(errorMessage).toBeInTheDocument();
-      }
-    });
+    fireEvent.click(activeCheckbox);
+    expect(activeCheckbox).not.toBeChecked();
   });
 });

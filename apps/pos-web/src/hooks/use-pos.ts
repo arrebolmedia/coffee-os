@@ -290,10 +290,23 @@ export function useOpenCashRegister() {
   const { user } = useAuth();
   const organizationId = user?.organizationId || '';
   const userId = user?.id || '';
+  const locationId = user?.locationId || '';
 
   return useMutation({
-    mutationFn: (initialAmount: number) =>
-      POSService.openCashRegister(organizationId, initialAmount, userId),
+    mutationFn: (initialAmount: number) => {
+      if (!locationId) {
+        // El backend exige location_id para abrir caja (400 sin él).
+        return Promise.reject(
+          new Error('El usuario no tiene una sucursal asignada'),
+        );
+      }
+      return POSService.openCashRegister(
+        organizationId,
+        initialAmount,
+        userId,
+        locationId,
+      );
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: posKeys.cashRegister(organizationId),

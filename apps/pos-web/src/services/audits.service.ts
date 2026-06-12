@@ -1,5 +1,21 @@
-import api from '@/lib/api';
+/**
+ * CoffeeOS - Audits Service
+ *
+ * MÓDULO SIN BACKEND: no existe ningún controller `/audits` en CoffeeOS API.
+ * Todos los métodos lanzan un Error explícito en lugar de pegar a rutas
+ * fantasma (404 silencioso). La página /audits muestra un empty-state
+ * permanente.
+ *
+ * TODO(backend): implementar el módulo audits en apps/api (controller +
+ * service + modelo Prisma) y reconectar estos métodos.
+ */
+
 import { Audit, AuditResult, AuditStats, AuditType } from '@/types';
+
+const NOT_IMPLEMENTED = () =>
+  new Error(
+    'Módulo de auditorías no disponible: el backend /audits aún no existe en CoffeeOS API.',
+  );
 
 export interface CreateAuditDto {
   location_id: string;
@@ -43,64 +59,41 @@ export interface QueryAuditsParams {
 
 class AuditsService {
   async createAudit(
-    organizationId: string,
-    data: CreateAuditDto,
+    _organizationId: string,
+    _data: CreateAuditDto,
   ): Promise<Audit> {
-    return api.post(`/audits`, {
-      organization_id: organizationId,
-      ...data,
-    });
+    throw NOT_IMPLEMENTED();
   }
 
   async getAudits(
-    organizationId: string,
-    params?: QueryAuditsParams,
+    _organizationId: string,
+    _params?: QueryAuditsParams,
   ): Promise<Audit[]> {
-    const queryParams = new URLSearchParams();
-    queryParams.append('organization_id', organizationId);
-
-    if (params?.location_id)
-      queryParams.append('location_id', params.location_id);
-    if (params?.type) queryParams.append('type', params.type);
-    if (params?.result) queryParams.append('result', params.result);
-    if (params?.is_completed !== undefined)
-      queryParams.append('is_completed', String(params.is_completed));
-    if (params?.date_from) queryParams.append('date_from', params.date_from);
-    if (params?.date_to) queryParams.append('date_to', params.date_to);
-
-    return api.get(`/audits?${queryParams.toString()}`);
+    throw NOT_IMPLEMENTED();
   }
 
-  async getAudit(id: string): Promise<Audit> {
-    return api.get(`/audits/${id}`);
+  async getAudit(_id: string): Promise<Audit> {
+    throw NOT_IMPLEMENTED();
   }
 
-  async updateAudit(id: string, data: UpdateAuditDto): Promise<Audit> {
-    return api.patch(`/audits/${id}`, data);
+  async updateAudit(_id: string, _data: UpdateAuditDto): Promise<Audit> {
+    throw NOT_IMPLEMENTED();
   }
 
-  async completeAudit(id: string, completionDate: string): Promise<Audit> {
-    return api.patch(`/audits/${id}/complete`, {
-      completion_date: completionDate,
-    });
+  async completeAudit(_id: string, _completionDate: string): Promise<Audit> {
+    throw NOT_IMPLEMENTED();
   }
 
-  async deleteAudit(id: string): Promise<void> {
-    return api.delete(`/audits/${id}`);
+  async deleteAudit(_id: string): Promise<void> {
+    throw NOT_IMPLEMENTED();
   }
 
-  async getOpenActions(organizationId: string): Promise<Audit[]> {
-    const queryParams = new URLSearchParams();
-    queryParams.append('organization_id', organizationId);
-
-    return api.get(`/audits/open-actions?${queryParams.toString()}`);
+  async getOpenActions(_organizationId: string): Promise<Audit[]> {
+    throw NOT_IMPLEMENTED();
   }
 
-  async getStats(organizationId: string): Promise<AuditStats> {
-    const queryParams = new URLSearchParams();
-    queryParams.append('organization_id', organizationId);
-
-    return api.get(`/audits/stats?${queryParams.toString()}`);
+  async getStats(_organizationId: string): Promise<AuditStats> {
+    throw NOT_IMPLEMENTED();
   }
 }
 

@@ -200,21 +200,25 @@ describe('Quality Control Hooks', () => {
 
     describe('useCreateTemperatureLog', () => {
       it('should create a temperature log', async () => {
+        // DTO real del backend: location_id, type, unit CELSIUS/FAHRENHEIT,
+        // recorded_by_user_id (lo agrega el hook desde la sesión).
         const logData = {
-          organization_id: mockOrganizationId,
           location_id: 'loc-123',
-          equipment_type: 'refrigerator' as const,
+          type: 'REFRIGERATOR' as const,
           equipment_name: 'Main Fridge',
           temperature: 4.2,
-          unit: 'celsius' as const,
-          min_acceptable: 2,
-          max_acceptable: 8,
-          is_within_range: true,
-          recorded_by: 'user-123',
+          unit: 'CELSIUS' as const,
           recorded_at: '2025-10-27T10:00:00Z',
         };
 
-        const mockCreated = { id: 'log-123', ...logData };
+        const mockCreated = {
+          id: 'log-123',
+          ...logData,
+          organization_id: mockOrganizationId,
+          recorded_by_user_id: 'user-123',
+          is_within_range: true,
+          alert_triggered: false,
+        };
 
         (
           QualityControlService.createTemperatureLog as jest.Mock
@@ -234,21 +238,23 @@ describe('Quality Control Hooks', () => {
 
       it('should handle out-of-range temperatures', async () => {
         const logData = {
-          organization_id: mockOrganizationId,
           location_id: 'loc-123',
-          equipment_type: 'refrigerator' as const,
+          type: 'REFRIGERATOR' as const,
           equipment_name: 'Main Fridge',
           temperature: 12.5,
-          unit: 'celsius' as const,
-          min_acceptable: 2,
-          max_acceptable: 8,
-          is_within_range: false,
-          corrective_action: 'Adjusted thermostat',
-          recorded_by: 'user-123',
+          unit: 'CELSIUS' as const,
           recorded_at: '2025-10-27T10:00:00Z',
+          notes: 'Adjusted thermostat',
         };
 
-        const mockCreated = { id: 'log-456', ...logData, severity: 'high' };
+        const mockCreated = {
+          id: 'log-456',
+          ...logData,
+          organization_id: mockOrganizationId,
+          recorded_by_user_id: 'user-123',
+          is_within_range: false,
+          alert_triggered: true,
+        };
 
         (
           QualityControlService.createTemperatureLog as jest.Mock
@@ -263,7 +269,7 @@ describe('Quality Control Hooks', () => {
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
         expect(result.current.data?.is_within_range).toBe(false);
-        expect(result.current.data?.corrective_action).toBeDefined();
+        expect(result.current.data?.alert_triggered).toBe(true);
       });
     });
   });

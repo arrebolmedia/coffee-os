@@ -6,7 +6,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { customersService } from '@/services/customers.service';
 import { useAuth } from '@/hooks/use-auth';
-import { Customer, PaginationParams } from '@/types';
+import { Customer } from '@/types';
 import toast from 'react-hot-toast';
 
 // Query keys
@@ -30,21 +30,17 @@ export const customersKeys = {
 /**
  * Hook to get customers list
  */
-export function useCustomers(
-  filters?: {
-    search?: string;
-    loyalty_tier?: string;
-    rfm_segment?: string;
-  },
-  pagination?: PaginationParams,
-) {
+export function useCustomers(filters?: {
+  search?: string;
+  rfm_segment?: string;
+  status?: string;
+}) {
   const { user } = useAuth();
   const organizationId = user?.organizationId || '';
 
   return useQuery({
-    queryKey: customersKeys.list(organizationId, { filters, pagination }),
-    queryFn: () =>
-      customersService.getCustomers(organizationId, filters, pagination),
+    queryKey: customersKeys.list(organizationId, { filters }),
+    queryFn: () => customersService.getCustomers(organizationId, filters),
     enabled: !!organizationId,
     staleTime: 120000, // 2 minutes
   });
@@ -97,15 +93,11 @@ export function useCustomerByPhone(phone: string, enabled = true) {
  */
 export function useCreateCustomer() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
-  const organizationId = user?.organizationId || '';
 
   return useMutation({
+    // organization_id sale del JWT en el backend; el DTO no lo acepta en body.
     mutationFn: (data: Partial<Customer>) =>
-      customersService.createCustomer({
-        ...data,
-        organization_id: organizationId,
-      }),
+      customersService.createCustomer(data),
     onSuccess: (customer) => {
       queryClient.invalidateQueries({ queryKey: customersKeys.lists() });
       toast.success(

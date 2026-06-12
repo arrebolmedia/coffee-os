@@ -182,13 +182,14 @@ export function ExpenseModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validate()) {
+      // Fechas como string ISO (YYYY-MM-DD) — el wire/DTO usa IsDateString.
+      // total_amount lo calcula el backend; el servicio descarta campos que
+      // no pertenecen al DTO antes de enviar.
       const dataToSave: Partial<Expense> = {
         ...formData,
         total_amount: formData.amount + (formData.tax_amount || 0),
-        due_date: formData.due_date ? new Date(formData.due_date) : undefined,
-        paid_date: formData.paid_date
-          ? new Date(formData.paid_date)
-          : undefined,
+        due_date: formData.due_date || undefined,
+        paid_date: formData.paid_date || undefined,
         vendor_rfc: formData.vendor_rfc?.toUpperCase(),
       };
       onSave(dataToSave);

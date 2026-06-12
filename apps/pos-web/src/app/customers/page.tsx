@@ -57,10 +57,9 @@ export default function CustomersPage() {
   const updateCustomer = useUpdateCustomer();
   const deleteCustomer = useDeleteCustomer();
 
-  // Transformar datos del backend para display local
+  // GET /crm/customers devuelve un array plano (no { data: [...] })
   const customers: Customer[] = useMemo(() => {
-    if (!customersData?.data) return [];
-    return customersData.data;
+    return Array.isArray(customersData) ? customersData : [];
   }, [customersData]);
 
   // Filtrar localmente

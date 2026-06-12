@@ -55,14 +55,14 @@ describe('ProductCard', () => {
   });
 
   it('should show out of stock badge when stock is 0', () => {
-    const outOfStockProduct = { ...mockProduct, currentStock: 0 };
+    const outOfStockProduct = { ...mockProduct, stockQuantity: 0 };
     render(<ProductCard product={outOfStockProduct} onSelect={mockOnSelect} />);
 
     expect(screen.getByText('Agotado')).toBeInTheDocument();
   });
 
   it('should disable card when product is out of stock', () => {
-    const outOfStockProduct = { ...mockProduct, currentStock: 0 };
+    const outOfStockProduct = { ...mockProduct, stockQuantity: 0 };
     render(<ProductCard product={outOfStockProduct} onSelect={mockOnSelect} />);
 
     const card = screen.getByRole('button');
@@ -72,14 +72,14 @@ describe('ProductCard', () => {
   });
 
   it('should show low stock badge when stock is low', () => {
-    const lowStockProduct = { ...mockProduct, currentStock: 3 };
+    const lowStockProduct = { ...mockProduct, stockQuantity: 3 };
     render(<ProductCard product={lowStockProduct} onSelect={mockOnSelect} />);
 
     expect(screen.getByText(/quedan 3/i)).toBeInTheDocument();
   });
 
   it('should not show stock badge when stock is sufficient', () => {
-    const normalStockProduct = { ...mockProduct, currentStock: 50 };
+    const normalStockProduct = { ...mockProduct, stockQuantity: 50 };
     render(
       <ProductCard product={normalStockProduct} onSelect={mockOnSelect} />,
     );

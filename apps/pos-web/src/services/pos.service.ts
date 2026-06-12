@@ -65,6 +65,65 @@ interface TicketPayment {
   reference?: string;
 }
 
+/**
+ * Backend contract: los endpoints /pos/orders/* devuelven Tickets Prisma
+ * crudos en camelCase (no existe un modelo "Order" snake_case en la API).
+ */
+export interface Ticket {
+  id: string;
+  locationId: string;
+  userId: string;
+  customerId?: string | null;
+  ticketNumber: string;
+  status: 'OPEN' | 'CLOSED' | 'REFUNDED' | 'VOIDED';
+  subtotal: number;
+  tax: number;
+  tip: number;
+  discount: number;
+  total: number;
+  openedAt: string;
+  closedAt?: string | null;
+  notes?: string | null;
+  lines?: Array<{
+    id: string;
+    productId: string;
+    quantity: number;
+    unitPrice: number;
+    notes?: string | null;
+  }>;
+  payments?: Array<{
+    id: string;
+    method: string;
+    amount: number;
+    reference?: string | null;
+  }>;
+}
+
+/**
+ * Backend contract: GET /pos/cash-register/current/:orgId devuelve el
+ * CashRegister Prisma crudo (con `expectedCash` y `shift.openedAt`) o null.
+ */
+export interface CashRegisterSession {
+  id: string;
+  shiftId: string;
+  locationId: string;
+  organizationId: string;
+  expectedCash: number;
+  countedCash?: number | null;
+  totalExpenses: number;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  shift: {
+    id: string;
+    locationId: string;
+    userId: string;
+    status: string;
+    openedAt: string;
+    closedAt?: string | null;
+  };
+}
+
 export interface Order {
   id: string;
   organization_id: string;
@@ -171,20 +230,38 @@ export class POSService {
     ];
   }
 
-  private static mapTicketToOrder(ticket: any, data: CreateOrderDTO): Order {
-    const isClosed = ticket?.status === 'CLOSED';
+  private static mapTicketToOrder(
+    ticket: any,
+    data?: Partial<CreateOrderDTO>,
+  ): Order {
+    const ticketStatus = ticket?.status as Ticket['status'];
+    const status: Order['status'] =
+      ticketStatus === 'CLOSED'
+        ? 'completed'
+        : ticketStatus === 'REFUNDED'
+          ? 'refunded'
+          : ticketStatus === 'VOIDED'
+            ? 'cancelled'
+            : 'pending';
+    const isPaid = ticketStatus === 'CLOSED';
+    const paymentMethod =
+      data?.payment_method ??
+      (ticket?.payments?.[0]?.method as string | undefined) ??
+      '';
+
     return {
       id: ticket.id,
-      organization_id: data.organization_id,
-      customer_id: ticket.customerId ?? data.customer_id,
+      organization_id: data?.organization_id ?? '',
+      customer_id: ticket.customerId ?? data?.customer_id,
       order_number: ticket.ticketNumber,
-      subtotal: Number(ticket.subtotal ?? data.subtotal),
-      tax: Number(ticket.tax ?? data.tax),
-      discount: Number(ticket.discount ?? data.discount ?? 0),
-      total: Number(ticket.total ?? data.total),
-      status: isClosed ? 'completed' : 'pending',
-      payment_method: data.payment_method,
-      payment_status: isClosed ? 'paid' : 'pending',
+      subtotal: Number(ticket.subtotal ?? data?.subtotal ?? 0),
+      tax: Number(ticket.tax ?? data?.tax ?? 0),
+      discount: Number(ticket.discount ?? data?.discount ?? 0),
+      total: Number(ticket.total ?? data?.total ?? 0),
+      status,
+      payment_method: paymentMethod,
+      payment_status:
+        ticketStatus === 'REFUNDED' ? 'refunded' : isPaid ? 'paid' : 'pending',
       created_at: ticket.openedAt ?? new Date().toISOString(),
       updated_at:
         ticket.closedAt ?? ticket.openedAt ?? new Date().toISOString(),
@@ -199,24 +276,33 @@ export class POSService {
   }
 
   /**
-   * Get today's orders for organization
+   * Get today's orders for organization.
+   * El backend devuelve Tickets crudos (camelCase) — se mapean a Order
+   * con el mismo mapper que usa createOrder para mantener consistencia.
    */
   static async getTodayOrders(organizationId: string): Promise<Order[]> {
-    return await api.get<Order[]>(
+    const tickets = await api.get<Ticket[]>(
       `/pos/orders/organization/${organizationId}/today`,
+    );
+    return (tickets ?? []).map((ticket) =>
+      POSService.mapTicketToOrder(ticket, { organization_id: organizationId }),
     );
   }
 
   /**
-   * Get orders by date range
+   * Get orders by date range.
+   * Igual que getTodayOrders: el backend devuelve Tickets crudos.
    */
   static async getOrdersByDateRange(
     organizationId: string,
     startDate: string,
     endDate: string,
   ): Promise<Order[]> {
-    return await api.get<Order[]>(
+    const tickets = await api.get<Ticket[]>(
       `/pos/orders/organization/${organizationId}?startDate=${startDate}&endDate=${endDate}`,
+    );
+    return (tickets ?? []).map((ticket) =>
+      POSService.mapTicketToOrder(ticket, { organization_id: organizationId }),
     );
   }
 
@@ -264,26 +350,41 @@ export class POSService {
   }
 
   /**
-   * Get payment methods for organization
+   * Get payment methods for organization.
+   * El backend devuelve los métodos en lowercase ('cash', 'card', ...);
+   * se normalizan a UPPERCASE para alinear con el enum PaymentMethod del front.
    */
   static async getPaymentMethods(organizationId: string): Promise<string[]> {
-    return await api.get<string[]>(`/pos/payment-methods/${organizationId}`);
+    const methods = await api.get<string[]>(
+      `/pos/payment-methods/${organizationId}`,
+    );
+    return (methods ?? []).map((m) => m.toUpperCase());
   }
 
   /**
-   * Open cash register
+   * Open cash register.
+   * El backend exige `location_id` (responde 400 sin él), por lo que es
+   * argumento obligatorio: los callers sin sucursal deben fallar con un
+   * error claro antes de llamar a la API.
    */
   static async openCashRegister(
     organizationId: string,
     initialAmount: number,
     userId: string,
+    locationId: string,
   ): Promise<{ id: string; opened_at: string }> {
+    if (!locationId) {
+      throw new Error(
+        'No se puede abrir la caja: el usuario no tiene una sucursal (location_id) asignada',
+      );
+    }
     return await api.post<{ id: string; opened_at: string }>(
       '/pos/cash-register/open',
       {
         organization_id: organizationId,
         initial_amount: initialAmount,
         user_id: userId,
+        location_id: locationId,
       },
     );
   }
@@ -307,15 +408,16 @@ export class POSService {
   }
 
   /**
-   * Get current cash register session
+   * Get current cash register session.
+   * El backend devuelve el CashRegister Prisma crudo (expectedCash,
+   * shift.openedAt, ...) o null — ver CashRegisterSession.
+   * El monto inicial es `expectedCash` y la apertura es `shift.openedAt`.
    */
   static async getCurrentCashRegister(
     organizationId: string,
-  ): Promise<{ id: string; initial_amount: number; opened_at: string } | null> {
-    return await api.get<{
-      id: string;
-      initial_amount: number;
-      opened_at: string;
-    } | null>(`/pos/cash-register/current/${organizationId}`);
+  ): Promise<CashRegisterSession | null> {
+    return await api.get<CashRegisterSession | null>(
+      `/pos/cash-register/current/${organizationId}`,
+    );
   }
 }

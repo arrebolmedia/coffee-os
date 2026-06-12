@@ -1,11 +1,99 @@
 /**
  * CoffeeOS - Quality Control Service
- * Servicio para control de calidad y cumplimiento NOM-251
+ * Servicio para control de calidad y cumplimiento NOM-251.
+ *
+ * Backend real (apps/api/src/modules/quality):
+ * - GET/POST /quality/temperature-logs, GET /quality/temperature-logs/alerts,
+ *   GET /quality/temperature-logs/stats, GET/DELETE /quality/temperature-logs/:id
+ * - GET/POST /quality/checklists, GET /quality/checklists/stats,
+ *   GET /quality/checklists/:id, PATCH /quality/checklists/:id/complete,
+ *   DELETE /quality/checklists/:id
+ * - GET /quality/food-safety/incidents (solo lectura, sin persistencia aún)
+ *
+ * NO existe backend para: checklist-templates, checklist-executions,
+ * temperature-alerts acknowledge, compliance-report, corrective-actions,
+ * audit-trail ni nom251-status/report. Esos métodos lanzan un Error explícito
+ * en lugar de pegar a rutas fantasma (404 silencioso).
  */
 
-import { api } from '@/lib/api';
+import { api, buildQueryString } from '@/lib/api';
 
-// ============= CHECKLISTS =============
+const NOT_IMPLEMENTED = (feature: string) =>
+  new Error(
+    `Módulo en construcción: el backend de ${feature} aún no existe en CoffeeOS API.`,
+  );
+
+// ============= CHECKLISTS (backend real: /quality/checklists) =============
+
+export type ChecklistType = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'CUSTOM';
+
+export type ChecklistCategory =
+  | 'CLEANING'
+  | 'FOOD_SAFETY'
+  | 'EQUIPMENT'
+  | 'PERSONNEL'
+  | 'HYGIENE'
+  | 'TEMPERATURE'
+  | 'STORAGE'
+  | 'WASTE';
+
+export interface ChecklistItem {
+  id: string;
+  description: string;
+  category: ChecklistCategory | null;
+  regulation_reference?: string;
+  notes?: string;
+  completed: boolean;
+  completed_at?: string;
+  completed_by?: string;
+  completion_notes?: string;
+  photo_url?: string;
+}
+
+export interface Checklist {
+  id: string;
+  name: string;
+  type: ChecklistType;
+  location_id: string;
+  organization_id: string;
+  scheduled_date?: string;
+  description?: string;
+  items: ChecklistItem[];
+  completed: boolean;
+  completed_at?: string;
+  completed_by_user_id?: string;
+  completion_percentage: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateChecklistDTO {
+  name: string;
+  type: ChecklistType;
+  location_id: string;
+  organization_id: string;
+  items: {
+    description: string;
+    category: ChecklistCategory;
+    regulation_reference?: string;
+    notes?: string;
+  }[];
+  scheduled_date?: string;
+  description?: string;
+}
+
+export interface CompleteChecklistDTO {
+  completed_by_user_id: string;
+  items: {
+    item_id: string;
+    completed: boolean;
+    notes?: string;
+    photo_url?: string;
+  }[];
+  general_notes?: string;
+}
+
+// ============= LEGACY TYPES (sin backend — se mantienen para los hooks) ====
 
 export interface ChecklistTemplate {
   id: string;
@@ -20,23 +108,11 @@ export interface ChecklistTemplate {
     | 'food_safety'
     | 'custom';
   frequency: 'daily' | 'weekly' | 'monthly' | 'on_demand';
-  items: ChecklistItem[];
+  items: any[];
   required_roles?: string[];
   active: boolean;
   created_at: string;
   updated_at: string;
-}
-
-export interface ChecklistItem {
-  id: string;
-  order: number;
-  category: string;
-  task: string;
-  description?: string;
-  is_critical: boolean;
-  requires_photo?: boolean;
-  requires_notes?: boolean;
-  acceptable_values?: string[];
 }
 
 export interface ChecklistExecution {
@@ -86,93 +162,81 @@ export interface UpdateChecklistExecutionDTO {
   notes?: string;
 }
 
-// ============= TEMPERATURE LOGS =============
+// ============= TEMPERATURE LOGS (backend real) =============
 
+export type TemperatureType =
+  | 'REFRIGERATOR'
+  | 'FREEZER'
+  | 'HOT_HOLDING'
+  | 'COLD_HOLDING'
+  | 'COOKING'
+  | 'COOLING'
+  | 'RECEIVING';
+
+export type TemperatureUnit = 'CELSIUS' | 'FAHRENHEIT';
+
+/** Shape real devuelto por GET /quality/temperature-logs. */
 export interface TemperatureLog {
   id: string;
+  location_id: string;
   organization_id: string;
-  location_id?: string;
-  equipment_type:
-    | 'refrigerator'
-    | 'freezer'
-    | 'hot_holding'
-    | 'cold_holding'
-    | 'other';
-  equipment_name: string;
+  type: TemperatureType;
   temperature: number;
-  unit: 'celsius' | 'fahrenheit';
-  min_acceptable: number;
-  max_acceptable: number;
+  unit: TemperatureUnit;
+  equipment_name: string;
+  product_name?: string;
+  location_detail?: string;
+  recorded_by_user_id: string;
+  recorded_at: string;
+  notes?: string;
   is_within_range: boolean;
-  recorded_by: string;
-  recorded_by_name?: string;
-  recorded_at: string;
-  photo_url?: string;
-  notes?: string;
-  corrective_action?: string;
+  alert_triggered: boolean;
   created_at: string;
 }
 
+/** DTO real de POST /quality/temperature-logs (CreateTemperatureLogDto). */
 export interface CreateTemperatureLogDTO {
+  location_id: string;
   organization_id: string;
-  location_id?: string;
-  equipment_type: TemperatureLog['equipment_type'];
-  equipment_name: string;
+  type: TemperatureType;
   temperature: number;
-  unit?: 'celsius' | 'fahrenheit';
-  min_acceptable: number;
-  max_acceptable: number;
-  recorded_by: string;
-  recorded_at: string;
-  photo_url?: string;
+  unit: TemperatureUnit;
+  equipment_name: string;
+  product_name?: string;
+  location_detail?: string;
+  recorded_by_user_id: string;
+  recorded_at?: string;
   notes?: string;
-  corrective_action?: string;
 }
 
-export interface TemperatureAlert {
-  id: string;
-  log_id: string;
-  equipment_name: string;
-  temperature: number;
-  min_acceptable: number;
-  max_acceptable: number;
-  severity: 'warning' | 'critical';
-  acknowledged: boolean;
-  acknowledged_by?: string;
-  acknowledged_at?: string;
-  created_at: string;
+export interface TemperatureLogFilters {
+  location_id?: string;
+  type?: TemperatureType;
+  start_date?: string;
+  end_date?: string;
+  equipment_name?: string;
 }
 
-// ============= COMPLIANCE & AUDIT =============
+// ============= COMPLIANCE & AUDIT (sin backend) =============
 
 export interface ComplianceReport {
   period_start: string;
   period_end: string;
   organization_id: string;
   location_id?: string;
-
-  // Checklists
   total_checklists: number;
   completed_checklists: number;
   failed_checklists: number;
   compliance_rate: number;
   critical_failures: number;
-
-  // Temperature Monitoring
   total_temp_logs: number;
   out_of_range_logs: number;
   temp_compliance_rate: number;
   critical_temp_violations: number;
-
-  // Overall Score
   overall_compliance_score: number;
   nom251_compliant: boolean;
-
-  // Issues
   open_issues: number;
   resolved_issues: number;
-
-  // Trends
   trend: 'improving' | 'stable' | 'declining';
   previous_score?: number;
 }
@@ -231,231 +295,261 @@ export interface AuditTrail {
 }
 
 export class QualityControlService {
-  // ============= CHECKLIST TEMPLATES =============
+  // ============= CHECKLISTS (backend real) =============
 
-  static async getChecklistTemplates(
+  static async getChecklists(
     organizationId: string,
-  ): Promise<ChecklistTemplate[]> {
-    const response = await api.get<any>(
-      `/organizations/${organizationId}/quality/checklist-templates`,
-    );
-    return response?.data ?? response;
+    filters?: {
+      location_id?: string;
+      type?: ChecklistType;
+      category?: ChecklistCategory;
+      start_date?: string;
+      end_date?: string;
+      completed?: boolean;
+    },
+  ): Promise<Checklist[]> {
+    const query = buildQueryString({
+      organization_id: organizationId,
+      ...filters,
+      completed:
+        filters?.completed !== undefined
+          ? String(filters.completed)
+          : undefined,
+    });
+    return await api.get<Checklist[]>(`/quality/checklists${query}`);
   }
 
-  static async getChecklistTemplate(
-    templateId: string,
-  ): Promise<ChecklistTemplate> {
-    return await api.get<ChecklistTemplate>(
-      `/quality-control/checklist-templates/${templateId}`,
-    );
+  static async getChecklist(checklistId: string): Promise<Checklist> {
+    return await api.get<Checklist>(`/quality/checklists/${checklistId}`);
   }
 
-  static async createChecklistTemplate(
-    data: Omit<ChecklistTemplate, 'id' | 'created_at' | 'updated_at'>,
-  ): Promise<ChecklistTemplate> {
-    const response = await api.post<any>('/quality/checklist-templates', data);
-    return response?.data ?? response;
+  static async createChecklist(data: CreateChecklistDTO): Promise<Checklist> {
+    return await api.post<Checklist>('/quality/checklists', data);
   }
 
-  static async updateChecklistTemplate(
-    templateId: string,
-    data: Partial<ChecklistTemplate>,
-  ): Promise<ChecklistTemplate> {
-    return await api.put<ChecklistTemplate>(
-      `/quality-control/checklist-templates/${templateId}`,
+  static async completeChecklist(
+    checklistId: string,
+    data: CompleteChecklistDTO,
+  ): Promise<Checklist> {
+    return await api.patch<Checklist>(
+      `/quality/checklists/${checklistId}/complete`,
       data,
     );
   }
 
-  static async deleteChecklistTemplate(templateId: string): Promise<void> {
-    await api.delete(`/quality-control/checklist-templates/${templateId}`);
+  static async deleteChecklist(checklistId: string): Promise<void> {
+    await api.delete(`/quality/checklists/${checklistId}`);
   }
 
-  // ============= CHECKLIST EXECUTIONS =============
-
-  static async getChecklistExecutions(
+  static async getChecklistComplianceStats(
     organizationId: string,
-    filters?: {
+    locationId?: string,
+  ): Promise<any> {
+    const query = buildQueryString({
+      organization_id: organizationId,
+      location_id: locationId,
+    });
+    return await api.get<any>(`/quality/checklists/stats${query}`);
+  }
+
+  // ============= CHECKLIST TEMPLATES (sin backend) =============
+
+  // TODO(backend): implementar /quality/checklist-templates en la API.
+  static async getChecklistTemplates(
+    _organizationId: string,
+  ): Promise<ChecklistTemplate[]> {
+    throw NOT_IMPLEMENTED('plantillas de checklist');
+  }
+
+  // TODO(backend): implementar /quality/checklist-templates/:id en la API.
+  static async getChecklistTemplate(
+    _templateId: string,
+  ): Promise<ChecklistTemplate> {
+    throw NOT_IMPLEMENTED('plantillas de checklist');
+  }
+
+  // TODO(backend): implementar POST /quality/checklist-templates en la API.
+  static async createChecklistTemplate(
+    _data: Omit<ChecklistTemplate, 'id' | 'created_at' | 'updated_at'>,
+  ): Promise<ChecklistTemplate> {
+    throw NOT_IMPLEMENTED('plantillas de checklist');
+  }
+
+  // TODO(backend): implementar PUT /quality/checklist-templates/:id en la API.
+  static async updateChecklistTemplate(
+    _templateId: string,
+    _data: Partial<ChecklistTemplate>,
+  ): Promise<ChecklistTemplate> {
+    throw NOT_IMPLEMENTED('plantillas de checklist');
+  }
+
+  // TODO(backend): implementar DELETE /quality/checklist-templates/:id.
+  static async deleteChecklistTemplate(_templateId: string): Promise<void> {
+    throw NOT_IMPLEMENTED('plantillas de checklist');
+  }
+
+  // ============= CHECKLIST EXECUTIONS (sin backend) =============
+
+  // TODO(backend): implementar /quality/checklist-executions en la API.
+  static async getChecklistExecutions(
+    _organizationId: string,
+    _filters?: {
       template_id?: string;
       status?: string;
       date_from?: string;
       date_to?: string;
     },
   ): Promise<ChecklistExecution[]> {
-    const response = await api.get<any>(
-      `/organizations/${organizationId}/quality/checklist-executions`,
-      filters ? { params: filters } : undefined,
-    );
-    return response?.data ?? response;
+    throw NOT_IMPLEMENTED('ejecuciones de checklist');
   }
 
+  // TODO(backend): implementar /quality/checklist-executions/:id en la API.
   static async getChecklistExecution(
-    executionId: string,
+    _executionId: string,
   ): Promise<ChecklistExecution> {
-    return await api.get<ChecklistExecution>(
-      `/quality-control/checklist-executions/${executionId}`,
-    );
+    throw NOT_IMPLEMENTED('ejecuciones de checklist');
   }
 
+  // TODO(backend): implementar POST /quality/checklist-executions en la API.
   static async createChecklistExecution(
-    data: CreateChecklistExecutionDTO,
+    _data: CreateChecklistExecutionDTO,
   ): Promise<ChecklistExecution> {
-    return await api.post<ChecklistExecution>(
-      '/quality-control/checklist-executions',
-      data,
-    );
+    throw NOT_IMPLEMENTED('ejecuciones de checklist');
   }
 
+  // TODO(backend): implementar PUT /quality/checklist-executions/:id.
   static async updateChecklistExecution(
-    executionId: string,
-    data: UpdateChecklistExecutionDTO,
+    _executionId: string,
+    _data: UpdateChecklistExecutionDTO,
   ): Promise<ChecklistExecution> {
-    return await api.put<ChecklistExecution>(
-      `/quality-control/checklist-executions/${executionId}`,
-      data,
-    );
+    throw NOT_IMPLEMENTED('ejecuciones de checklist');
   }
 
+  // TODO(backend): implementar POST /quality/checklist-executions/:id/complete.
   static async completeChecklistExecution(
-    executionId: string,
+    _executionId: string,
   ): Promise<ChecklistExecution> {
-    const response = await api.post<any>(
-      `/quality/checklist-executions/${executionId}/complete`,
-    );
-    return response?.data ?? response;
+    throw NOT_IMPLEMENTED('ejecuciones de checklist');
   }
 
-  // ============= TEMPERATURE LOGS =============
+  // ============= TEMPERATURE LOGS (backend real) =============
 
   static async getTemperatureLogs(
     organizationId: string,
-    filters?: {
-      equipment_type?: string;
-      date_from?: string;
-      date_to?: string;
-      out_of_range_only?: boolean;
-    },
+    filters?: TemperatureLogFilters,
   ): Promise<TemperatureLog[]> {
-    const response = await api.get<any>(
-      `/organizations/${organizationId}/quality/temperature-logs`,
-      filters ? { params: filters } : undefined,
-    );
-    return response?.data ?? response;
+    const query = buildQueryString({
+      organization_id: organizationId,
+      ...filters,
+    });
+    return await api.get<TemperatureLog[]>(`/quality/temperature-logs${query}`);
   }
 
   static async createTemperatureLog(
     data: CreateTemperatureLogDTO,
   ): Promise<TemperatureLog> {
-    const response = await api.post<any>('/quality/temperature-logs', data);
-    return response?.data ?? response;
+    return await api.post<TemperatureLog>('/quality/temperature-logs', data);
   }
 
+  /**
+   * GET /quality/temperature-logs/alerts — devuelve los TemperatureLog con
+   * alert_triggered=true (no existe un modelo de "alerta" separado).
+   */
   static async getTemperatureAlerts(
     organizationId: string,
-    acknowledged?: boolean,
-  ): Promise<TemperatureAlert[]> {
-    const response = await api.get<any>(
-      `/organizations/${organizationId}/quality/temperature-alerts`,
-      acknowledged !== undefined ? { params: { acknowledged } } : undefined,
+    locationId?: string,
+  ): Promise<TemperatureLog[]> {
+    const query = buildQueryString({
+      organization_id: organizationId,
+      location_id: locationId,
+    });
+    return await api.get<TemperatureLog[]>(
+      `/quality/temperature-logs/alerts${query}`,
     );
-    return response?.data ?? response;
   }
 
+  static async getTemperatureStats(
+    organizationId: string,
+    locationId?: string,
+  ): Promise<any> {
+    const query = buildQueryString({
+      organization_id: organizationId,
+      location_id: locationId,
+    });
+    return await api.get<any>(`/quality/temperature-logs/stats${query}`);
+  }
+
+  // TODO(backend): no existe acknowledge de alertas (las alertas son logs).
   static async acknowledgeTemperatureAlert(
-    alertId: string,
-    acknowledgedBy: string,
-  ): Promise<TemperatureAlert> {
-    return await api.post<TemperatureAlert>(
-      `/quality-control/temperature-alerts/${alertId}/acknowledge`,
-      { acknowledged_by: acknowledgedBy },
-    );
+    _alertId: string,
+    _acknowledgedBy: string,
+  ): Promise<TemperatureLog> {
+    throw NOT_IMPLEMENTED('reconocimiento de alertas de temperatura');
   }
 
-  // ============= COMPLIANCE & REPORTING =============
+  // ============= COMPLIANCE & REPORTING (sin backend) =============
 
+  // TODO(backend): implementar el reporte de cumplimiento en la API.
   static async getComplianceReport(
-    organizationId: string,
-    dateRange: { from: string; to: string },
+    _organizationId: string,
+    _dateRange: { from: string; to: string },
   ): Promise<ComplianceReport> {
-    const response = await api.get<any>(
-      `/organizations/${organizationId}/quality/compliance-report`,
-      { params: dateRange },
-    );
-    return response?.data ?? response;
+    throw NOT_IMPLEMENTED('reportes de cumplimiento');
   }
 
+  // TODO(backend): implementar /quality/corrective-actions en la API.
   static async getCorrectiveActions(
-    organizationId: string,
-    filters?: {
+    _organizationId: string,
+    _filters?: {
       status?: string;
       severity?: string;
       issue_type?: string;
     },
   ): Promise<CorrectiveAction[]> {
-    const response = await api.get<any>(
-      `/organizations/${organizationId}/quality/corrective-actions`,
-      filters ? { params: filters } : undefined,
-    );
-    return response?.data ?? response;
+    throw NOT_IMPLEMENTED('acciones correctivas');
   }
 
+  // TODO(backend): implementar POST /quality/corrective-actions en la API.
   static async createCorrectiveAction(
-    data: CreateCorrectiveActionDTO,
+    _data: CreateCorrectiveActionDTO,
   ): Promise<CorrectiveAction> {
-    const response = await api.post<any>('/quality/corrective-actions', data);
-    return response?.data ?? response;
+    throw NOT_IMPLEMENTED('acciones correctivas');
   }
 
+  // TODO(backend): implementar PUT /quality/corrective-actions/:id en la API.
   static async updateCorrectiveAction(
-    actionId: string,
-    data: Partial<CreateCorrectiveActionDTO>,
+    _actionId: string,
+    _data: Partial<CreateCorrectiveActionDTO>,
   ): Promise<CorrectiveAction> {
-    return await api.put<CorrectiveAction>(
-      `/quality-control/corrective-actions/${actionId}`,
-      data,
-    );
+    throw NOT_IMPLEMENTED('acciones correctivas');
   }
 
+  // TODO(backend): implementar el complete de acciones correctivas en la API.
   static async completeCorrectiveAction(
-    actionId: string,
-    verificationNotes: string,
-    verifiedBy?: string,
+    _actionId: string,
+    _verificationNotes: string,
+    _verifiedBy?: string,
   ): Promise<CorrectiveAction> {
-    const response = await api.post<any>(
-      `/quality/corrective-actions/${actionId}/complete`,
-      {
-        verification_notes: verificationNotes,
-        verified_by: verifiedBy,
-      },
-    );
-    return response?.data ?? response;
+    throw NOT_IMPLEMENTED('acciones correctivas');
   }
 
+  // TODO(backend): implementar el audit-trail de calidad en la API.
   static async getAuditTrail(
-    organizationId: string,
-    filters?: {
+    _organizationId: string,
+    _filters?: {
       entity_type?: string;
       entity_id?: string;
       date_from?: string;
       date_to?: string;
     },
   ): Promise<AuditTrail[]> {
-    let url = `/quality-control/organizations/${organizationId}/audit-trail`;
-    const params = new URLSearchParams();
-
-    if (filters?.entity_type) params.append('entity_type', filters.entity_type);
-    if (filters?.entity_id) params.append('entity_id', filters.entity_id);
-    if (filters?.date_from) params.append('date_from', filters.date_from);
-    if (filters?.date_to) params.append('date_to', filters.date_to);
-
-    if (params.toString()) url += `?${params.toString()}`;
-
-    return await api.get<AuditTrail[]>(url);
+    throw NOT_IMPLEMENTED('audit trail de calidad');
   }
 
-  // ============= NOM-251 SPECIFIC =============
+  // ============= NOM-251 SPECIFIC (sin backend) =============
 
-  static async getNOM251ComplianceStatus(organizationId: string): Promise<{
+  // TODO(backend): implementar el status NOM-251 en la API.
+  static async getNOM251ComplianceStatus(_organizationId: string): Promise<{
     compliant: boolean;
     score: number;
     requirements: {
@@ -467,23 +561,14 @@ export class QualityControlService {
     }[];
     recommendations: string[];
   }> {
-    const response = await api.get<any>(
-      `/organizations/${organizationId}/quality/nom251-status`,
-    );
-    const data = response?.data ?? response;
-    return {
-      ...data,
-      score: data.score ?? data.compliance_score,
-    };
+    throw NOT_IMPLEMENTED('status de cumplimiento NOM-251');
   }
 
+  // TODO(backend): implementar la generación del reporte NOM-251 en la API.
   static async generateNOM251Report(
-    organizationId: string,
-    dateRange: { from: string; to: string },
+    _organizationId: string,
+    _dateRange: { from: string; to: string },
   ): Promise<Blob> {
-    const response = await fetch(
-      `/api/quality-control/organizations/${organizationId}/nom251-report?from=${dateRange.from}&to=${dateRange.to}`,
-    );
-    return await response.blob();
+    throw NOT_IMPLEMENTED('reportes NOM-251');
   }
 }

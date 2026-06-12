@@ -1,162 +1,81 @@
 /**
  * CoffeeOS - Locations/Branches Module
- * Gestión completa de sucursales y configuración multi-tenancy
+ * Gestión de sucursales
+ *
+ * Alineado al contrato real del backend: el Location de Prisma plano
+ * (name, address string, city, state, postal_code, country, phone, email,
+ * timezone, active, tax_rate, currency). Los campos code/type/status/
+ * contact/schedule/metrics no existen en el schema actual.
  */
 
 'use client';
 
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { useLocations } from '@/hooks/use-locations';
+import { type Location, useLocations } from '@/hooks/use-locations';
 import {
-  AlertCircle,
-  Calendar,
   CheckCircle,
   Clock,
   DollarSign,
   Edit,
   Eye,
+  Globe,
   Mail,
   MapPin,
-  Package,
   Phone,
   Plus,
   Search,
   Settings,
-  TrendingUp,
-  User,
-  Users,
   XCircle,
 } from 'lucide-react';
-
-interface Location {
-  id: string;
-  name: string;
-  code: string;
-  type: 'principal' | 'sucursal' | 'kiosko';
-  status: 'active' | 'inactive' | 'maintenance';
-  address: {
-    street: string;
-    city: string;
-    state: string;
-    zip: string;
-    country: string;
-  };
-  contact: {
-    manager: string;
-    phone: string;
-    email: string;
-  };
-  schedule: {
-    monday: string;
-    tuesday: string;
-    wednesday: string;
-    thursday: string;
-    friday: string;
-    saturday: string;
-    sunday: string;
-  };
-  metrics: {
-    employees: number;
-    avgSales: number;
-    avgCustomers: number;
-    inventory: number;
-  };
-  openingDate: string;
-  lastSale: string;
-}
 
 export default function LocationsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [filterType, setFilterType] = useState('all');
 
-  const { data: apiLocations = [] } = useLocations();
-  const locations: Location[] = apiLocations as Location[];
+  const { data: locations = [] } = useLocations();
 
   // Calcular estadísticas
   const stats = {
     total: locations.length,
-    active: locations.filter((l) => l.status === 'active').length,
-    maintenance: locations.filter((l) => l.status === 'maintenance').length,
-    totalEmployees: locations.reduce(
-      (sum, l) => sum + (l.metrics?.employees ?? 0),
-      0,
-    ),
-    avgSales:
-      locations.length > 0
-        ? Math.round(
-            locations.reduce((sum, l) => sum + (l.metrics?.avgSales ?? 0), 0) /
-              locations.length,
-          )
-        : 0,
+    active: locations.filter((l) => l.active).length,
+    inactive: locations.filter((l) => !l.active).length,
   };
 
   // Filtrar sucursales
   const filteredLocations = locations.filter((location) => {
+    const query = searchQuery.toLowerCase();
     const matchesSearch =
-      location.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      location.code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      location.address?.city?.toLowerCase().includes(searchQuery.toLowerCase());
+      location.name?.toLowerCase().includes(query) ||
+      location.city?.toLowerCase().includes(query) ||
+      location.address?.toLowerCase().includes(query);
     const matchesStatus =
-      filterStatus === 'all' || location.status === filterStatus;
-    const matchesType = filterType === 'all' || location.type === filterType;
-    return matchesSearch && matchesStatus && matchesType;
+      filterStatus === 'all' ||
+      (filterStatus === 'active' ? location.active : !location.active);
+    return matchesSearch && matchesStatus;
   });
 
-  const getStatusBadge = (status: string) => {
-    const badges = {
-      active: {
-        label: 'Activa',
-        color: 'bg-green-100 text-green-700 border-green-200',
-        icon: CheckCircle,
-      },
-      inactive: {
-        label: 'Inactiva',
-        color: 'bg-gray-100 text-gray-700 border-gray-200',
-        icon: XCircle,
-      },
-      maintenance: {
-        label: 'Mantenimiento',
-        color: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-        icon: AlertCircle,
-      },
-    };
-    const badge = badges[status as keyof typeof badges];
-    const Icon = badge.icon;
+  const getStatusBadge = (active: boolean) => {
+    const Icon = active ? CheckCircle : XCircle;
     return (
       <span
-        className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full border ${badge.color}`}
+        className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full border ${
+          active
+            ? 'bg-green-100 text-green-700 border-green-200'
+            : 'bg-gray-100 text-gray-700 border-gray-200'
+        }`}
       >
         <Icon className="w-3 h-3" />
-        {badge.label}
+        {active ? 'Activa' : 'Inactiva'}
       </span>
     );
   };
 
-  const getTypeBadge = (type: string) => {
-    const badges = {
-      principal: {
-        label: 'Principal',
-        color: 'bg-purple-100 text-purple-700 border-purple-200',
-      },
-      sucursal: {
-        label: 'Sucursal',
-        color: 'bg-blue-100 text-blue-700 border-blue-200',
-      },
-      kiosko: {
-        label: 'Kiosko',
-        color: 'bg-orange-100 text-orange-700 border-orange-200',
-      },
-    };
-    const badge = badges[type as keyof typeof badges];
-    return (
-      <span
-        className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full border ${badge.color}`}
-      >
-        {badge.label}
-      </span>
-    );
+  const formatAddress = (location: Location) => {
+    const cityState = [location.city, location.state]
+      .filter(Boolean)
+      .join(', ');
+    return [cityState, location.postal_code].filter(Boolean).join(' ');
   };
 
   return (
@@ -177,7 +96,7 @@ export default function LocationsPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white p-6 rounded-lg border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
@@ -209,41 +128,13 @@ export default function LocationsPage() {
           <div className="bg-white p-6 rounded-lg border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Mantenimiento</p>
-                <p className="text-2xl font-bold text-yellow-600">
-                  {stats.maintenance}
+                <p className="text-sm text-gray-600">Inactivas</p>
+                <p className="text-2xl font-bold text-gray-600">
+                  {stats.inactive}
                 </p>
               </div>
-              <div className="p-3 bg-yellow-100 rounded-lg">
-                <AlertCircle className="w-6 h-6 text-yellow-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Empleados</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.totalEmployees}
-                </p>
-              </div>
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <Users className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Ventas Promedio</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  ${(stats.avgSales / 1000).toFixed(0)}k
-                </p>
-              </div>
-              <div className="p-3 bg-indigo-100 rounded-lg">
-                <DollarSign className="w-6 h-6 text-indigo-600" />
+              <div className="p-3 bg-gray-100 rounded-lg">
+                <XCircle className="w-6 h-6 text-gray-600" />
               </div>
             </div>
           </div>
@@ -251,7 +142,7 @@ export default function LocationsPage() {
 
         {/* Filters */}
         <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -264,18 +155,6 @@ export default function LocationsPage() {
               />
             </div>
 
-            {/* Type Filter */}
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">Todos los Tipos</option>
-              <option value="principal">Principal</option>
-              <option value="sucursal">Sucursal</option>
-              <option value="kiosko">Kiosko</option>
-            </select>
-
             {/* Status Filter */}
             <select
               value={filterStatus}
@@ -284,7 +163,6 @@ export default function LocationsPage() {
             >
               <option value="all">Todos los Estados</option>
               <option value="active">Activas</option>
-              <option value="maintenance">Mantenimiento</option>
               <option value="inactive">Inactivas</option>
             </select>
           </div>
@@ -301,15 +179,16 @@ export default function LocationsPage() {
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-xl font-bold text-white">
-                        {location.name}
-                      </h3>
-                      {getTypeBadge(location.type)}
-                    </div>
-                    <p className="text-blue-100 text-sm">{location.code}</p>
+                    <h3 className="text-xl font-bold text-white">
+                      {location.name}
+                    </h3>
+                    <p className="text-blue-100 text-sm">
+                      {[location.city, location.country]
+                        .filter(Boolean)
+                        .join(', ')}
+                    </p>
                   </div>
-                  {getStatusBadge(location.status)}
+                  {getStatusBadge(location.active)}
                 </div>
               </div>
 
@@ -319,91 +198,64 @@ export default function LocationsPage() {
                 <div className="flex items-start gap-3">
                   <MapPin className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
                   <div className="text-sm">
-                    <p className="text-gray-900">{location.address.street}</p>
-                    <p className="text-gray-600">
-                      {location.address.city}, {location.address.state}{' '}
-                      {location.address.zip}
+                    <p className="text-gray-900">
+                      {location.address || 'Dirección no disponible'}
                     </p>
+                    {formatAddress(location) && (
+                      <p className="text-gray-600">{formatAddress(location)}</p>
+                    )}
                   </div>
                 </div>
 
                 {/* Contact */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm">
-                    <User className="w-4 h-4 text-gray-400" />
-                    <span className="text-gray-600">Gerente:</span>
-                    <span className="text-gray-900 font-medium">
-                      {location.contact.manager}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
                     <Phone className="w-4 h-4 text-gray-400" />
                     <span className="text-gray-900">
-                      {location.contact.phone}
+                      {location.phone || 'No disponible'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Mail className="w-4 h-4 text-gray-400" />
                     <span className="text-gray-900">
-                      {location.contact.email}
+                      {location.email || 'No disponible'}
                     </span>
                   </div>
                 </div>
 
-                {/* Metrics */}
-                <div className="grid grid-cols-4 gap-3 pt-4 border-t border-gray-200">
-                  <div className="text-center">
-                    <Users className="w-5 h-5 text-purple-600 mx-auto mb-1" />
-                    <p className="text-lg font-bold text-gray-900">
-                      {location.metrics.employees}
-                    </p>
-                    <p className="text-xs text-gray-600">Empleados</p>
-                  </div>
+                {/* Configuración fiscal y regional */}
+                <div className="grid grid-cols-3 gap-3 pt-4 border-t border-gray-200">
                   <div className="text-center">
                     <DollarSign className="w-5 h-5 text-green-600 mx-auto mb-1" />
                     <p className="text-lg font-bold text-gray-900">
-                      ${(location.metrics.avgSales / 1000).toFixed(0)}k
+                      {location.currency}
                     </p>
-                    <p className="text-xs text-gray-600">Ventas/día</p>
+                    <p className="text-xs text-gray-600">Moneda</p>
                   </div>
                   <div className="text-center">
-                    <TrendingUp className="w-5 h-5 text-blue-600 mx-auto mb-1" />
+                    <Settings className="w-5 h-5 text-blue-600 mx-auto mb-1" />
                     <p className="text-lg font-bold text-gray-900">
-                      {location.metrics.avgCustomers}
+                      {(location.tax_rate * 100).toFixed(0)}%
                     </p>
-                    <p className="text-xs text-gray-600">Clientes</p>
+                    <p className="text-xs text-gray-600">IVA</p>
                   </div>
                   <div className="text-center">
-                    <Package className="w-5 h-5 text-orange-600 mx-auto mb-1" />
-                    <p className="text-lg font-bold text-gray-900">
-                      {location.metrics.inventory}
+                    <Globe className="w-5 h-5 text-purple-600 mx-auto mb-1" />
+                    <p
+                      className="text-sm font-bold text-gray-900 truncate"
+                      title={location.timezone}
+                    >
+                      {location.timezone?.split('/').pop()?.replace('_', ' ') ||
+                        '—'}
                     </p>
-                    <p className="text-xs text-gray-600">Productos</p>
+                    <p className="text-xs text-gray-600">Zona horaria</p>
                   </div>
-                </div>
-
-                {/* Schedule Info */}
-                <div className="flex items-center gap-2 text-sm text-gray-600 pt-3 border-t border-gray-200">
-                  <Clock className="w-4 h-4" />
-                  <span>Lun-Vie: {location.schedule.monday}</span>
                 </div>
 
                 {/* Footer Info */}
-                <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-200">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    Inauguración:{' '}
-                    {new Date(location.openingDate).toLocaleDateString('es-MX')}
-                  </div>
-                  <div>
-                    Última venta:{' '}
-                    {new Date(location.lastSale).toLocaleString('es-MX', {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500 pt-3 border-t border-gray-200">
+                  <Clock className="w-3 h-3" />
+                  Horarios y métricas: no disponibles
                 </div>
               </div>
 

@@ -21,10 +21,6 @@ export const suppliersKeys = {
   details: () => [...suppliersKeys.all, 'detail'] as const,
   detail: (id: string) => [...suppliersKeys.details(), id] as const,
   stats: (orgId: string) => [...suppliersKeys.all, 'stats', orgId] as const,
-  purchases: (supplierId: string) =>
-    [...suppliersKeys.detail(supplierId), 'purchases'] as const,
-  category: (orgId: string, category: string) =>
-    [...suppliersKeys.lists(), orgId, 'category', category] as const,
   search: (orgId: string, query: string) =>
     [...suppliersKeys.all, 'search', orgId, query] as const,
 };
@@ -32,11 +28,7 @@ export const suppliersKeys = {
 /**
  * Hook to get suppliers list
  */
-export function useSuppliers(filters?: {
-  category?: string;
-  status?: string;
-  search?: string;
-}) {
+export function useSuppliers(filters?: { active?: boolean; search?: string }) {
   const { user } = useAuth();
   const organizationId = user?.organizationId || '';
 
@@ -156,57 +148,9 @@ export function useDeleteSupplier() {
   });
 }
 
-/**
- * Hook to get supplier purchases
- */
-export function useSupplierPurchases(supplierId: string, enabled = true) {
-  return useQuery({
-    queryKey: suppliersKeys.purchases(supplierId),
-    queryFn: () => SuppliersService.getSupplierPurchases(supplierId),
-    enabled: enabled && !!supplierId,
-    staleTime: 300000, // 5 minutes
-  });
-}
-
-/**
- * Hook to update supplier rating
- */
-export function useUpdateSupplierRating() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, rating }: { id: string; rating: number }) =>
-      SuppliersService.updateSupplierRating(id, rating),
-    onSuccess: (supplier) => {
-      queryClient.invalidateQueries({
-        queryKey: suppliersKeys.detail(supplier.id),
-      });
-      queryClient.invalidateQueries({ queryKey: suppliersKeys.lists() });
-      toast.success('Calificación actualizada');
-    },
-    onError: (error: any) => {
-      toast.error(
-        error?.response?.data?.message || 'Error al actualizar calificación',
-      );
-    },
-  });
-}
-
-/**
- * Hook to get suppliers by category
- */
-export function useSuppliersByCategory(category: string, enabled = true) {
-  const { user } = useAuth();
-  const organizationId = user?.organizationId || '';
-
-  return useQuery({
-    queryKey: suppliersKeys.category(organizationId, category),
-    queryFn: () =>
-      SuppliersService.getSuppliersByCategory(organizationId, category),
-    enabled: enabled && !!organizationId && !!category,
-    staleTime: 120000, // 2 minutes
-  });
-}
+// NOTE (migración Prisma): useSupplierPurchases, useUpdateSupplierRating y
+// useSuppliersByCategory se eliminaron — el backend ya no expone purchases,
+// rating ni category para proveedores.
 
 /**
  * Hook to search suppliers

@@ -158,12 +158,13 @@ class CostingService {
         throw new Error('No recipe found for product');
       }
 
+      // Campos reales del wire: inventory_item_name / cost_per_unit / total_cost
       const ingredients = recipe.ingredients.map((ing) => ({
-        name: ing.name,
+        name: ing.inventory_item_name || 'Ingrediente',
         quantity: ing.quantity,
         unit: ing.unit,
-        unit_cost: ing.unit_cost || 0,
-        subtotal: ing.subtotal_cost || 0,
+        unit_cost: ing.cost_per_unit || 0,
+        subtotal: ing.total_cost || 0,
       }));
 
       const totalIngredientsCost = ingredients.reduce(

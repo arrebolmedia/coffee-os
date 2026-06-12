@@ -1,6 +1,20 @@
 /**
  * CoffeeOS POS Web - Recipes Service
- * Servicio para gestión de recetas y preparaciones
+ * Servicio para gestión de recetas y preparaciones.
+ *
+ * Alineado al contrato real del backend (apps/api/src/modules/recipes):
+ * - POST /recipes
+ * - GET /recipes (query: organization_id, search, is_active, max_cost, sort_by, order)
+ * - GET /recipes/categories
+ * - GET /recipes/:id
+ * - GET /recipes/product/:productId
+ * - GET /recipes/:id/cost
+ * - POST /recipes/:id/scale
+ * - PATCH /recipes/:id
+ * - DELETE /recipes/:id
+ *
+ * Los endpoints fantasma (duplicate, ingredients CRUD, parameters, bulk/status,
+ * export) fueron eliminados: no existen en el backend.
  */
 
 import { api } from '@/lib/api';
@@ -10,7 +24,6 @@ import {
   Recipe,
   RecipeFilters,
   RecipeIngredient,
-  RecipeParameter,
 } from '@/types';
 
 class RecipesService {
@@ -31,18 +44,15 @@ class RecipesService {
     // Super admins don't send this parameter to get all recipes
     if (organizationId) params.append('organization_id', organizationId);
 
+    // Solo params que el backend (QueryRecipesDto) realmente soporta.
     if (filters?.search) params.append('search', filters.search);
-    if (filters?.category) params.append('category', filters.category);
-    if (filters?.brew_method) params.append('brew_method', filters.brew_method);
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.difficulty) params.append('difficulty', filters.difficulty);
-    if (filters?.product_id) params.append('product_id', filters.product_id);
+    if (filters?.is_active !== undefined)
+      params.append('is_active', String(filters.is_active));
+    if (filters?.max_cost !== undefined)
+      params.append('max_cost', String(filters.max_cost));
 
-    if (pagination?.page) params.append('page', String(pagination.page));
-    if (pagination?.limit) params.append('limit', String(pagination.limit));
     if (pagination?.sort_by) params.append('sort_by', pagination.sort_by);
-    if (pagination?.sort_order)
-      params.append('sort_order', pagination.sort_order);
+    if (pagination?.sort_order) params.append('order', pagination.sort_order);
 
     const queryString = params.toString();
     const url = queryString ? `${this.baseUrl}?${queryString}` : this.baseUrl;
@@ -100,13 +110,6 @@ class RecipesService {
     await api.delete(`${this.baseUrl}/${id}`);
   }
 
-  async duplicateRecipe(id: string, newName?: string): Promise<Recipe> {
-    const response = await api.post<any>(`${this.baseUrl}/${id}/duplicate`, {
-      name: newName,
-    });
-    return this.unwrapSingle<Recipe>(response);
-  }
-
   async calculateRecipeCost(id: string): Promise<{ total_cost: number }> {
     const response = await api.get<any>(`${this.baseUrl}/${id}/cost`);
     return this.unwrapSingle<{ total_cost: number }>(response);
@@ -116,91 +119,13 @@ class RecipesService {
   // RECIPE INGREDIENTS
   // ============================================================================
 
+  /**
+   * El backend no expone GET /recipes/:id/ingredients; GET /recipes/:id ya
+   * incluye los ingredientes, así que se leen de ahí.
+   */
   async getRecipeIngredients(recipeId: string): Promise<RecipeIngredient[]> {
-    const response = await api.get<any>(
-      `${this.baseUrl}/${recipeId}/ingredients`,
-    );
-    return this.unwrapArray<RecipeIngredient>(response);
-  }
-
-  async addRecipeIngredient(
-    recipeId: string,
-    data: Partial<RecipeIngredient>,
-  ): Promise<RecipeIngredient> {
-    const response = await api.post<any>(
-      `${this.baseUrl}/${recipeId}/ingredients`,
-      data,
-    );
-    return this.unwrapSingle<RecipeIngredient>(response);
-  }
-
-  async updateRecipeIngredient(
-    recipeId: string,
-    ingredientId: string,
-    data: Partial<RecipeIngredient>,
-  ): Promise<RecipeIngredient> {
-    const response = await api.put<any>(
-      `${this.baseUrl}/${recipeId}/ingredients/${ingredientId}`,
-      data,
-    );
-    return this.unwrapSingle<RecipeIngredient>(response);
-  }
-
-  async deleteRecipeIngredient(
-    recipeId: string,
-    ingredientId: string,
-  ): Promise<void> {
-    await api.delete(`${this.baseUrl}/${recipeId}/ingredients/${ingredientId}`);
-  }
-
-  async reorderRecipeIngredients(
-    recipeId: string,
-    ingredientIds: string[],
-  ): Promise<void> {
-    await api.patch(`${this.baseUrl}/${recipeId}/ingredients/reorder`, {
-      ingredient_ids: ingredientIds,
-    });
-  }
-
-  // ============================================================================
-  // RECIPE PARAMETERS
-  // ============================================================================
-
-  async getRecipeParameters(recipeId: string): Promise<RecipeParameter[]> {
-    const response = await api.get<any>(
-      `${this.baseUrl}/${recipeId}/parameters`,
-    );
-    return this.unwrapArray<RecipeParameter>(response);
-  }
-
-  async addRecipeParameter(
-    recipeId: string,
-    data: Partial<RecipeParameter>,
-  ): Promise<RecipeParameter> {
-    const response = await api.post<any>(
-      `${this.baseUrl}/${recipeId}/parameters`,
-      data,
-    );
-    return this.unwrapSingle<RecipeParameter>(response);
-  }
-
-  async updateRecipeParameter(
-    recipeId: string,
-    parameterId: string,
-    data: Partial<RecipeParameter>,
-  ): Promise<RecipeParameter> {
-    const response = await api.put<any>(
-      `${this.baseUrl}/${recipeId}/parameters/${parameterId}`,
-      data,
-    );
-    return this.unwrapSingle<RecipeParameter>(response);
-  }
-
-  async deleteRecipeParameter(
-    recipeId: string,
-    parameterId: string,
-  ): Promise<void> {
-    await api.delete(`${this.baseUrl}/${recipeId}/parameters/${parameterId}`);
+    const recipe = await this.getRecipeById(recipeId);
+    return recipe.ingredients ?? [];
   }
 
   // ============================================================================
@@ -213,40 +138,6 @@ class RecipesService {
       : `${this.baseUrl}/categories`;
     const response = await api.get<any>(url);
     return this.unwrapArray<string>(response);
-  }
-
-  // ============================================================================
-  // BATCH OPERATIONS
-  // ============================================================================
-
-  async bulkUpdateRecipeStatus(
-    recipeIds: string[],
-    status: string,
-  ): Promise<void> {
-    await api.patch(`${this.baseUrl}/bulk/status`, {
-      recipe_ids: recipeIds,
-      status,
-    });
-  }
-
-  async exportRecipes(
-    organizationId: string,
-    filters?: RecipeFilters,
-  ): Promise<Blob> {
-    const params = new URLSearchParams();
-    params.append('organization_id', organizationId);
-
-    if (filters?.search) params.append('search', filters.search);
-    if (filters?.category) params.append('category', filters.category);
-    if (filters?.brew_method) params.append('brew_method', filters.brew_method);
-    if (filters?.status) params.append('status', filters.status);
-
-    const queryString = params.toString();
-    const url = `${this.baseUrl}/export?${queryString}`;
-
-    const response = await api.get<any>(url);
-
-    return response as unknown as Blob;
   }
 
   // ============================================================================

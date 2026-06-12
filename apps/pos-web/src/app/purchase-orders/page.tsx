@@ -48,7 +48,7 @@ const statusBadgeMap: Record<
     bgColor: 'bg-indigo-100',
     label: 'Ordenada',
   },
-  partial: {
+  partially_received: {
     color: 'text-orange-800',
     bgColor: 'bg-orange-100',
     label: 'Parcial',
@@ -224,7 +224,7 @@ export default function PurchaseOrdersPage() {
                   <option value="pending">Pendiente</option>
                   <option value="approved">Aprobada</option>
                   <option value="ordered">Ordenada</option>
-                  <option value="partial">Parcial</option>
+                  <option value="partially_received">Parcial</option>
                   <option value="received">Recibida</option>
                   <option value="cancelled">Cancelada</option>
                 </select>
@@ -287,9 +287,6 @@ export default function PurchaseOrdersPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Estado
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Pago
-                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Acciones
                   </th>
@@ -305,7 +302,7 @@ export default function PurchaseOrdersPage() {
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm font-medium text-gray-900 font-mono">
-                          {order.po_number}
+                          {order.order_number}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -331,7 +328,7 @@ export default function PurchaseOrdersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm font-semibold text-gray-900">
-                          {formatCurrency(order.total)}
+                          {formatCurrency(order.total_amount)}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -339,23 +336,6 @@ export default function PurchaseOrdersPage() {
                           className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadge.bgColor} ${statusBadge.color}`}
                         >
                           {statusBadge.label}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            order.payment_status === 'paid'
-                              ? 'bg-green-100 text-green-800'
-                              : order.payment_status === 'partial'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          {order.payment_status === 'paid'
-                            ? 'Pagado'
-                            : order.payment_status === 'partial'
-                              ? 'Parcial'
-                              : 'Pendiente'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

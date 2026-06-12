@@ -22,8 +22,8 @@ describe('SuppliersService', () => {
   describe('getSuppliers', () => {
     it('should fetch suppliers for an organization', async () => {
       const mockSuppliers = [
-        { id: '1', name: 'Supplier 1', category: 'coffee' },
-        { id: '2', name: 'Supplier 2', category: 'dairy' },
+        { id: '1', name: 'Supplier 1', active: true },
+        { id: '2', name: 'Supplier 2', active: false },
       ];
 
       (api.get as jest.Mock).mockResolvedValue({ data: mockSuppliers });
@@ -34,6 +34,24 @@ describe('SuppliersService', () => {
         `/suppliers/organization/${mockOrganizationId}`,
       );
       expect(result).toEqual(mockSuppliers);
+    });
+
+    it('should filter by active client-side when filter provided', async () => {
+      const mockSuppliers = [
+        { id: '1', name: 'Supplier 1', active: true },
+        { id: '2', name: 'Supplier 2', active: false },
+      ];
+
+      (api.get as jest.Mock).mockResolvedValue({ data: mockSuppliers });
+
+      const result = await SuppliersService.getSuppliers(mockOrganizationId, {
+        active: true,
+      });
+
+      expect(api.get).toHaveBeenCalledWith(
+        `/suppliers/organization/${mockOrganizationId}`,
+      );
+      expect(result).toEqual([{ id: '1', name: 'Supplier 1', active: true }]);
     });
 
     it('should handle errors when fetching suppliers', async () => {
@@ -51,8 +69,8 @@ describe('SuppliersService', () => {
       const mockSupplier = {
         id: mockSupplierId,
         name: 'Coffee Beans Co.',
-        category: 'coffee',
-        rating: 4.5,
+        contact_person: 'John Doe',
+        active: true,
       };
 
       (api.get as jest.Mock).mockResolvedValue({ data: mockSupplier });
@@ -69,11 +87,12 @@ describe('SuppliersService', () => {
       const newSupplierData = {
         organization_id: mockOrganizationId,
         name: 'New Supplier',
-        business_name: 'New Supplier S.A.',
-        category: 'packaging',
-        contact_name: 'John Doe',
-        contact_email: 'john@supplier.com',
-        contact_phone: '555-1234',
+        contact_person: 'John Doe',
+        email: 'john@supplier.com',
+        phone: '555-1234',
+        payment_terms: '30 días',
+        lead_time_days: 5,
+        active: true,
       };
 
       const mockCreatedSupplier = { id: 'new-supplier-id', ...newSupplierData };
@@ -104,7 +123,7 @@ describe('SuppliersService', () => {
     it('should update an existing supplier', async () => {
       const updateData = {
         name: 'Updated Supplier Name',
-        rating: 5,
+        payment_terms: '45 días',
       };
 
       const mockUpdatedSupplier = {
@@ -137,40 +156,12 @@ describe('SuppliersService', () => {
     });
   });
 
-  describe('getSuppliersByCategory', () => {
-    it('should fetch suppliers filtered by category', async () => {
-      const category = 'coffee';
-      const mockSuppliers = [
-        { id: '1', name: 'Coffee Supplier 1', category },
-        { id: '2', name: 'Coffee Supplier 2', category },
-      ];
-
-      (api.get as jest.Mock).mockResolvedValue({ data: mockSuppliers });
-
-      const result = await SuppliersService.getSuppliersByCategory(
-        mockOrganizationId,
-        category,
-      );
-
-      expect(api.get).toHaveBeenCalledWith(
-        `/suppliers/organization/${mockOrganizationId}?category=${category}`,
-      );
-      expect(result).toEqual(mockSuppliers);
-    });
-  });
-
   describe('getSupplierStats', () => {
     it('should fetch supplier statistics', async () => {
       const mockStats = {
         total_suppliers: 25,
-        active_suppliers: 22,
-        by_category: {
-          coffee: 8,
-          dairy: 5,
-          packaging: 7,
-          cleaning: 5,
-        },
-        average_rating: 4.2,
+        active_count: 22,
+        inactive_count: 3,
       };
 
       (api.get as jest.Mock).mockResolvedValue({ data: mockStats });

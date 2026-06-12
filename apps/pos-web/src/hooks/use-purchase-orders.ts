@@ -23,10 +23,6 @@ export const purchaseOrdersKeys = {
   detail: (id: string) => [...purchaseOrdersKeys.details(), id] as const,
   stats: (orgId: string, dateRange?: any) =>
     [...purchaseOrdersKeys.all, 'stats', orgId, dateRange] as const,
-  bySupplier: (supplierId: string) =>
-    [...purchaseOrdersKeys.all, 'supplier', supplierId] as const,
-  suggestedReorder: (orgId: string) =>
-    [...purchaseOrdersKeys.all, 'suggested-reorder', orgId] as const,
 };
 
 /**
@@ -63,52 +59,17 @@ export function usePurchaseOrder(poId: string, enabled = true) {
 }
 
 /**
- * Hook to get purchase orders by supplier
- */
-export function usePurchaseOrdersBySupplier(
-  supplierId: string,
-  enabled = true,
-) {
-  return useQuery({
-    queryKey: purchaseOrdersKeys.bySupplier(supplierId),
-    queryFn: () =>
-      PurchaseOrdersService.getPurchaseOrdersBySupplier(supplierId),
-    enabled: enabled && !!supplierId,
-    staleTime: 120000, // 2 minutes
-  });
-}
-
-/**
  * Hook to get purchase order statistics
  */
-export function usePurchaseOrderStats(dateRange?: {
-  from: string;
-  to: string;
-}) {
+export function usePurchaseOrderStats() {
   const { user } = useAuth();
   const organizationId = user?.organizationId || '';
 
   return useQuery({
-    queryKey: purchaseOrdersKeys.stats(organizationId, dateRange),
-    queryFn: () =>
-      PurchaseOrdersService.getPurchaseOrderStats(organizationId, dateRange),
+    queryKey: purchaseOrdersKeys.stats(organizationId),
+    queryFn: () => PurchaseOrdersService.getPurchaseOrderStats(organizationId),
     enabled: !!organizationId,
     staleTime: 300000, // 5 minutes
-  });
-}
-
-/**
- * Hook to get suggested reorder items
- */
-export function useSuggestedReorder(enabled = true) {
-  const { user } = useAuth();
-  const organizationId = user?.organizationId || '';
-
-  return useQuery({
-    queryKey: purchaseOrdersKeys.suggestedReorder(organizationId),
-    queryFn: () => PurchaseOrdersService.getSuggestedReorder(organizationId),
-    enabled: enabled && !!organizationId,
-    staleTime: 600000, // 10 minutes
   });
 }
 
@@ -122,19 +83,19 @@ export function useCreatePurchaseOrder() {
 
   return useMutation({
     mutationFn: (
-      data: Omit<CreatePurchaseOrderDTO, 'organization_id' | 'created_by'>,
+      data: Omit<CreatePurchaseOrderDTO, 'organization_id' | 'requested_by'>,
     ) =>
       PurchaseOrdersService.createPurchaseOrder({
         ...data,
         organization_id: organizationId,
-        created_by: user?.id || '',
+        requested_by: user?.id || '',
       }),
     onSuccess: (po) => {
       queryClient.invalidateQueries({ queryKey: purchaseOrdersKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: purchaseOrdersKeys.stats(organizationId),
       });
-      toast.success(`Orden de compra ${po.po_number} creada exitosamente`);
+      toast.success(`Orden de compra ${po.order_number} creada exitosamente`);
     },
     onError: (error: any) => {
       toast.error(
@@ -213,7 +174,7 @@ export function useApprovePurchaseOrder() {
       queryClient.invalidateQueries({
         queryKey: purchaseOrdersKeys.detail(po.id),
       });
-      toast.success(`Orden ${po.po_number} aprobada exitosamente`);
+      toast.success(`Orden ${po.order_number} aprobada exitosamente`);
     },
     onError: (error: any) => {
       toast.error(
@@ -230,8 +191,7 @@ export function useSendPurchaseOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, email }: { id: string; email?: string }) =>
-      PurchaseOrdersService.sendPurchaseOrder(id, email),
+    mutationFn: (id: string) => PurchaseOrdersService.sendPurchaseOrder(id),
     onSuccess: (po) => {
       queryClient.invalidateQueries({
         queryKey: purchaseOrdersKeys.detail(po.id),
@@ -267,7 +227,7 @@ export function useReceivePurchaseOrder() {
       });
       // Invalidar inventario porque se recibieron productos
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      toast.success(`Orden ${po.po_number} recibida exitosamente`);
+      toast.success(`Orden ${po.order_number} recibida exitosamente`);
     },
     onError: (error: any) => {
       toast.error(
@@ -284,44 +244,18 @@ export function useCancelPurchaseOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
-      PurchaseOrdersService.cancelPurchaseOrder(id, reason),
+    mutationFn: (id: string) => PurchaseOrdersService.cancelPurchaseOrder(id),
     onSuccess: (po) => {
       queryClient.invalidateQueries({ queryKey: purchaseOrdersKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: purchaseOrdersKeys.detail(po.id),
       });
-      toast.success(`Orden ${po.po_number} cancelada`);
+      toast.success(`Orden ${po.order_number} cancelada`);
     },
     onError: (error: any) => {
       toast.error(
         error?.response?.data?.message || 'Error al cancelar orden de compra',
       );
-    },
-  });
-}
-
-/**
- * Hook to generate purchase order PDF
- */
-export function useGeneratePurchaseOrderPDF() {
-  return useMutation({
-    mutationFn: (id: string) =>
-      PurchaseOrdersService.generatePurchaseOrderPDF(id),
-    onSuccess: (blob) => {
-      // Descargar el PDF
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `orden-compra-${Date.now()}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast.success('PDF generado exitosamente');
-    },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Error al generar PDF');
     },
   });
 }
@@ -369,7 +303,7 @@ export function usePOStatusBadge(status: string): {
       bgColor: 'bg-indigo-100',
       label: 'Ordenada',
     },
-    partial: {
+    partially_received: {
       color: 'text-orange-800',
       bgColor: 'bg-orange-100',
       label: 'Parcial',

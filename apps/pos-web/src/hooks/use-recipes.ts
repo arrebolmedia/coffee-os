@@ -1,19 +1,17 @@
 /**
  * CoffeeOS POS Web - Recipes Hooks
- * React Query hooks para recetas, ingredientes y parámetros
+ * React Query hooks para recetas e ingredientes.
+ *
+ * Los hooks de endpoints fantasma (duplicate, ingredients CRUD, parameters,
+ * bulk/status, export) fueron eliminados junto con sus métodos de servicio:
+ * esos endpoints no existen en el backend.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { recipesService } from '@/services/recipes.service';
 import { useAuth } from '@/hooks/use-auth';
 import toast from 'react-hot-toast';
-import {
-  PaginationParams,
-  Recipe,
-  RecipeFilters,
-  RecipeIngredient,
-  RecipeParameter,
-} from '@/types';
+import { PaginationParams, Recipe, RecipeFilters } from '@/types';
 
 // ============================================================================
 // QUERY KEYS
@@ -33,8 +31,6 @@ export const recipeKeys = {
     [...recipeKeys.all, 'product', productId] as const,
   ingredients: (recipeId: string) =>
     [...recipeKeys.all, recipeId, 'ingredients'] as const,
-  parameters: (recipeId: string) =>
-    [...recipeKeys.all, recipeId, 'parameters'] as const,
   categories: (orgId: string) =>
     [...recipeKeys.all, 'categories', orgId] as const,
   cost: (recipeId: string) => [...recipeKeys.all, recipeId, 'cost'] as const,
@@ -156,287 +152,19 @@ export function useDeleteRecipe() {
   });
 }
 
-export function useDuplicateRecipe() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, newName }: { id: string; newName?: string }) =>
-      recipesService.duplicateRecipe(id, newName),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: recipeKeys.lists() });
-      toast.success('Receta duplicada exitosamente');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al duplicar receta');
-    },
-  });
-}
-
-export function useBulkUpdateRecipeStatus() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      recipeIds,
-      status,
-    }: {
-      recipeIds: string[];
-      status: string;
-    }) => recipesService.bulkUpdateRecipeStatus(recipeIds, status),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: recipeKeys.lists() });
-      toast.success('Estados actualizados exitosamente');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al actualizar estados');
-    },
-  });
-}
-
 // ============================================================================
 // RECIPE INGREDIENTS HOOKS
 // ============================================================================
 
+/**
+ * Lee los ingredientes desde GET /recipes/:id (el backend no expone un
+ * endpoint dedicado de ingredientes).
+ */
 export function useRecipeIngredients(recipeId: string, enabled = true) {
   return useQuery({
     queryKey: recipeKeys.ingredients(recipeId),
     queryFn: () => recipesService.getRecipeIngredients(recipeId),
     enabled: !!recipeId && enabled,
     staleTime: 5 * 60 * 1000,
-  });
-}
-
-export function useAddRecipeIngredient() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      recipeId,
-      data,
-    }: {
-      recipeId: string;
-      data: Partial<RecipeIngredient>;
-    }) => recipesService.addRecipeIngredient(recipeId, data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: recipeKeys.ingredients(variables.recipeId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: recipeKeys.detail(variables.recipeId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: recipeKeys.cost(variables.recipeId),
-      });
-      toast.success('Ingrediente agregado exitosamente');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al agregar ingrediente');
-    },
-  });
-}
-
-export function useUpdateRecipeIngredient() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      recipeId,
-      ingredientId,
-      data,
-    }: {
-      recipeId: string;
-      ingredientId: string;
-      data: Partial<RecipeIngredient>;
-    }) => recipesService.updateRecipeIngredient(recipeId, ingredientId, data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: recipeKeys.ingredients(variables.recipeId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: recipeKeys.detail(variables.recipeId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: recipeKeys.cost(variables.recipeId),
-      });
-      toast.success('Ingrediente actualizado exitosamente');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al actualizar ingrediente');
-    },
-  });
-}
-
-export function useDeleteRecipeIngredient() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      recipeId,
-      ingredientId,
-    }: {
-      recipeId: string;
-      ingredientId: string;
-    }) => recipesService.deleteRecipeIngredient(recipeId, ingredientId),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: recipeKeys.ingredients(variables.recipeId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: recipeKeys.detail(variables.recipeId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: recipeKeys.cost(variables.recipeId),
-      });
-      toast.success('Ingrediente eliminado exitosamente');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al eliminar ingrediente');
-    },
-  });
-}
-
-export function useReorderRecipeIngredients() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      recipeId,
-      ingredientIds,
-    }: {
-      recipeId: string;
-      ingredientIds: string[];
-    }) => recipesService.reorderRecipeIngredients(recipeId, ingredientIds),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: recipeKeys.ingredients(variables.recipeId),
-      });
-      toast.success('Orden actualizado exitosamente');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al reordenar ingredientes');
-    },
-  });
-}
-
-// ============================================================================
-// RECIPE PARAMETERS HOOKS
-// ============================================================================
-
-export function useRecipeParameters(recipeId: string, enabled = true) {
-  return useQuery({
-    queryKey: recipeKeys.parameters(recipeId),
-    queryFn: () => recipesService.getRecipeParameters(recipeId),
-    enabled: !!recipeId && enabled,
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-export function useAddRecipeParameter() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      recipeId,
-      data,
-    }: {
-      recipeId: string;
-      data: Partial<RecipeParameter>;
-    }) => recipesService.addRecipeParameter(recipeId, data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: recipeKeys.parameters(variables.recipeId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: recipeKeys.detail(variables.recipeId),
-      });
-      toast.success('Parámetro agregado exitosamente');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al agregar parámetro');
-    },
-  });
-}
-
-export function useUpdateRecipeParameter() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      recipeId,
-      parameterId,
-      data,
-    }: {
-      recipeId: string;
-      parameterId: string;
-      data: Partial<RecipeParameter>;
-    }) => recipesService.updateRecipeParameter(recipeId, parameterId, data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: recipeKeys.parameters(variables.recipeId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: recipeKeys.detail(variables.recipeId),
-      });
-      toast.success('Parámetro actualizado exitosamente');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al actualizar parámetro');
-    },
-  });
-}
-
-export function useDeleteRecipeParameter() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      recipeId,
-      parameterId,
-    }: {
-      recipeId: string;
-      parameterId: string;
-    }) => recipesService.deleteRecipeParameter(recipeId, parameterId),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: recipeKeys.parameters(variables.recipeId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: recipeKeys.detail(variables.recipeId),
-      });
-      toast.success('Parámetro eliminado exitosamente');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al eliminar parámetro');
-    },
-  });
-}
-
-// ============================================================================
-// EXPORT HOOK
-// ============================================================================
-
-export function useExportRecipes() {
-  return useMutation({
-    mutationFn: ({
-      organizationId,
-      filters,
-    }: {
-      organizationId: string;
-      filters?: RecipeFilters;
-    }) => recipesService.exportRecipes(organizationId, filters),
-    onSuccess: (blob) => {
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `recipes-export-${new Date().toISOString().split('T')[0]}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast.success('Recetas exportadas exitosamente');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al exportar recetas');
-    },
   });
 }

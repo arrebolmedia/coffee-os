@@ -42,7 +42,10 @@ export default function ExpensesPage() {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterLocation, setFilterLocation] = useState<string>('all');
-  const [filterMonth, setFilterMonth] = useState<string>('2024-11');
+  // Mes actual por default (antes estaba hardcodeado '2024-11' y ocultaba todo)
+  const [filterMonth, setFilterMonth] = useState<string>(() =>
+    new Date().toISOString().substring(0, 7),
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -55,10 +58,9 @@ export default function ExpensesPage() {
   const updateExpense = useUpdateExpense();
   const deleteExpense = useDeleteExpense();
 
-  // Transform backend data
+  // GET /finance/expenses devuelve un array plano (no { data: [...] })
   const expenses: Expense[] = useMemo(() => {
-    if (!expensesData?.data) return [];
-    return expensesData.data;
+    return Array.isArray(expensesData) ? expensesData : [];
   }, [expensesData]);
 
   // Filtrar gastos
@@ -83,7 +85,8 @@ export default function ExpensesPage() {
       const matchesLocation =
         filterLocation === 'all' || expense.location_id === filterLocation;
 
-      const expenseMonth = new Date(expense.createdAt)
+      // El wire del módulo finance es snake_case: created_at
+      const expenseMonth = new Date(expense.created_at)
         .toISOString()
         .substring(0, 7);
       const matchesMonth = expenseMonth === filterMonth;
@@ -485,7 +488,7 @@ export default function ExpensesPage() {
           {/* Expenses List */}
           <div className="space-y-4">
             {filteredExpenses.map((expense) => {
-              const expenseDate = new Date(expense.createdAt);
+              const expenseDate = new Date(expense.created_at);
               const folio = `GTO-${expenseDate.getFullYear()}-${expense.id.slice(0, 8).toUpperCase()}`;
 
               return (

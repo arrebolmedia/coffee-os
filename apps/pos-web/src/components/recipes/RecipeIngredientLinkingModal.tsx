@@ -184,16 +184,17 @@ export function RecipeIngredientLinkingModal({
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1">
                             <h4 className="font-semibold text-gray-800">
-                              {ingredient.name}
+                              {ingredient.inventory_item_name || 'Ingrediente'}
                             </h4>
                             <p className="text-sm text-gray-600">
                               {ingredient.quantity} {ingredient.unit}
-                              {ingredient.unit_cost && (
-                                <span className="ml-2 text-gray-500">
-                                  (${ingredient.unit_cost.toFixed(2)}/
-                                  {ingredient.unit})
-                                </span>
-                              )}
+                              {ingredient.cost_per_unit != null &&
+                                ingredient.cost_per_unit > 0 && (
+                                  <span className="ml-2 text-gray-500">
+                                    (${ingredient.cost_per_unit.toFixed(2)}/
+                                    {ingredient.unit})
+                                  </span>
+                                )}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -274,7 +275,7 @@ export function RecipeIngredientLinkingModal({
                       {
                         ingredients?.find(
                           (ing) => ing.id === selectedIngredientId,
-                        )?.name
+                        )?.inventory_item_name
                       }
                     </p>
                     <p className="text-sm text-gray-600 mt-1">

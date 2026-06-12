@@ -48,6 +48,8 @@ export interface EmployeeFormData {
   allergies?: string;
 
   // Datos laborales
+  role: string; // EmployeeRole enum del backend (BARISTA, CASHIER, ...)
+  employmentType: string; // EmploymentType enum del backend (FULL_TIME, ...)
   position: string;
   department: string;
   hireDate: string;
@@ -73,6 +75,26 @@ export interface EmployeeFormData {
   // Notas
   notes?: string;
 }
+
+// Valores del enum EmployeeRole del backend
+const EMPLOYEE_ROLES = [
+  { value: 'BARISTA', label: 'Barista' },
+  { value: 'CASHIER', label: 'Cajero' },
+  { value: 'COOK', label: 'Cocinero' },
+  { value: 'MANAGER', label: 'Gerente' },
+  { value: 'ASSISTANT_MANAGER', label: 'Subgerente' },
+  { value: 'SHIFT_SUPERVISOR', label: 'Supervisor de Turno' },
+  { value: 'CLEANER', label: 'Limpieza' },
+  { value: 'DELIVERY', label: 'Repartidor' },
+];
+
+// Valores del enum EmploymentType del backend
+const EMPLOYMENT_TYPES = [
+  { value: 'FULL_TIME', label: 'Tiempo Completo' },
+  { value: 'PART_TIME', label: 'Medio Tiempo' },
+  { value: 'TEMPORARY', label: 'Temporal' },
+  { value: 'CONTRACT', label: 'Por Contrato' },
+];
 
 const DEPARTMENTS = [
   { value: 'OPERATIONS', label: 'Operaciones' },
@@ -166,6 +188,8 @@ export function EmployeeModal({
     phone: '',
     roleId: '',
     active: true,
+    role: 'BARISTA',
+    employmentType: 'FULL_TIME',
     position: '',
     department: 'OPERATIONS',
     hireDate: new Date().toISOString().split('T')[0],
@@ -186,6 +210,8 @@ export function EmployeeModal({
         phone: '',
         roleId: '',
         active: true,
+        role: 'BARISTA',
+        employmentType: 'FULL_TIME',
         position: '',
         department: 'OPERATIONS',
         hireDate: new Date().toISOString().split('T')[0],
@@ -236,11 +262,16 @@ export function EmployeeModal({
     }
 
     // Required fields - Laboral
-    if (!formData.roleId) {
+    // El backend no devuelve role_id en el listado, así que en edición no
+    // podemos pre-cargarlo; solo es obligatorio al crear (CreateEmployeeDto).
+    if (!formData.id && !formData.roleId) {
       newErrors.roleId = 'El rol es requerido';
     }
-    if (!formData.position.trim()) {
-      newErrors.position = 'El puesto es requerido';
+    if (!formData.role) {
+      newErrors.role = 'El puesto operativo es requerido';
+    }
+    if (!formData.employmentType) {
+      newErrors.employmentType = 'El tipo de contrato es requerido';
     }
     if (!formData.hireDate) {
       newErrors.hireDate = 'La fecha de ingreso es requerida';
@@ -488,13 +519,33 @@ export function EmployeeModal({
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <SelectField
+                  label="Puesto Operativo"
+                  value={formData.role}
+                  onChange={(e) => handleChange('role', e.target.value)}
+                  options={EMPLOYEE_ROLES}
+                  error={errors.role}
+                  required
+                />
+                <SelectField
+                  label="Tipo de Contrato"
+                  value={formData.employmentType}
+                  onChange={(e) =>
+                    handleChange('employmentType', e.target.value)
+                  }
+                  options={EMPLOYMENT_TYPES}
+                  error={errors.employmentType}
+                  required
+                />
+              </div>
+
               <InputField
-                label="Puesto"
+                label="Puesto (descripción)"
                 value={formData.position}
                 onChange={(e) => handleChange('position', e.target.value)}
                 error={errors.position}
-                required
-                placeholder="Ej: Barista, Gerente..."
+                placeholder="Ej: Barista Senior, Gerente de Tienda..."
                 list="positions-list"
               />
               <datalist id="positions-list">

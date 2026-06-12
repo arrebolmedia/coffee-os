@@ -57,6 +57,26 @@ export class CustomersController {
     return this.customersService.getStats(this.requireOrg(user));
   }
 
+  /**
+   * Search customers by name, phone, or email within the caller's org.
+   * Must be declared BEFORE @Get(':id') so "search" is not captured as an id.
+   */
+  @Get('search')
+  async search(
+    @Query('q') q: string | undefined,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    const organizationId = this.requireOrg(user);
+    const query = q?.trim();
+    if (!query) {
+      return [];
+    }
+    return this.customersService.findAll({
+      organization_id: organizationId,
+      search: query,
+    });
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
     const organizationId = this.requireOrg(user);

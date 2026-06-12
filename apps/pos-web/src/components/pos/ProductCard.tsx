@@ -19,7 +19,7 @@ type ProductCardProduct = Pick<
   image?: string | null;
   category?: { name: string };
   trackInventory?: boolean;
-  currentStock?: number;
+  stockQuantity?: number;
 };
 
 interface ProductCardProps {
@@ -33,7 +33,7 @@ export function ProductCard({
   onSelect,
   isSelected = false,
 }: ProductCardProps) {
-  const stock = product.currentStock;
+  const stock = product.stockQuantity;
   const isOutOfStock =
     String(product.status).toUpperCase() === 'OUT_OF_STOCK' ||
     (stock !== undefined && stock === 0);
@@ -140,11 +140,11 @@ export function ProductCard({
         )}
         {!isLowStock &&
           product.trackInventory &&
-          product.currentStock !== undefined &&
+          product.stockQuantity !== undefined &&
           !isOutOfStock && (
             <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm text-gray-700 text-xs px-2 py-1 rounded-lg flex items-center gap-1">
               <Package className="w-3 h-3" />
-              <span className="font-medium">{product.currentStock}</span>
+              <span className="font-medium">{product.stockQuantity}</span>
             </div>
           )}
       </div>

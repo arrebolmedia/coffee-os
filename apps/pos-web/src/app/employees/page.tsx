@@ -16,6 +16,9 @@ import {
 } from '@/hooks/use-employees';
 import { EmployeeFormData, EmployeeModal } from '@/components/hr/EmployeeModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useLocations } from '@/hooks/use-locations';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import {
   AlertCircle,
   Calendar,
@@ -47,14 +50,21 @@ interface DisplayEmployee {
 function toDisplay(e: HookEmployee): DisplayEmployee {
   return {
     id: e.id,
-    name: `${e.firstName} ${e.lastName}`.trim(),
+    // El backend devuelve snake_case (apps/api/src/modules/hr/employees.service.ts)
+    name: `${e.first_name} ${e.last_name}`.trim(),
     email: e.email,
     phone: e.phone,
-    role: e.role?.name?.toLowerCase() ?? '',
-    status: e.active ? 'active' : 'inactive',
-    hireDate: e.hireDate ?? '',
-    salary: e.salary ?? 0,
-    location: e.locations?.[0]?.name ?? '',
+    role: e.role || '',
+    status:
+      e.status === 'ACTIVE'
+        ? 'active'
+        : e.status === 'ON_LEAVE'
+          ? 'vacation'
+          : 'inactive',
+    hireDate: e.hire_date ?? '',
+    salary: e.monthly_salary ?? 0,
+    // El backend no devuelve sucursales en el listado
+    location: '',
   };
 }
 
@@ -75,19 +85,21 @@ export default function EmployeesPage() {
   const updateMutation = useUpdateEmployee();
   const deleteMutation = useDeleteEmployee();
 
-  // Mock data for roles and locations (replace with actual hooks)
-  const roles = [
-    { id: '1', name: 'Administrador' },
-    { id: '2', name: 'Gerente' },
-    { id: '3', name: 'Cajero' },
-    { id: '4', name: 'Barista' },
-  ];
+  // Roles reales del backend (CreateEmployeeDto exige un role_id válido)
+  const { data: rolesData } = useQuery({
+    queryKey: ['roles', 'list'],
+    queryFn: () => api.get<any>('/roles'),
+    staleTime: 5 * 60 * 1000,
+  });
+  const roles: Array<{ id: string; name: string }> = (
+    Array.isArray(rolesData) ? rolesData : (rolesData?.data ?? [])
+  ).map((r: any) => ({ id: r.id, name: r.name }));
 
-  const locations = [
-    { id: '1', name: 'Sucursal Centro' },
-    { id: '2', name: 'Sucursal Norte' },
-    { id: '3', name: 'Sucursal Sur' },
-  ];
+  // Sucursales reales del backend
+  const { data: locationsData } = useLocations();
+  const locations: Array<{ id: string; name: string }> = (
+    Array.isArray(locationsData) ? locationsData : []
+  ).map((l: any) => ({ id: l.id, name: l.name }));
 
   const employees: DisplayEmployee[] = (employeesData ?? []).map(toDisplay);
 
@@ -95,9 +107,50 @@ export default function EmployeesPage() {
   const handleSave = async (data: EmployeeFormData) => {
     try {
       if (data.id) {
-        await updateMutation.mutateAsync({ id: data.id, data });
+        // Mapear al UpdateEmployeeDto real (snake_case, campos whitelisted)
+        await updateMutation.mutateAsync({
+          id: data.id,
+          data: {
+            first_name: data.firstName,
+            last_name: data.lastName,
+            email: data.email,
+            phone: data.phone,
+            location_id: data.locationIds[0] || undefined,
+            role: (data.role || undefined) as any,
+            employment_type: (data.employmentType || undefined) as any,
+            status: data.active ? 'ACTIVE' : 'INACTIVE',
+            monthly_salary: data.salary,
+            emergency_contact_name: data.emergencyContact || undefined,
+            emergency_contact_phone: data.emergencyContactPhone || undefined,
+            address: data.address || undefined,
+            city: data.city || undefined,
+            state: data.state || undefined,
+            postal_code: data.postalCode || undefined,
+          },
+        });
       } else {
-        await createMutation.mutateAsync(data);
+        // Mapear al CreateEmployeeDto real (organization_id lo agrega el hook)
+        await createMutation.mutateAsync({
+          first_name: data.firstName,
+          last_name: data.lastName,
+          email: data.email,
+          phone: data.phone,
+          location_id: data.locationIds[0],
+          role_id: data.roleId,
+          role: data.role as any,
+          employment_type: data.employmentType as any,
+          hire_date: data.hireDate,
+          monthly_salary: data.salary,
+          emergency_contact_name: data.emergencyContact || undefined,
+          emergency_contact_phone: data.emergencyContactPhone || undefined,
+          address: data.address || undefined,
+          city: data.city || undefined,
+          state: data.state || undefined,
+          postal_code: data.postalCode || undefined,
+          rfc: data.rfc || undefined,
+          curp: data.curp || undefined,
+          nss: data.nss || undefined,
+        });
       }
       setIsModalOpen(false);
       setSelectedEmployee(null);
@@ -107,27 +160,35 @@ export default function EmployeesPage() {
   };
 
   const handleEdit = (employee: DisplayEmployee) => {
-    // Convert Employee to EmployeeFormData
+    // Partir del registro crudo del backend (snake_case) para el formulario
+    const raw = (employeesData ?? []).find((e) => e.id === employee.id);
     const formData: EmployeeFormData = {
       id: employee.id,
-      firstName: employee.name.split(' ')[0] || '',
-      lastName: employee.name.split(' ').slice(1).join(' ') || '',
-      email: employee.email || '',
-      phone: employee.phone || '',
-      roleId:
-        employee.role === 'admin'
-          ? '1'
-          : employee.role === 'manager'
-            ? '2'
-            : employee.role === 'cashier'
-              ? '3'
-              : '4',
-      active: employee.status === 'active',
+      firstName: raw?.first_name ?? '',
+      lastName: raw?.last_name ?? '',
+      email: raw?.email ?? '',
+      phone: raw?.phone ?? '',
+      // El backend no devuelve role_id en el listado; en edición es opcional
+      roleId: '',
+      active: raw?.status === 'ACTIVE',
+      role: raw?.role || 'BARISTA',
+      employmentType: raw?.employment_type || 'FULL_TIME',
       position: '',
-      department: '',
-      hireDate: employee.hireDate,
-      salary: employee.salary,
-      locationIds: [employee.location],
+      department: 'OPERATIONS',
+      hireDate: raw?.hire_date
+        ? String(raw.hire_date).split('T')[0]
+        : new Date().toISOString().split('T')[0],
+      salary: raw?.monthly_salary,
+      locationIds: raw?.location_id ? [raw.location_id] : [],
+      address: raw?.address,
+      city: raw?.city,
+      state: raw?.state,
+      postalCode: raw?.postal_code,
+      emergencyContact: raw?.emergency_contact_name,
+      emergencyContactPhone: raw?.emergency_contact_phone,
+      rfc: raw?.rfc,
+      curp: raw?.curp,
+      nss: raw?.nss,
     };
     setSelectedEmployee(formData);
     setIsModalOpen(true);
@@ -189,15 +250,15 @@ export default function EmployeesPage() {
 
   const getRoleBadge = (role: string) => {
     switch (role) {
-      case 'owner':
+      case 'MANAGER':
         return 'bg-purple-100 text-purple-800 border-purple-300';
-      case 'admin':
+      case 'ASSISTANT_MANAGER':
         return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'manager':
+      case 'SHIFT_SUPERVISOR':
         return 'bg-green-100 text-green-800 border-green-300';
-      case 'cashier':
+      case 'CASHIER':
         return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'barista':
+      case 'BARISTA':
         return 'bg-orange-100 text-orange-800 border-orange-300';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-300';
@@ -219,13 +280,16 @@ export default function EmployeesPage() {
 
   const getRoleLabel = (role: string) => {
     const labels: Record<string, string> = {
-      owner: 'Propietario',
-      admin: 'Administrador',
-      manager: 'Gerente',
-      cashier: 'Cajero',
-      barista: 'Barista',
+      BARISTA: 'Barista',
+      CASHIER: 'Cajero',
+      COOK: 'Cocinero',
+      MANAGER: 'Gerente',
+      ASSISTANT_MANAGER: 'Subgerente',
+      SHIFT_SUPERVISOR: 'Supervisor de Turno',
+      CLEANER: 'Limpieza',
+      DELIVERY: 'Repartidor',
     };
-    return labels[role] || role;
+    return labels[role] || role || '—';
   };
 
   const getStatusLabel = (status: string) => {
@@ -401,14 +465,16 @@ export default function EmployeesPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-gray-900">
-                        {employee.location}
+                        {employee.location || '—'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-gray-900">
-                        {new Date(employee.hireDate).toLocaleDateString(
-                          'es-MX',
-                        )}
+                        {employee.hireDate
+                          ? new Date(employee.hireDate).toLocaleDateString(
+                              'es-MX',
+                            )
+                          : '—'}
                       </span>
                     </td>
                     <td className="px-6 py-4">

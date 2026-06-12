@@ -1,14 +1,25 @@
 /**
  * CoffeeOS POS Web - Orders Service
- * Servicio para gestión de órdenes y ventas
+ * Servicio para gestión de órdenes (kitchen orders).
+ *
+ * Contrato real del backend (apps/api/src/modules/orders):
+ *   GET    /orders             → { data: Order[], meta: { page, perPage, total, totalPages } }
+ *   GET    /orders/stats       → { total, byStatus }
+ *   GET    /orders/:id         → Order
+ *   POST   /orders             → Order (CreateOrderDto: locationId/ticketId/userId…)
+ *   PATCH  /orders/:id/status  → Order
+ *   POST   /orders/:id/cancel  → Order
+ *   DELETE /orders/:id         → 204
+ *
+ * Los montos viven en `order.ticket` (subtotal/tax/total), no en Order.
  */
 
 import { api } from '@/lib/api';
 import {
   Cart,
+  MetaPaginatedResponse,
   Order,
   OrderFilters,
-  PaginatedResponse,
   PaginationParams,
   PaymentMethod,
 } from '@/types';
@@ -20,46 +31,46 @@ class OrdersService {
   // ORDERS CRUD
   // ============================================================================
 
+  /**
+   * El backend lee: page, per_page, search, status, date (un solo día),
+   * sort_by, sort_order. La paginación usa `per_page` (NO `limit`) y la
+   * respuesta viene como { data, meta }.
+   */
   async getOrders(
-    organizationId: string,
+    _organizationId: string,
     filters?: OrderFilters,
     pagination?: PaginationParams,
-  ): Promise<PaginatedResponse<Order>> {
+  ): Promise<MetaPaginatedResponse<Order>> {
     const params = new URLSearchParams();
-    params.append('organization_id', organizationId);
 
     if (filters?.status) params.append('status', filters.status);
-    if (filters?.payment_status)
-      params.append('payment_status', filters.payment_status);
-    if (filters?.customer_id) params.append('customer_id', filters.customer_id);
-    if (filters?.cashier_id) params.append('cashier_id', filters.cashier_id);
-    if (filters?.date_from)
-      params.append('date_from', filters.date_from.toISOString());
-    if (filters?.date_to)
-      params.append('date_to', filters.date_to.toISOString());
+    if (filters?.search) params.append('search', filters.search);
+
+    // El backend solo soporta filtro por día exacto (`date`); colapsamos el
+    // rango cuando start_date === end_date. Rangos multi-día no tienen
+    // soporte server-side hoy.
+    if (
+      filters?.start_date &&
+      filters?.end_date &&
+      filters.start_date === filters.end_date
+    ) {
+      params.append('date', filters.start_date);
+    }
 
     if (pagination?.page) params.append('page', String(pagination.page));
-    if (pagination?.limit) params.append('limit', String(pagination.limit));
+    if (pagination?.limit) params.append('per_page', String(pagination.limit));
     if (pagination?.sort_by) params.append('sort_by', pagination.sort_by);
     if (pagination?.sort_order)
       params.append('sort_order', pagination.sort_order);
 
-    return await api.get<PaginatedResponse<Order>>(
-      `${this.baseUrl}?${params.toString()}`,
+    const query = params.toString();
+    return await api.get<MetaPaginatedResponse<Order>>(
+      query ? `${this.baseUrl}?${query}` : this.baseUrl,
     );
   }
 
   async getOrderById(id: string): Promise<Order> {
     return await api.get<Order>(`${this.baseUrl}/${id}`);
-  }
-
-  async getOrderByNumber(
-    orderNumber: string,
-    organizationId: string,
-  ): Promise<Order> {
-    return await api.get<Order>(
-      `${this.baseUrl}/number/${orderNumber}?organization_id=${organizationId}`,
-    );
   }
 
   // ============================================================================
@@ -104,10 +115,6 @@ class OrdersService {
   // UPDATE ORDER
   // ============================================================================
 
-  async updateOrder(id: string, data: Partial<Order>): Promise<Order> {
-    return await api.put<Order>(`${this.baseUrl}/${id}`, data);
-  }
-
   async updateOrderStatus(id: string, status: Order['status']): Promise<Order> {
     return await api.patch<Order>(`${this.baseUrl}/${id}/status`, { status });
   }
@@ -117,60 +124,71 @@ class OrdersService {
   }
 
   // ============================================================================
-  // PAYMENTS
+  // ENDPOINTS NO IMPLEMENTADOS EN BACKEND
+  // Apuntaban a rutas inexistentes (404 garantizado). Se dejan como throw
+  // explícito para que el fallo sea visible en vez de silencioso.
   // ============================================================================
 
+  // TODO: implementar cuando el backend exponga PUT /orders/:id
+  async updateOrder(_id: string, _data: Partial<Order>): Promise<Order> {
+    throw new Error('No implementado en backend: PUT /orders/:id');
+  }
+
+  // TODO: implementar cuando el backend exponga GET /orders/number/:n
+  async getOrderByNumber(
+    _orderNumber: string,
+    _organizationId: string,
+  ): Promise<Order> {
+    throw new Error('No implementado en backend: GET /orders/number/:n');
+  }
+
+  // TODO: implementar cuando el backend exponga POST /orders/:id/payments
+  // (los pagos viven en el Ticket: ver módulo POS)
   async addPayment(
-    orderId: string,
-    data: {
+    _orderId: string,
+    _data: {
       method: PaymentMethod;
       amount: number;
       reference?: string;
     },
   ): Promise<Order> {
-    return await api.post<Order>(`${this.baseUrl}/${orderId}/payments`, data);
+    throw new Error('No implementado en backend: POST /orders/:id/payments');
   }
 
+  // TODO: implementar cuando el backend exponga POST /orders/:id/refund
   async refundOrder(
-    orderId: string,
-    amount?: number,
-    reason?: string,
+    _orderId: string,
+    _amount?: number,
+    _reason?: string,
   ): Promise<Order> {
-    return await api.post<Order>(`${this.baseUrl}/${orderId}/refund`, {
-      amount,
-      reason,
-    });
+    throw new Error('No implementado en backend: POST /orders/:id/refund');
   }
 
-  // ============================================================================
-  // RECEIPT
-  // ============================================================================
-
-  async getReceipt(orderId: string): Promise<{ url: string; html: string }> {
-    return await api.get<{ url: string; html: string }>(
-      `${this.baseUrl}/${orderId}/receipt`,
-    );
+  // TODO: implementar cuando el backend exponga GET /orders/:id/receipt
+  async getReceipt(_orderId: string): Promise<{ url: string; html: string }> {
+    throw new Error('No implementado en backend: GET /orders/:id/receipt');
   }
 
-  async printReceipt(orderId: string): Promise<void> {
-    await api.post(`${this.baseUrl}/${orderId}/print`);
+  // TODO: implementar cuando el backend exponga POST /orders/:id/print
+  async printReceipt(_orderId: string): Promise<void> {
+    throw new Error('No implementado en backend: POST /orders/:id/print');
   }
 
-  async emailReceipt(orderId: string, email: string): Promise<void> {
-    await api.post(`${this.baseUrl}/${orderId}/email`, { email });
+  // TODO: implementar cuando el backend exponga POST /orders/:id/email
+  async emailReceipt(_orderId: string, _email: string): Promise<void> {
+    throw new Error('No implementado en backend: POST /orders/:id/email');
   }
 
-  async whatsappReceipt(orderId: string, phone: string): Promise<void> {
-    await api.post(`${this.baseUrl}/${orderId}/whatsapp`, { phone });
+  // TODO: implementar cuando el backend exponga POST /orders/:id/whatsapp
+  async whatsappReceipt(_orderId: string, _phone: string): Promise<void> {
+    throw new Error('No implementado en backend: POST /orders/:id/whatsapp');
   }
 
-  // ============================================================================
-  // STATISTICS
-  // ============================================================================
-
+  // TODO: implementar cuando el backend exponga GET /orders/stats/daily
+  // (hoy solo existe GET /orders/stats con start_date/end_date)
   async getDailySales(
-    organizationId: string,
-    date: Date,
+    _organizationId: string,
+    _date: Date,
   ): Promise<{
     total_sales: number;
     total_orders: number;
@@ -183,25 +201,24 @@ class OrdersService {
       revenue: number;
     }>;
   }> {
-    return await api.get<any>(
-      `${this.baseUrl}/stats/daily?organization_id=${organizationId}&date=${date.toISOString()}`,
-    );
+    throw new Error('No implementado en backend: GET /orders/stats/daily');
   }
 
-  async getWeeklySales(organizationId: string, startDate: Date): Promise<any> {
-    return await api.get<any>(
-      `${this.baseUrl}/stats/weekly?organization_id=${organizationId}&start_date=${startDate.toISOString()}`,
-    );
-  }
-
-  async getMonthlySales(
-    organizationId: string,
-    year: number,
-    month: number,
+  // TODO: implementar cuando el backend exponga GET /orders/stats/weekly
+  async getWeeklySales(
+    _organizationId: string,
+    _startDate: Date,
   ): Promise<any> {
-    return await api.get<any>(
-      `${this.baseUrl}/stats/monthly?organization_id=${organizationId}&year=${year}&month=${month}`,
-    );
+    throw new Error('No implementado en backend: GET /orders/stats/weekly');
+  }
+
+  // TODO: implementar cuando el backend exponga GET /orders/stats/monthly
+  async getMonthlySales(
+    _organizationId: string,
+    _year: number,
+    _month: number,
+  ): Promise<any> {
+    throw new Error('No implementado en backend: GET /orders/stats/monthly');
   }
 }
 

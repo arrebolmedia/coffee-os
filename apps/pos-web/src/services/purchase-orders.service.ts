@@ -1,21 +1,41 @@
 /**
  * CoffeeOS - Purchase Orders Service
- * Servicio para gestión de órdenes de compra a proveedores
+ * Servicio para gestión de órdenes de compra a proveedores.
+ *
+ * Alineado al contrato real del backend
+ * (apps/api/src/modules/purchase-orders):
+ * - POST   /purchase-orders
+ * - GET    /purchase-orders (query: supplier_id, status, from_date, to_date, search, sort_by, order)
+ * - GET    /purchase-orders/stats/:organizationId
+ * - GET    /purchase-orders/:id
+ * - PUT    /purchase-orders/:id
+ * - PATCH  /purchase-orders/:id/approve | /send | /receive | /cancel
+ * - DELETE /purchase-orders/:id
+ *
+ * Endpoints fantasma eliminados: /supplier/:id, /suggested-reorder y el
+ * fetch local /api/purchase-orders/:id/pdf no existen en el backend.
  */
 
 import { api } from '@/lib/api';
 
+export type PurchaseOrderStatus =
+  | 'draft'
+  | 'pending'
+  | 'approved'
+  | 'ordered'
+  | 'partially_received'
+  | 'received'
+  | 'cancelled';
+
 export interface PurchaseOrderItem {
-  id?: string;
+  id: string;
+  purchase_order_id: string;
   inventory_item_id: string;
   inventory_item_name?: string;
-  quantity: number;
-  unit: string;
-  unit_cost: number;
+  quantity_ordered: number;
+  quantity_received: number;
+  unit_price: number;
   subtotal: number;
-  tax?: number;
-  total: number;
-  received_quantity?: number;
   notes?: string;
 }
 
@@ -24,82 +44,74 @@ export interface PurchaseOrder {
   organization_id: string;
   supplier_id: string;
   supplier_name?: string;
-  po_number: string;
-  status:
-    | 'draft'
-    | 'pending'
-    | 'approved'
-    | 'ordered'
-    | 'partial'
-    | 'received'
-    | 'cancelled';
+  order_number: string;
+  status: PurchaseOrderStatus;
+
+  items: PurchaseOrderItem[];
+
+  // Financial
+  subtotal: number;
+  tax_amount: number;
+  discount_amount: number;
+  shipping_cost: number;
+  total_amount: number;
+
+  // Dates
   order_date: string;
   expected_delivery_date?: string;
-  actual_delivery_date?: string;
-  items: PurchaseOrderItem[];
-  subtotal: number;
-  tax: number;
-  shipping_cost?: number;
-  total: number;
-  payment_status: 'unpaid' | 'partial' | 'paid';
-  payment_method?: string;
-  payment_date?: string;
-  notes?: string;
-  created_by: string;
+  delivery_date?: string;
+
+  // Approval
+  requested_by?: string;
   approved_by?: string;
+  approved_at?: string;
+
+  // Receiving
   received_by?: string;
+  received_at?: string;
+
+  notes?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface CreatePurchaseOrderItemDTO {
+  inventory_item_id: string;
+  quantity_ordered: number;
+  unit_price: number;
+  notes?: string;
 }
 
 export interface CreatePurchaseOrderDTO {
   organization_id: string;
   supplier_id: string;
-  order_date: string;
-  expected_delivery_date?: string;
-  items: Omit<PurchaseOrderItem, 'id' | 'inventory_item_name'>[];
+  items: CreatePurchaseOrderItemDTO[];
+  tax_amount?: number;
+  discount_amount?: number;
   shipping_cost?: number;
+  expected_delivery_date?: string;
+  requested_by?: string;
   notes?: string;
-  created_by: string;
 }
 
-export interface UpdatePurchaseOrderDTO {
-  supplier_id?: string;
-  status?: PurchaseOrder['status'];
-  order_date?: string;
-  expected_delivery_date?: string;
-  actual_delivery_date?: string;
-  items?: PurchaseOrderItem[];
-  shipping_cost?: number;
-  payment_status?: PurchaseOrder['payment_status'];
-  payment_method?: string;
-  payment_date?: string;
+/** PUT /purchase-orders/:id — el backend usa PartialType(CreatePurchaseOrderDto). */
+export type UpdatePurchaseOrderDTO = Partial<CreatePurchaseOrderDTO>;
+
+export interface ReceiveItemDTO {
+  inventory_item_id: string;
+  quantity_received: number;
   notes?: string;
-  approved_by?: string;
-  received_by?: string;
 }
 
 export interface ReceivePurchaseOrderDTO {
-  items: {
-    id: string;
-    received_quantity: number;
-    notes?: string;
-  }[];
+  items: ReceiveItemDTO[];
   received_by: string;
-  actual_delivery_date: string;
+  notes?: string;
 }
 
 export interface PurchaseOrderStats {
   total_orders: number;
-  by_status: {
-    draft: number;
-    pending: number;
-    approved: number;
-    ordered: number;
-    partially_received: number;
-    received: number;
-    cancelled: number;
-  };
+  by_status: Record<PurchaseOrderStatus, number>;
   total_amount: number;
   pending_approval_count: number;
   overdue_count: number;
@@ -107,10 +119,11 @@ export interface PurchaseOrderStats {
 
 export class PurchaseOrdersService {
   /**
-   * Get all purchase orders for organization
+   * Get all purchase orders for organization.
+   * El backend toma la organización del JWT, no de la query.
    */
   static async getPurchaseOrders(
-    organizationId: string,
+    _organizationId: string,
     filters?: {
       supplier_id?: string;
       status?: string;
@@ -122,8 +135,9 @@ export class PurchaseOrdersService {
 
     if (filters?.supplier_id) params.append('supplier_id', filters.supplier_id);
     if (filters?.status) params.append('status', filters.status);
-    if (filters?.date_from) params.append('date_from', filters.date_from);
-    if (filters?.date_to) params.append('date_to', filters.date_to);
+    // El backend (QueryPurchaseOrdersDto) usa from_date / to_date.
+    if (filters?.date_from) params.append('from_date', filters.date_from);
+    if (filters?.date_to) params.append('to_date', filters.date_to);
 
     const url = `/purchase-orders${params.toString() ? `?${params.toString()}` : ''}`;
     return await api.get<PurchaseOrder[]>(url);
@@ -137,30 +151,14 @@ export class PurchaseOrdersService {
   }
 
   /**
-   * Get purchase orders by supplier
-   */
-  static async getPurchaseOrdersBySupplier(
-    supplierId: string,
-  ): Promise<PurchaseOrder[]> {
-    return await api.get<PurchaseOrder[]>(
-      `/purchase-orders/supplier/${supplierId}`,
-    );
-  }
-
-  /**
    * Get purchase order statistics
    */
   static async getPurchaseOrderStats(
     organizationId: string,
-    dateRange?: { from: string; to: string },
   ): Promise<PurchaseOrderStats> {
-    let url = `/purchase-orders/stats/${organizationId}`;
-
-    if (dateRange) {
-      url += `?from=${dateRange.from}&to=${dateRange.to}`;
-    }
-
-    return await api.get<PurchaseOrderStats>(url);
+    return await api.get<PurchaseOrderStats>(
+      `/purchase-orders/stats/${organizationId}`,
+    );
   }
 
   /**
@@ -196,7 +194,7 @@ export class PurchaseOrdersService {
     poId: string,
     approvedBy: string,
   ): Promise<PurchaseOrder> {
-    return await api.post<PurchaseOrder>(`/purchase-orders/${poId}/approve`, {
+    return await api.patch<PurchaseOrder>(`/purchase-orders/${poId}/approve`, {
       approved_by: approvedBy,
     });
   }
@@ -204,13 +202,8 @@ export class PurchaseOrdersService {
   /**
    * Send purchase order to supplier
    */
-  static async sendPurchaseOrder(
-    poId: string,
-    email?: string,
-  ): Promise<PurchaseOrder> {
-    return await api.post<PurchaseOrder>(`/purchase-orders/${poId}/send`, {
-      email,
-    });
+  static async sendPurchaseOrder(poId: string): Promise<PurchaseOrder> {
+    return await api.patch<PurchaseOrder>(`/purchase-orders/${poId}/send`);
   }
 
   /**
@@ -220,7 +213,7 @@ export class PurchaseOrdersService {
     poId: string,
     data: ReceivePurchaseOrderDTO,
   ): Promise<PurchaseOrder> {
-    return await api.post<PurchaseOrder>(
+    return await api.patch<PurchaseOrder>(
       `/purchase-orders/${poId}/receive`,
       data,
     );
@@ -229,40 +222,7 @@ export class PurchaseOrdersService {
   /**
    * Cancel purchase order
    */
-  static async cancelPurchaseOrder(
-    poId: string,
-    reason?: string,
-  ): Promise<PurchaseOrder> {
-    return await api.post<PurchaseOrder>(`/purchase-orders/${poId}/cancel`, {
-      reason,
-    });
-  }
-
-  /**
-   * Generate PDF for purchase order
-   */
-  static async generatePurchaseOrderPDF(poId: string): Promise<Blob> {
-    const response = await fetch(`/api/purchase-orders/${poId}/pdf`);
-    return await response.blob();
-  }
-
-  /**
-   * Get suggested reorder items
-   */
-  static async getSuggestedReorder(organizationId: string): Promise<
-    {
-      inventory_item_id: string;
-      inventory_item_name: string;
-      current_stock: number;
-      reorder_point: number;
-      suggested_quantity: number;
-      preferred_supplier_id?: string;
-      preferred_supplier_name?: string;
-      last_unit_cost?: number;
-    }[]
-  > {
-    return await api.get(
-      `/purchase-orders/organization/${organizationId}/suggested-reorder`,
-    );
+  static async cancelPurchaseOrder(poId: string): Promise<PurchaseOrder> {
+    return await api.patch<PurchaseOrder>(`/purchase-orders/${poId}/cancel`);
   }
 }

@@ -18,22 +18,25 @@ import {
   X,
 } from 'lucide-react';
 
+// El backend devuelve role como string del enum EmployeeRole
 const ROLE_LABELS: Record<string, string> = {
-  SUPER_ADMIN: 'Super Admin',
-  ORG_ADMIN: 'Admin',
   MANAGER: 'Gerente',
+  ASSISTANT_MANAGER: 'Subgerente',
+  SHIFT_SUPERVISOR: 'Supervisor de Turno',
   CASHIER: 'Cajero',
   BARISTA: 'Barista',
-  VIEWER: 'Visor',
+  COOK: 'Cocinero',
+  CLEANER: 'Limpieza',
+  DELIVERY: 'Repartidor',
 };
 
 const ROLE_BADGE: Record<string, string> = {
-  SUPER_ADMIN: 'bg-red-100 text-red-800 border-red-300',
-  ORG_ADMIN: 'bg-blue-100 text-blue-800 border-blue-300',
   MANAGER: 'bg-green-100 text-green-800 border-green-300',
+  ASSISTANT_MANAGER: 'bg-blue-100 text-blue-800 border-blue-300',
+  SHIFT_SUPERVISOR: 'bg-purple-100 text-purple-800 border-purple-300',
   CASHIER: 'bg-yellow-100 text-yellow-800 border-yellow-300',
   BARISTA: 'bg-orange-100 text-orange-800 border-orange-300',
-  VIEWER: 'bg-gray-100 text-gray-800 border-gray-300',
+  COOK: 'bg-red-100 text-red-800 border-red-300',
 };
 
 function getRoleBadge(roleName?: string) {
@@ -55,18 +58,19 @@ export default function UsersManagementPage() {
 
   const filtered = useMemo(() => {
     return employees.filter((emp) => {
-      const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+      const fullName = `${emp.first_name} ${emp.last_name}`.toLowerCase();
       const matchesSearch =
         !searchQuery ||
         fullName.includes(searchQuery.toLowerCase()) ||
         emp.email.toLowerCase().includes(searchQuery.toLowerCase());
 
-      const roleName = emp.role?.name ?? '';
+      const roleName = emp.role || '';
       const matchesRole = filterRole === 'all' || roleName === filterRole;
+      const isActive = emp.status === 'ACTIVE';
       const matchesStatus =
         filterStatus === 'all' ||
-        (filterStatus === 'active' && emp.active) ||
-        (filterStatus === 'inactive' && !emp.active);
+        (filterStatus === 'active' && isActive) ||
+        (filterStatus === 'inactive' && !isActive);
 
       return matchesSearch && matchesRole && matchesStatus;
     });
@@ -74,12 +78,14 @@ export default function UsersManagementPage() {
 
   const stats = {
     total: employees.length,
-    active: employees.filter((e) => e.active).length,
-    inactive: employees.filter((e) => !e.active).length,
+    active: employees.filter((e) => e.status === 'ACTIVE').length,
+    inactive: employees.filter((e) => e.status !== 'ACTIVE').length,
   };
 
   const uniqueRoles = Array.from(
-    new Set(employees.map((e) => e.role?.name).filter((r): r is string => !!r)),
+    new Set(
+      employees.map((e) => e.role as string).filter((r): r is string => !!r),
+    ),
   );
 
   return (
@@ -237,15 +243,15 @@ export default function UsersManagementPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center">
                             <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold mr-3">
-                              {emp.firstName.charAt(0)}
+                              {emp.first_name.charAt(0)}
                             </div>
                             <div>
                               <div className="text-sm font-medium text-gray-900">
-                                {emp.firstName} {emp.lastName}
+                                {emp.first_name} {emp.last_name}
                               </div>
                               <div className="text-xs text-gray-500">
                                 Desde:{' '}
-                                {new Date(emp.createdAt).toLocaleDateString(
+                                {new Date(emp.created_at).toLocaleDateString(
                                   'es-MX',
                                 )}
                               </div>
@@ -268,24 +274,17 @@ export default function UsersManagementPage() {
                         </td>
                         <td className="px-6 py-4">
                           <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleBadge(emp.role?.name)}`}
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleBadge(emp.role || undefined)}`}
                           >
                             <Shield className="w-3 h-3" />
-                            {getRoleLabel(emp.role?.name)}
+                            {getRoleLabel(emp.role || undefined)}
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          {emp.locations && emp.locations.length > 0 ? (
-                            <div className="text-xs text-gray-600 space-y-1">
-                              {emp.locations.map((loc) => (
-                                <div
-                                  key={loc.id}
-                                  className="flex items-center gap-1"
-                                >
-                                  <MapPin className="w-3 h-3" />
-                                  {loc.name}
-                                </div>
-                              ))}
+                          {emp.location_id ? (
+                            <div className="text-xs text-gray-600 flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              {emp.location_id}
                             </div>
                           ) : (
                             <span className="text-xs text-gray-400 italic">
@@ -295,9 +294,9 @@ export default function UsersManagementPage() {
                         </td>
                         <td className="px-6 py-4">
                           <span
-                            className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${emp.active ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-800 border-red-300'}`}
+                            className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${emp.status === 'ACTIVE' ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-800 border-red-300'}`}
                           >
-                            {emp.active ? 'Activo' : 'Inactivo'}
+                            {emp.status === 'ACTIVE' ? 'Activo' : 'Inactivo'}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right space-x-2">

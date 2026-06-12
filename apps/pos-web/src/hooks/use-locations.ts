@@ -3,6 +3,36 @@ import { useAuth } from '@/hooks/use-auth';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 
+/**
+ * Shape real que devuelve el backend
+ * (apps/api/src/modules/locations/interfaces/location.interface.ts):
+ * el Location de Prisma plano, en snake_case.
+ */
+export interface Location {
+  id: string;
+  organization_id: string;
+  name: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country: string;
+  phone?: string;
+  email?: string;
+  timezone: string;
+  tax_rate: number;
+  currency: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LocationStats {
+  total_locations: number;
+  active_count: number;
+  inactive_count: number;
+}
+
 const locationKeys = {
   all: ['locations'] as const,
   lists: () => [...locationKeys.all, 'list'] as const,
@@ -17,7 +47,8 @@ export function useLocations() {
 
   return useQuery({
     queryKey: locationKeys.list(organizationId),
-    queryFn: () => api.get(`/locations?organization_id=${organizationId}`),
+    queryFn: () =>
+      api.get<Location[]>(`/locations?organization_id=${organizationId}`),
     enabled: !!organizationId,
     staleTime: 5 * 60 * 1000,
   });
@@ -29,7 +60,7 @@ export function useLocationStats() {
 
   return useQuery({
     queryKey: locationKeys.stats(organizationId),
-    queryFn: () => api.get(`/locations/stats/${organizationId}`),
+    queryFn: () => api.get<LocationStats>(`/locations/stats/${organizationId}`),
     enabled: !!organizationId,
     staleTime: 5 * 60 * 1000,
   });

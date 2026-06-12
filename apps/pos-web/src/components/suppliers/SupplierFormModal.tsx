@@ -1,6 +1,10 @@
 /**
  * CoffeeOS - Supplier Form Modal
  * Modal para crear y editar proveedores
+ *
+ * Campos alineados al CreateSupplierDto real del backend:
+ * name, contact_person, email, phone, address, payment_terms,
+ * lead_time_days, active.
  */
 
 'use client';
@@ -11,9 +15,7 @@ import {
   DollarSign,
   Loader2,
   MapPin,
-  Package,
   Save,
-  Star,
   User,
   X,
 } from 'lucide-react';
@@ -28,15 +30,6 @@ interface SupplierFormModalProps {
   isLoading?: boolean;
 }
 
-const CATEGORIES = [
-  'café',
-  'lácteos',
-  'insumos',
-  'empaque',
-  'limpieza',
-  'otros',
-];
-
 const PAYMENT_TERMS = [
   'Contado',
   '15 días',
@@ -46,11 +39,27 @@ const PAYMENT_TERMS = [
   '90 días',
 ];
 
-const STATUS_OPTIONS = [
-  { value: 'active', label: 'Activo' },
-  { value: 'inactive', label: 'Inactivo' },
-  { value: 'pending', label: 'Pendiente' },
-];
+interface SupplierFormState {
+  name: string;
+  contact_person: string;
+  email: string;
+  phone: string;
+  address: string;
+  payment_terms: string;
+  lead_time_days: string;
+  active: boolean;
+}
+
+const EMPTY_FORM: SupplierFormState = {
+  name: '',
+  contact_person: '',
+  email: '',
+  phone: '',
+  address: '',
+  payment_terms: 'Contado',
+  lead_time_days: '',
+  active: true,
+};
 
 export function SupplierFormModal({
   isOpen,
@@ -66,75 +75,55 @@ export function SupplierFormModal({
     (createSupplier as any).isPending ||
     (updateSupplier as any).isPending ||
     false;
-  const [formData, setFormData] = useState({
-    name: '',
-    business_name: '',
-    rfc: '',
-    category: 'café',
-    rating: 5,
-    status: 'active' as 'active' | 'inactive' | 'pending',
-    contact_name: '',
-    contact_email: '',
-    contact_phone: '',
-    address_street: '',
-    address_city: '',
-    address_state: '',
-    address_zip: '',
-    payment_terms: 'Contado',
-    products_supplied: [] as string[],
-  });
-
-  const [productInput, setProductInput] = useState('');
+  const [formData, setFormData] = useState<SupplierFormState>(EMPTY_FORM);
 
   useEffect(() => {
     if (supplier) {
       setFormData({
         name: supplier.name,
-        business_name: supplier.business_name,
-        rfc: supplier.rfc || '',
-        category: supplier.category,
-        rating: supplier.rating,
-        status: supplier.status,
-        contact_name: supplier.contact_name,
-        contact_email: supplier.contact_email || '',
-        contact_phone: supplier.contact_phone,
-        address_street: supplier.address_street || '',
-        address_city: supplier.address_city || '',
-        address_state: supplier.address_state || '',
-        address_zip: supplier.address_zip || '',
+        contact_person: supplier.contact_person || '',
+        email: supplier.email || '',
+        phone: supplier.phone || '',
+        address: supplier.address || '',
         payment_terms: supplier.payment_terms || 'Contado',
-        products_supplied: supplier.products_supplied || [],
+        lead_time_days:
+          supplier.lead_time_days != null
+            ? String(supplier.lead_time_days)
+            : '',
+        active: supplier.active,
       });
     } else {
-      // Reset form
-      setFormData({
-        name: '',
-        business_name: '',
-        rfc: '',
-        category: 'café',
-        rating: 5,
-        status: 'active',
-        contact_name: '',
-        contact_email: '',
-        contact_phone: '',
-        address_street: '',
-        address_city: '',
-        address_state: '',
-        address_zip: '',
-        payment_terms: 'Contado',
-        products_supplied: [],
-      });
+      setFormData(EMPTY_FORM);
     }
   }, [supplier, isOpen]);
 
+  const buildPayload = () => ({
+    name: formData.name,
+    contact_person: formData.contact_person || undefined,
+    email: formData.email || undefined,
+    phone: formData.phone || undefined,
+    address: formData.address || undefined,
+    payment_terms: formData.payment_terms || undefined,
+    lead_time_days:
+      formData.lead_time_days !== ''
+        ? Number(formData.lead_time_days)
+        : undefined,
+    active: formData.active,
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (supplier?.id) {
-      updateSupplier.mutate({ id: supplier.id, data: formData });
-    } else {
-      createSupplier.mutate(formData as any);
+    const payload = buildPayload();
+    if (onSubmit) {
+      // El padre es responsable de la mutación (evita doble submit).
+      onSubmit(payload);
+      return;
     }
-    onSubmit?.(formData);
+    if (supplier?.id) {
+      updateSupplier.mutate({ id: supplier.id, data: payload });
+    } else {
+      createSupplier.mutate(payload as any);
+    }
   };
 
   const handleChange = (
@@ -149,31 +138,11 @@ export function SupplierFormModal({
     }));
   };
 
-  const addProduct = () => {
-    if (
-      productInput.trim() &&
-      !formData.products_supplied.includes(productInput.trim())
-    ) {
-      setFormData((prev) => ({
-        ...prev,
-        products_supplied: [...prev.products_supplied, productInput.trim()],
-      }));
-      setProductInput('');
-    }
-  };
-
-  const removeProduct = (product: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      products_supplied: prev.products_supplied.filter((p) => p !== product),
-    }));
-  };
-
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white">
           <div className="flex items-center gap-3">
@@ -204,7 +173,7 @@ export function SupplierFormModal({
                   htmlFor="name"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
-                  Nombre Comercial *
+                  Nombre *
                 </label>
                 <input
                   id="name"
@@ -217,105 +186,26 @@ export function SupplierFormModal({
                   placeholder="Café del Sur"
                 />
               </div>
-              <div>
+              <div className="flex items-end pb-2">
                 <label
-                  htmlFor="business_name"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  htmlFor="active"
+                  className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer"
                 >
-                  Razón Social *
+                  <input
+                    id="active"
+                    type="checkbox"
+                    name="active"
+                    checked={formData.active}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        active: e.target.checked,
+                      }))
+                    }
+                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                  />
+                  Proveedor activo
                 </label>
-                <input
-                  id="business_name"
-                  type="text"
-                  name="business_name"
-                  value={formData.business_name}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Café del Sur S.A. de C.V."
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="rfc"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  RFC
-                </label>
-                <input
-                  id="rfc"
-                  type="text"
-                  name="rfc"
-                  value={formData.rfc}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="CDS010101ABC"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Categoría *
-                </label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  {CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Calificación
-                </label>
-                <div className="flex items-center gap-2">
-                  {[1, 2, 3, 4, 5].map((rating) => (
-                    <button
-                      key={rating}
-                      type="button"
-                      aria-label={`star ${rating}`}
-                      onClick={() =>
-                        setFormData((prev) => ({ ...prev, rating }))
-                      }
-                      className="focus:outline-none"
-                    >
-                      <Star
-                        className={`w-6 h-6 ${
-                          rating <= formData.rating
-                            ? 'text-yellow-400 fill-yellow-400'
-                            : 'text-gray-300'
-                        }`}
-                      />
-                    </button>
-                  ))}
-                  <span className="text-sm text-gray-600 ml-2">
-                    ({formData.rating})
-                  </span>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Estado *
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  {STATUS_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
           </div>
@@ -328,26 +218,34 @@ export function SupplierFormModal({
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre del Contacto *
+                <label
+                  htmlFor="contact_person"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Persona de Contacto
                 </label>
                 <input
+                  id="contact_person"
                   type="text"
-                  name="contact_name"
-                  value={formData.contact_name}
+                  name="contact_person"
+                  value={formData.contact_person}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder="Juan Pérez"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Teléfono *
+                <label
+                  htmlFor="phone"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Teléfono
                 </label>
                 <input
+                  id="phone"
                   type="tel"
-                  name="contact_phone"
-                  value={formData.contact_phone}
+                  name="phone"
+                  value={formData.phone}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder="555-123-4567"
@@ -355,16 +253,16 @@ export function SupplierFormModal({
               </div>
               <div className="md:col-span-2">
                 <label
-                  htmlFor="contact_email"
+                  htmlFor="email"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
                   Email
                 </label>
                 <input
-                  id="contact_email"
+                  id="email"
                   type="email"
-                  name="contact_email"
-                  value={formData.contact_email}
+                  name="email"
+                  value={formData.email}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder="contacto@cafedelsur.com"
@@ -379,74 +277,41 @@ export function SupplierFormModal({
               <MapPin className="w-5 h-5" />
               Dirección
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Calle y Número
-                </label>
-                <input
-                  type="text"
-                  name="address_street"
-                  value={formData.address_street}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Av. Insurgentes Sur 123"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ciudad
-                </label>
-                <input
-                  type="text"
-                  name="address_city"
-                  value={formData.address_city}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Ciudad de México"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Estado
-                </label>
-                <input
-                  type="text"
-                  name="address_state"
-                  value={formData.address_state}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="CDMX"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Código Postal
-                </label>
-                <input
-                  type="text"
-                  name="address_zip"
-                  value={formData.address_zip}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="03100"
-                />
-              </div>
+            <div>
+              <label
+                htmlFor="address"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Dirección
+              </label>
+              <input
+                id="address"
+                type="text"
+                name="address"
+                value={formData.address}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="Av. Insurgentes Sur 123, Ciudad de México"
+              />
             </div>
           </div>
 
-          {/* Términos de Pago y Productos */}
+          {/* Términos Comerciales */}
           <div>
             <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
               <DollarSign className="w-5 h-5" />
               Términos Comerciales
             </h3>
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="payment_terms"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Términos de Pago
                 </label>
                 <select
+                  id="payment_terms"
                   name="payment_terms"
                   value={formData.payment_terms}
                   onChange={handleChange}
@@ -460,50 +325,22 @@ export function SupplierFormModal({
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Productos que Suministra
+                <label
+                  htmlFor="lead_time_days"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Tiempo de Entrega (días)
                 </label>
-                <div className="flex gap-2 mb-2">
-                  <input
-                    type="text"
-                    value={productInput}
-                    onChange={(e) => setProductInput(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addProduct();
-                      }
-                    }}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Agregar producto..."
-                  />
-                  <button
-                    type="button"
-                    onClick={addProduct}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                  >
-                    Agregar
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {formData.products_supplied.map((product) => (
-                    <span
-                      key={product}
-                      className="inline-flex items-center gap-1 px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm"
-                    >
-                      <Package className="w-3 h-3" />
-                      {product}
-                      <button
-                        type="button"
-                        aria-label="×"
-                        onClick={() => removeProduct(product)}
-                        className="ml-1 text-indigo-600 hover:text-indigo-800"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
+                <input
+                  id="lead_time_days"
+                  type="number"
+                  min="0"
+                  name="lead_time_days"
+                  value={formData.lead_time_days}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="3"
+                />
               </div>
             </div>
           </div>

@@ -1,6 +1,11 @@
 /**
  * CoffeeOS - Suppliers Service
  * Servicio para gestión de proveedores
+ *
+ * Contrato alineado al backend Prisma-backed
+ * (apps/api/src/modules/suppliers/suppliers.service.ts). El backend solo
+ * expone: id, organization_id, name, contact_person, email, phone, address,
+ * payment_terms, lead_time_days, active, created_at, updated_at.
  */
 
 import { api } from '@/lib/api';
@@ -9,22 +14,13 @@ export interface Supplier {
   id: string;
   organization_id: string;
   name: string;
-  business_name: string;
-  rfc?: string;
-  category: string;
-  rating: number;
-  status: 'active' | 'inactive' | 'pending';
-  contact_name: string;
-  contact_email?: string;
-  contact_phone: string;
-  address_street?: string;
-  address_city?: string;
-  address_state?: string;
-  address_zip?: string;
+  contact_person?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
   payment_terms?: string;
-  products_supplied?: string[];
-  total_purchases: number;
-  last_purchase_date?: string;
+  lead_time_days?: number;
+  active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -32,51 +28,30 @@ export interface Supplier {
 export interface CreateSupplierDTO {
   organization_id: string;
   name: string;
-  business_name: string;
-  rfc?: string;
-  category: string;
-  rating?: number;
-  status?: 'active' | 'inactive' | 'pending';
-  contact_name: string;
-  contact_email?: string;
-  contact_phone: string;
-  address_street?: string;
-  address_city?: string;
-  address_state?: string;
-  address_zip?: string;
+  contact_person?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
   payment_terms?: string;
-  products_supplied?: string[];
+  lead_time_days?: number;
+  active?: boolean;
 }
 
 export interface UpdateSupplierDTO {
   name?: string;
-  business_name?: string;
-  rfc?: string;
-  category?: string;
-  rating?: number;
-  status?: 'active' | 'inactive' | 'pending';
-  contact_name?: string;
-  contact_email?: string;
-  contact_phone?: string;
-  address_street?: string;
-  address_city?: string;
-  address_state?: string;
-  address_zip?: string;
+  contact_person?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
   payment_terms?: string;
-  products_supplied?: string[];
+  lead_time_days?: number;
+  active?: boolean;
 }
 
 export interface SupplierStats {
   total_suppliers: number;
-  active_suppliers: number;
-  inactive_suppliers: number;
-  pending_suppliers: number;
-  total_purchases: number;
-  average_rating: number;
-  suppliers_by_category: {
-    category: string;
-    count: number;
-  }[];
+  active_count: number;
+  inactive_count: number;
 }
 
 export class SuppliersService {
@@ -86,24 +61,19 @@ export class SuppliersService {
   static async getSuppliers(
     organizationId: string,
     filters?: {
-      category?: string;
-      status?: string;
+      active?: boolean;
       search?: string;
     },
   ): Promise<Supplier[]> {
     const response = await api.get<any>(
       `/suppliers/organization/${organizationId}`,
     );
-    const data = response?.data ?? response;
-    if (filters) {
+    const data = (response?.data ?? response) as Supplier[];
+    if (filters?.active !== undefined) {
       // client-side filtering when filters provided (tests expect single-arg call)
-      return (data as Supplier[]).filter((s) => {
-        if (filters.category && s.category !== filters.category) return false;
-        if (filters.status && s.status !== filters.status) return false;
-        return true;
-      });
+      return data.filter((s) => s.active === filters.active);
     }
-    return data as Supplier[];
+    return data;
   }
 
   /**
@@ -146,44 +116,10 @@ export class SuppliersService {
   }
 
   /**
-   * Delete supplier
+   * Delete supplier (soft delete: backend marks active=false)
    */
   static async deleteSupplier(supplierId: string): Promise<void> {
     await api.delete(`/suppliers/${supplierId}`);
-  }
-
-  /**
-   * Get supplier purchase history
-   */
-  static async getSupplierPurchases(supplierId: string): Promise<any[]> {
-    const response = await api.get<any>(`/suppliers/${supplierId}/purchases`);
-    return response?.data ?? response;
-  }
-
-  /**
-   * Update supplier rating
-   */
-  static async updateSupplierRating(
-    supplierId: string,
-    rating: number,
-  ): Promise<Supplier> {
-    const response = await api.patch<any>(`/suppliers/${supplierId}/rating`, {
-      rating,
-    });
-    return response?.data ?? response;
-  }
-
-  /**
-   * Get suppliers by category
-   */
-  static async getSuppliersByCategory(
-    organizationId: string,
-    category: string,
-  ): Promise<Supplier[]> {
-    const response = await api.get<any>(
-      `/suppliers/organization/${organizationId}?category=${category}`,
-    );
-    return response?.data ?? response;
   }
 
   /**
@@ -197,4 +133,10 @@ export class SuppliersService {
       `/suppliers/organization/${organizationId}/search?q=${encodeURIComponent(query)}`,
     );
   }
+
+  // NOTE (migración Prisma): los endpoints `/suppliers/:id/purchases` y
+  // PATCH `/suppliers/:id/rating` fueron eliminados del backend junto con los
+  // campos rating/category/total_purchases. Los métodos getSupplierPurchases,
+  // updateSupplierRating y getSuppliersByCategory se removieron de este
+  // servicio. TODO: reintroducirlos si el schema vuelve a soportarlos.
 }

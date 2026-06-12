@@ -48,7 +48,7 @@ interface ProductDisplay {
   imageUrl: string;
   barcode: string;
   trackInventory: boolean;
-  currentStock: number;
+  stockQuantity: number;
   type: string;
   tags: string[];
 }
@@ -95,7 +95,7 @@ export default function ProductsPage() {
       imageUrl: product.image || '',
       barcode: product.barcode || '',
       trackInventory: product.trackInventory || false,
-      currentStock: product.currentStock || 0,
+      stockQuantity: product.stockQuantity ?? 0,
       type: product.type || 'SIMPLE',
       tags: product.tags || [],
     }));
@@ -130,11 +130,11 @@ export default function ProductsPage() {
       // Stock filter
       const matchesStock =
         filterStock === 'all' ||
-        (filterStock === 'in-stock' && product.currentStock > 0) ||
+        (filterStock === 'in-stock' && product.stockQuantity > 0) ||
         (filterStock === 'low-stock' &&
-          product.currentStock > 0 &&
-          product.currentStock <= 10) ||
-        (filterStock === 'out-of-stock' && product.currentStock === 0) ||
+          product.stockQuantity > 0 &&
+          product.stockQuantity <= 10) ||
+        (filterStock === 'out-of-stock' && product.stockQuantity === 0) ||
         (filterStock === 'no-tracking' && !product.trackInventory);
 
       return matchesSearch && matchesCategory && matchesStatus && matchesStock;
@@ -148,7 +148,7 @@ export default function ProductsPage() {
   const localStats = useMemo(() => {
     const activeProducts = products.filter((p) => p.status === 'ACTIVE');
     const totalValue = products.reduce(
-      (sum, p) => sum + p.cost * p.currentStock,
+      (sum, p) => sum + p.cost * p.stockQuantity,
       0,
     );
     const avgMargin =
@@ -162,10 +162,10 @@ export default function ProductsPage() {
       inactive: products.filter((p) => p.status === 'INACTIVE').length,
       draft: products.filter((p) => p.status === 'DRAFT').length,
       outOfStock: products.filter(
-        (p) => p.trackInventory && p.currentStock === 0,
+        (p) => p.trackInventory && p.stockQuantity === 0,
       ).length,
       lowStock: products.filter(
-        (p) => p.trackInventory && p.currentStock > 0 && p.currentStock <= 10,
+        (p) => p.trackInventory && p.stockQuantity > 0 && p.stockQuantity <= 10,
       ).length,
       totalValue,
       avgMargin,
@@ -191,7 +191,7 @@ export default function ProductsPage() {
       return <span className="text-xs text-gray-500">No rastreado</span>;
     }
 
-    if (product.currentStock === 0) {
+    if (product.stockQuantity === 0) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
           <TrendingDown className="w-3 h-3" />
@@ -200,7 +200,7 @@ export default function ProductsPage() {
       );
     }
 
-    if (product.currentStock <= 10) {
+    if (product.stockQuantity <= 10) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
           <AlertCircle className="w-3 h-3" />
@@ -590,7 +590,7 @@ export default function ProductsPage() {
                         {getStockBadge(product)}
                         {product.trackInventory && (
                           <span className="text-xs text-gray-500">
-                            {product.currentStock} unidades
+                            {product.stockQuantity} unidades
                           </span>
                         )}
                       </div>
