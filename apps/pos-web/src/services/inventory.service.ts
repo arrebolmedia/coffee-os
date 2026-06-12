@@ -5,27 +5,31 @@
 
 import { api } from '@/lib/api';
 
+// Shape real del GET /inventory (backend mapea Prisma InventoryItem a snake_case)
 export interface InventoryItem {
   id: string;
-  product_id: string;
   organization_id: string;
-  location_id: string;
+  category_id: string;
+  sku: string;
+  name: string;
+  description?: string;
+  type: string;
+  status: string;
+  unit_of_measure: string;
+  units_per_package: number;
+  cost_per_unit: number;
+  average_cost: number;
+  track_inventory: boolean;
   current_stock: number;
-  min_stock: number;
-  max_stock: number;
-  reorder_point: number;
-  unit_cost: number;
-  total_value: number;
-  last_restock_date?: Date;
-  created_at: Date;
-  updated_at: Date;
-  product?: {
-    name: string;
-    sku: string;
-    category?: {
-      name: string;
-    };
-  };
+  minimum_stock: number;
+  maximum_stock: number;
+  par_level: number;
+  is_perishable: boolean;
+  is_taxable: boolean;
+  requires_refrigeration: boolean;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
 }
 
 export interface InventoryStats {

@@ -96,8 +96,8 @@ export default function InventoryPage() {
 
     return inventoryData.map((item) => {
       const stock = item.current_stock || 0;
-      const minStock = item.min_stock || 0;
-      const maxStock = item.max_stock || 100;
+      const minStock = item.minimum_stock || 0;
+      const maxStock = item.maximum_stock || 100;
 
       let status: 'ok' | 'low' | 'critical' | 'overstock' = 'ok';
       if (stock === 0) {
@@ -112,15 +112,15 @@ export default function InventoryPage() {
 
       return {
         id: item.id,
-        name: item.product?.name || 'Sin nombre',
-        sku: item.product?.sku || 'N/A',
-        category: item.product?.category?.name || 'Sin categoría',
+        name: item.name || 'Sin nombre',
+        sku: item.sku || 'N/A',
+        category: item.category_id || 'Sin categoría',
         stock,
-        unit: 'unidades',
+        unit: item.unit_of_measure || 'unidades',
         minStock,
         maxStock,
-        cost: item.unit_cost || 0,
-        lastUpdated: item.updated_at?.toString() || new Date().toISOString(),
+        cost: item.cost_per_unit || 0,
+        lastUpdated: item.updated_at || new Date().toISOString(),
         status,
       };
     });
