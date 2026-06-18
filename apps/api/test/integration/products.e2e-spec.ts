@@ -66,6 +66,7 @@ describe('Products Integration Tests (E2E)', () => {
     it('returns the catalog of products', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/products')
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body).toBeInstanceOf(Array);
@@ -77,6 +78,7 @@ describe('Products Integration Tests (E2E)', () => {
     it('includes required product fields', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/products')
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       const product = response.body.find(
@@ -139,6 +141,7 @@ describe('Products Integration Tests (E2E)', () => {
     it('returns available categories', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/categories')
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body).toBeInstanceOf(Array);
@@ -150,6 +153,7 @@ describe('Products Integration Tests (E2E)', () => {
     it('links products to their categories', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/products')
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       const product = response.body.find(
@@ -174,6 +178,7 @@ describe('Products Integration Tests (E2E)', () => {
     it('exposes CORS headers for product endpoints', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/v1/products')
+        .set('Authorization', `Bearer ${authToken}`)
         .set('Origin', 'http://localhost:3001')
         .expect(200);
 
@@ -242,6 +247,7 @@ describe('Products Integration Tests (E2E)', () => {
 
     const inventoryItem = await prisma.inventoryItem.create({
       data: {
+        organizationId: organization.id,
         code: `INV-${suffix}`,
         name: 'Integration Coffee Beans',
         unitOfMeasure: 'g',
