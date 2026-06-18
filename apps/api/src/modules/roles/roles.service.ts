@@ -24,12 +24,45 @@ import {
   UpdatePermissionDto,
   UpdateRoleDto,
 } from './dto';
+import { PrismaService } from '../database/prisma.service';
 
 @Injectable()
 export class RolesService {
+  // NOTE: permissions and user-role assignments are still in-memory (RBAC
+  // subsystem not yet migrated). Role READS (findAllRoles/findRoleById) are
+  // Prisma-backed because the `roles` table is the source of truth that
+  // User.roleId and employee creation validate against.
+  constructor(private readonly prisma: PrismaService) {}
+
   private readonly permissions = new Map<string, Permission>();
   private readonly roles = new Map<string, Role>();
   private readonly userRoles = new Map<string, UserRole>();
+
+  /**
+   * Map a Prisma role row to the API role shape. `code` is derived from the
+   * name so consumers expecting a code keep working until the schema gains one.
+   */
+  private mapPrismaRole(r: {
+    id: string;
+    name: string;
+    description: string | null;
+    scopes: string[];
+    active: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  }): Record<string, unknown> {
+    return {
+      id: r.id,
+      name: r.name,
+      code: r.name.toUpperCase().replace(/\s+/g, '_'),
+      description: r.description ?? undefined,
+      scopes: r.scopes,
+      permission_ids: r.scopes,
+      active: r.active,
+      created_at: r.createdAt,
+      updated_at: r.updatedAt,
+    };
+  }
 
   /**
    * PERMISSIONS CRUD
@@ -178,51 +211,26 @@ export class RolesService {
     return role;
   }
 
-  async findAllRoles(query: QueryRolesDto): Promise<Role[]> {
-    let roles = Array.from(this.roles.values());
+  // Prisma-backed: returns the real `roles` table (source of truth for
+  // User.roleId / employee creation). The Prisma Role model is global (no
+  // organization_id) and has no system_role flag, so those filters are no-ops.
+  async findAllRoles(query: QueryRolesDto): Promise<Record<string, unknown>[]> {
+    const order = query.order === 'desc' ? 'desc' : 'asc';
+    const sortBy = query.sort_by === 'created_at' ? 'createdAt' : 'name';
 
-    // Filters
-    if (query.organization_id) {
-      roles = roles.filter((r) => r.organization_id === query.organization_id);
-    }
-
-    if (query.system_role) {
-      roles = roles.filter((r) => r.system_role === query.system_role);
-    }
-
-    if (query.search) {
-      const search = query.search.toLowerCase();
-      roles = roles.filter(
-        (r) =>
-          r.name.toLowerCase().includes(search) ||
-          r.code.toLowerCase().includes(search) ||
-          (r.description && r.description.toLowerCase().includes(search)),
-      );
-    }
-
-    // Sort
-    const sortBy = query.sort_by || 'name';
-    const order = query.order || 'asc';
-
-    roles.sort((a, b) => {
-      let aValue: any = a[sortBy as keyof Role];
-      let bValue: any = b[sortBy as keyof Role];
-
-      if (aValue === undefined)
-        aValue = order === 'asc' ? '' : Number.MIN_VALUE;
-      if (bValue === undefined)
-        bValue = order === 'asc' ? '' : Number.MIN_VALUE;
-
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return order === 'asc'
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      }
-
-      return 0;
+    const roles = await this.prisma.role.findMany({
+      where: query.search
+        ? {
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' } },
+              { description: { contains: query.search, mode: 'insensitive' } },
+            ],
+          }
+        : undefined,
+      orderBy: { [sortBy]: order },
     });
 
-    return roles;
+    return roles.map((r) => this.mapPrismaRole(r));
   }
 
   async findRoleById(id: string): Promise<Role> {

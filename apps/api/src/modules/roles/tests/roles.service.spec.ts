@@ -12,6 +12,7 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
+import { PrismaService } from '../../database/prisma.service';
 
 describe('RolesService', () => {
   let service: RolesService;
@@ -20,15 +21,26 @@ describe('RolesService', () => {
   const userId = 'user-123';
   const assignedBy = 'admin-456';
 
+  const prismaMock = {
+    role: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+    },
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [RolesService],
+      providers: [
+        RolesService,
+        { provide: PrismaService, useValue: prismaMock },
+      ],
     }).compile();
 
     service = module.get<RolesService>(RolesService);
     (service as any).permissions.clear();
     (service as any).roles.clear();
     (service as any).userRoles.clear();
+    jest.clearAllMocks();
   });
 
   /**
@@ -225,46 +237,47 @@ describe('RolesService', () => {
   });
 
   describe('findAllRoles', () => {
-    beforeEach(async () => {
-      await service.createRole({
-        organization_id: orgId,
+    // findAllRoles is Prisma-backed (reads the real `roles` table).
+    const prismaRow = (id: string, name: string) => ({
+      id,
+      name,
+      description: null,
+      scopes: [],
+      active: true,
+      createdAt: new Date('2026-01-01'),
+      updatedAt: new Date('2026-01-01'),
+    });
+
+    it('should return roles from the database mapped to API shape', async () => {
+      prismaMock.role.findMany.mockResolvedValue([
+        prismaRow('r1', 'Manager'),
+        prismaRow('r2', 'Barista'),
+      ]);
+
+      const result = await service.findAllRoles({});
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toMatchObject({
+        id: 'r1',
         name: 'Manager',
         code: 'MANAGER',
-        is_system: true,
-        system_role: SystemRole.MANAGER,
-      });
-      await service.createRole({
-        organization_id: orgId,
-        name: 'Barista',
-        code: 'BARISTA',
-      });
-      await service.createRole({
-        organization_id: 'org-456',
-        name: 'Cashier',
-        code: 'CASHIER',
       });
     });
 
-    it('should return all roles', async () => {
-      const result = await service.findAllRoles({});
-      expect(result).toHaveLength(3);
-    });
+    it('should pass a case-insensitive search filter to Prisma', async () => {
+      prismaMock.role.findMany.mockResolvedValue([prismaRow('r2', 'Barista')]);
 
-    it('should filter by organization_id', async () => {
-      const result = await service.findAllRoles({ organization_id: orgId });
-      expect(result).toHaveLength(2);
-    });
+      await service.findAllRoles({ search: 'Barista' });
 
-    it('should filter by system_role', async () => {
-      const result = await service.findAllRoles({
-        system_role: SystemRole.MANAGER,
-      });
-      expect(result).toHaveLength(1);
-    });
-
-    it('should search by name', async () => {
-      const result = await service.findAllRoles({ search: 'Barista' });
-      expect(result).toHaveLength(1);
+      expect(prismaMock.role.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: expect.arrayContaining([
+              { name: { contains: 'Barista', mode: 'insensitive' } },
+            ]),
+          }),
+        }),
+      );
     });
   });
 
