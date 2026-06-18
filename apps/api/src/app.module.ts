@@ -25,7 +25,7 @@ import { InventoryMovementsModule } from './modules/inventory-movements/inventor
 import { RecipesModule } from './modules/recipes/recipes.module';
 // import { TransactionsModule } from './modules/transactions/transactions.module';
 // import { PaymentsModule } from './modules/payments/payments.module';
-// import { OrdersModule } from './modules/orders/orders.module';
+import { OrdersModule } from './modules/orders/orders.module';
 import { DiscountsModule } from './modules/discounts/discounts.module';
 import { TaxesModule } from './modules/taxes/taxes.module';
 import { ShiftsModule } from './modules/shifts/shifts.module';
@@ -101,7 +101,7 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard.global';
     RecipesModule,
     // TransactionsModule, // TODO: Actualizar para usar Ticket en lugar de Transaction
     // PaymentsModule, // TODO: Actualizar para usar solo Ticket
-    // OrdersModule, // TODO: Refactorizar - ahora se maneja en PosModule
+    OrdersModule, // Kitchen orders at /orders (separate from POS tickets at /pos/orders)
     DiscountsModule,
     TaxesModule,
     ShiftsModule,
