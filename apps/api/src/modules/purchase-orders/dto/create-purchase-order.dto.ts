@@ -2,17 +2,21 @@ import {
   ArrayMinSize,
   IsArray,
   IsDate,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
-  IsUUID,
   Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
+// NOTE: entity ids are cuid (Prisma @default(cuid())), not UUID — id fields use
+// @IsString/@IsNotEmpty, not @IsUUID (which rejected every real id → no PO could
+// ever be created).
 export class CreatePurchaseOrderItemDto {
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   inventory_item_id: string;
 
   @IsNumber()
@@ -31,10 +35,12 @@ export class CreatePurchaseOrderItemDto {
 }
 
 export class CreatePurchaseOrderDto {
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   organization_id: string;
 
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   supplier_id: string;
 
   @IsArray()
