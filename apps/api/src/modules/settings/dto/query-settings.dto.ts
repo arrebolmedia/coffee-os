@@ -1,15 +1,8 @@
-import {
-  IsEnum,
-  IsIn,
-  IsOptional,
-  IsString,
-  IsUUID,
-  MaxLength,
-} from 'class-validator';
+import { IsEnum, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import { SettingCategory, SettingType } from '../interfaces';
 
 export class QuerySettingsDto {
-  @IsUUID()
+  @IsString()
   @IsOptional()
   organization_id?: string;
 

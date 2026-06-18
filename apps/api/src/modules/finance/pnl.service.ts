@@ -51,7 +51,7 @@ export class PnLService {
       _sum: { total: true, discount: true, subtotal: true },
     });
 
-    const grossRevenue = revenueAgg._sum.total ?? 0;
+    const grossRevenue = revenueAgg._sum.subtotal ?? 0;
     const discounts = revenueAgg._sum.discount ?? 0;
     const returns = 0;
     const netRevenue = grossRevenue - returns;

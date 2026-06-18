@@ -1,4 +1,4 @@
-import { IsDateString, IsEnum, IsOptional, IsUUID } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
   DisposalMethod,
@@ -8,11 +8,11 @@ import {
 
 export class QueryWasteLogsDto {
   @IsOptional()
-  @IsUUID()
+  @IsString()
   organization_id?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   location_id?: string;
 
   @IsOptional()

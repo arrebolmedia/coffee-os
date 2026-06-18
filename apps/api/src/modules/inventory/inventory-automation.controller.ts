@@ -97,11 +97,11 @@ export class InventoryAutomationController {
   async getAutoDeductConfig(@Param('organizationId') organizationId: string) {
     return {
       organization_id: organizationId,
-      enabled: true,
-      deduct_on_order_complete: true,
+      enabled: false,
+      deduct_on_order_complete: false,
       deduct_on_order_paid: false,
       allow_negative_stock: false,
-      send_low_stock_alerts: true,
+      send_low_stock_alerts: false,
       reconciliation_frequency: 'weekly',
     };
   }
