@@ -1,17 +1,20 @@
 import {
   ArrayMinSize,
   IsArray,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
-  IsUUID,
   Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class ReceiveItemDto {
-  @IsUUID()
+  // entity ids are cuid (Prisma @default(cuid())), not UUID — using @IsUUID
+  // here rejected every real inventory item id and broke receiving.
+  @IsString()
+  @IsNotEmpty()
   inventory_item_id: string;
 
   @IsNumber()

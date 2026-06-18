@@ -146,7 +146,7 @@ describe('Tenancy & write paths (e2e)', () => {
       supplierIds.push(res.body.id);
     });
 
-    it('POST /purchase-orders creates an order with cuid ids (@IsUUID regression)', async () => {
+    it('POST /purchase-orders persists to Prisma (cuid id, in the DB)', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/purchase-orders')
         .set('Authorization', `Bearer ${tenants.a.token}`)
@@ -164,8 +164,16 @@ describe('Tenancy & write paths (e2e)', () => {
         })
         .expect(201);
 
-      expect(res.body.id ?? res.body.data?.id).toBeDefined();
       const poId = res.body.id ?? res.body.data?.id;
+      expect(poId).toBeDefined();
+      // Persisted in Postgres (not the old in-memory `po-<ts>` id).
+      expect(poId).not.toMatch(/^po-/);
+      const row = await prisma.purchaseOrder.findUnique({
+        where: { id: poId },
+        include: { items: true },
+      });
+      expect(row).not.toBeNull();
+      expect(row!.items).toHaveLength(1);
       if (poId) purchaseOrderIds.push(poId);
     });
 
@@ -288,9 +296,17 @@ describe('Tenancy & write paths (e2e)', () => {
   }
 
   async function cleanup() {
-    // Purchase orders are still served from an in-memory store (ids look like
-    // `po-<ts>`), so there is nothing to delete in Postgres for them.
-    void purchaseOrderIds;
+    for (const id of purchaseOrderIds) {
+      await prisma.goodsReceipt
+        .deleteMany({ where: { purchaseOrderId: id } })
+        .catch(() => undefined);
+      await prisma.purchaseOrderItem
+        .deleteMany({ where: { purchaseOrderId: id } })
+        .catch(() => undefined);
+      await prisma.purchaseOrder
+        .deleteMany({ where: { id } })
+        .catch(() => undefined);
+    }
     for (const id of supplierIds) {
       await prisma.supplier
         .deleteMany({ where: { id } })
