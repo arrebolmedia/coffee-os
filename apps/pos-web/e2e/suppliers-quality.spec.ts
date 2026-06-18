@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 const SUPPLIERS_ROUTE = '/suppliers';
 const QUALITY_ROUTE = '/quality';
@@ -30,7 +30,10 @@ test.describe('Suppliers Dashboard Smoke', () => {
 });
 
 test.describe('Quality Dashboard Smoke', () => {
-  test('renders compliance summary', async ({ page }) => {
+  // The quality page was rewired to consume only the real backend endpoints
+  // (temperature logs + checklists). Templates / NOM-251 / corrective actions
+  // have no backend yet and render an explicit "Módulo en construcción" notice.
+  test('renders temperature records section', async ({ page }) => {
     await page.goto(QUALITY_ROUTE, { waitUntil: 'domcontentloaded' });
 
     await expect(
@@ -38,16 +41,16 @@ test.describe('Quality Dashboard Smoke', () => {
     ).toBeVisible();
     await expect(
       page.getByRole('heading', {
-        name: /Estado de Cumplimiento NOM-251/i,
-        level: 2,
+        name: /Registros de Temperatura/i,
       }),
     ).toBeVisible();
   });
 
-  test('shows actions panel access', async ({ page }) => {
+  test('shows the in-construction notice for unbuilt sections', async ({
+    page,
+  }) => {
     await page.goto(QUALITY_ROUTE, { waitUntil: 'domcontentloaded' });
 
-    const newChecklist = page.getByRole('button', { name: /Nuevo Checklist/i });
-    await expect(newChecklist).toBeVisible();
+    await expect(page.getByText(/Módulo en construcción/i)).toBeVisible();
   });
 });
