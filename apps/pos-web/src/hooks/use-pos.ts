@@ -34,6 +34,7 @@ type CreateOrderInput =
       customer_id?: string;
       notes?: string;
       payment_details?: CreateOrderDTO['payment_details'];
+      redeem_loyalty?: boolean;
     };
 
 /**
@@ -55,8 +56,14 @@ export function useCreateOrder() {
 
       // Shorthand shape: { cart, payment_method, ... }
       if ('cart' in input) {
-        const { cart, payment_method, customer_id, notes, payment_details } =
-          input;
+        const {
+          cart,
+          payment_method,
+          customer_id,
+          notes,
+          payment_details,
+          redeem_loyalty,
+        } = input;
 
         if (!user.locationId)
           throw new Error('El usuario no tiene una sucursal asignada');
@@ -83,6 +90,7 @@ export function useCreateOrder() {
           total: cart.total,
           payment_method: payment_method ?? PaymentMethod.CASH,
           payment_details,
+          redeem_loyalty,
           notes: notes ?? cart.notes,
         };
 

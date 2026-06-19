@@ -35,6 +35,9 @@ export interface CreateOrderDTO {
     transfer?: number;
     reference?: string;
   };
+  // Loyalty 9+1 redemption intent — the backend validates points and applies
+  // the discount; the client never sends the discount amount itself.
+  redeem_loyalty?: boolean;
   notes?: string;
 }
 
@@ -46,6 +49,7 @@ interface CreateTicketPayload {
   userId: string;
   customerId?: string;
   discount?: number;
+  redeemLoyalty?: boolean;
   notes?: string;
   lines: Array<{
     productId: string;
@@ -174,6 +178,7 @@ export class POSService {
       userId: data.user_id,
       customerId: data.customer_id,
       discount: data.discount > 0 ? data.discount : undefined,
+      redeemLoyalty: data.redeem_loyalty || undefined,
       notes: data.notes,
       lines: data.items.map((item) => ({
         productId: item.product_id,

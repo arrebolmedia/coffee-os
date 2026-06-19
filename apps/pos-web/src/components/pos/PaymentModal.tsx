@@ -45,9 +45,16 @@ export function PaymentModal({
   const [cashAmount, setCashAmount] = useState<string>('');
   const [applyLoyaltyDiscount, setApplyLoyaltyDiscount] = useState(false);
 
-  // Calcular si se puede aplicar descuento de lealtad
-  const canApplyLoyalty = customer && (customer.loyaltyPoints ?? 0) >= 9;
-  const loyaltyDiscount = canApplyLoyalty && applyLoyaltyDiscount ? 50 : 0; // $50 de descuento
+  // Loyalty 9+1 reward — these must match the backend constants in
+  // pos.service.ts (LOYALTY_REDEMPTION_*); the backend is authoritative and
+  // re-validates/decrements the points. Here they only drive display + cash
+  // validation.
+  const LOYALTY_THRESHOLD = 9;
+  const LOYALTY_DISCOUNT = 50;
+  const canApplyLoyalty =
+    !!customer && (customer.loyaltyPoints ?? 0) >= LOYALTY_THRESHOLD;
+  const loyaltyDiscount =
+    canApplyLoyalty && applyLoyaltyDiscount ? LOYALTY_DISCOUNT : 0;
   const finalTotal = cart.total - loyaltyDiscount;
 
   const formatPrice = (price: number) => {
@@ -95,24 +102,23 @@ export function PaymentModal({
     if (!isPaymentValid()) return;
 
     try {
-      // Apply loyalty discount to a cart COPY (do not mutate the store's cart)
-      const adjustedCart: Cart = {
-        ...cart,
-        discount: cart.discount + loyaltyDiscount,
-        total: finalTotal,
-      };
-
+      // The loyalty discount is validated and applied SERVER-SIDE: we send the
+      // redeem intent (not the amount) plus the original cart, so the backend
+      // checks the customer's points and computes the discount. finalTotal is
+      // used here only for cash validation/display.
       const payload: {
         cart: Cart;
         payment_method: PaymentMethod;
+        redeem_loyalty?: boolean;
         payment_details?: {
           cash?: number;
           card?: number;
           transfer?: number;
         };
       } = {
-        cart: adjustedCart,
+        cart,
         payment_method: paymentMethod as PaymentMethod,
+        redeem_loyalty: canApplyLoyalty && applyLoyaltyDiscount,
       };
 
       if (paymentMethod === PaymentMethod.MIXED) {

@@ -12,6 +12,11 @@ import { randomUUID } from 'crypto';
 export class PosService {
   private readonly logger = new Logger(PosService.name);
 
+  // Loyalty 9+1 reward — TODO: source threshold/value from per-org config
+  // (LoyaltyReward) instead of these hardcoded constants.
+  private static readonly LOYALTY_REDEMPTION_THRESHOLD_POINTS = 9;
+  private static readonly LOYALTY_REDEMPTION_DISCOUNT = 50;
+
   constructor(private prisma: PrismaService) {}
 
   // ========================================
@@ -110,6 +115,7 @@ export class PosService {
       notes?: string;
     }>;
     discount?: number;
+    redeemLoyalty?: boolean;
     notes?: string;
   }) {
     // Fetch taxRate per product to compute tax correctly
@@ -149,14 +155,55 @@ export class PosService {
 
     subtotal = round2(subtotal);
     tax = round2(tax);
-    const discount = data.discount ?? 0;
-    const total = round2(Math.max(0, subtotal + tax - discount));
+    const baseDiscount = data.discount ?? 0;
 
     // Race-free ticket number (no count+1).
     const ticketNumber = this.generateTicketNumber();
 
-    // Wrap ticket creation and kitchen-order creation in a transaction.
+    // Wrap ticket creation, loyalty redemption and kitchen-order creation in
+    // ONE transaction so the discount, the points decrement and the audit
+    // LoyaltyTransaction are all-or-nothing.
     const createdTicket = await this.prisma.$transaction(async (tx) => {
+      // Loyalty 9+1 redemption is computed and the points decremented
+      // SERVER-SIDE here (never trusting a client-supplied amount), so a
+      // customer cannot redeem without enough points or redeem twice.
+      let discount = baseDiscount;
+      let loyalty: {
+        points: number;
+        balanceAfter: number;
+        organizationId: string;
+      } | null = null;
+      if (data.redeemLoyalty) {
+        if (!data.customerId) {
+          throw new BadRequestException(
+            'Se requiere un cliente para canjear puntos de lealtad',
+          );
+        }
+        const customer = await tx.customer.findUnique({
+          where: { id: data.customerId },
+          select: { loyaltyPoints: true, organizationId: true },
+        });
+        if (!customer) throw new NotFoundException('Cliente no encontrado');
+        if (
+          customer.loyaltyPoints <
+          PosService.LOYALTY_REDEMPTION_THRESHOLD_POINTS
+        ) {
+          throw new BadRequestException(
+            `El cliente no tiene suficientes puntos de lealtad (requiere ${PosService.LOYALTY_REDEMPTION_THRESHOLD_POINTS})`,
+          );
+        }
+        discount = round2(discount + PosService.LOYALTY_REDEMPTION_DISCOUNT);
+        loyalty = {
+          points: PosService.LOYALTY_REDEMPTION_THRESHOLD_POINTS,
+          balanceAfter:
+            customer.loyaltyPoints -
+            PosService.LOYALTY_REDEMPTION_THRESHOLD_POINTS,
+          organizationId: customer.organizationId,
+        };
+      }
+
+      const total = round2(Math.max(0, subtotal + tax - discount));
+
       const ticket = await tx.ticket.create({
         data: {
           ticketNumber,
@@ -198,6 +245,41 @@ export class PosService {
           },
         },
       });
+
+      if (loyalty && data.customerId) {
+        // Race-safe decrement: only deduct if the balance still covers it, so
+        // two concurrent redemptions for the same customer can't both succeed.
+        const decremented = await tx.customer.updateMany({
+          where: {
+            id: data.customerId,
+            loyaltyPoints: {
+              gte: PosService.LOYALTY_REDEMPTION_THRESHOLD_POINTS,
+            },
+          },
+          data: {
+            loyaltyPoints: {
+              decrement: PosService.LOYALTY_REDEMPTION_THRESHOLD_POINTS,
+            },
+          },
+        });
+        if (decremented.count === 0) {
+          throw new BadRequestException(
+            'Los puntos de lealtad cambiaron; vuelve a intentar el canje',
+          );
+        }
+        await tx.loyaltyTransaction.create({
+          data: {
+            customerId: data.customerId,
+            organizationId: loyalty.organizationId,
+            type: 'REDEEM',
+            points: loyalty.points,
+            orderId: ticket.id,
+            orderTotal: total,
+            description: 'Canje 9+1 en venta',
+            balanceAfter: loyalty.balanceAfter,
+          },
+        });
+      }
 
       // Auto-create kitchen Order inside the same transaction.
       await this.createOrderFromTicketTx(tx, ticket);

@@ -1,6 +1,7 @@
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsNumber,
   IsOptional,
   IsString,
@@ -61,6 +62,12 @@ export class CreateTicketDto {
   @IsNumber()
   @Min(0)
   discount?: number;
+
+  // When true (and customerId set), the backend validates the customer's
+  // loyalty points and applies the 9+1 reward discount server-side.
+  @IsOptional()
+  @IsBoolean()
+  redeemLoyalty?: boolean;
 
   @IsOptional()
   @IsString()
