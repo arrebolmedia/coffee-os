@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Prisma } from '@prisma/client';
 import { ProductsService } from '../products.service';
 import { PrismaService } from '../../database/prisma.service';
 import {
@@ -6,7 +7,6 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { PricingStrategy, ProductStatus, ProductType } from '../interfaces';
 
 describe('ProductsService', () => {
   let service: ProductsService;
@@ -16,42 +16,60 @@ describe('ProductsService', () => {
       create: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
       count: jest.fn(),
     },
-    modifier: {
+    productModifier: {
       create: jest.fn(),
       findMany: jest.fn(),
-      findUnique: jest.fn(),
-      update: jest.fn(),
+      findFirst: jest.fn(),
       delete: jest.fn(),
     },
   };
 
+  // Snake_case DTO the service accepts (the service maps these to camelCase Prisma fields).
   const mockProductDto = {
     organization_id: '123e4567-e89b-12d3-a456-426614174000',
     category_id: 'cat-001',
-    recipe_id: 'recipe-001',
     sku: 'CAFE-ESP-001',
     name: 'Espresso Doble',
     description: 'Espresso clásico italiano',
+    image_url: 'https://example.com/espresso.jpg',
     base_price: 45,
     cost: 12,
     tax_rate: 16,
-    tax_included: false,
     allow_modifiers: true,
-    allow_discounts: true,
     track_inventory: true,
-    stock_quantity: 100,
-    minimum_stock: 20,
-    reorder_point: 30,
-    is_featured: true,
     is_available: true,
-    tags: ['cafe', 'espresso', 'bebida-caliente'],
-    preparation_time_minutes: 3,
-    calories: 5,
   };
+
+  /**
+   * Build a Prisma-shaped product row (camelCase) as the service would receive
+   * it from prisma.product.create/findMany/etc. The service returns these rows
+   * verbatim, so tests assert against this exact shape.
+   */
+  const buildPrismaProduct = (overrides: Partial<any> = {}) => ({
+    id: overrides.id ?? 'prod-uuid-1',
+    organizationId:
+      overrides.organizationId ?? '123e4567-e89b-12d3-a456-426614174000',
+    categoryId: overrides.categoryId ?? 'cat-001',
+    sku: overrides.sku ?? 'CAFE-ESP-001',
+    name: overrides.name ?? 'Espresso Doble',
+    description: overrides.description ?? 'Espresso clásico italiano',
+    image: overrides.image ?? 'https://example.com/espresso.jpg',
+    price: overrides.price ?? 45,
+    basePrice: overrides.basePrice ?? 45,
+    cost: overrides.cost ?? 12,
+    taxRate: overrides.taxRate ?? 16,
+    allowModifiers: overrides.allowModifiers ?? true,
+    trackInventory: overrides.trackInventory ?? true,
+    active: overrides.active ?? true,
+    category: overrides.category ?? { id: 'cat-001', name: 'Café' },
+    productModifiers: overrides.productModifiers ?? [],
+    ...overrides,
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -74,34 +92,84 @@ describe('ProductsService', () => {
     expect(service).toBeDefined();
   });
 
-  // TODO: These tests need proper Prisma mocking - currently failing due to missing DB connection
-  describe.skip('create', () => {
+  describe('create', () => {
     it('should create a product with all fields', async () => {
+      mockPrismaService.product.findFirst.mockResolvedValue(null); // SKU pre-check: no dup
+      const created = buildPrismaProduct();
+      mockPrismaService.product.create.mockResolvedValue(created);
+
       const product = await service.create(mockProductDto);
 
-      expect(product).toBeDefined();
-      expect(product.id).toBeDefined();
+      // Service returns the raw Prisma row verbatim.
+      expect(product).toBe(created);
       expect(product.name).toBe('Espresso Doble');
       expect(product.sku).toBe('CAFE-ESP-001');
       expect(product.basePrice).toBe(45);
+      expect(product.price).toBe(45);
       expect(product.cost).toBe(12);
-      expect(product.type).toBe(ProductType.SIMPLE);
-      expect(product.status).toBe(ProductStatus.ACTIVE);
-      expect(product.pricingStrategy).toBe(PricingStrategy.FIXED);
+      expect(product.active).toBe(true);
       expect(product.trackInventory).toBe(true);
-      expect(product.stockQuantity).toBe(100);
-      expect(product.tags).toEqual(['cafe', 'espresso', 'bebida-caliente']);
+
+      // Verify the SKU uniqueness pre-check ran scoped to the organization.
+      expect(mockPrismaService.product.findFirst).toHaveBeenCalledWith({
+        where: {
+          organizationId: mockProductDto.organization_id,
+          sku: mockProductDto.sku,
+        },
+      });
+
+      // Verify the snake_case DTO was mapped to camelCase Prisma columns.
+      expect(mockPrismaService.product.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            organizationId: mockProductDto.organization_id,
+            categoryId: mockProductDto.category_id,
+            sku: 'CAFE-ESP-001',
+            name: 'Espresso Doble',
+            image: 'https://example.com/espresso.jpg',
+            price: 45,
+            basePrice: 45,
+            cost: 12,
+            taxRate: 16,
+            allowModifiers: true,
+            trackInventory: true,
+            active: true,
+          }),
+          include: expect.objectContaining({
+            category: true,
+            productModifiers: { include: { modifier: true } },
+          }),
+        }),
+      );
     });
 
-    it('should throw ConflictException if SKU already exists', async () => {
-      await service.create(mockProductDto);
+    it('should throw ConflictException if SKU already exists (pre-check)', async () => {
+      // findFirst returns an existing product → ConflictException before create.
+      mockPrismaService.product.findFirst.mockResolvedValue(
+        buildPrismaProduct(),
+      );
+
+      await expect(service.create(mockProductDto)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(mockPrismaService.product.create).not.toHaveBeenCalled();
+    });
+
+    it('should throw ConflictException on a P2002 race during create', async () => {
+      // Pre-check passes (no dup), but the create races with a concurrent insert.
+      mockPrismaService.product.findFirst.mockResolvedValue(null);
+      const p2002 = new Prisma.PrismaClientKnownRequestError('dup', {
+        code: 'P2002',
+        clientVersion: 'test',
+      });
+      mockPrismaService.product.create.mockRejectedValue(p2002);
 
       await expect(service.create(mockProductDto)).rejects.toThrow(
         ConflictException,
       );
     });
 
-    it('should create product with minimal fields', async () => {
+    it('should create product with minimal fields and apply service defaults', async () => {
       const minimalDto = {
         organization_id: '123e4567-e89b-12d3-a456-426614174000',
         category_id: 'cat-002',
@@ -109,18 +177,34 @@ describe('ProductsService', () => {
         name: 'Cappuccino',
         base_price: 55,
       };
+      mockPrismaService.product.findFirst.mockResolvedValue(null);
+      mockPrismaService.product.create.mockImplementation(
+        async ({ data }: any) => buildPrismaProduct(data),
+      );
 
       const product = await service.create(minimalDto);
 
-      expect(product).toBeDefined();
       expect(product.name).toBe('Cappuccino');
-      expect(product.type).toBe(ProductType.SIMPLE);
-      expect(product.status).toBe(ProductStatus.ACTIVE);
-      expect(product.isAvailable).toBe(true);
-      expect(product.allowModifiers).toBe(true);
+      // The service supplies defaults for unset fields.
+      expect(mockPrismaService.product.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            cost: 0, // default when cost omitted
+            taxRate: 0.16, // default tax rate
+            allowModifiers: true, // default true
+            trackInventory: false, // default false
+            active: true, // is_available default true
+          }),
+        }),
+      );
     });
 
-    it('should set default values correctly', async () => {
+    it('should set default values correctly (cost=0, taxRate=0.16, trackInventory=false)', async () => {
+      mockPrismaService.product.findFirst.mockResolvedValue(null);
+      mockPrismaService.product.create.mockImplementation(
+        async ({ data }: any) => buildPrismaProduct(data),
+      );
+
       const product = await service.create({
         organization_id: '123e4567-e89b-12d3-a456-426614174000',
         category_id: 'cat-003',
@@ -129,406 +213,514 @@ describe('ProductsService', () => {
         base_price: 10,
       });
 
-      expect(product.taxRate).toBe(0);
-      expect(product.taxIncluded).toBe(false);
+      expect(product.taxRate).toBe(0.16);
       expect(product.allowModifiers).toBe(true);
-      expect(product.allowDiscounts).toBe(true);
       expect(product.trackInventory).toBe(false);
-      expect(product.isFeatured).toBe(false);
-      expect(product.isAvailable).toBe(true);
+      expect(product.active).toBe(true);
+      expect(product.cost).toBe(0);
     });
   });
 
-  // TODO: These tests need proper Prisma mocking - currently failing due to missing DB connection
-  describe.skip('findAll', () => {
-    beforeEach(async () => {
-      await service.create(mockProductDto);
-      await service.create({
-        ...mockProductDto,
-        sku: 'CAFE-LAT-001',
-        name: 'Latte',
-        category_id: 'cat-002',
-        base_price: 55,
-        is_featured: false,
-        track_inventory: false, // No inventory tracking
-      });
-      await service.create({
-        ...mockProductDto,
-        sku: 'CAFE-MOC-001',
-        name: 'Mocha',
-        status: ProductStatus.INACTIVE,
-        is_available: false,
-        is_featured: false, // Set to false
-        track_inventory: false,
-      });
-    });
+  describe('findAll', () => {
+    it('should return all products from prisma', async () => {
+      const rows = [
+        buildPrismaProduct({ id: 'p1', name: 'Espresso Doble' }),
+        buildPrismaProduct({ id: 'p2', name: 'Latte', sku: 'CAFE-LAT-001' }),
+        buildPrismaProduct({ id: 'p3', name: 'Mocha', sku: 'CAFE-MOC-001' }),
+      ];
+      mockPrismaService.product.findMany.mockResolvedValue(rows);
 
-    it('should return all products', async () => {
       const products = await service.findAll();
+
+      expect(products).toBe(rows);
       expect(products).toHaveLength(3);
+      // No org / filters → empty where, name asc ordering, includes.
+      expect(mockPrismaService.product.findMany).toHaveBeenCalledWith({
+        where: {},
+        include: {
+          category: true,
+          productModifiers: { include: { modifier: true } },
+        },
+        orderBy: { name: 'asc' },
+      });
     });
 
-    it('should filter by organization_id', async () => {
-      const products = await service.findAll({
-        organization_id: '123e4567-e89b-12d3-a456-426614174000',
-      });
-      expect(products).toHaveLength(3);
+    it('should filter by organizationId (2nd argument)', async () => {
+      mockPrismaService.product.findMany.mockResolvedValue([]);
+      const orgId = '123e4567-e89b-12d3-a456-426614174000';
+
+      await service.findAll(undefined, orgId);
+
+      expect(mockPrismaService.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { organizationId: orgId } }),
+      );
     });
 
     it('should filter by category_id', async () => {
-      const products = await service.findAll({ category_id: 'cat-002' });
-      expect(products).toHaveLength(1);
-      expect(products[0].name).toBe('Latte');
+      mockPrismaService.product.findMany.mockResolvedValue([]);
+
+      await service.findAll({ category_id: 'cat-002' } as any);
+
+      expect(mockPrismaService.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { categoryId: 'cat-002' } }),
+      );
     });
 
-    it('should search by text', async () => {
-      const products = await service.findAll({ search: 'Latte' });
-      expect(products).toHaveLength(1);
-      expect(products[0].name).toBe('Latte');
+    it('should build a case-insensitive OR search on name/sku/description', async () => {
+      mockPrismaService.product.findMany.mockResolvedValue([]);
+
+      await service.findAll({ search: 'Latte' } as any);
+
+      expect(mockPrismaService.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            OR: [
+              { name: { contains: 'Latte', mode: 'insensitive' } },
+              { sku: { contains: 'Latte', mode: 'insensitive' } },
+              { description: { contains: 'Latte', mode: 'insensitive' } },
+            ],
+          },
+        }),
+      );
     });
 
-    it('should filter by status', async () => {
-      const products = await service.findAll({ status: ProductStatus.ACTIVE });
-      expect(products).toHaveLength(2);
+    it('should map is_available="true" to active:true filter', async () => {
+      mockPrismaService.product.findMany.mockResolvedValue([]);
+
+      await service.findAll({ is_available: 'true' } as any);
+
+      expect(mockPrismaService.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { active: true } }),
+      );
     });
 
-    it('should filter by availability', async () => {
-      const available = await service.findAll({ is_available: 'true' });
-      expect(available).toHaveLength(2);
+    it('should map is_available="false" to active:false filter', async () => {
+      mockPrismaService.product.findMany.mockResolvedValue([]);
 
-      const unavailable = await service.findAll({ is_available: 'false' });
-      expect(unavailable).toHaveLength(1);
+      await service.findAll({ is_available: 'false' } as any);
+
+      expect(mockPrismaService.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { active: false } }),
+      );
     });
 
-    it('should filter by featured', async () => {
-      const featured = await service.findAll({ is_featured: 'true' });
-      expect(featured).toHaveLength(1);
-      expect(featured[0].name).toBe('Espresso Doble');
-    });
+    it('should combine organizationId, category and search filters', async () => {
+      mockPrismaService.product.findMany.mockResolvedValue([]);
+      const orgId = '123e4567-e89b-12d3-a456-426614174000';
 
-    it('should filter by price range', async () => {
-      const products = await service.findAll({
-        min_price: 50,
-        max_price: 60,
-      });
-      expect(products).toHaveLength(1);
-      expect(products[0].name).toBe('Latte');
-    });
+      await service.findAll(
+        { category_id: 'cat-002', search: 'Mocha' } as any,
+        orgId,
+      );
 
-    it('should sort by name ascending', async () => {
-      const products = await service.findAll({
-        sort_by: 'name',
-        order: 'asc',
-      });
-      expect(products[0].name).toBe('Espresso Doble');
-      expect(products[2].name).toBe('Mocha');
-    });
-
-    it('should sort by price descending', async () => {
-      const products = await service.findAll({
-        sort_by: 'price',
-        order: 'desc',
-      });
-      expect(products[0].basePrice).toBe(55);
-      expect(products[2].basePrice).toBe(45);
-    });
-  });
-
-  // TODO: These tests need proper Prisma mocking
-  describe.skip('findById', () => {
-    it('should return a product by id', async () => {
-      const created = await service.create(mockProductDto);
-      const found = await service.findById(created.id);
-
-      expect(found).toBeDefined();
-      expect(found.id).toBe(created.id);
-      expect(found.name).toBe('Espresso Doble');
-    });
-
-    it('should throw NotFoundException for non-existent product', async () => {
-      await expect(service.findById('non-existent-id')).rejects.toThrow(
-        NotFoundException,
+      expect(mockPrismaService.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            organizationId: orgId,
+            categoryId: 'cat-002',
+            OR: [
+              { name: { contains: 'Mocha', mode: 'insensitive' } },
+              { sku: { contains: 'Mocha', mode: 'insensitive' } },
+              { description: { contains: 'Mocha', mode: 'insensitive' } },
+            ],
+          },
+        }),
       );
     });
   });
 
-  // TODO: These tests need proper Prisma mocking
-  describe.skip('findBySku', () => {
+  describe('findById', () => {
+    it('should return a product by id', async () => {
+      const row = buildPrismaProduct({ id: 'prod-42' });
+      mockPrismaService.product.findUnique.mockResolvedValue(row);
+
+      const found = await service.findById('prod-42');
+
+      expect(found).toBe(row);
+      expect(found.id).toBe('prod-42');
+      expect(found.name).toBe('Espresso Doble');
+      expect(mockPrismaService.product.findUnique).toHaveBeenCalledWith({
+        where: { id: 'prod-42' },
+        include: {
+          category: true,
+          productModifiers: { include: { modifier: true } },
+        },
+      });
+    });
+
+    it('should throw NotFoundException for non-existent product', async () => {
+      mockPrismaService.product.findUnique.mockResolvedValue(null);
+
+      await expect(service.findById('non-existent-id')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should throw NotFoundException when product belongs to another org', async () => {
+      mockPrismaService.product.findUnique.mockResolvedValue(
+        buildPrismaProduct({ organizationId: 'org-A' }),
+      );
+
+      await expect(service.findById('prod-42', 'org-B')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should return the product when org matches', async () => {
+      const row = buildPrismaProduct({ organizationId: 'org-A' });
+      mockPrismaService.product.findUnique.mockResolvedValue(row);
+
+      const found = await service.findById('prod-42', 'org-A');
+      expect(found).toBe(row);
+    });
+  });
+
+  describe('findBySku', () => {
     it('should return a product by SKU', async () => {
-      await service.create(mockProductDto);
+      const row = buildPrismaProduct();
+      mockPrismaService.product.findFirst.mockResolvedValue(row);
+
       const found = await service.findBySku('CAFE-ESP-001');
 
-      expect(found).toBeDefined();
+      expect(found).toBe(row);
       expect(found.sku).toBe('CAFE-ESP-001');
       expect(found.name).toBe('Espresso Doble');
+      expect(mockPrismaService.product.findFirst).toHaveBeenCalledWith({
+        where: { sku: 'CAFE-ESP-001' },
+        include: {
+          category: true,
+          productModifiers: { include: { modifier: true } },
+        },
+      });
+    });
+
+    it('should scope by organizationId when provided', async () => {
+      mockPrismaService.product.findFirst.mockResolvedValue(
+        buildPrismaProduct(),
+      );
+
+      await service.findBySku('CAFE-ESP-001', 'org-A');
+
+      expect(mockPrismaService.product.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { sku: 'CAFE-ESP-001', organizationId: 'org-A' },
+        }),
+      );
     });
 
     it('should throw NotFoundException for non-existent SKU', async () => {
+      mockPrismaService.product.findFirst.mockResolvedValue(null);
+
       await expect(service.findBySku('NON-EXISTENT')).rejects.toThrow(
         NotFoundException,
       );
     });
   });
 
-  // TODO: These tests need proper Prisma mocking
-  describe.skip('update', () => {
-    it('should update product fields', async () => {
-      const product = await service.create(mockProductDto);
-      const updated = await service.update(product.id, {
+  describe('update', () => {
+    it('should update product fields and map snake_case to camelCase', async () => {
+      // findById (findUnique) inside update returns the existing product.
+      mockPrismaService.product.findUnique.mockResolvedValue(
+        buildPrismaProduct(),
+      );
+      const updatedRow = buildPrismaProduct({
+        name: 'Espresso Triple',
+        price: 60,
+        basePrice: 60,
+      });
+      mockPrismaService.product.update.mockResolvedValue(updatedRow);
+
+      const updated = await service.update('prod-uuid-1', {
         name: 'Espresso Triple',
         base_price: 60,
       });
 
+      expect(updated).toBe(updatedRow);
       expect(updated.name).toBe('Espresso Triple');
       expect(updated.basePrice).toBe(60);
-      expect(updated.sku).toBe('CAFE-ESP-001'); // Unchanged
+      expect(updated.sku).toBe('CAFE-ESP-001'); // unchanged
+
+      // base_price maps to BOTH price and basePrice.
+      expect(mockPrismaService.product.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'prod-uuid-1' },
+          data: expect.objectContaining({
+            name: 'Espresso Triple',
+            price: 60,
+            basePrice: 60,
+          }),
+        }),
+      );
     });
 
-    it('should update SKU if unique', async () => {
-      const product = await service.create(mockProductDto);
-      const updated = await service.update(product.id, {
+    it('should update SKU if unique within org', async () => {
+      // findById call
+      mockPrismaService.product.findUnique
+        .mockResolvedValueOnce(buildPrismaProduct()) // findById
+        .mockResolvedValueOnce({ organizationId: 'org-A' }); // org lookup for SKU check
+      mockPrismaService.product.findFirst.mockResolvedValue(null); // no other product with that SKU
+      const updatedRow = buildPrismaProduct({ sku: 'CAFE-ESP-002' });
+      mockPrismaService.product.update.mockResolvedValue(updatedRow);
+
+      const updated = await service.update('prod-uuid-1', {
         sku: 'CAFE-ESP-002',
       });
 
       expect(updated.sku).toBe('CAFE-ESP-002');
+      // SKU dup check excludes the current id.
+      expect(mockPrismaService.product.findFirst).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          sku: 'CAFE-ESP-002',
+          NOT: { id: 'prod-uuid-1' },
+        }),
+      });
     });
 
-    it('should throw ConflictException when updating to existing SKU', async () => {
-      const product1 = await service.create(mockProductDto);
-      await service.create({
-        ...mockProductDto,
-        sku: 'CAFE-ESP-002',
-        name: 'Another Espresso',
-      });
+    it('should throw ConflictException when updating to an existing SKU', async () => {
+      mockPrismaService.product.findUnique
+        .mockResolvedValueOnce(buildPrismaProduct()) // findById
+        .mockResolvedValueOnce({ organizationId: 'org-A' }); // org lookup
+      // Another product already uses the SKU.
+      mockPrismaService.product.findFirst.mockResolvedValue(
+        buildPrismaProduct({ id: 'other-prod', sku: 'CAFE-ESP-002' }),
+      );
 
       await expect(
-        service.update(product1.id, { sku: 'CAFE-ESP-002' }),
+        service.update('prod-uuid-1', { sku: 'CAFE-ESP-002' }),
       ).rejects.toThrow(ConflictException);
+      expect(mockPrismaService.product.update).not.toHaveBeenCalled();
     });
 
     it('should throw NotFoundException for non-existent product', async () => {
+      mockPrismaService.product.findUnique.mockResolvedValue(null); // findById → not found
+
       await expect(
         service.update('non-existent-id', { name: 'Test' }),
       ).rejects.toThrow(NotFoundException);
+      expect(mockPrismaService.product.update).not.toHaveBeenCalled();
     });
   });
 
-  // TODO: These tests need proper Prisma mocking
-  describe.skip('delete', () => {
-    it('should delete a product', async () => {
-      const product = await service.create(mockProductDto);
-      await service.delete(product.id);
-
-      await expect(service.findById(product.id)).rejects.toThrow(
-        NotFoundException,
+  describe('delete', () => {
+    it('should delete a product after verifying it exists', async () => {
+      mockPrismaService.product.findUnique.mockResolvedValue(
+        buildPrismaProduct(),
       );
+      mockPrismaService.product.delete.mockResolvedValue(buildPrismaProduct());
+
+      await expect(service.delete('prod-uuid-1')).resolves.toBeUndefined();
+
+      expect(mockPrismaService.product.delete).toHaveBeenCalledWith({
+        where: { id: 'prod-uuid-1' },
+      });
     });
 
     it('should throw NotFoundException for non-existent product', async () => {
+      mockPrismaService.product.findUnique.mockResolvedValue(null);
+
       await expect(service.delete('non-existent-id')).rejects.toThrow(
         NotFoundException,
       );
+      expect(mockPrismaService.product.delete).not.toHaveBeenCalled();
     });
   });
 
-  describe.skip('Modifiers', () => {
-    // TODO: Fix modifier tests - service signature changed
-    // Current: createModifier(productId: string, modifierId: string)
-    // Tests expect: createModifier(dto: CreateModifierDto)
-    // Also deleteModifier expects 2 args, updateModifier doesn't exist
-    /* COMMENTED OUT - Tests need complete refactoring
-    let productId: string;
+  describe('Modifiers', () => {
+    it('getModifiers should return the modifier objects mapped from productModifier rows', async () => {
+      mockPrismaService.product.findUnique.mockResolvedValue(
+        buildPrismaProduct(),
+      );
+      const modA = { id: 'mod-1', name: 'Extra Shot', price: 10 };
+      const modB = { id: 'mod-2', name: 'Leche de Almendras', price: 15 };
+      mockPrismaService.productModifier.findMany.mockResolvedValue([
+        {
+          id: 'pm-1',
+          productId: 'prod-uuid-1',
+          modifierId: 'mod-1',
+          modifier: modA,
+        },
+        {
+          id: 'pm-2',
+          productId: 'prod-uuid-1',
+          modifierId: 'mod-2',
+          modifier: modB,
+        },
+      ]);
 
-    beforeEach(async () => {
-      const product = await service.create(mockProductDto);
-      productId = product.id;
-    });
+      const modifiers = await service.getModifiers('prod-uuid-1');
 
-    it('should create a modifier', async () => {
-      const modifier = await service.createModifier({
-        product_id: productId,
-        organization_id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'Extra Shot',
-        type: ModifierType.EXTRA,
-        price: 10,
-      });
-
-      expect(modifier).toBeDefined();
-      expect(modifier.id).toBeDefined();
-      expect(modifier.name).toBe('Extra Shot');
-      expect(modifier.type).toBe(ModifierType.EXTRA);
-      expect(modifier.price).toBe(10);
-      expect(modifier.is_available).toBe(true);
-    });
-
-    it('should get modifiers for a product', async () => {
-      await service.createModifier({
-        product_id: productId,
-        organization_id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'Extra Shot',
-        type: ModifierType.EXTRA,
-        price: 10,
-      });
-
-      await service.createModifier({
-        product_id: productId,
-        organization_id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'Leche de Almendras',
-        type: ModifierType.SUBSTITUTION,
-        price: 15,
-      });
-
-      const modifiers = await service.getModifiers(productId);
+      // Service returns productModifiers.map(pm => pm.modifier).
       expect(modifiers).toHaveLength(2);
+      expect(modifiers).toEqual([modA, modB]);
+      expect(mockPrismaService.productModifier.findMany).toHaveBeenCalledWith({
+        where: { productId: 'prod-uuid-1' },
+        include: { modifier: true },
+      });
     });
 
-    it('should update a modifier', async () => {
-      const modifier = await service.createModifier({
-        product_id: productId,
-        organization_id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'Extra Shot',
-        type: ModifierType.EXTRA,
-        price: 10,
-      });
+    it('getModifiers should throw NotFoundException if product does not exist', async () => {
+      mockPrismaService.product.findUnique.mockResolvedValue(null);
 
-      const updated = await service.updateModifier(modifier.id, {
-        price: 12,
-        is_required: true,
-      });
-
-      expect(updated.price).toBe(12);
-      expect(updated.is_required).toBe(true);
-    });
-
-    it('should delete a modifier', async () => {
-      const modifier = await service.createModifier({
-        product_id: productId,
-        organization_id: '123e4567-e89b-12d3-a456-426614174000',
-        name: 'Extra Shot',
-        type: ModifierType.EXTRA,
-        price: 10,
-      });
-
-      await service.deleteModifier(modifier.id);
-
-      await expect(service.updateModifier(modifier.id, {})).rejects.toThrow(
+      await expect(service.getModifiers('nope')).rejects.toThrow(
         NotFoundException,
       );
     });
-    */
-  });
 
-  // TODO: These tests need proper Prisma mocking
-  describe.skip('updateStock', () => {
-    it('should add stock', async () => {
-      const product = await service.create(mockProductDto);
-      const updated = (await service.updateStock(product.id, 50, 'add')) as any;
+    it('createModifier should link a modifier to a product', async () => {
+      mockPrismaService.product.findUnique.mockResolvedValue(
+        buildPrismaProduct(),
+      );
+      const linkRow = {
+        id: 'pm-1',
+        productId: 'prod-uuid-1',
+        modifierId: 'mod-1',
+        modifier: { id: 'mod-1', name: 'Extra Shot' },
+        product: buildPrismaProduct(),
+      };
+      mockPrismaService.productModifier.create.mockResolvedValue(linkRow);
 
-      expect(updated.stockQuantity).toBe(150); // 100 + 50
+      const result = await service.createModifier('prod-uuid-1', 'mod-1');
+
+      expect(result).toBe(linkRow);
+      expect(mockPrismaService.productModifier.create).toHaveBeenCalledWith({
+        data: { productId: 'prod-uuid-1', modifierId: 'mod-1' },
+        include: { modifier: true, product: true },
+      });
     });
 
-    it('should subtract stock', async () => {
-      const product = await service.create(mockProductDto);
-      const updated = (await service.updateStock(
-        product.id,
-        30,
-        'subtract',
-      )) as any;
-
-      expect(updated.stockQuantity).toBe(70); // 100 - 30
-    });
-
-    it('should set stock', async () => {
-      const product = await service.create(mockProductDto);
-      const updated = (await service.updateStock(
-        product.id,
-        200,
-        'set',
-      )) as any;
-
-      expect(updated.stockQuantity).toBe(200);
-    });
-
-    it('should throw BadRequestException when subtracting more than available', async () => {
-      const product = await service.create(mockProductDto);
+    it('deleteModifier should remove an existing product-modifier link', async () => {
+      mockPrismaService.productModifier.findFirst.mockResolvedValue({
+        id: 'pm-1',
+        productId: 'prod-uuid-1',
+        modifierId: 'mod-1',
+      });
+      mockPrismaService.productModifier.delete.mockResolvedValue({
+        id: 'pm-1',
+      });
 
       await expect(
-        service.updateStock(product.id, 150, 'subtract'),
+        service.deleteModifier('prod-uuid-1', 'mod-1'),
+      ).resolves.toBeUndefined();
+
+      expect(mockPrismaService.productModifier.delete).toHaveBeenCalledWith({
+        where: { id: 'pm-1' },
+      });
+    });
+
+    it('deleteModifier should throw NotFoundException when link is missing', async () => {
+      mockPrismaService.productModifier.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.deleteModifier('prod-uuid-1', 'missing-mod'),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPrismaService.productModifier.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateStock', () => {
+    it('should throw BadRequestException for non-tracked inventory', async () => {
+      mockPrismaService.product.findUnique.mockResolvedValue(
+        buildPrismaProduct({ trackInventory: false, name: 'NoTrack' }),
+      );
+
+      await expect(
+        service.updateStock('prod-uuid-1', 10, 'add'),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException for non-tracked inventory', async () => {
-      const product = await service.create({
-        ...mockProductDto,
-        sku: 'NO-TRACK',
-        track_inventory: false,
-      });
+    it('should throw NotFoundException when product does not exist', async () => {
+      mockPrismaService.product.findUnique.mockResolvedValue(null);
 
-      await expect(service.updateStock(product.id, 10, 'add')).rejects.toThrow(
-        BadRequestException,
+      await expect(service.updateStock('nope', 10, 'add')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    // Current behavior (documented, not necessarily desired): even when inventory
+    // tracking IS enabled, updateStock always rejects because stock mutations are
+    // delegated to the Inventory module. It never actually changes a quantity.
+    it('should throw BadRequestException directing to Inventory module even when tracking is enabled', async () => {
+      mockPrismaService.product.findUnique.mockResolvedValue(
+        buildPrismaProduct({ trackInventory: true }),
+      );
+
+      await expect(
+        service.updateStock('prod-uuid-1', 50, 'add'),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.updateStock('prod-uuid-1', 50, 'add'),
+      ).rejects.toThrow(/Inventory module/);
+    });
+  });
+
+  describe('getStats', () => {
+    it('should aggregate product statistics from count + findMany', async () => {
+      mockPrismaService.product.count.mockResolvedValue(3);
+      mockPrismaService.product.findMany.mockResolvedValue([
+        { price: 45, cost: 12, active: true, trackInventory: true },
+        { price: 80, cost: 20, active: false, trackInventory: false },
+        { price: 55, cost: 0, active: true, trackInventory: false },
+      ]);
+
+      const stats = await service.getStats();
+
+      expect(stats.total_products).toBe(3);
+      expect(stats.active_products).toBe(2);
+      expect(stats.inactive_products).toBe(1);
+      // average_price = (45 + 80 + 55) / 3 = 60
+      expect(stats.average_price).toBe(60);
+      // margins only counted for products with cost > 0:
+      //   (45-12)/45*100 = 73.333..., (80-20)/80*100 = 75 → avg = 74.17 (rounded)
+      expect(stats.average_margin).toBe(74.17);
+    });
+
+    it('should return zeros when there are no products', async () => {
+      mockPrismaService.product.count.mockResolvedValue(0);
+      mockPrismaService.product.findMany.mockResolvedValue([]);
+
+      const stats = await service.getStats();
+
+      expect(stats.total_products).toBe(0);
+      expect(stats.active_products).toBe(0);
+      expect(stats.inactive_products).toBe(0);
+      expect(stats.average_price).toBe(0);
+      expect(stats.average_margin).toBe(0);
+    });
+
+    it('should scope the aggregation by organizationId', async () => {
+      mockPrismaService.product.count.mockResolvedValue(0);
+      mockPrismaService.product.findMany.mockResolvedValue([]);
+
+      await service.getStats('org-A');
+
+      expect(mockPrismaService.product.count).toHaveBeenCalledWith({
+        where: { organizationId: 'org-A' },
+      });
+      expect(mockPrismaService.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { organizationId: 'org-A' } }),
       );
     });
   });
 
-  describe.skip('getStats', () => {
-    // TODO: Fix getStats tests - service expects 0 args, tests pass organizationId
-    // Also stats object has different structure than expected (missing by_type, by_status, low_stock_count)
-    beforeEach(async () => {
-      await service.create({
-        ...mockProductDto,
-        type: ProductType.SIMPLE,
-        status: ProductStatus.ACTIVE,
-        stock_quantity: 50,
-        reorder_point: 30,
-      });
-      await service.create({
-        ...mockProductDto,
-        sku: 'VAR-001',
-        name: 'Variable Product',
-        type: ProductType.VARIABLE,
-        status: ProductStatus.DRAFT,
-        base_price: 80,
-        cost: 20,
-      });
-      await service.create({
-        ...mockProductDto,
-        sku: 'LOW-STOCK',
-        name: 'Low Stock Product',
-        stock_quantity: 10,
-        reorder_point: 30,
-      });
-    });
-
-    it('should return product statistics', async () => {
-      const stats = await service.getStats();
-
-      expect(stats.total_products).toBe(3);
-      expect(stats.active_products).toBeGreaterThanOrEqual(0);
-      expect(stats.inactive_products).toBeGreaterThanOrEqual(0);
-      expect(stats.average_price).toBeGreaterThan(0);
-      expect(stats.average_margin).toBeGreaterThanOrEqual(0);
-    });
-  });
-
-  // TODO: These tests need proper Prisma mocking
-  describe.skip('analyzeProfitability', () => {
-    it('should return profitability analysis sorted by score', async () => {
-      // Producto con alto margen
-      await service.create({
-        ...mockProductDto,
-        name: 'High Margin Product',
-        base_price: 100,
-        cost: 20, // 80% margin
-      });
-
-      // Producto con bajo margen
-      await service.create({
-        ...mockProductDto,
-        sku: 'LOW-MARGIN',
-        name: 'Low Margin Product',
-        base_price: 50,
-        cost: 45, // 10% margin
-      });
+  describe('analyzeProfitability', () => {
+    it('should return profitability analysis sorted by score descending', async () => {
+      // findMany already filters cost > 0; provide two rows.
+      mockPrismaService.product.findMany.mockResolvedValue([
+        {
+          id: 'p-high',
+          name: 'High Margin Product',
+          sku: 'HIGH',
+          price: 100,
+          cost: 20, // 80% margin
+        },
+        {
+          id: 'p-low',
+          name: 'Low Margin Product',
+          sku: 'LOW-MARGIN',
+          price: 50,
+          cost: 45, // 10% margin
+        },
+      ]);
 
       const profitability = await service.analyzeProfitability();
 
@@ -539,30 +731,51 @@ describe('ProductsService', () => {
       expect(profitability[0].margin_percentage).toBeGreaterThan(
         profitability[1].margin_percentage,
       );
+      // Only the cost>0 filter is asserted on the query.
+      expect(mockPrismaService.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ cost: { gt: 0 } }),
+        }),
+      );
     });
 
     it('should calculate margins correctly', async () => {
-      await service.create({
-        ...mockProductDto,
-        base_price: 100,
-        cost: 40,
-      });
+      mockPrismaService.product.findMany.mockResolvedValue([
+        { id: 'p1', name: 'P', sku: 'P', price: 100, cost: 40 },
+      ]);
 
       const profitability = await service.analyzeProfitability();
 
       expect(profitability[0].margin_amount).toBe(60); // 100 - 40
-      expect(profitability[0].margin_percentage).toBe(60); // (60/100) * 100
+      expect(profitability[0].margin_percentage).toBe(60); // (60/100)*100
+      expect(profitability[0].product_id).toBe('p1');
+      expect(profitability[0].base_price).toBe(100);
+      expect(profitability[0].cost).toBe(40);
     });
 
-    it('should exclude products without cost', async () => {
-      await service.create({
-        ...mockProductDto,
-        cost: undefined,
-      });
+    it('should return an empty array when no products have a cost', async () => {
+      // The service-level where (cost > 0) excludes costless products, so prisma
+      // returns nothing.
+      mockPrismaService.product.findMany.mockResolvedValue([]);
 
       const profitability = await service.analyzeProfitability();
 
       expect(profitability).toHaveLength(0);
+    });
+
+    it('should scope by organizationId when provided', async () => {
+      mockPrismaService.product.findMany.mockResolvedValue([]);
+
+      await service.analyzeProfitability('org-A');
+
+      expect(mockPrismaService.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            cost: { gt: 0 },
+            organizationId: 'org-A',
+          }),
+        }),
+      );
     });
   });
 });

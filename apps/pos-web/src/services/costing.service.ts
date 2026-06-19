@@ -172,13 +172,16 @@ class CostingService {
         0,
       );
 
-      // Calculate overhead (typically 10-15%)
-      const overheadPercentage = 12;
-      const overheadCost = totalIngredientsCost * (overheadPercentage / 100);
+      // Cost-model defaults — TODO: source these per-org/per-recipe from config
+      // instead of hardcoded rates, so the COGS breakdown isn't a fixed estimate.
+      const OVERHEAD_RATE = 0.12; // 12% of ingredient cost
+      const PACKAGING_COST_PER_ITEM = 2.5; // flat $2.50 per item
+      const LABOR_RATE = 0.2; // 20% of ingredient cost
 
-      // Packaging and labor (estimates)
-      const packagingCost = 2.5; // $2.50 per item
-      const laborCost = totalIngredientsCost * 0.2; // 20% of ingredients
+      const overheadPercentage = OVERHEAD_RATE * 100;
+      const overheadCost = totalIngredientsCost * OVERHEAD_RATE;
+      const packagingCost = PACKAGING_COST_PER_ITEM;
+      const laborCost = totalIngredientsCost * LABOR_RATE;
 
       const totalCOGS =
         totalIngredientsCost + overheadCost + packagingCost + laborCost;
