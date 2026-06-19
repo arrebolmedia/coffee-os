@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { randomUUID } from 'crypto';
+import { Prisma } from '@prisma/client';
 import {
   BulkUpdateResult,
   Setting,
@@ -13,6 +13,7 @@ import {
   SettingHistory,
   SettingsStats,
   SettingTemplate,
+  SettingTemplateItem,
   SettingType,
   ValidationRule,
   ValidationRuleType,
@@ -27,17 +28,39 @@ import {
   SetValidationRuleDto,
   UpdateSettingDto,
 } from './dto';
+import { PrismaService } from '../database/prisma.service';
 import * as crypto from 'crypto';
+
+/**
+ * Shape of a Prisma `setting` row as returned by the client. Fields are
+ * camelCase and Json columns come back as `Prisma.JsonValue`.
+ */
+type SettingRow = {
+  id: string;
+  organizationId: string;
+  category: string;
+  key: string;
+  type: string;
+  value: Prisma.JsonValue;
+  defaultValue: Prisma.JsonValue | null;
+  description: string | null;
+  isPublic: boolean;
+  isReadonly: boolean;
+  isEncrypted: boolean;
+  validationRules: Prisma.JsonValue | null;
+  metadata: Prisma.JsonValue | null;
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 @Injectable()
 export class SettingsService {
-  private settings = new Map<string, Setting>();
-  private history = new Map<string, SettingHistory[]>();
-  private templates = new Map<string, SettingTemplate>();
   private readonly ENCRYPTION_KEY: string;
   private readonly ALGORITHM = 'aes-256-cbc';
 
-  constructor() {
+  constructor(private readonly prisma: PrismaService) {
     const key = process.env.SETTINGS_ENCRYPTION_KEY;
     if (!key || key.trim().length === 0) {
       throw new Error(
@@ -47,15 +70,49 @@ export class SettingsService {
     this.ENCRYPTION_KEY = key;
   }
 
+  // ========== MAPPERS ==========
+
+  /**
+   * Map a Prisma `setting` row (camelCase, Json columns) to the snake_case
+   * `Setting` interface the controller + frontend depend on. The `value` is
+   * returned as-is from the Json column (an encrypted string when
+   * is_encrypted, otherwise the raw value); decryption happens in
+   * `sanitizeOutput`. Null `validationRules`/`metadata` map to `[]`/`{}`.
+   */
+  private toApi(row: SettingRow): Setting {
+    return {
+      id: row.id,
+      organization_id: row.organizationId,
+      category: row.category as SettingCategory,
+      key: row.key,
+      type: row.type as SettingType,
+      value: row.value as any,
+      default_value:
+        row.defaultValue === null ? undefined : (row.defaultValue as any),
+      description: row.description ?? undefined,
+      is_public: row.isPublic,
+      is_readonly: row.isReadonly,
+      is_encrypted: row.isEncrypted,
+      validation_rules:
+        (row.validationRules as unknown as ValidationRule[] | null) ?? [],
+      metadata: (row.metadata as unknown as Record<string, any> | null) ?? {},
+      created_by: row.createdBy ?? undefined,
+      updated_by: row.updatedBy ?? undefined,
+      created_at: row.createdAt,
+      updated_at: row.updatedAt,
+    };
+  }
+
   // ========== BASIC CRUD ==========
 
   async create(dto: CreateSettingDto): Promise<Setting> {
-    const existing = Array.from(this.settings.values()).find(
-      (s) =>
-        s.organization_id === dto.organization_id &&
-        s.category === dto.category &&
-        s.key === dto.key,
-    );
+    const existing = await this.prisma.setting.findFirst({
+      where: {
+        organizationId: dto.organization_id,
+        category: dto.category,
+        key: dto.key,
+      },
+    });
 
     if (existing) {
       throw new ConflictException(
@@ -65,48 +122,67 @@ export class SettingsService {
 
     this.validateValue(dto.type, dto.value);
 
-    const value = dto.is_encrypted ? this.encrypt(dto.value) : dto.value;
+    const isEncrypted = dto.is_encrypted ?? false;
+    const storedValue = isEncrypted ? this.encrypt(dto.value) : dto.value;
 
-    const setting: Setting = {
-      id: randomUUID(),
-      organization_id: dto.organization_id,
-      category: dto.category,
-      key: dto.key,
-      type: dto.type,
-      value,
-      default_value: dto.default_value,
-      description: dto.description,
-      is_public: dto.is_public ?? false,
-      is_readonly: dto.is_readonly ?? false,
-      is_encrypted: dto.is_encrypted ?? false,
-      validation_rules: [],
-      metadata: {},
-      created_at: new Date(),
-      updated_at: new Date(),
-    };
+    let created: SettingRow;
+    try {
+      created = (await this.prisma.setting.create({
+        data: {
+          organizationId: dto.organization_id,
+          category: dto.category,
+          key: dto.key,
+          type: dto.type,
+          value: storedValue as Prisma.InputJsonValue,
+          defaultValue:
+            dto.default_value === undefined
+              ? Prisma.DbNull
+              : (dto.default_value as Prisma.InputJsonValue),
+          description: dto.description ?? null,
+          isPublic: dto.is_public ?? false,
+          isReadonly: dto.is_readonly ?? false,
+          isEncrypted: isEncrypted,
+          validationRules: [] as Prisma.InputJsonValue,
+          metadata: {} as Prisma.InputJsonValue,
+          createdBy: dto.created_by ?? null,
+        },
+      })) as SettingRow;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          `Setting already exists: ${dto.category}.${dto.key}`,
+        );
+      }
+      throw error;
+    }
 
-    this.settings.set(setting.id, setting);
-    this.addHistory(setting.id, undefined, setting.value, dto.created_by);
+    // History: store the plaintext (decrypted) value for auditing.
+    await this.addHistory(created.id, undefined, dto.value, dto.created_by);
 
-    return this.sanitizeOutput(setting);
+    return this.sanitizeOutput(this.toApi(created));
   }
 
   async findAll(query: QuerySettingsDto): Promise<Setting[]> {
-    let result = Array.from(this.settings.values());
+    const where: Prisma.SettingWhereInput = {};
 
     if (query.organization_id) {
-      result = result.filter(
-        (s) => s.organization_id === query.organization_id,
-      );
+      where.organizationId = query.organization_id;
     }
-
     if (query.category) {
-      result = result.filter((s) => s.category === query.category);
+      where.category = query.category;
+    }
+    if (query.type) {
+      where.type = query.type;
     }
 
-    if (query.type) {
-      result = result.filter((s) => s.type === query.type);
-    }
+    const rows = (await this.prisma.setting.findMany({
+      where,
+    })) as SettingRow[];
+
+    let result = rows.map((row) => this.toApi(row));
 
     if (query.search) {
       const search = query.search.toLowerCase();
@@ -120,8 +196,8 @@ export class SettingsService {
     const sortBy = query.sort_by || 'key';
     const order = query.order || 'asc';
     result.sort((a, b) => {
-      const aVal = a[sortBy] || '';
-      const bVal = b[sortBy] || '';
+      const aVal = (a as any)[sortBy] || '';
+      const bVal = (b as any)[sortBy] || '';
       return order === 'asc' ? (aVal > bVal ? 1 : -1) : aVal < bVal ? 1 : -1;
     });
 
@@ -129,11 +205,13 @@ export class SettingsService {
   }
 
   async findById(id: string): Promise<Setting> {
-    const setting = this.settings.get(id);
-    if (!setting) {
+    const row = (await this.prisma.setting.findUnique({
+      where: { id },
+    })) as SettingRow | null;
+    if (!row) {
       throw new NotFoundException(`Setting not found: ${id}`);
     }
-    return this.sanitizeOutput(setting);
+    return this.sanitizeOutput(this.toApi(row));
   }
 
   async findByKey(
@@ -141,13 +219,10 @@ export class SettingsService {
     category: SettingCategory,
     key: string,
   ): Promise<Setting | undefined> {
-    const setting = Array.from(this.settings.values()).find(
-      (s) =>
-        s.organization_id === organizationId &&
-        s.category === category &&
-        s.key === key,
-    );
-    return setting ? this.sanitizeOutput(setting) : undefined;
+    const row = (await this.prisma.setting.findFirst({
+      where: { organizationId, category, key },
+    })) as SettingRow | null;
+    return row ? this.sanitizeOutput(this.toApi(row)) : undefined;
   }
 
   async update(
@@ -155,76 +230,102 @@ export class SettingsService {
     dto: UpdateSettingDto,
     updatedBy?: string,
   ): Promise<Setting> {
-    const setting = this.settings.get(id);
-    if (!setting) {
+    const row = (await this.prisma.setting.findUnique({
+      where: { id },
+    })) as SettingRow | null;
+    if (!row) {
       throw new NotFoundException(`Setting not found: ${id}`);
     }
+
+    const setting = this.toApi(row);
 
     if (setting.is_readonly) {
       throw new BadRequestException('Cannot update readonly setting');
     }
 
+    // Decrypted current value (used for history + re-encryption toggles).
     const oldValue = setting.is_encrypted
       ? this.decrypt(setting.value)
       : setting.value;
 
+    const data: Prisma.SettingUpdateInput = {};
+
+    // Track the effective is_encrypted + the (possibly re-derived) plaintext
+    // value so re-encryption toggles are applied against the right base.
+    let effectiveEncrypted = setting.is_encrypted;
+    let plaintextValue = oldValue;
+
     if (dto.value !== undefined) {
       this.validateValue(setting.type, dto.value);
 
-      // Validate against rules
       if (setting.validation_rules && setting.validation_rules.length > 0) {
         this.validateAgainstRules(dto.value, setting.validation_rules);
       }
 
-      setting.value = setting.is_encrypted
-        ? this.encrypt(dto.value)
-        : dto.value;
+      plaintextValue = dto.value;
+      data.value = (
+        effectiveEncrypted ? this.encrypt(dto.value) : dto.value
+      ) as Prisma.InputJsonValue;
     }
 
-    if (dto.type !== undefined) setting.type = dto.type;
+    if (dto.type !== undefined) data.type = dto.type;
     if (dto.default_value !== undefined)
-      setting.default_value = dto.default_value;
-    if (dto.description !== undefined) setting.description = dto.description;
-    if (dto.is_public !== undefined) setting.is_public = dto.is_public;
+      data.defaultValue = dto.default_value as Prisma.InputJsonValue;
+    if (dto.description !== undefined) data.description = dto.description;
+    if (dto.is_public !== undefined) data.isPublic = dto.is_public;
+
     if (dto.is_encrypted !== undefined) {
-      if (dto.is_encrypted && !setting.is_encrypted) {
-        setting.value = this.encrypt(setting.value);
-      } else if (!dto.is_encrypted && setting.is_encrypted) {
-        setting.value = this.decrypt(setting.value);
+      if (dto.is_encrypted && !effectiveEncrypted) {
+        // Turning encryption ON: encrypt the current plaintext.
+        data.value = this.encrypt(plaintextValue) as Prisma.InputJsonValue;
+      } else if (!dto.is_encrypted && effectiveEncrypted) {
+        // Turning encryption OFF: store the plaintext.
+        data.value = plaintextValue as Prisma.InputJsonValue;
       }
-      setting.is_encrypted = dto.is_encrypted;
+      effectiveEncrypted = dto.is_encrypted;
+      data.isEncrypted = dto.is_encrypted;
     }
 
-    setting.updated_by = updatedBy;
-    setting.updated_at = new Date();
+    data.updatedBy = updatedBy ?? null;
 
-    const newValue = setting.is_encrypted
-      ? this.decrypt(setting.value)
-      : setting.value;
-    this.addHistory(id, oldValue, newValue, updatedBy);
+    const updated = (await this.prisma.setting.update({
+      where: { id },
+      data,
+    })) as SettingRow;
 
-    return this.sanitizeOutput(setting);
+    const newValue = effectiveEncrypted
+      ? this.decrypt(updated.value as string)
+      : (updated.value as any);
+    await this.addHistory(id, oldValue, newValue, updatedBy);
+
+    return this.sanitizeOutput(this.toApi(updated));
   }
 
   async delete(id: string): Promise<void> {
-    const setting = this.settings.get(id);
-    if (!setting) {
+    const row = (await this.prisma.setting.findUnique({
+      where: { id },
+    })) as SettingRow | null;
+    if (!row) {
       throw new NotFoundException(`Setting not found: ${id}`);
     }
 
-    if (setting.is_readonly) {
+    if (row.isReadonly) {
       throw new BadRequestException('Cannot delete readonly setting');
     }
 
-    this.settings.delete(id);
-    this.history.delete(id);
+    // SettingHistory has onDelete: Cascade, so related history rows are removed.
+    await this.prisma.setting.delete({ where: { id } });
   }
 
   async resetToDefault(id: string, updatedBy?: string): Promise<Setting> {
-    const setting = this.settings.get(id);
-    if (!setting) {
+    const row = (await this.prisma.setting.findUnique({
+      where: { id },
+    })) as SettingRow | null;
+    if (!row) {
       throw new NotFoundException(`Setting not found: ${id}`);
     }
+
+    const setting = this.toApi(row);
 
     if (setting.is_readonly) {
       throw new BadRequestException('Cannot reset readonly setting');
@@ -238,13 +339,19 @@ export class SettingsService {
       ? this.decrypt(setting.value)
       : setting.value;
 
-    setting.value = setting.is_encrypted
+    const storedValue = setting.is_encrypted
       ? this.encrypt(setting.default_value)
       : setting.default_value;
-    setting.updated_by = updatedBy;
-    setting.updated_at = new Date();
 
-    this.addHistory(
+    const updated = (await this.prisma.setting.update({
+      where: { id },
+      data: {
+        value: storedValue as Prisma.InputJsonValue,
+        updatedBy: updatedBy ?? null,
+      },
+    })) as SettingRow;
+
+    await this.addHistory(
       id,
       oldValue,
       setting.default_value,
@@ -252,7 +359,7 @@ export class SettingsService {
       'Reset to default',
     );
 
-    return this.sanitizeOutput(setting);
+    return this.sanitizeOutput(this.toApi(updated));
   }
 
   // ========== BULK OPERATIONS ==========
@@ -295,21 +402,24 @@ export class SettingsService {
   // ========== IMPORT/EXPORT ==========
 
   async exportSettings(dto: ExportSettingsDto): Promise<SettingExport> {
-    let settings = Array.from(this.settings.values()).filter(
-      (s) => s.organization_id === dto.organization_id,
-    );
+    const where: Prisma.SettingWhereInput = {
+      organizationId: dto.organization_id,
+    };
 
     if (dto.categories && dto.categories.length > 0) {
-      settings = settings.filter((s) => dto.categories.includes(s.category));
+      where.category = { in: dto.categories };
     }
-
     if (!dto.include_readonly) {
-      settings = settings.filter((s) => !s.is_readonly);
+      where.isReadonly = false;
+    }
+    if (!dto.include_encrypted) {
+      where.isEncrypted = false;
     }
 
-    if (!dto.include_encrypted) {
-      settings = settings.filter((s) => !s.is_encrypted);
-    }
+    const rows = (await this.prisma.setting.findMany({
+      where,
+    })) as SettingRow[];
+    const settings = rows.map((row) => this.toApi(row));
 
     const exportData: SettingExport = {
       version: '1.0',
@@ -396,14 +506,15 @@ export class SettingsService {
     id: string,
     dto: SetValidationRuleDto,
   ): Promise<Setting> {
-    const setting = this.settings.get(id);
-    if (!setting) {
+    const row = (await this.prisma.setting.findUnique({
+      where: { id },
+    })) as SettingRow | null;
+    if (!row) {
       throw new NotFoundException(`Setting not found: ${id}`);
     }
 
-    if (!setting.validation_rules) {
-      setting.validation_rules = [];
-    }
+    const setting = this.toApi(row);
+    const rules: ValidationRule[] = setting.validation_rules ?? [];
 
     const rule: ValidationRule = {
       type: dto.type,
@@ -411,34 +522,40 @@ export class SettingsService {
       message: dto.message,
     };
 
-    // Remove existing rule of same type
-    setting.validation_rules = setting.validation_rules.filter(
-      (r) => r.type !== dto.type,
-    );
+    // Remove existing rule of same type, then append.
+    const nextRules = rules.filter((r) => r.type !== dto.type);
+    nextRules.push(rule);
 
-    setting.validation_rules.push(rule);
-    setting.updated_at = new Date();
+    const updated = (await this.prisma.setting.update({
+      where: { id },
+      data: { validationRules: nextRules as unknown as Prisma.InputJsonValue },
+    })) as SettingRow;
 
-    return this.sanitizeOutput(setting);
+    return this.sanitizeOutput(this.toApi(updated));
   }
 
   async removeValidationRule(
     id: string,
     ruleType: ValidationRuleType,
   ): Promise<Setting> {
-    const setting = this.settings.get(id);
-    if (!setting) {
+    const row = (await this.prisma.setting.findUnique({
+      where: { id },
+    })) as SettingRow | null;
+    if (!row) {
       throw new NotFoundException(`Setting not found: ${id}`);
     }
 
-    if (setting.validation_rules) {
-      setting.validation_rules = setting.validation_rules.filter(
-        (r) => r.type !== ruleType,
-      );
-      setting.updated_at = new Date();
-    }
+    const setting = this.toApi(row);
+    const nextRules = (setting.validation_rules ?? []).filter(
+      (r) => r.type !== ruleType,
+    );
 
-    return this.sanitizeOutput(setting);
+    const updated = (await this.prisma.setting.update({
+      where: { id },
+      data: { validationRules: nextRules as unknown as Prisma.InputJsonValue },
+    })) as SettingRow;
+
+    return this.sanitizeOutput(this.toApi(updated));
   }
 
   private validateAgainstRules(value: any, rules: ValidationRule[]): void {
@@ -514,78 +631,98 @@ export class SettingsService {
   // ========== HISTORY ==========
 
   async getHistory(id: string): Promise<SettingHistory[]> {
-    const setting = this.settings.get(id);
-    if (!setting) {
+    const row = (await this.prisma.setting.findUnique({
+      where: { id },
+    })) as SettingRow | null;
+    if (!row) {
       throw new NotFoundException(`Setting not found: ${id}`);
     }
 
-    return this.history.get(id) || [];
+    const history = await this.prisma.settingHistory.findMany({
+      where: { settingId: id },
+      orderBy: { changedAt: 'asc' },
+    });
+
+    return history.map((h) => ({
+      id: h.id,
+      setting_id: h.settingId,
+      old_value: h.oldValue === null ? undefined : (h.oldValue as any),
+      new_value: h.newValue === null ? undefined : (h.newValue as any),
+      changed_by: h.changedBy ?? undefined,
+      changed_at: h.changedAt,
+      reason: h.reason ?? undefined,
+    }));
   }
 
-  private addHistory(
+  private async addHistory(
     settingId: string,
     oldValue: any,
     newValue: any,
     changedBy?: string,
     reason?: string,
-  ): void {
-    const historyEntry: SettingHistory = {
-      id: randomUUID(),
-      setting_id: settingId,
-      old_value: oldValue,
-      new_value: newValue,
-      changed_by: changedBy,
-      changed_at: new Date(),
-      reason,
-    };
-
-    const settingHistory = this.history.get(settingId) || [];
-    settingHistory.push(historyEntry);
-    this.history.set(settingId, settingHistory);
+  ): Promise<void> {
+    await this.prisma.settingHistory.create({
+      data: {
+        settingId,
+        oldValue:
+          oldValue === undefined
+            ? Prisma.DbNull
+            : (oldValue as Prisma.InputJsonValue),
+        newValue:
+          newValue === undefined
+            ? Prisma.DbNull
+            : (newValue as Prisma.InputJsonValue),
+        changedBy: changedBy ?? null,
+        reason: reason ?? null,
+      },
+    });
   }
 
   // ========== TEMPLATES ==========
 
   async createTemplate(dto: CreateTemplateDto): Promise<SettingTemplate> {
-    const template: SettingTemplate = {
-      id: randomUUID(),
-      name: dto.name,
-      description: dto.description,
-      category: dto.category,
-      settings: dto.settings.map((s) => ({
-        key: s.key,
-        type: s.type as SettingType,
-        value: s.value,
-        description: s.description,
-        is_public: s.is_public,
-        is_readonly: s.is_readonly,
-        validation_rules: s.validation_rules,
-      })),
-      created_at: new Date(),
-    };
+    const items: SettingTemplateItem[] = dto.settings.map((s) => ({
+      key: s.key,
+      type: s.type as SettingType,
+      value: s.value,
+      description: s.description,
+      is_public: s.is_public,
+      is_readonly: s.is_readonly,
+      validation_rules: s.validation_rules,
+    }));
 
-    this.templates.set(template.id, template);
-    return template;
+    const created = await this.prisma.settingTemplate.create({
+      data: {
+        name: dto.name,
+        description: dto.description ?? null,
+        category: dto.category,
+        settings: items as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    return this.toApiTemplate(created);
   }
 
   async findAllTemplates(
     category?: SettingCategory,
   ): Promise<SettingTemplate[]> {
-    let result = Array.from(this.templates.values());
-
+    const where: Prisma.SettingTemplateWhereInput = {};
     if (category) {
-      result = result.filter((t) => t.category === category);
+      where.category = category;
     }
 
-    return result;
+    const rows = await this.prisma.settingTemplate.findMany({ where });
+    return rows.map((row) => this.toApiTemplate(row));
   }
 
   async findTemplateById(id: string): Promise<SettingTemplate> {
-    const template = this.templates.get(id);
-    if (!template) {
+    const row = await this.prisma.settingTemplate.findUnique({
+      where: { id },
+    });
+    if (!row) {
       throw new NotFoundException(`Template not found: ${id}`);
     }
-    return template;
+    return this.toApiTemplate(row);
   }
 
   async applyTemplate(
@@ -640,11 +777,35 @@ export class SettingsService {
   }
 
   async deleteTemplate(id: string): Promise<void> {
-    const template = this.templates.get(id);
-    if (!template) {
+    const row = await this.prisma.settingTemplate.findUnique({
+      where: { id },
+    });
+    if (!row) {
       throw new NotFoundException(`Template not found: ${id}`);
     }
-    this.templates.delete(id);
+    await this.prisma.settingTemplate.delete({ where: { id } });
+  }
+
+  /**
+   * Map a Prisma `setting_template` row to the `SettingTemplate` interface.
+   * The `settings` Json column is the serialized `SettingTemplateItem[]`.
+   */
+  private toApiTemplate(row: {
+    id: string;
+    name: string;
+    description: string | null;
+    category: string;
+    settings: Prisma.JsonValue;
+    createdAt: Date;
+  }): SettingTemplate {
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description ?? undefined,
+      category: row.category as SettingCategory,
+      settings: (row.settings as unknown as SettingTemplateItem[]) ?? [],
+      created_at: row.createdAt,
+    };
   }
 
   // ========== CATEGORY HELPERS ==========
@@ -653,27 +814,26 @@ export class SettingsService {
     organizationId: string,
     category: SettingCategory,
   ): Promise<Setting[]> {
-    return Array.from(this.settings.values())
-      .filter(
-        (s) => s.organization_id === organizationId && s.category === category,
-      )
-      .map((s) => this.sanitizeOutput(s));
+    const rows = (await this.prisma.setting.findMany({
+      where: { organizationId, category },
+    })) as SettingRow[];
+    return rows.map((row) => this.sanitizeOutput(this.toApi(row)));
   }
 
   async getPublicSettings(organizationId: string): Promise<Setting[]> {
-    return Array.from(this.settings.values())
-      .filter(
-        (s) => s.organization_id === organizationId && s.is_public === true,
-      )
-      .map((s) => this.sanitizeOutput(s));
+    const rows = (await this.prisma.setting.findMany({
+      where: { organizationId, isPublic: true },
+    })) as SettingRow[];
+    return rows.map((row) => this.sanitizeOutput(this.toApi(row)));
   }
 
   // ========== STATISTICS ==========
 
   async getStats(organizationId: string): Promise<SettingsStats> {
-    const orgSettings = Array.from(this.settings.values()).filter(
-      (s) => s.organization_id === organizationId,
-    );
+    const rows = (await this.prisma.setting.findMany({
+      where: { organizationId },
+    })) as SettingRow[];
+    const orgSettings = rows.map((row) => this.toApi(row));
 
     const stats: SettingsStats = {
       total: orgSettings.length,

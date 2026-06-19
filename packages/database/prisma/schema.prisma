@@ -1595,3 +1595,60 @@ enum CampaignStatus {
   COMPLETED
   ARCHIVED
 }
+
+// ============================================================
+// SETTINGS (org configuration, incl. encrypted secrets)
+// ============================================================
+
+model Setting {
+  id              String  @id @default(cuid())
+  organizationId  String  @map("organization_id")
+  category        String
+  key             String
+  type            String
+  value           Json
+  defaultValue    Json?   @map("default_value")
+  description     String?
+  isPublic        Boolean @default(false) @map("is_public")
+  isReadonly      Boolean @default(false) @map("is_readonly")
+  isEncrypted     Boolean @default(false) @map("is_encrypted")
+  validationRules Json?   @map("validation_rules")
+  metadata        Json?
+  createdBy       String? @map("created_by")
+  updatedBy       String? @map("updated_by")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  history SettingHistory[]
+
+  @@unique([organizationId, category, key])
+  @@index([organizationId])
+  @@map("settings")
+}
+
+model SettingHistory {
+  id        String   @id @default(cuid())
+  settingId String   @map("setting_id")
+  oldValue  Json?    @map("old_value")
+  newValue  Json?    @map("new_value")
+  changedBy String?  @map("changed_by")
+  changedAt DateTime @default(now()) @map("changed_at")
+  reason    String?
+
+  setting Setting @relation(fields: [settingId], references: [id], onDelete: Cascade)
+
+  @@index([settingId])
+  @@map("setting_history")
+}
+
+model SettingTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String
+  settings    Json
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("setting_templates")
+}
