@@ -97,16 +97,61 @@ export class LoyaltyService {
         const currentPoints = earned - redeemed - expired;
 
         let newBalance = currentPoints;
+        // Points actually charged/credited. For REDEEM against a reward this is
+        // re-derived from the reward read inside the tx (below) so a concurrent
+        // change to pointsRequired can't race against the balance math.
+        let effectivePoints = createDto.points;
+        // Description persisted; for REDEEM it can be filled from the reward
+        // name read inside the tx when the caller didn't supply one.
+        let effectiveDescription = createDto.description;
         if (
           createDto.type === LoyaltyTransactionType.EARN ||
           createDto.type === LoyaltyTransactionType.BONUS
         ) {
-          newBalance += createDto.points;
+          newBalance += effectivePoints;
         } else if (createDto.type === LoyaltyTransactionType.REDEEM) {
-          if (currentPoints < createDto.points) {
+          // The reward read, isActive check and per-customer redemption-limit
+          // check must all run INSIDE this Serializable tx, otherwise two
+          // concurrent redemptions could each read the reward as active /
+          // under the limit and both succeed (race). When a reward_id is
+          // supplied we re-validate the reward here.
+          if (createDto.reward_id) {
+            const reward = await tx.loyaltyReward.findUnique({
+              where: { id: createDto.reward_id },
+            });
+            if (!reward) throw new NotFoundException('Reward not found');
+            if (!reward.isActive) {
+              throw new BadRequestException('Reward is not active');
+            }
+
+            if (
+              reward.maxRedemptionsPerCustomer &&
+              reward.maxRedemptionsPerCustomer > 0
+            ) {
+              const priorRedemptions = await tx.loyaltyTransaction.count({
+                where: {
+                  customerId: createDto.customer_id,
+                  type: 'REDEEM',
+                  rewardId: createDto.reward_id,
+                },
+              });
+              if (priorRedemptions >= reward.maxRedemptionsPerCustomer) {
+                throw new BadRequestException(
+                  `Redemption limit reached for this reward (max ${reward.maxRedemptionsPerCustomer} per customer)`,
+                );
+              }
+            }
+
+            effectivePoints = reward.pointsRequired;
+            if (!effectiveDescription) {
+              effectiveDescription = `Redeemed ${reward.name}`;
+            }
+          }
+
+          if (currentPoints < effectivePoints) {
             throw new BadRequestException('Insufficient loyalty points');
           }
-          newBalance -= createDto.points;
+          newBalance -= effectivePoints;
         } else if (createDto.type === LoyaltyTransactionType.EXPIRE) {
           // EXPIRE must not drive the balance negative either; that would
           // hide a bug somewhere else in the points pipeline.
@@ -123,11 +168,11 @@ export class LoyaltyService {
             customerId: createDto.customer_id,
             organizationId: createDto.organization_id,
             type: createDto.type,
-            points: createDto.points,
+            points: effectivePoints,
             orderId: createDto.order_id,
             orderTotal: createDto.order_total,
             rewardId: createDto.reward_id,
-            description: createDto.description,
+            description: effectiveDescription,
             processedByUserId: createDto.processed_by_user_id,
             balanceAfter: newBalance,
           },
@@ -171,20 +216,18 @@ export class LoyaltyService {
     rewardId: string,
     processedByUserId: string,
   ): Promise<LoyaltyTransaction> {
-    const reward = await this.prisma.loyaltyReward.findUnique({
-      where: { id: rewardId },
-    });
-    if (!reward) throw new NotFoundException('Reward not found');
-    if (!reward.isActive) throw new BadRequestException('Reward is not active');
-
+    // The reward existence/isActive check, the maxRedemptionsPerCustomer
+    // enforcement and the points/description derivation all happen inside
+    // createTransaction's Serializable tx (keyed off reward_id) so they
+    // can't race against concurrent redemptions or reward edits. We only
+    // pass reward_id here; `points` is re-derived from the reward in the tx.
     return this.createTransaction({
       customer_id: customerId,
       organization_id: organizationId,
       type: LoyaltyTransactionType.REDEEM,
-      points: reward.pointsRequired,
+      points: 0,
       reward_id: rewardId,
       processed_by_user_id: processedByUserId,
-      description: `Redeemed ${reward.name}`,
     });
   }
 

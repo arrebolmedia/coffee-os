@@ -98,7 +98,7 @@ class InventoryAutomationService {
       return this.unwrapArray<RecipeIngredientLink>(response);
     } catch (error) {
       console.error('Error fetching recipe ingredient links:', error);
-      return [];
+      throw error;
     }
   }
 
@@ -162,7 +162,7 @@ class InventoryAutomationService {
       return this.unwrapSingle(response);
     } catch (error) {
       console.error('Error auto-linking ingredients:', error);
-      return { linked: 0, failed: 0, suggestions: [] };
+      throw error;
     }
   }
 

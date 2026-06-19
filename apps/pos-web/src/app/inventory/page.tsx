@@ -6,6 +6,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { MainLayout } from '@/components/layout/MainLayout';
 import {
   useCreateInventoryItem,
@@ -195,8 +196,11 @@ export default function InventoryPage() {
       }
       setIsModalOpen(false);
       setSelectedItem(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving inventory item:', error);
+      toast.error(
+        error?.message || 'Error al guardar el artículo de inventario',
+      );
     }
   };
 
@@ -206,8 +210,11 @@ export default function InventoryPage() {
         await deleteMutation.mutateAsync(itemToDelete.id);
         setIsDeleteDialogOpen(false);
         setItemToDelete(null);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error deleting inventory item:', error);
+        toast.error(
+          error?.message || 'Error al eliminar el artículo de inventario',
+        );
       }
     }
   };

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -26,6 +27,7 @@ import {
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
   private readonly templates = new Map<string, NotificationTemplate>();
   private readonly notifications = new Map<string, Notification>();
   private readonly preferences = new Map<string, NotificationPreference>();
@@ -476,7 +478,11 @@ export class NotificationsService {
           priority: NotificationPriority.NORMAL,
         });
         batch.sent_count++;
-      } catch {
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `Batch ${id}: failed to create notification for recipient "${recipient}": ${message}`,
+        );
         batch.failed_count++;
       }
     }

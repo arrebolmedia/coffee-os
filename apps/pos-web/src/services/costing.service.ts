@@ -262,7 +262,7 @@ class CostingService {
         );
     } catch (error) {
       console.error('Error getting bulk margin analysis:', error);
-      return [];
+      throw error;
     }
   }
 

@@ -167,6 +167,10 @@ describe('LoyaltyService', () => {
     });
 
     it('should throw NotFoundException when reward not found', async () => {
+      // Reward read now happens inside the Serializable tx, after the balance
+      // aggregates — so the balance must be mocked for the flow to reach the
+      // reward lookup.
+      mockBalance(200);
       mockPrismaService.loyaltyReward.findUnique.mockResolvedValue(null);
       await expect(
         service.redeemPoints('cust-1', 'org-1', 'nonexistent', 'user-1'),

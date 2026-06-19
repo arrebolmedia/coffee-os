@@ -5,6 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { CreateProductDto, QueryProductsDto, UpdateProductDto } from './dto';
 
@@ -32,34 +33,48 @@ export class ProductsService {
       );
     }
 
-    const product = await this.prisma.product.create({
-      data: {
-        organizationId: createProductDto.organization_id,
-        categoryId: createProductDto.category_id,
-        sku: createProductDto.sku,
-        name: createProductDto.name,
-        description: createProductDto.description,
-        image: createProductDto.image_url,
-        price: createProductDto.base_price,
-        basePrice: createProductDto.base_price,
-        cost: createProductDto.cost || 0,
-        taxRate: createProductDto.tax_rate || 0.16,
-        allowModifiers: createProductDto.allow_modifiers ?? true,
-        trackInventory: createProductDto.track_inventory ?? false,
-        active: createProductDto.is_available ?? true,
-      },
-      include: {
-        category: true,
-        productModifiers: {
-          include: {
-            modifier: true,
+    try {
+      const product = await this.prisma.product.create({
+        data: {
+          organizationId: createProductDto.organization_id,
+          categoryId: createProductDto.category_id,
+          sku: createProductDto.sku,
+          name: createProductDto.name,
+          description: createProductDto.description,
+          image: createProductDto.image_url,
+          price: createProductDto.base_price,
+          basePrice: createProductDto.base_price,
+          cost: createProductDto.cost || 0,
+          taxRate: createProductDto.tax_rate || 0.16,
+          allowModifiers: createProductDto.allow_modifiers ?? true,
+          trackInventory: createProductDto.track_inventory ?? false,
+          active: createProductDto.is_available ?? true,
+        },
+        include: {
+          category: true,
+          productModifiers: {
+            include: {
+              modifier: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    this.logger.log(`Producto creado: ${product.name} (${product.sku})`);
-    return product;
+      this.logger.log(`Producto creado: ${product.name} (${product.sku})`);
+      return product;
+    } catch (error) {
+      // Cubre la race entre el pre-check findFirst y el create:
+      // dos creates concurrentes con el mismo SKU.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          `Producto con SKU ${createProductDto.sku} ya existe`,
+        );
+      }
+      throw error;
+    }
   }
 
   /**
