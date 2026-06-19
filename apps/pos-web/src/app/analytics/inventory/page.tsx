@@ -151,8 +151,10 @@ const AnalyticsInventoryPage = () => {
     0,
   );
   const avgRotation =
-    mockInventoryData.reduce((sum, item) => sum + item.rotationDays, 0) /
-    mockInventoryData.length;
+    mockInventoryData.length > 0
+      ? mockInventoryData.reduce((sum, item) => sum + item.rotationDays, 0) /
+        mockInventoryData.length
+      : 0;
   const criticalItems = mockInventoryData.filter(
     (item) => item.status === 'critical',
   ).length;

@@ -341,9 +341,10 @@ export function useCloseCashRegister() {
       queryClient.invalidateQueries({
         queryKey: posKeys.cashRegister(organizationId),
       });
-      if (data.difference !== 0) {
+      const diff = data.difference ?? 0;
+      if (diff !== 0) {
         toast.success(
-          `Caja cerrada. Diferencia: $${Math.abs(data.difference).toFixed(2)}`,
+          `Caja cerrada. Diferencia: $${Math.abs(diff).toFixed(2)}`,
           { duration: 5000 },
         );
       } else {

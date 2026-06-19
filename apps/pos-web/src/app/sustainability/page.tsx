@@ -197,7 +197,7 @@ export default function SustainabilityPage() {
                       Promedio Diario
                     </p>
                     <p className="text-3xl font-bold mt-1">
-                      {stats.trends.daily_average.toFixed(1)} kg
+                      {(stats.trends?.daily_average ?? 0).toFixed(1)} kg
                     </p>
                   </div>
                   <TrendingUp className="h-12 w-12 text-green-200" />

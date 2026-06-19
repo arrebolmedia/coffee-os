@@ -224,8 +224,8 @@ export class RecipesService {
       });
       return categories.map((cat: any) => cat.name);
     } catch (error) {
-      this.logger.warn('Error fetching categories, returning defaults', error);
-      return ['Bebidas Frías', 'Bebidas Calientes', 'Bebidas Sin Café'];
+      this.logger.warn('Error fetching recipe categories', error);
+      return [];
     }
   }
 

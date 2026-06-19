@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { QueryAnalyticsDto } from './dto';
 import {
   DashboardAlert,
@@ -12,6 +12,8 @@ import { PrismaService } from '../database/prisma.service';
 
 @Injectable()
 export class DashboardService {
+  private readonly logger = new Logger(DashboardService.name);
+
   constructor(
     private readonly salesAnalyticsService: SalesAnalyticsService,
     private readonly productAnalyticsService: ProductAnalyticsService,
@@ -134,8 +136,8 @@ export class DashboardService {
           action_required: 'Revisar inventario y hacer pedido',
         });
       }
-    } catch {
-      // No alert if query fails (e.g. table missing in test env)
+    } catch (err) {
+      this.logger.warn('Low-stock alert query failed', err);
     }
 
     // Compliance alerts: permits expiring within the next 15 days
@@ -174,8 +176,8 @@ export class DashboardService {
           action_required: 'Iniciar proceso de renovación',
         });
       }
-    } catch {
-      // ignore — missing model or schema mismatch
+    } catch (err) {
+      this.logger.warn('Compliance/permits alert query failed', err);
     }
 
     return alerts;
@@ -248,7 +250,8 @@ export class DashboardService {
         _sum: { totalAmount: true },
       });
       labor = laborAgg._sum.totalAmount ?? 0;
-    } catch {
+    } catch (err) {
+      this.logger.warn('Labor expense aggregation failed', err);
       labor = null;
     }
 

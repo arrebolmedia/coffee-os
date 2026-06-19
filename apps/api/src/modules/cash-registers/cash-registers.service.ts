@@ -221,18 +221,13 @@ export class CashRegistersService {
   async remove(id: string, organizationId?: string) {
     await this.findOne(id, organizationId);
 
-    // Delete related records first
-    await this.prisma.cashDenomination.deleteMany({
-      where: { cashRegisterId: id },
-    });
-
-    await this.prisma.cashExpense.deleteMany({
-      where: { cashRegisterId: id },
-    });
-
-    return this.prisma.cashRegister.delete({
-      where: { id },
-    });
+    return this.prisma.$transaction([
+      this.prisma.cashDenomination.deleteMany({
+        where: { cashRegisterId: id },
+      }),
+      this.prisma.cashExpense.deleteMany({ where: { cashRegisterId: id } }),
+      this.prisma.cashRegister.delete({ where: { id } }),
+    ]);
   }
 
   private calculateDenominations(

@@ -111,10 +111,13 @@ export default function CostingPage() {
 
   const stats = {
     totalItems: costingItems.length,
-    avgMargin: (
-      costingItems.reduce((sum, item) => sum + item.marginPercent, 0) /
-      costingItems.length
-    ).toFixed(1),
+    avgMargin:
+      costingItems.length > 0
+        ? (
+            costingItems.reduce((sum, item) => sum + item.marginPercent, 0) /
+            costingItems.length
+          ).toFixed(1)
+        : '0.0',
     optimal: costingItems.filter((item) => item.status === 'optimal').length,
     needsReview: costingItems.filter(
       (item) => item.status === 'review' || item.status === 'low-margin',

@@ -232,8 +232,8 @@ export class ShiftsService {
       (notes ? notes + '\n' : '') +
       `[CLOSING_DETAILS]: ${JSON.stringify(closingBreakdown)}`;
 
-    return this.prisma.shift.update({
-      where: { id },
+    const updated = await this.prisma.shift.updateMany({
+      where: { id, status: ShiftStatus.OPEN },
       data: {
         status: ShiftStatus.CLOSED,
         closedAt: new Date(),
@@ -244,6 +244,14 @@ export class ShiftsService {
         closingNotes: composedNotes,
       },
     });
+
+    if (updated.count === 0) {
+      throw new BadRequestException(
+        'Shift is already closed or does not exist',
+      );
+    }
+
+    return this.prisma.shift.findUniqueOrThrow({ where: { id } });
   }
 
   async remove(id: string) {

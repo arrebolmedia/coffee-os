@@ -235,7 +235,7 @@ export default function LocationsPage() {
                   <div className="text-center">
                     <Settings className="w-5 h-5 text-blue-600 mx-auto mb-1" />
                     <p className="text-lg font-bold text-gray-900">
-                      {(location.tax_rate * 100).toFixed(0)}%
+                      {((location.tax_rate ?? 0) * 100).toFixed(0)}%
                     </p>
                     <p className="text-xs text-gray-600">IVA</p>
                   </div>

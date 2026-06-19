@@ -120,8 +120,10 @@ export default function CustomersPage() {
     );
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | undefined | null) => {
+    if (!dateString) return '—';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '—';
     const now = new Date();
     const diffDays = Math.floor(
       (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24),
@@ -472,7 +474,7 @@ export default function CustomersPage() {
                       <span className="text-sm text-gray-900">
                         {formatDate(
                           customer.updatedAt?.toString() ||
-                            customer.createdAt.toString(),
+                            customer.createdAt?.toString(),
                         )}
                       </span>
                     </td>
