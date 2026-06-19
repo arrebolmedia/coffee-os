@@ -4,7 +4,9 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { NotificationsService } from '../notifications.service';
+import { PrismaService } from '../../database/prisma.service';
 import {
   Channel,
   NotificationPriority,
@@ -16,27 +18,166 @@ import { CreateNotificationDto } from '../dto/create-notification.dto';
 import { CreatePreferenceDto } from '../dto/create-preference.dto';
 import { CreateBatchDto } from '../dto/create-batch.dto';
 
+/**
+ * In-memory mock of a Prisma model delegate. Stores camelCase rows (as the real
+ * Prisma client returns them) so the service's toApi* mappers run unchanged.
+ *
+ * `uniqueKeys` lets a delegate enforce a composite @@unique by throwing a
+ * P2002 PrismaClientKnownRequestError on create — used for preferences so the
+ * service's catch(P2002) -> ConflictException path is exercised.
+ */
+function createDelegateMock(prefix: string, uniqueKeys?: string[]) {
+  const store = new Map<string, Record<string, any>>();
+  let seq = 0;
+
+  const matchesWhere = (
+    row: Record<string, any>,
+    where: Record<string, any> = {},
+  ): boolean => {
+    return Object.entries(where).every(([key, cond]) => {
+      if (
+        cond &&
+        typeof cond === 'object' &&
+        !(cond instanceof Date) &&
+        ('gte' in cond || 'lte' in cond)
+      ) {
+        const value = row[key] as Date;
+        if (cond.gte !== undefined && value < cond.gte) return false;
+        if (cond.lte !== undefined && value > cond.lte) return false;
+        return true;
+      }
+      return row[key] === cond;
+    });
+  };
+
+  const sortRows = (
+    rows: Record<string, any>[],
+    orderBy?: Record<string, 'asc' | 'desc'>,
+  ) => {
+    if (!orderBy) return rows;
+    const [field, dir] = Object.entries(orderBy)[0];
+    return [...rows].sort((a, b) => {
+      const av = (a[field] as Date).getTime();
+      const bv = (b[field] as Date).getTime();
+      return dir === 'desc' ? bv - av : av - bv;
+    });
+  };
+
+  return {
+    __store: store,
+    create: jest.fn(async ({ data }: { data: Record<string, any> }) => {
+      if (uniqueKeys) {
+        const dup = Array.from(store.values()).find((r) =>
+          uniqueKeys.every((k) => r[k] === data[k]),
+        );
+        if (dup) {
+          throw new Prisma.PrismaClientKnownRequestError(
+            'Unique constraint failed',
+            { code: 'P2002', clientVersion: 'test' } as any,
+          );
+        }
+      }
+      // cuid-like id (not the old `tpl-`/`not-`/`pref-`/`batch-` prefixes).
+      const id = `c${prefix}${(seq++).toString(36).padStart(8, '0')}${Math.random()
+        .toString(36)
+        .slice(2, 10)}`;
+      const now = new Date();
+      const row: Record<string, any> = {
+        id,
+        createdAt: now,
+        updatedAt: now,
+        timestamp: now,
+        ...data,
+      };
+      store.set(id, row);
+      return { ...row };
+    }),
+    findMany: jest.fn(
+      async ({
+        where = {},
+        orderBy,
+      }: {
+        where?: Record<string, any>;
+        orderBy?: Record<string, 'asc' | 'desc'>;
+      } = {}) => {
+        const rows = Array.from(store.values()).filter((r) =>
+          matchesWhere(r, where),
+        );
+        return sortRows(rows, orderBy).map((r) => ({ ...r }));
+      },
+    ),
+    findFirst: jest.fn(
+      async ({ where = {} }: { where?: Record<string, any> } = {}) => {
+        const row = Array.from(store.values()).find((r) =>
+          matchesWhere(r, where),
+        );
+        return row ? { ...row } : null;
+      },
+    ),
+    findUnique: jest.fn(async ({ where }: { where: { id: string } }) => {
+      const row = store.get(where.id);
+      return row ? { ...row } : null;
+    }),
+    update: jest.fn(
+      async ({
+        where,
+        data,
+      }: {
+        where: { id: string };
+        data: Record<string, any>;
+      }) => {
+        const row = store.get(where.id);
+        if (!row) {
+          throw new Error(`Record ${where.id} not found`);
+        }
+        const updated = { ...row, ...data, updatedAt: new Date() };
+        store.set(where.id, updated);
+        return { ...updated };
+      },
+    ),
+    delete: jest.fn(async ({ where }: { where: { id: string } }) => {
+      const row = store.get(where.id);
+      store.delete(where.id);
+      return row ? { ...row } : null;
+    }),
+  };
+}
+
 describe('NotificationsService', () => {
   let service: NotificationsService;
+  let prisma: {
+    notificationTemplate: ReturnType<typeof createDelegateMock>;
+    notification: ReturnType<typeof createDelegateMock>;
+    notificationPreference: ReturnType<typeof createDelegateMock>;
+    notificationBatch: ReturnType<typeof createDelegateMock>;
+    notificationLog: ReturnType<typeof createDelegateMock>;
+  };
 
   const mockOrgId = '123e4567-e89b-12d3-a456-426614174000';
   const mockUserId = '123e4567-e89b-12d3-a456-426614174001';
 
   beforeEach(async () => {
+    prisma = {
+      notificationTemplate: createDelegateMock('tpl'),
+      notification: createDelegateMock('not'),
+      notificationPreference: createDelegateMock('pref', [
+        'userId',
+        'organizationId',
+        'channel',
+        'category',
+      ]),
+      notificationBatch: createDelegateMock('batch'),
+      notificationLog: createDelegateMock('log'),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [NotificationsService],
+      providers: [
+        NotificationsService,
+        { provide: PrismaService, useValue: prisma },
+      ],
     }).compile();
 
     service = module.get<NotificationsService>(NotificationsService);
-  });
-
-  afterEach(() => {
-    // Clear all storage
-    service['templates'].clear();
-    service['notifications'].clear();
-    service['preferences'].clear();
-    service['batches'].clear();
-    service['logs'].clear();
   });
 
   it('should be defined', () => {
@@ -63,12 +204,13 @@ describe('NotificationsService', () => {
         const result = await service.createTemplate(dto);
 
         expect(result).toBeDefined();
-        expect(result.id).toContain('tpl-');
+        expect(result.id).toBeDefined();
         expect(result.code).toBe('welcome_email');
         expect(result.is_active).toBe(true);
+        expect(result.created_at).toBeInstanceOf(Date);
       });
 
-      it('should throw ConflictException if code exists', async () => {
+      it('should throw ConflictException if active code exists', async () => {
         const dto: CreateTemplateDto = {
           organization_id: mockOrgId,
           code: 'welcome_email',
@@ -84,6 +226,26 @@ describe('NotificationsService', () => {
         await expect(service.createTemplate(dto)).rejects.toThrow(
           ConflictException,
         );
+      });
+
+      it('should allow re-creating a code after the prior one is deactivated', async () => {
+        const dto: CreateTemplateDto = {
+          organization_id: mockOrgId,
+          code: 'reusable',
+          name: 'Reusable',
+          category: TemplateCategory.TRANSACTIONAL,
+          channel: Channel.EMAIL,
+          body: 'Hello!',
+          created_by: mockUserId,
+        };
+
+        const first = await service.createTemplate(dto);
+        await service.updateTemplate(first.id, { is_active: false });
+
+        // The active pre-check should now pass since the prior is inactive.
+        const second = await service.createTemplate(dto);
+        expect(second.id).not.toBe(first.id);
+        expect(second.is_active).toBe(true);
       });
     });
 
@@ -201,6 +363,12 @@ describe('NotificationsService', () => {
 
         expect(result.name).toBe('Updated');
       });
+
+      it('should throw NotFoundException updating missing template', async () => {
+        await expect(
+          service.updateTemplate('invalid', { name: 'X' }),
+        ).rejects.toThrow(NotFoundException);
+      });
     });
 
     describe('deleteTemplate', () => {
@@ -218,6 +386,12 @@ describe('NotificationsService', () => {
         await service.deleteTemplate(created.id);
 
         await expect(service.findTemplateById(created.id)).rejects.toThrow(
+          NotFoundException,
+        );
+      });
+
+      it('should throw NotFoundException deleting missing template', async () => {
+        await expect(service.deleteTemplate('invalid')).rejects.toThrow(
           NotFoundException,
         );
       });
@@ -242,7 +416,7 @@ describe('NotificationsService', () => {
     });
 
     describe('createNotification', () => {
-      it('should create notification with template', async () => {
+      it('should create notification with template (interpolation)', async () => {
         const dto: CreateNotificationDto = {
           organization_id: mockOrgId,
           user_id: mockUserId,
@@ -255,7 +429,7 @@ describe('NotificationsService', () => {
         const result = await service.createNotification(dto);
 
         expect(result).toBeDefined();
-        expect(result.id).toContain('not-');
+        expect(result.id).toBeDefined();
         expect(result.subject).toBe('Hello John');
         expect(result.body).toBe('Message for John');
         expect(result.status).toBe(NotificationStatus.PENDING);
@@ -302,6 +476,43 @@ describe('NotificationsService', () => {
         await expect(service.createNotification(dto)).rejects.toThrow(
           BadRequestException,
         );
+      });
+
+      it('should gate notification when user preference is disabled', async () => {
+        await service.createPreference({
+          user_id: mockUserId,
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          category: TemplateCategory.TRANSACTIONAL,
+          enabled: false,
+        });
+
+        const result = await service.createNotification({
+          organization_id: mockOrgId,
+          user_id: mockUserId,
+          template_id: templateId,
+          channel: Channel.EMAIL,
+          to: 'test@example.com',
+          data: { name: 'John' },
+        });
+
+        expect(result.status).toBe(NotificationStatus.FAILED);
+        expect(result.last_error).toBe(
+          'User has disabled this notification channel/category',
+        );
+      });
+
+      it('should write a creation log', async () => {
+        const result = await service.createNotification({
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          to: 'test@example.com',
+          body: 'Test',
+        });
+
+        const logs = await service.getNotificationLogs(result.id);
+        expect(logs.length).toBe(1);
+        expect(logs[0].message).toBe('Notification created');
       });
     });
 
@@ -366,8 +577,8 @@ describe('NotificationsService', () => {
       });
     });
 
-    describe('sendNotification', () => {
-      it('should send notification', async () => {
+    describe('sendNotification (C3 fix: SENT, not DELIVERED)', () => {
+      it('should mark notification as SENT (not DELIVERED) after sending', async () => {
         const notification = await service.createNotification({
           organization_id: mockOrgId,
           channel: Channel.EMAIL,
@@ -377,9 +588,11 @@ describe('NotificationsService', () => {
 
         const result = await service.sendNotification(notification.id);
 
-        expect(result.status).toBe(NotificationStatus.DELIVERED);
+        // C3/H8: a successful provider hand-off is SENT, never auto-DELIVERED.
+        expect(result.status).toBe(NotificationStatus.SENT);
         expect(result.sent_at).toBeDefined();
-        expect(result.delivered_at).toBeDefined();
+        expect(result.delivered_at).toBeUndefined();
+        expect(result.provider_id).toBeDefined();
         expect(result.attempts).toBe(1);
       });
 
@@ -397,10 +610,8 @@ describe('NotificationsService', () => {
           BadRequestException,
         );
       });
-    });
 
-    describe('retryNotification', () => {
-      it('should retry failed notification', async () => {
+      it('should log "Notification sent" (not delivered)', async () => {
         const notification = await service.createNotification({
           organization_id: mockOrgId,
           channel: Channel.EMAIL,
@@ -408,13 +619,33 @@ describe('NotificationsService', () => {
           body: 'Test',
         });
 
-        // Manually set as failed
-        notification.status = NotificationStatus.FAILED;
-        notification.attempts = 1;
-        service['notifications'].set(notification.id, notification);
+        await service.sendNotification(notification.id);
+
+        const logs = await service.getNotificationLogs(notification.id);
+        const messages = logs.map((l) => l.message);
+        expect(messages).toContain('Notification sent');
+        expect(messages).not.toContain('Notification delivered successfully');
+      });
+    });
+
+    describe('retryNotification', () => {
+      it('should retry a failed notification (increments attempts)', async () => {
+        const notification = await service.createNotification({
+          organization_id: mockOrgId,
+          channel: Channel.EMAIL,
+          to: 'test@example.com',
+          body: 'Test',
+        });
+
+        // Manually set as failed with one prior attempt.
+        await prisma.notification.update({
+          where: { id: notification.id },
+          data: { status: NotificationStatus.FAILED, attempts: 1 },
+        });
 
         const result = await service.retryNotification(notification.id);
         expect(result.attempts).toBe(2);
+        expect(result.status).toBe(NotificationStatus.SENT);
       });
 
       it('should fail after max retries', async () => {
@@ -426,9 +657,10 @@ describe('NotificationsService', () => {
           max_attempts: 3,
         });
 
-        // Set attempts to max
-        notification.attempts = 3;
-        service['notifications'].set(notification.id, notification);
+        await prisma.notification.update({
+          where: { id: notification.id },
+          data: { attempts: 3 },
+        });
 
         await expect(
           service.retryNotification(notification.id),
@@ -436,8 +668,8 @@ describe('NotificationsService', () => {
       });
     });
 
-    describe('markDelivered', () => {
-      it('should mark as delivered', async () => {
+    describe('markDelivered (the ONLY path to DELIVERED)', () => {
+      it('should flip status to DELIVERED and set delivered_at', async () => {
         const notification = await service.createNotification({
           organization_id: mockOrgId,
           channel: Channel.EMAIL,
@@ -445,9 +677,15 @@ describe('NotificationsService', () => {
           body: 'Test',
         });
 
-        const result = await service.markDelivered(notification.id);
-        expect(result.status).toBe(NotificationStatus.DELIVERED);
-        expect(result.delivered_at).toBeDefined();
+        // Send first -> SENT, still not delivered.
+        const sent = await service.sendNotification(notification.id);
+        expect(sent.status).toBe(NotificationStatus.SENT);
+        expect(sent.delivered_at).toBeUndefined();
+
+        // Only the provider callback path promotes to DELIVERED.
+        const delivered = await service.markDelivered(notification.id);
+        expect(delivered.status).toBe(NotificationStatus.DELIVERED);
+        expect(delivered.delivered_at).toBeDefined();
       });
     });
 
@@ -516,6 +754,12 @@ describe('NotificationsService', () => {
         const logs = await service.getNotificationLogs(notification.id);
         expect(logs.length).toBeGreaterThan(0);
       });
+
+      it('should throw NotFoundException for unknown notification', async () => {
+        await expect(service.getNotificationLogs('invalid')).rejects.toThrow(
+          NotFoundException,
+        );
+      });
     });
   });
 
@@ -535,11 +779,12 @@ describe('NotificationsService', () => {
         const result = await service.createPreference(dto);
 
         expect(result).toBeDefined();
-        expect(result.id).toContain('pref-');
+        expect(result.id).toBeDefined();
         expect(result.enabled).toBe(false);
+        expect(result.timezone).toBe('America/Mexico_City');
       });
 
-      it('should throw ConflictException if exists', async () => {
+      it('should throw ConflictException if exists (pre-check)', async () => {
         const dto: CreatePreferenceDto = {
           user_id: mockUserId,
           organization_id: mockOrgId,
@@ -549,6 +794,26 @@ describe('NotificationsService', () => {
         };
 
         await service.createPreference(dto);
+
+        await expect(service.createPreference(dto)).rejects.toThrow(
+          ConflictException,
+        );
+      });
+
+      it('should map a P2002 unique violation to ConflictException', async () => {
+        const dto: CreatePreferenceDto = {
+          user_id: mockUserId,
+          organization_id: mockOrgId,
+          channel: Channel.SMS,
+          category: TemplateCategory.ALERTS,
+          enabled: true,
+        };
+
+        // Seed a duplicate row directly so the pre-check findFirst misses it
+        // (bypassing the service) but the create() P2002 path is hit.
+        prisma.notificationPreference.findFirst.mockResolvedValueOnce(null);
+        await service.createPreference(dto);
+        prisma.notificationPreference.findFirst.mockResolvedValueOnce(null);
 
         await expect(service.createPreference(dto)).rejects.toThrow(
           ConflictException,
@@ -644,7 +909,7 @@ describe('NotificationsService', () => {
         const result = await service.createBatch(dto);
 
         expect(result).toBeDefined();
-        expect(result.id).toContain('batch-');
+        expect(result.id).toBeDefined();
         expect(result.total_count).toBe(2);
         expect(result.status).toBe('pending');
       });
@@ -709,7 +974,6 @@ describe('NotificationsService', () => {
 
   describe('Statistics', () => {
     beforeEach(async () => {
-      // Create some notifications
       await service.createNotification({
         organization_id: mockOrgId,
         channel: Channel.EMAIL,
@@ -726,7 +990,9 @@ describe('NotificationsService', () => {
         priority: NotificationPriority.NORMAL,
       });
 
+      // Send then deliver so success_rate (DELIVERED+READ) is > 0.
       await service.sendNotification(notif2.id);
+      await service.markDelivered(notif2.id);
     });
 
     describe('getStats', () => {
@@ -741,15 +1007,27 @@ describe('NotificationsService', () => {
         expect(result.success_rate).toBeDefined();
       });
 
+      it('should aggregate by_status / by_channel / by_priority', async () => {
+        const result = await service.getStats(mockOrgId);
+
+        expect(result.by_status[NotificationStatus.DELIVERED]).toBe(1);
+        expect(result.by_status[NotificationStatus.PENDING]).toBe(1);
+        expect(result.by_channel[Channel.EMAIL]).toBe(1);
+        expect(result.by_channel[Channel.SMS]).toBe(1);
+        expect(result.by_priority[NotificationPriority.HIGH]).toBe(1);
+        expect(result.by_priority[NotificationPriority.NORMAL]).toBe(1);
+      });
+
       it('should calculate success rate', async () => {
         const result = await service.getStats(mockOrgId);
-        expect(result.success_rate).toBeGreaterThan(0);
+        // 1 delivered of 2 total -> 50%.
+        expect(result.success_rate).toBe(50);
       });
 
       it('should include today counts', async () => {
         const result = await service.getStats(mockOrgId);
-        expect(result.sent_today).toBeDefined();
-        expect(result.delivered_today).toBeDefined();
+        expect(result.sent_today).toBe(1);
+        expect(result.delivered_today).toBe(1);
       });
     });
   });

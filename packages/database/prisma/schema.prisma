@@ -1734,3 +1734,136 @@ model SustainabilityTarget {
   @@index([organizationId])
   @@map("sustainability_targets")
 }
+
+// ============================================================
+// NOTIFICATIONS (templates, sends, preferences, batches, logs)
+// ============================================================
+
+model NotificationTemplate {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  code           String
+  name           String
+  description    String?
+  category       String
+  channel        String
+  subject        String?
+  body           String
+  htmlBody       String?  @map("html_body")
+  variables      String[]
+  metadata       Json?
+  isActive       Boolean  @default(true) @map("is_active")
+  createdBy      String   @map("created_by")
+  updatedBy      String?  @map("updated_by")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@map("notification_templates")
+}
+
+model Notification {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  userId         String? @map("user_id")
+  templateId     String? @map("template_id")
+
+  channel  String
+  priority String
+  to       String
+  cc       String[]
+  bcc      String[]
+
+  subject  String?
+  body     String?
+  htmlBody String?  @map("html_body")
+
+  data        Json?
+  attachments Json?
+
+  status      String
+  attempts    Int    @default(0)
+  maxAttempts Int    @default(3) @map("max_attempts")
+
+  scheduledAt DateTime? @map("scheduled_at")
+  sentAt      DateTime? @map("sent_at")
+  deliveredAt DateTime? @map("delivered_at")
+  readAt      DateTime? @map("read_at")
+  bouncedAt   DateTime? @map("bounced_at")
+
+  lastError        String? @map("last_error")
+  providerId       String? @map("provider_id")
+  providerResponse Json?   @map("provider_response")
+  metadata         Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  logs NotificationLog[]
+
+  @@index([organizationId])
+  @@index([userId])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id             String  @id @default(cuid())
+  userId         String  @map("user_id")
+  organizationId String  @map("organization_id")
+  channel        String
+  category       String
+  enabled        Boolean
+
+  quietHoursStart String? @map("quiet_hours_start")
+  quietHoursEnd   String? @map("quiet_hours_end")
+  timezone        String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, organizationId, channel, category])
+  @@index([userId])
+  @@map("notification_preferences")
+}
+
+model NotificationBatch {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  name           String
+  description    String?
+  templateId     String  @map("template_id")
+  channel        String
+
+  recipients     String[]
+  data           Json?
+  individualData Json?     @map("individual_data")
+  scheduledAt    DateTime? @map("scheduled_at")
+
+  status      String
+  totalCount  Int    @default(0) @map("total_count")
+  sentCount   Int    @default(0) @map("sent_count")
+  failedCount Int    @default(0) @map("failed_count")
+
+  createdBy String @map("created_by")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@map("notification_batches")
+}
+
+model NotificationLog {
+  id             String   @id @default(cuid())
+  notificationId String   @map("notification_id")
+  timestamp      DateTime @default(now())
+  status         String
+  message        String
+  details        Json?
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([notificationId])
+  @@map("notification_logs")
+}
