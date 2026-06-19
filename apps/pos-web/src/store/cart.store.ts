@@ -222,14 +222,15 @@ export const useCartStore = create<CartState>()(
       // ============================================================================
       calculateTotals: () => {
         const state = get();
-        const subtotal = state.cart.items.reduce(
-          (sum, item) => sum + item.subtotal,
-          0,
+        const round2 = (n: number) =>
+          Math.round((n + Number.EPSILON) * 100) / 100;
+        const subtotal = round2(
+          state.cart.items.reduce((sum, item) => sum + item.subtotal, 0),
         );
         const discount = state.cart.discount || 0;
         const taxableAmount = Math.max(0, subtotal - discount);
-        const tax = taxableAmount * TAX_RATE;
-        const total = Math.max(0, taxableAmount + tax);
+        const tax = round2(taxableAmount * TAX_RATE);
+        const total = round2(Math.max(0, taxableAmount + tax));
 
         set({
           cart: {

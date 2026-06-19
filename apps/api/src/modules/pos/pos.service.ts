@@ -124,6 +124,10 @@ export class PosService {
       }
     }
 
+    // Round money to 2 decimals to avoid binary-float cent drift accumulating
+    // into the persisted ticket subtotal/tax/total.
+    const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
     // Calculate totals — tax applies to lineTotal + modifiers (per product taxRate).
     let subtotal = 0;
     let tax = 0;
@@ -131,7 +135,7 @@ export class PosService {
       const lineSubtotal = line.quantity * line.unitPrice;
       const modifiersTotal =
         line.modifiers?.reduce((sum, m) => sum + m.priceDelta, 0) || 0;
-      const lineTotal = lineSubtotal + modifiersTotal * line.quantity;
+      const lineTotal = round2(lineSubtotal + modifiersTotal * line.quantity);
       subtotal += lineTotal;
       const taxRate = productTaxRates.get(line.productId) ?? 0.16;
       // Tax over (lineTotal + modifiers already included) — modifiers inherit
@@ -143,8 +147,10 @@ export class PosService {
       };
     });
 
+    subtotal = round2(subtotal);
+    tax = round2(tax);
     const discount = data.discount ?? 0;
-    const total = Math.max(0, subtotal + tax - discount);
+    const total = round2(Math.max(0, subtotal + tax - discount));
 
     // Race-free ticket number (no count+1).
     const ticketNumber = this.generateTicketNumber();

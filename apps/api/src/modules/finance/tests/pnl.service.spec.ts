@@ -54,9 +54,11 @@ describe('PnLService', () => {
       const pnl = await service.calculatePnL('org_1', start, end);
 
       expect(pnl.organization_id).toBe('org_1');
-      expect(pnl.gross_revenue).toBe(150000);
+      // Revenue is net of tax: P&L uses _sum.subtotal (145000), not _sum.total
+      // (150000, IVA-inclusive), so margins align with net COGS.
+      expect(pnl.gross_revenue).toBe(145000);
       expect(pnl.discounts).toBe(5000);
-      expect(pnl.net_revenue).toBe(150000);
+      expect(pnl.net_revenue).toBe(145000);
       expect(pnl.rent).toBe(20000);
       expect(pnl.utilities).toBe(3000);
       expect(pnl.marketing).toBe(2000);

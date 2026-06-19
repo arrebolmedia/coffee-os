@@ -4,6 +4,7 @@ import {
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
   Min,
 } from 'class-validator';
@@ -57,7 +58,7 @@ export class CreateExpenseDto {
 
   @IsNotEmpty()
   @IsNumber()
-  @Min(0)
+  @IsPositive()
   amount: number;
 
   @IsOptional()
