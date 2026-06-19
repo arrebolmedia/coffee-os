@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { WasteService } from '../waste.service';
+import { PrismaService } from '../../database/prisma.service';
 import {
   DisposalMethod,
   SustainabilityMetricType,
@@ -13,20 +14,124 @@ import {
   CreateWasteLogDto,
 } from '../dto';
 
+/**
+ * In-memory mock of a Prisma model delegate. Stores camelCase rows (as the real
+ * Prisma client returns them) so the service's toApi* mappers run unchanged.
+ * Only the subset of operations the service uses is implemented.
+ */
+function createDelegateMock(prefix: string) {
+  const store = new Map<string, Record<string, any>>();
+  let seq = 0;
+
+  const matchesWhere = (
+    row: Record<string, any>,
+    where: Record<string, any> = {},
+  ): boolean => {
+    return Object.entries(where).every(([key, cond]) => {
+      // Range filter: { gte, lte }
+      if (
+        cond &&
+        typeof cond === 'object' &&
+        !(cond instanceof Date) &&
+        ('gte' in cond || 'lte' in cond)
+      ) {
+        const value = row[key] as Date;
+        if (cond.gte !== undefined && value < cond.gte) return false;
+        if (cond.lte !== undefined && value > cond.lte) return false;
+        return true;
+      }
+      return row[key] === cond;
+    });
+  };
+
+  return {
+    __store: store,
+    create: jest.fn(async ({ data }: { data: Record<string, any> }) => {
+      // cuid-like id (not the old `waste-...` / `metric-...` / `target-...`).
+      const id = `c${prefix}${(seq++).toString(36).padStart(8, '0')}${Math.random()
+        .toString(36)
+        .slice(2, 10)}`;
+      const now = new Date();
+      const row: Record<string, any> = {
+        id,
+        createdAt: now,
+        updatedAt: now,
+        ...data,
+      };
+      store.set(id, row);
+      return { ...row };
+    }),
+    findMany: jest.fn(
+      async ({
+        where = {},
+        orderBy,
+      }: {
+        where?: Record<string, any>;
+        orderBy?: Record<string, 'asc' | 'desc'>;
+      } = {}) => {
+        let rows = Array.from(store.values()).filter((r) =>
+          matchesWhere(r, where),
+        );
+        if (orderBy) {
+          const [field, dir] = Object.entries(orderBy)[0];
+          rows = rows.sort((a, b) => {
+            const av = (a[field] as Date).getTime();
+            const bv = (b[field] as Date).getTime();
+            return dir === 'desc' ? bv - av : av - bv;
+          });
+        }
+        return rows.map((r) => ({ ...r }));
+      },
+    ),
+    findUnique: jest.fn(async ({ where }: { where: { id: string } }) => {
+      const row = store.get(where.id);
+      return row ? { ...row } : null;
+    }),
+    update: jest.fn(
+      async ({
+        where,
+        data,
+      }: {
+        where: { id: string };
+        data: Record<string, any>;
+      }) => {
+        const row = store.get(where.id);
+        if (!row) {
+          throw new Error(`Record ${where.id} not found`);
+        }
+        const updated = { ...row, ...data, updatedAt: new Date() };
+        store.set(where.id, updated);
+        return { ...updated };
+      },
+    ),
+    delete: jest.fn(async ({ where }: { where: { id: string } }) => {
+      const row = store.get(where.id);
+      store.delete(where.id);
+      return row ? { ...row } : null;
+    }),
+  };
+}
+
 describe('WasteService', () => {
   let service: WasteService;
+  let prisma: {
+    wasteLog: ReturnType<typeof createDelegateMock>;
+    sustainabilityMetric: ReturnType<typeof createDelegateMock>;
+    sustainabilityTarget: ReturnType<typeof createDelegateMock>;
+  };
 
   beforeEach(async () => {
+    prisma = {
+      wasteLog: createDelegateMock('wl'),
+      sustainabilityMetric: createDelegateMock('sm'),
+      sustainabilityTarget: createDelegateMock('st'),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [WasteService],
+      providers: [WasteService, { provide: PrismaService, useValue: prisma }],
     }).compile();
 
     service = module.get<WasteService>(WasteService);
-
-    // Clear maps before each test
-    (service as any).wasteLogs.clear();
-    (service as any).metrics.clear();
-    (service as any).targets.clear();
   });
 
   it('should be defined', () => {
@@ -57,12 +162,16 @@ describe('WasteService', () => {
       const result = await service.createWasteLog(dto);
 
       expect(result).toBeDefined();
-      expect(result.id).toMatch(/^waste-/);
+      expect(result.id).toBeDefined();
       expect(result.organization_id).toBe('org-1');
       expect(result.item_name).toBe('Leche vencida');
       expect(result.category).toBe(WasteCategory.FOOD);
       expect(result.total_cost).toBe(100); // 2 * 50
       expect(result.created_at).toBeInstanceOf(Date);
+      // total_cost persisted via prisma.wasteLog.create
+      expect(prisma.wasteLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ totalCost: 100 }),
+      });
     });
 
     it('should create waste log without total cost if cost_per_unit not provided', async () => {
@@ -135,6 +244,13 @@ describe('WasteService', () => {
       const logs = await service.findAllWasteLogs({ organization_id: 'org-1' });
       expect(logs).toHaveLength(1);
       expect(logs[0].organization_id).toBe('org-1');
+      // translated to a Prisma where clause
+      expect(prisma.wasteLog.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ organizationId: 'org-1' }),
+          orderBy: { createdAt: 'desc' },
+        }),
+      );
     });
 
     it('should filter by category', async () => {
@@ -278,6 +394,9 @@ describe('WasteService', () => {
 
       await service.deleteWasteLog(created.id);
 
+      expect(prisma.wasteLog.delete).toHaveBeenCalledWith({
+        where: { id: created.id },
+      });
       await expect(service.findWasteLogById(created.id)).rejects.toThrow(
         NotFoundException,
       );
@@ -369,7 +488,7 @@ describe('WasteService', () => {
       const result = await service.createMetric(dto);
 
       expect(result).toBeDefined();
-      expect(result.id).toMatch(/^metric-/);
+      expect(result.id).toBeDefined();
       expect(result.metric_type).toBe(
         SustainabilityMetricType.CARBON_FOOTPRINT,
       );
@@ -475,7 +594,7 @@ describe('WasteService', () => {
       const result = await service.createTarget(dto);
 
       expect(result).toBeDefined();
-      expect(result.id).toMatch(/^target-/);
+      expect(result.id).toBeDefined();
       expect(result.target_value).toBe(75);
       expect(result.is_active).toBe(true);
       expect(result.achieved).toBe(false);

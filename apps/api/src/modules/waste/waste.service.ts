@@ -1,4 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import type {
+  Prisma,
+  SustainabilityMetric as PrismaSustainabilityMetric,
+  SustainabilityTarget as PrismaSustainabilityTarget,
+  WasteLog as PrismaWasteLog,
+} from '@prisma/client';
 import {
   DisposalMethod,
   SustainabilityMetric,
@@ -17,15 +23,86 @@ import {
   QueryWasteLogsDto,
   UpdateWasteLogDto,
 } from './dto';
+import { PrismaService } from '../database/prisma.service';
 
 /**
  * Servicio para gestión de desperdicios y sostenibilidad
+ *
+ * Persistido en Prisma (antes 3 Maps en memoria — los registros de waste,
+ * incluido el impacto financiero total_cost, se perdían al reiniciar).
  */
 @Injectable()
 export class WasteService {
-  private wasteLogs: Map<string, WasteLog> = new Map();
-  private metrics: Map<string, SustainabilityMetric> = new Map();
-  private targets: Map<string, SustainabilityTarget> = new Map();
+  constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * ==================== MAPPERS ====================
+   *
+   * Convierten una fila Prisma (camelCase, null para opcionales) a la forma
+   * de la interfaz pública (snake_case, undefined para opcionales). Los valores
+   * string de los enums pasan sin cambios (la DB guarda 'food'/'expired'/etc.),
+   * por eso casteamos las columnas string de vuelta a los tipos enum.
+   */
+  private toApiWasteLog(row: PrismaWasteLog): WasteLog {
+    return {
+      id: row.id,
+      organization_id: row.organizationId,
+      location_id: row.locationId ?? undefined,
+      inventory_item_id: row.inventoryItemId ?? undefined,
+      product_id: row.productId ?? undefined,
+      item_name: row.itemName,
+      category: row.category as WasteCategory,
+      reason: row.reason as WasteReason,
+      quantity: row.quantity,
+      unit: row.unit,
+      cost_per_unit: row.costPerUnit ?? undefined,
+      total_cost: row.totalCost ?? undefined,
+      disposal_method: row.disposalMethod as DisposalMethod,
+      disposal_date: row.disposalDate ?? undefined,
+      recorded_by: row.recordedBy,
+      notes: row.notes ?? undefined,
+      image_url: row.imageUrl ?? undefined,
+      created_at: row.createdAt,
+      updated_at: row.updatedAt,
+    };
+  }
+
+  private toApiMetric(row: PrismaSustainabilityMetric): SustainabilityMetric {
+    return {
+      id: row.id,
+      organization_id: row.organizationId,
+      location_id: row.locationId ?? undefined,
+      metric_type: row.metricType as SustainabilityMetricType,
+      value: row.value,
+      unit: row.unit,
+      period_start: row.periodStart,
+      period_end: row.periodEnd,
+      notes: row.notes ?? undefined,
+      source: row.source ?? undefined,
+      created_at: row.createdAt,
+      updated_at: row.updatedAt,
+    };
+  }
+
+  private toApiTarget(row: PrismaSustainabilityTarget): SustainabilityTarget {
+    return {
+      id: row.id,
+      organization_id: row.organizationId,
+      location_id: row.locationId ?? undefined,
+      metric_type: row.metricType as SustainabilityMetricType,
+      target_value: row.targetValue,
+      current_value: row.currentValue ?? undefined,
+      unit: row.unit,
+      start_date: row.startDate,
+      end_date: row.endDate,
+      is_active: row.isActive,
+      achieved: row.achieved,
+      achieved_at: row.achievedAt ?? undefined,
+      description: row.description ?? undefined,
+      created_at: row.createdAt,
+      updated_at: row.updatedAt,
+    };
+  }
 
   /**
    * ==================== WASTE LOGS ====================
@@ -35,75 +112,85 @@ export class WasteService {
    * Crear un registro de desperdicio
    */
   async createWasteLog(dto: CreateWasteLogDto): Promise<WasteLog> {
-    const id = `waste-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
     // Calculate total cost if cost_per_unit is provided
     const total_cost = dto.cost_per_unit
       ? dto.cost_per_unit * dto.quantity
-      : undefined;
+      : null;
 
-    const wasteLog: WasteLog = {
-      id,
-      ...dto,
-      total_cost,
-      created_at: new Date(),
-      updated_at: new Date(),
-    };
+    const row = await this.prisma.wasteLog.create({
+      data: {
+        organizationId: dto.organization_id,
+        locationId: dto.location_id ?? null,
+        inventoryItemId: dto.inventory_item_id ?? null,
+        productId: dto.product_id ?? null,
+        itemName: dto.item_name,
+        category: dto.category,
+        reason: dto.reason,
+        quantity: dto.quantity,
+        unit: dto.unit,
+        costPerUnit: dto.cost_per_unit ?? null,
+        totalCost: total_cost,
+        disposalMethod: dto.disposal_method,
+        disposalDate: dto.disposal_date ?? null,
+        recordedBy: dto.recorded_by,
+        notes: dto.notes ?? null,
+        imageUrl: dto.image_url ?? null,
+      },
+    });
 
-    this.wasteLogs.set(id, wasteLog);
-    return wasteLog;
+    return this.toApiWasteLog(row);
   }
 
   /**
    * Obtener todos los waste logs (con filtros opcionales)
    */
   async findAllWasteLogs(query?: QueryWasteLogsDto): Promise<WasteLog[]> {
-    let logs = Array.from(this.wasteLogs.values());
+    const where: Prisma.WasteLogWhereInput = {};
 
     if (query) {
       if (query.organization_id) {
-        logs = logs.filter(
-          (log) => log.organization_id === query.organization_id,
-        );
+        where.organizationId = query.organization_id;
       }
       if (query.location_id) {
-        logs = logs.filter((log) => log.location_id === query.location_id);
+        where.locationId = query.location_id;
       }
       if (query.category) {
-        logs = logs.filter((log) => log.category === query.category);
+        where.category = query.category;
       }
       if (query.reason) {
-        logs = logs.filter((log) => log.reason === query.reason);
+        where.reason = query.reason;
       }
       if (query.disposal_method) {
-        logs = logs.filter(
-          (log) => log.disposal_method === query.disposal_method,
-        );
+        where.disposalMethod = query.disposal_method;
       }
-      if (query.start_date) {
-        logs = logs.filter(
-          (log) => log.created_at >= new Date(query.start_date!),
-        );
-      }
-      if (query.end_date) {
-        logs = logs.filter(
-          (log) => log.created_at <= new Date(query.end_date!),
-        );
+      if (query.start_date || query.end_date) {
+        where.createdAt = {};
+        if (query.start_date) {
+          where.createdAt.gte = new Date(query.start_date);
+        }
+        if (query.end_date) {
+          where.createdAt.lte = new Date(query.end_date);
+        }
       }
     }
 
-    return logs.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+    const rows = await this.prisma.wasteLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return rows.map((row) => this.toApiWasteLog(row));
   }
 
   /**
    * Obtener un waste log por ID
    */
   async findWasteLogById(id: string): Promise<WasteLog> {
-    const wasteLog = this.wasteLogs.get(id);
-    if (!wasteLog) {
+    const row = await this.prisma.wasteLog.findUnique({ where: { id } });
+    if (!row) {
       throw new NotFoundException(`WasteLog with ID ${id} not found`);
     }
-    return wasteLog;
+    return this.toApiWasteLog(row);
   }
 
   /**
@@ -120,15 +207,31 @@ export class WasteService {
       total_cost = cost_per_unit ? cost_per_unit * quantity : undefined;
     }
 
-    const updated: WasteLog = {
-      ...wasteLog,
-      ...dto,
-      total_cost,
-      updated_at: new Date(),
+    const data: Prisma.WasteLogUpdateInput = {
+      totalCost: total_cost ?? null,
     };
 
-    this.wasteLogs.set(id, updated);
-    return updated;
+    if (dto.organization_id !== undefined)
+      data.organizationId = dto.organization_id;
+    if (dto.location_id !== undefined) data.locationId = dto.location_id;
+    if (dto.inventory_item_id !== undefined)
+      data.inventoryItemId = dto.inventory_item_id;
+    if (dto.product_id !== undefined) data.productId = dto.product_id;
+    if (dto.item_name !== undefined) data.itemName = dto.item_name;
+    if (dto.category !== undefined) data.category = dto.category;
+    if (dto.reason !== undefined) data.reason = dto.reason;
+    if (dto.quantity !== undefined) data.quantity = dto.quantity;
+    if (dto.unit !== undefined) data.unit = dto.unit;
+    if (dto.cost_per_unit !== undefined) data.costPerUnit = dto.cost_per_unit;
+    if (dto.disposal_method !== undefined)
+      data.disposalMethod = dto.disposal_method;
+    if (dto.disposal_date !== undefined) data.disposalDate = dto.disposal_date;
+    if (dto.recorded_by !== undefined) data.recordedBy = dto.recorded_by;
+    if (dto.notes !== undefined) data.notes = dto.notes;
+    if (dto.image_url !== undefined) data.imageUrl = dto.image_url;
+
+    const row = await this.prisma.wasteLog.update({ where: { id }, data });
+    return this.toApiWasteLog(row);
   }
 
   /**
@@ -136,7 +239,7 @@ export class WasteService {
    */
   async deleteWasteLog(id: string): Promise<void> {
     await this.findWasteLogById(id);
-    this.wasteLogs.delete(id);
+    await this.prisma.wasteLog.delete({ where: { id } });
   }
 
   /**
@@ -269,17 +372,21 @@ export class WasteService {
   async createMetric(
     dto: CreateSustainabilityMetricDto,
   ): Promise<SustainabilityMetric> {
-    const id = `metric-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const row = await this.prisma.sustainabilityMetric.create({
+      data: {
+        organizationId: dto.organization_id,
+        locationId: dto.location_id ?? null,
+        metricType: dto.metric_type,
+        value: dto.value,
+        unit: dto.unit,
+        periodStart: dto.period_start,
+        periodEnd: dto.period_end,
+        notes: dto.notes ?? null,
+        source: dto.source ?? null,
+      },
+    });
 
-    const metric: SustainabilityMetric = {
-      id,
-      ...dto,
-      created_at: new Date(),
-      updated_at: new Date(),
-    };
-
-    this.metrics.set(id, metric);
-    return metric;
+    return this.toApiMetric(row);
   }
 
   /**
@@ -289,31 +396,34 @@ export class WasteService {
     organization_id?: string,
     metric_type?: SustainabilityMetricType,
   ): Promise<SustainabilityMetric[]> {
-    let metrics = Array.from(this.metrics.values());
+    const where: Prisma.SustainabilityMetricWhereInput = {};
 
     if (organization_id) {
-      metrics = metrics.filter(
-        (metric) => metric.organization_id === organization_id,
-      );
+      where.organizationId = organization_id;
     }
     if (metric_type) {
-      metrics = metrics.filter((metric) => metric.metric_type === metric_type);
+      where.metricType = metric_type;
     }
 
-    return metrics.sort(
-      (a, b) => b.period_start.getTime() - a.period_start.getTime(),
-    );
+    const rows = await this.prisma.sustainabilityMetric.findMany({
+      where,
+      orderBy: { periodStart: 'desc' },
+    });
+
+    return rows.map((row) => this.toApiMetric(row));
   }
 
   /**
    * Obtener una métrica por ID
    */
   async findMetricById(id: string): Promise<SustainabilityMetric> {
-    const metric = this.metrics.get(id);
-    if (!metric) {
+    const row = await this.prisma.sustainabilityMetric.findUnique({
+      where: { id },
+    });
+    if (!row) {
       throw new NotFoundException(`Metric with ID ${id} not found`);
     }
-    return metric;
+    return this.toApiMetric(row);
   }
 
   /**
@@ -326,19 +436,22 @@ export class WasteService {
   async createTarget(
     dto: CreateSustainabilityTargetDto,
   ): Promise<SustainabilityTarget> {
-    const id = `target-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const row = await this.prisma.sustainabilityTarget.create({
+      data: {
+        organizationId: dto.organization_id,
+        locationId: dto.location_id ?? null,
+        metricType: dto.metric_type,
+        targetValue: dto.target_value,
+        unit: dto.unit,
+        startDate: dto.start_date,
+        endDate: dto.end_date,
+        isActive: dto.is_active !== false,
+        achieved: false,
+        description: dto.description ?? null,
+      },
+    });
 
-    const target: SustainabilityTarget = {
-      id,
-      ...dto,
-      is_active: dto.is_active !== false,
-      achieved: false,
-      created_at: new Date(),
-      updated_at: new Date(),
-    };
-
-    this.targets.set(id, target);
-    return target;
+    return this.toApiTarget(row);
   }
 
   /**
@@ -348,31 +461,34 @@ export class WasteService {
     organization_id?: string,
     is_active?: boolean,
   ): Promise<SustainabilityTarget[]> {
-    let targets = Array.from(this.targets.values());
+    const where: Prisma.SustainabilityTargetWhereInput = {};
 
     if (organization_id) {
-      targets = targets.filter(
-        (target) => target.organization_id === organization_id,
-      );
+      where.organizationId = organization_id;
     }
     if (is_active !== undefined) {
-      targets = targets.filter((target) => target.is_active === is_active);
+      where.isActive = is_active;
     }
 
-    return targets.sort(
-      (a, b) => b.start_date.getTime() - a.start_date.getTime(),
-    );
+    const rows = await this.prisma.sustainabilityTarget.findMany({
+      where,
+      orderBy: { startDate: 'desc' },
+    });
+
+    return rows.map((row) => this.toApiTarget(row));
   }
 
   /**
    * Obtener un target por ID
    */
   async findTargetById(id: string): Promise<SustainabilityTarget> {
-    const target = this.targets.get(id);
-    if (!target) {
+    const row = await this.prisma.sustainabilityTarget.findUnique({
+      where: { id },
+    });
+    if (!row) {
       throw new NotFoundException(`Target with ID ${id} not found`);
     }
-    return target;
+    return this.toApiTarget(row);
   }
 
   /**
@@ -389,16 +505,16 @@ export class WasteService {
     const achieved_at =
       achieved && !target.achieved ? new Date() : target.achieved_at;
 
-    const updated: SustainabilityTarget = {
-      ...target,
-      current_value,
-      achieved,
-      achieved_at,
-      updated_at: new Date(),
-    };
+    const row = await this.prisma.sustainabilityTarget.update({
+      where: { id },
+      data: {
+        currentValue: current_value,
+        achieved,
+        achievedAt: achieved_at ?? null,
+      },
+    });
 
-    this.targets.set(id, updated);
-    return updated;
+    return this.toApiTarget(row);
   }
 
   /**

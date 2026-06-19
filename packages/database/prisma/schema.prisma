@@ -1652,3 +1652,85 @@ model SettingTemplate {
 
   @@map("setting_templates")
 }
+
+// ============================================================
+// WASTE & SUSTAINABILITY (merma financiera + métricas)
+// ============================================================
+
+model WasteLog {
+  id              String  @id @default(cuid())
+  organizationId  String  @map("organization_id")
+  locationId      String? @map("location_id")
+  inventoryItemId String? @map("inventory_item_id")
+  productId       String? @map("product_id")
+  itemName        String  @map("item_name")
+
+  category String
+  reason   String
+  quantity Float
+  unit     String
+
+  costPerUnit Float? @map("cost_per_unit")
+  totalCost   Float? @map("total_cost")
+
+  disposalMethod String    @map("disposal_method")
+  disposalDate   DateTime? @map("disposal_date")
+
+  recordedBy String  @map("recorded_by")
+  notes      String?
+  imageUrl   String? @map("image_url")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@map("waste_logs")
+}
+
+model SustainabilityMetric {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  locationId     String? @map("location_id")
+
+  metricType String @map("metric_type")
+  value      Float
+  unit       String
+
+  periodStart DateTime @map("period_start")
+  periodEnd   DateTime @map("period_end")
+
+  notes  String?
+  source String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@map("sustainability_metrics")
+}
+
+model SustainabilityTarget {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  locationId     String? @map("location_id")
+
+  metricType   String @map("metric_type")
+  targetValue  Float  @map("target_value")
+  currentValue Float? @map("current_value")
+  unit         String
+
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+
+  isActive   Boolean   @default(true) @map("is_active")
+  achieved   Boolean   @default(false)
+  achievedAt DateTime? @map("achieved_at")
+
+  description String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@map("sustainability_targets")
+}
