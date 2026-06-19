@@ -3,11 +3,17 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import type {
+  Prisma,
+  Asset as PrismaAsset,
+  MaintenanceRecord as PrismaMaintenanceRecord,
+} from '@prisma/client';
 import {
   Asset,
   AssetStatus,
   AssetType,
   DepreciationReport,
+  MaintenancePriority,
   MaintenanceRecord,
   MaintenanceStats,
   MaintenanceStatus,
@@ -19,14 +25,97 @@ import {
   CreateMaintenanceRecordDto,
   UpdateAssetDto,
 } from './dto';
+import { PrismaService } from '../database/prisma.service';
 
 /**
  * Servicio para gestión de activos y mantenimiento
+ *
+ * Persistido en Prisma (antes 2 Maps en memoria — los activos, sus registros de
+ * mantenimiento y los costos asociados se perdían al reiniciar). Las operaciones
+ * que mutan a la vez un registro y su activo se envuelven en `$transaction` para
+ * que sean atómicas (el código original no lo era, pero atómico es lo correcto).
  */
 @Injectable()
 export class MaintenanceService {
-  private assets: Map<string, Asset> = new Map();
-  private maintenanceRecords: Map<string, MaintenanceRecord> = new Map();
+  constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * ==================== MAPPERS ====================
+   *
+   * Convierten una fila Prisma (camelCase, null para opcionales) a la forma de
+   * la interfaz pública (snake_case, undefined para opcionales). Los valores
+   * string de los enums se guardan tal cual en la DB ('espresso_machine',
+   * 'active', 'preventive', 'scheduled', ...), por eso casteamos las columnas
+   * string de vuelta a los tipos enum. Para los arrays (partsReplaced /
+   * attachments, columnas String[] con default []) mapeamos un array VACÍO a
+   * undefined para conservar la semántica de array opcional del original.
+   */
+  private toApiAsset(row: PrismaAsset): Asset {
+    return {
+      id: row.id,
+      organization_id: row.organizationId,
+      location_id: row.locationId ?? undefined,
+      name: row.name,
+      type: row.type as AssetType,
+      brand: row.brand ?? undefined,
+      model: row.model ?? undefined,
+      serial_number: row.serialNumber ?? undefined,
+      purchase_date: row.purchaseDate ?? undefined,
+      purchase_price: row.purchasePrice ?? undefined,
+      supplier_id: row.supplierId ?? undefined,
+      warranty_months: row.warrantyMonths ?? undefined,
+      warranty_expires_at: row.warrantyExpiresAt ?? undefined,
+      useful_life_years: row.usefulLifeYears ?? undefined,
+      depreciation_method:
+        (row.depreciationMethod as
+          | 'straight_line'
+          | 'declining_balance'
+          | null) ?? undefined,
+      residual_value: row.residualValue ?? undefined,
+      current_value: row.currentValue ?? undefined,
+      status: row.status as AssetStatus,
+      installation_date: row.installationDate ?? undefined,
+      last_maintenance_date: row.lastMaintenanceDate ?? undefined,
+      next_maintenance_date: row.nextMaintenanceDate ?? undefined,
+      notes: row.notes ?? undefined,
+      image_url: row.imageUrl ?? undefined,
+      qr_code: row.qrCode ?? undefined,
+      created_at: row.createdAt,
+      updated_at: row.updatedAt,
+    };
+  }
+
+  private toApiRecord(row: PrismaMaintenanceRecord): MaintenanceRecord {
+    return {
+      id: row.id,
+      organization_id: row.organizationId,
+      asset_id: row.assetId,
+      type: row.type as MaintenanceType,
+      status: row.status as MaintenanceStatus,
+      priority: row.priority as MaintenancePriority,
+      scheduled_date: row.scheduledDate,
+      started_at: row.startedAt ?? undefined,
+      completed_at: row.completedAt ?? undefined,
+      description: row.description,
+      work_performed: row.workPerformed ?? undefined,
+      parts_replaced:
+        row.partsReplaced.length > 0 ? row.partsReplaced : undefined,
+      assigned_to: row.assignedTo ?? undefined,
+      performed_by: row.performedBy ?? undefined,
+      labor_cost: row.laborCost ?? undefined,
+      parts_cost: row.partsCost ?? undefined,
+      total_cost: row.totalCost ?? undefined,
+      is_external: row.isExternal,
+      external_provider: row.externalProvider ?? undefined,
+      external_invoice: row.externalInvoice ?? undefined,
+      next_maintenance_date: row.nextMaintenanceDate ?? undefined,
+      recurring_interval_days: row.recurringIntervalDays ?? undefined,
+      notes: row.notes ?? undefined,
+      attachments: row.attachments.length > 0 ? row.attachments : undefined,
+      created_at: row.createdAt,
+      updated_at: row.updatedAt,
+    };
+  }
 
   /**
    * ==================== ASSETS ====================
@@ -36,8 +125,6 @@ export class MaintenanceService {
    * Crear un activo
    */
   async createAsset(dto: CreateAssetDto): Promise<Asset> {
-    const id = `asset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
     // Calculate warranty expiration
     let warranty_expires_at: Date | undefined;
     if (dto.purchase_date && dto.warranty_months) {
@@ -59,18 +146,32 @@ export class MaintenanceService {
       );
     }
 
-    const asset: Asset = {
-      id,
-      ...dto,
-      status: dto.status || AssetStatus.ACTIVE,
-      warranty_expires_at,
-      current_value,
-      created_at: new Date(),
-      updated_at: new Date(),
-    };
+    const row = await this.prisma.asset.create({
+      data: {
+        organizationId: dto.organization_id,
+        locationId: dto.location_id ?? null,
+        name: dto.name,
+        type: dto.type,
+        brand: dto.brand ?? null,
+        model: dto.model ?? null,
+        serialNumber: dto.serial_number ?? null,
+        purchaseDate: dto.purchase_date ?? null,
+        purchasePrice: dto.purchase_price ?? null,
+        supplierId: dto.supplier_id ?? null,
+        warrantyMonths: dto.warranty_months ?? null,
+        warrantyExpiresAt: warranty_expires_at ?? null,
+        usefulLifeYears: dto.useful_life_years ?? null,
+        depreciationMethod: dto.depreciation_method ?? null,
+        residualValue: dto.residual_value ?? null,
+        currentValue: current_value ?? null,
+        status: dto.status || AssetStatus.ACTIVE,
+        installationDate: dto.installation_date ?? null,
+        notes: dto.notes ?? null,
+        imageUrl: dto.image_url ?? null,
+      },
+    });
 
-    this.assets.set(id, asset);
-    return asset;
+    return this.toApiAsset(row);
   }
 
   /**
@@ -82,35 +183,38 @@ export class MaintenanceService {
     type?: AssetType,
     status?: AssetStatus,
   ): Promise<Asset[]> {
-    let assets = Array.from(this.assets.values());
+    const where: Prisma.AssetWhereInput = {};
 
     if (organization_id) {
-      assets = assets.filter(
-        (asset) => asset.organization_id === organization_id,
-      );
+      where.organizationId = organization_id;
     }
     if (location_id) {
-      assets = assets.filter((asset) => asset.location_id === location_id);
+      where.locationId = location_id;
     }
     if (type) {
-      assets = assets.filter((asset) => asset.type === type);
+      where.type = type;
     }
     if (status) {
-      assets = assets.filter((asset) => asset.status === status);
+      where.status = status;
     }
 
-    return assets.sort((a, b) => a.name.localeCompare(b.name));
+    const rows = await this.prisma.asset.findMany({
+      where,
+      orderBy: { name: 'asc' },
+    });
+
+    return rows.map((row) => this.toApiAsset(row));
   }
 
   /**
    * Obtener un activo por ID
    */
   async findAssetById(id: string): Promise<Asset> {
-    const asset = this.assets.get(id);
-    if (!asset) {
+    const row = await this.prisma.asset.findUnique({ where: { id } });
+    if (!row) {
       throw new NotFoundException(`Asset with ID ${id} not found`);
     }
-    return asset;
+    return this.toApiAsset(row);
   }
 
   /**
@@ -160,16 +264,39 @@ export class MaintenanceService {
       }
     }
 
-    const updated: Asset = {
-      ...asset,
-      ...dto,
-      warranty_expires_at,
-      current_value,
-      updated_at: new Date(),
+    const data: Prisma.AssetUpdateInput = {
+      warrantyExpiresAt: warranty_expires_at ?? null,
+      currentValue: current_value ?? null,
     };
 
-    this.assets.set(id, updated);
-    return updated;
+    if (dto.organization_id !== undefined)
+      data.organizationId = dto.organization_id;
+    if (dto.location_id !== undefined) data.locationId = dto.location_id;
+    if (dto.name !== undefined) data.name = dto.name;
+    if (dto.type !== undefined) data.type = dto.type;
+    if (dto.brand !== undefined) data.brand = dto.brand;
+    if (dto.model !== undefined) data.model = dto.model;
+    if (dto.serial_number !== undefined) data.serialNumber = dto.serial_number;
+    if (dto.purchase_date !== undefined) data.purchaseDate = dto.purchase_date;
+    if (dto.purchase_price !== undefined)
+      data.purchasePrice = dto.purchase_price;
+    if (dto.supplier_id !== undefined) data.supplierId = dto.supplier_id;
+    if (dto.warranty_months !== undefined)
+      data.warrantyMonths = dto.warranty_months;
+    if (dto.useful_life_years !== undefined)
+      data.usefulLifeYears = dto.useful_life_years;
+    if (dto.depreciation_method !== undefined)
+      data.depreciationMethod = dto.depreciation_method;
+    if (dto.residual_value !== undefined)
+      data.residualValue = dto.residual_value;
+    if (dto.status !== undefined) data.status = dto.status;
+    if (dto.installation_date !== undefined)
+      data.installationDate = dto.installation_date;
+    if (dto.notes !== undefined) data.notes = dto.notes;
+    if (dto.image_url !== undefined) data.imageUrl = dto.image_url;
+
+    const row = await this.prisma.asset.update({ where: { id }, data });
+    return this.toApiAsset(row);
   }
 
   /**
@@ -178,7 +305,8 @@ export class MaintenanceService {
   async deleteAsset(id: string): Promise<void> {
     await this.findAssetById(id);
 
-    // Check if asset has maintenance records
+    // Check if asset has maintenance records (the DB FK is Restrict as a
+    // backstop, but we keep the explicit guard for a friendly error).
     const records = await this.findMaintenanceRecordsByAsset(id);
     if (records.length > 0) {
       throw new BadRequestException(
@@ -186,7 +314,7 @@ export class MaintenanceService {
       );
     }
 
-    this.assets.delete(id);
+    await this.prisma.asset.delete({ where: { id } });
   }
 
   /**
@@ -195,6 +323,9 @@ export class MaintenanceService {
 
   /**
    * Crear un registro de mantenimiento
+   *
+   * Cross-entity: crea el registro y actualiza asset.next_maintenance_date.
+   * Atómico vía $transaction.
    */
   async createMaintenanceRecord(
     dto: CreateMaintenanceRecordDto,
@@ -202,24 +333,34 @@ export class MaintenanceService {
     // Verify asset exists
     await this.findAssetById(dto.asset_id);
 
-    const id = `maint-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const row = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.maintenanceRecord.create({
+        data: {
+          organizationId: dto.organization_id,
+          assetId: dto.asset_id,
+          type: dto.type,
+          status: dto.status || MaintenanceStatus.SCHEDULED,
+          priority: dto.priority,
+          scheduledDate: dto.scheduled_date,
+          description: dto.description,
+          assignedTo: dto.assigned_to ?? null,
+          isExternal: dto.is_external,
+          externalProvider: dto.external_provider ?? null,
+          recurringIntervalDays: dto.recurring_interval_days ?? null,
+          notes: dto.notes ?? null,
+        },
+      });
 
-    const record: MaintenanceRecord = {
-      id,
-      ...dto,
-      status: dto.status || MaintenanceStatus.SCHEDULED,
-      created_at: new Date(),
-      updated_at: new Date(),
-    };
+      // Update asset's next maintenance date
+      await tx.asset.update({
+        where: { id: dto.asset_id },
+        data: { nextMaintenanceDate: dto.scheduled_date },
+      });
 
-    this.maintenanceRecords.set(id, record);
+      return created;
+    });
 
-    // Update asset's next maintenance date
-    const asset = await this.findAssetById(dto.asset_id);
-    asset.next_maintenance_date = dto.scheduled_date;
-    this.assets.set(asset.id, asset);
-
-    return record;
+    return this.toApiRecord(row);
   }
 
   /**
@@ -230,23 +371,24 @@ export class MaintenanceService {
     asset_id?: string,
     status?: MaintenanceStatus,
   ): Promise<MaintenanceRecord[]> {
-    let records = Array.from(this.maintenanceRecords.values());
+    const where: Prisma.MaintenanceRecordWhereInput = {};
 
     if (organization_id) {
-      records = records.filter(
-        (record) => record.organization_id === organization_id,
-      );
+      where.organizationId = organization_id;
     }
     if (asset_id) {
-      records = records.filter((record) => record.asset_id === asset_id);
+      where.assetId = asset_id;
     }
     if (status) {
-      records = records.filter((record) => record.status === status);
+      where.status = status;
     }
 
-    return records.sort(
-      (a, b) => b.scheduled_date.getTime() - a.scheduled_date.getTime(),
-    );
+    const rows = await this.prisma.maintenanceRecord.findMany({
+      where,
+      orderBy: { scheduledDate: 'desc' },
+    });
+
+    return rows.map((row) => this.toApiRecord(row));
   }
 
   /**
@@ -262,15 +404,20 @@ export class MaintenanceService {
    * Obtener un registro de mantenimiento por ID
    */
   async findMaintenanceRecordById(id: string): Promise<MaintenanceRecord> {
-    const record = this.maintenanceRecords.get(id);
-    if (!record) {
+    const row = await this.prisma.maintenanceRecord.findUnique({
+      where: { id },
+    });
+    if (!row) {
       throw new NotFoundException(`Maintenance record with ID ${id} not found`);
     }
-    return record;
+    return this.toApiRecord(row);
   }
 
   /**
    * Iniciar un mantenimiento
+   *
+   * Cross-entity: SCHEDULED -> IN_PROGRESS + asset.status = 'maintenance'.
+   * Atómico vía $transaction.
    */
   async startMaintenance(id: string): Promise<MaintenanceRecord> {
     const record = await this.findMaintenanceRecordById(id);
@@ -281,25 +428,33 @@ export class MaintenanceService {
       );
     }
 
-    const updated: MaintenanceRecord = {
-      ...record,
-      status: MaintenanceStatus.IN_PROGRESS,
-      started_at: new Date(),
-      updated_at: new Date(),
-    };
+    const row = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.maintenanceRecord.update({
+        where: { id },
+        data: {
+          status: MaintenanceStatus.IN_PROGRESS,
+          startedAt: new Date(),
+        },
+      });
 
-    this.maintenanceRecords.set(id, updated);
+      // Update asset status
+      await tx.asset.update({
+        where: { id: record.asset_id },
+        data: { status: AssetStatus.MAINTENANCE },
+      });
 
-    // Update asset status
-    const asset = await this.findAssetById(record.asset_id);
-    asset.status = AssetStatus.MAINTENANCE;
-    this.assets.set(asset.id, asset);
+      return updated;
+    });
 
-    return updated;
+    return this.toApiRecord(row);
   }
 
   /**
    * Completar un mantenimiento
+   *
+   * Cross-entity: IN_PROGRESS -> COMPLETED (calcula total_cost), pone el activo
+   * en 'active', actualiza last_maintenance_date y next_maintenance_date.
+   * Atómico vía $transaction.
    */
   async completeMaintenance(
     id: string,
@@ -318,42 +473,55 @@ export class MaintenanceService {
     const parts_cost = dto.parts_cost || 0;
     const total_cost = labor_cost + parts_cost;
 
-    const updated: MaintenanceRecord = {
-      ...record,
-      status: MaintenanceStatus.COMPLETED,
-      completed_at: dto.completed_at,
-      work_performed: dto.work_performed,
-      parts_replaced: dto.parts_replaced,
-      performed_by: dto.performed_by,
-      labor_cost,
-      parts_cost,
-      total_cost,
-      external_invoice: dto.external_invoice,
-      next_maintenance_date: dto.next_maintenance_date,
-      attachments: dto.attachments,
-      updated_at: new Date(),
-    };
-
-    this.maintenanceRecords.set(id, updated);
-
-    // Update asset
-    const asset = await this.findAssetById(record.asset_id);
-    asset.status = AssetStatus.ACTIVE;
-    asset.last_maintenance_date = dto.completed_at;
-    if (dto.next_maintenance_date) {
-      asset.next_maintenance_date = dto.next_maintenance_date;
-    } else if (record.recurring_interval_days) {
+    // Determine next maintenance date (explicit OR recurring-derived)
+    let next_maintenance_date: Date | undefined = dto.next_maintenance_date;
+    if (!next_maintenance_date && record.recurring_interval_days) {
       const next = new Date(dto.completed_at);
       next.setDate(next.getDate() + record.recurring_interval_days);
-      asset.next_maintenance_date = next;
+      next_maintenance_date = next;
     }
-    this.assets.set(asset.id, asset);
 
-    return updated;
+    const row = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.maintenanceRecord.update({
+        where: { id },
+        data: {
+          status: MaintenanceStatus.COMPLETED,
+          completedAt: dto.completed_at,
+          workPerformed: dto.work_performed,
+          partsReplaced: dto.parts_replaced ?? [],
+          performedBy: dto.performed_by ?? null,
+          laborCost: labor_cost,
+          partsCost: parts_cost,
+          totalCost: total_cost,
+          externalInvoice: dto.external_invoice ?? null,
+          nextMaintenanceDate: dto.next_maintenance_date ?? null,
+          attachments: dto.attachments ?? [],
+        },
+      });
+
+      // Update asset
+      await tx.asset.update({
+        where: { id: record.asset_id },
+        data: {
+          status: AssetStatus.ACTIVE,
+          lastMaintenanceDate: dto.completed_at,
+          ...(next_maintenance_date
+            ? { nextMaintenanceDate: next_maintenance_date }
+            : {}),
+        },
+      });
+
+      return updated;
+    });
+
+    return this.toApiRecord(row);
   }
 
   /**
    * Cancelar un mantenimiento
+   *
+   * Cross-entity: -> CANCELLED (+ notes). Si estaba IN_PROGRESS, devuelve el
+   * activo a 'active'. Atómico vía $transaction.
    */
   async cancelMaintenance(
     id: string,
@@ -370,25 +538,32 @@ export class MaintenanceService {
       );
     }
 
-    const updated: MaintenanceRecord = {
-      ...record,
-      status: MaintenanceStatus.CANCELLED,
-      notes: reason
-        ? `${record.notes || ''}\nCancelled: ${reason}`
-        : record.notes,
-      updated_at: new Date(),
-    };
+    const was_in_progress = record.status === MaintenanceStatus.IN_PROGRESS;
+    const notes = reason
+      ? `${record.notes || ''}\nCancelled: ${reason}`
+      : record.notes;
 
-    this.maintenanceRecords.set(id, updated);
+    const row = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.maintenanceRecord.update({
+        where: { id },
+        data: {
+          status: MaintenanceStatus.CANCELLED,
+          notes: notes ?? null,
+        },
+      });
 
-    // Update asset status if it was in maintenance
-    if (record.status === MaintenanceStatus.IN_PROGRESS) {
-      const asset = await this.findAssetById(record.asset_id);
-      asset.status = AssetStatus.ACTIVE;
-      this.assets.set(asset.id, asset);
-    }
+      // Update asset status if it was in maintenance
+      if (was_in_progress) {
+        await tx.asset.update({
+          where: { id: record.asset_id },
+          data: { status: AssetStatus.ACTIVE },
+        });
+      }
 
-    return updated;
+      return updated;
+    });
+
+    return this.toApiRecord(row);
   }
 
   /**

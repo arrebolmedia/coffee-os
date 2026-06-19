@@ -1867,3 +1867,91 @@ model NotificationLog {
   @@index([notificationId])
   @@map("notification_logs")
 }
+
+// ============================================================
+// MAINTENANCE (activos + registros + depreciación)
+// ============================================================
+
+model Asset {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  locationId     String? @map("location_id")
+
+  name         String
+  type         String
+  brand        String?
+  model        String?
+  serialNumber String? @map("serial_number")
+
+  purchaseDate    DateTime? @map("purchase_date")
+  purchasePrice   Float?    @map("purchase_price")
+  supplierId      String?   @map("supplier_id")
+  warrantyMonths  Int?      @map("warranty_months")
+  warrantyExpiresAt DateTime? @map("warranty_expires_at")
+
+  usefulLifeYears    Int?    @map("useful_life_years")
+  depreciationMethod String? @map("depreciation_method")
+  residualValue      Float?  @map("residual_value")
+  currentValue       Float?  @map("current_value")
+
+  status              String
+  installationDate    DateTime? @map("installation_date")
+  lastMaintenanceDate DateTime? @map("last_maintenance_date")
+  nextMaintenanceDate DateTime? @map("next_maintenance_date")
+
+  notes    String?
+  imageUrl String? @map("image_url")
+  qrCode   String? @map("qr_code")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  maintenanceRecords MaintenanceRecord[]
+
+  @@index([organizationId])
+  @@map("assets")
+}
+
+model MaintenanceRecord {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+  assetId        String @map("asset_id")
+
+  type     String
+  status   String
+  priority String
+
+  scheduledDate DateTime  @map("scheduled_date")
+  startedAt     DateTime? @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+
+  description   String
+  workPerformed String?  @map("work_performed")
+  partsReplaced String[] @map("parts_replaced")
+
+  assignedTo  String? @map("assigned_to")
+  performedBy String? @map("performed_by")
+
+  laborCost Float? @map("labor_cost")
+  partsCost Float? @map("parts_cost")
+  totalCost Float? @map("total_cost")
+
+  isExternal       Boolean @default(false) @map("is_external")
+  externalProvider String? @map("external_provider")
+  externalInvoice  String? @map("external_invoice")
+
+  nextMaintenanceDate   DateTime? @map("next_maintenance_date")
+  recurringIntervalDays Int?      @map("recurring_interval_days")
+
+  notes       String?
+  attachments String[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  asset Asset @relation(fields: [assetId], references: [id])
+
+  @@index([organizationId])
+  @@index([assetId])
+  @@map("maintenance_records")
+}

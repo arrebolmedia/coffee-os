@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { MaintenanceService } from '../maintenance.service';
+import { PrismaService } from '../../database/prisma.service';
 import {
   AssetStatus,
   AssetType,
@@ -14,19 +15,154 @@ import {
   CreateMaintenanceRecordDto,
 } from '../dto';
 
+/**
+ * In-memory mock of a Prisma model delegate. Stores camelCase rows (as the real
+ * Prisma client returns them) so the service's toApi* mappers run unchanged.
+ * Only the subset of operations the service uses is implemented.
+ *
+ * `arrayDefaults` lists String[] columns that Prisma materializes with a
+ * `default([])` — the mock applies the same default on create so the mappers
+ * can safely read `.length`.
+ */
+function createDelegateMock(prefix: string, arrayDefaults: string[] = []) {
+  const store = new Map<string, Record<string, any>>();
+  let seq = 0;
+
+  const matchesWhere = (
+    row: Record<string, any>,
+    where: Record<string, any> = {},
+  ): boolean => {
+    return Object.entries(where).every(([key, cond]) => {
+      if (
+        cond &&
+        typeof cond === 'object' &&
+        !(cond instanceof Date) &&
+        ('gte' in cond || 'lte' in cond)
+      ) {
+        const value = row[key] as Date;
+        if (cond.gte !== undefined && value < cond.gte) return false;
+        if (cond.lte !== undefined && value > cond.lte) return false;
+        return true;
+      }
+      return row[key] === cond;
+    });
+  };
+
+  return {
+    __store: store,
+    create: jest.fn(async ({ data }: { data: Record<string, any> }) => {
+      // cuid-like id (not the old `asset-...` / `maint-...`).
+      const id = `c${prefix}${(seq++).toString(36).padStart(8, '0')}${Math.random()
+        .toString(36)
+        .slice(2, 10)}`;
+      const now = new Date();
+      const row: Record<string, any> = {
+        id,
+        createdAt: now,
+        updatedAt: now,
+        ...data,
+      };
+      // Apply Prisma String[] defaults if the column was not provided.
+      for (const col of arrayDefaults) {
+        if (row[col] === undefined || row[col] === null) {
+          row[col] = [];
+        }
+      }
+      store.set(id, row);
+      return { ...row };
+    }),
+    findMany: jest.fn(
+      async ({
+        where = {},
+        orderBy,
+      }: {
+        where?: Record<string, any>;
+        orderBy?: Record<string, 'asc' | 'desc'>;
+      } = {}) => {
+        let rows = Array.from(store.values()).filter((r) =>
+          matchesWhere(r, where),
+        );
+        if (orderBy) {
+          const [field, dir] = Object.entries(orderBy)[0];
+          rows = rows.sort((a, b) => {
+            const av = a[field];
+            const bv = b[field];
+            let cmp: number;
+            if (av instanceof Date && bv instanceof Date) {
+              cmp = av.getTime() - bv.getTime();
+            } else {
+              cmp = String(av).localeCompare(String(bv));
+            }
+            return dir === 'desc' ? -cmp : cmp;
+          });
+        }
+        return rows.map((r) => ({ ...r }));
+      },
+    ),
+    findUnique: jest.fn(async ({ where }: { where: { id: string } }) => {
+      const row = store.get(where.id);
+      return row ? { ...row } : null;
+    }),
+    update: jest.fn(
+      async ({
+        where,
+        data,
+      }: {
+        where: { id: string };
+        data: Record<string, any>;
+      }) => {
+        const row = store.get(where.id);
+        if (!row) {
+          throw new Error(`Record ${where.id} not found`);
+        }
+        const updated = { ...row, ...data, updatedAt: new Date() };
+        store.set(where.id, updated);
+        return { ...updated };
+      },
+    ),
+    delete: jest.fn(async ({ where }: { where: { id: string } }) => {
+      const row = store.get(where.id);
+      store.delete(where.id);
+      return row ? { ...row } : null;
+    }),
+  };
+}
+
 describe('MaintenanceService', () => {
   let service: MaintenanceService;
+  let prisma: {
+    asset: ReturnType<typeof createDelegateMock>;
+    maintenanceRecord: ReturnType<typeof createDelegateMock>;
+    $transaction: jest.Mock;
+  };
 
   beforeEach(async () => {
+    const base = {
+      asset: createDelegateMock('as'),
+      maintenanceRecord: createDelegateMock('mr', [
+        'partsReplaced',
+        'attachments',
+      ]),
+    };
+    prisma = {
+      ...base,
+      // Interactive transaction: run the callback against the same mock so
+      // tx.asset / tx.maintenanceRecord hit the in-memory stores. Array form
+      // resolves the operations (not used by this service but kept for parity).
+      $transaction: jest.fn(async (cbOrArr: any) => {
+        if (typeof cbOrArr === 'function') return cbOrArr(prisma);
+        return Promise.all(cbOrArr);
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [MaintenanceService],
+      providers: [
+        MaintenanceService,
+        { provide: PrismaService, useValue: prisma },
+      ],
     }).compile();
 
     service = module.get<MaintenanceService>(MaintenanceService);
-
-    // Clear maps before each test
-    (service as any).assets.clear();
-    (service as any).maintenanceRecords.clear();
   });
 
   it('should be defined', () => {
@@ -38,7 +174,7 @@ describe('MaintenanceService', () => {
    */
 
   describe('createAsset', () => {
-    it('should create an asset with all fields', async () => {
+    it('should create an asset with warranty + depreciation computed', async () => {
       const dto: CreateAssetDto = {
         organization_id: 'org-1',
         location_id: 'loc-1',
@@ -59,12 +195,20 @@ describe('MaintenanceService', () => {
       const result = await service.createAsset(dto);
 
       expect(result).toBeDefined();
-      expect(result.id).toMatch(/^asset-/);
+      expect(result.id).toBeDefined();
       expect(result.name).toBe('Espresso Machine La Marzocco');
       expect(result.status).toBe(AssetStatus.ACTIVE);
       expect(result.warranty_expires_at).toBeInstanceOf(Date);
       expect(result.current_value).toBeLessThan(15000);
       expect(result.created_at).toBeInstanceOf(Date);
+      // warranty + depreciation persisted via prisma.asset.create
+      expect(prisma.asset.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          warrantyExpiresAt: expect.any(Date),
+          currentValue: expect.any(Number),
+          status: AssetStatus.ACTIVE,
+        }),
+      });
     });
 
     it('should create asset without optional fields', async () => {
@@ -82,13 +226,11 @@ describe('MaintenanceService', () => {
     });
 
     it('should set default status to ACTIVE', async () => {
-      const dto: CreateAssetDto = {
+      const result = await service.createAsset({
         organization_id: 'org-1',
         name: 'Blender',
         type: AssetType.BLENDER,
-      };
-
-      const result = await service.createAsset(dto);
+      });
       expect(result.status).toBe(AssetStatus.ACTIVE);
     });
   });
@@ -114,6 +256,12 @@ describe('MaintenanceService', () => {
     it('should return all assets', async () => {
       const assets = await service.findAllAssets();
       expect(assets).toHaveLength(2);
+    });
+
+    it('should sort by name asc', async () => {
+      const assets = await service.findAllAssets();
+      expect(assets[0].name).toBe('Asset 1');
+      expect(assets[1].name).toBe('Asset 2');
     });
 
     it('should filter by organization_id', async () => {
@@ -186,8 +334,7 @@ describe('MaintenanceService', () => {
     });
 
     it('should recalculate warranty expiration when dates change', async () => {
-      // Use local date to avoid timezone issues
-      const purchaseDate = new Date(2023, 0, 1); // Jan 1, 2023 in local time
+      const purchaseDate = new Date(2023, 0, 1); // Jan 1, 2023 local time
       const created = await service.createAsset({
         organization_id: 'org-1',
         name: 'Test',
@@ -201,11 +348,8 @@ describe('MaintenanceService', () => {
       });
 
       expect(updated.warranty_expires_at).toBeDefined();
-      // 2023-01-01 + 24 months = 2025-01-01
-      const year = updated.warranty_expires_at!.getFullYear();
-      const month = updated.warranty_expires_at!.getMonth(); // 0-indexed
-      expect(year).toBe(2025);
-      expect(month).toBe(0); // January
+      expect(updated.warranty_expires_at!.getFullYear()).toBe(2025);
+      expect(updated.warranty_expires_at!.getMonth()).toBe(0); // January
     });
 
     it('should recalculate current value when depreciation params change', async () => {
@@ -236,6 +380,9 @@ describe('MaintenanceService', () => {
 
       await service.deleteAsset(created.id);
 
+      expect(prisma.asset.delete).toHaveBeenCalledWith({
+        where: { id: created.id },
+      });
       await expect(service.findAssetById(created.id)).rejects.toThrow(
         NotFoundException,
       );
@@ -261,6 +408,7 @@ describe('MaintenanceService', () => {
       await expect(service.deleteAsset(asset.id)).rejects.toThrow(
         BadRequestException,
       );
+      expect(prisma.asset.delete).not.toHaveBeenCalled();
     });
   });
 
@@ -296,12 +444,15 @@ describe('MaintenanceService', () => {
       const result = await service.createMaintenanceRecord(dto);
 
       expect(result).toBeDefined();
-      expect(result.id).toMatch(/^maint-/);
+      expect(result.id).toBeDefined();
       expect(result.status).toBe(MaintenanceStatus.SCHEDULED);
       expect(result.type).toBe(MaintenanceType.PREVENTIVE);
+      // optional empty arrays mapped to undefined
+      expect(result.parts_replaced).toBeUndefined();
+      expect(result.attachments).toBeUndefined();
     });
 
-    it('should update asset next_maintenance_date', async () => {
+    it('should update asset next_maintenance_date atomically via $transaction', async () => {
       const scheduled_date = new Date('2024-03-01');
       await service.createMaintenanceRecord({
         organization_id: 'org-1',
@@ -313,6 +464,7 @@ describe('MaintenanceService', () => {
         is_external: false,
       });
 
+      expect(prisma.$transaction).toHaveBeenCalled();
       const asset = await service.findAssetById(assetId);
       expect(asset.next_maintenance_date).toEqual(scheduled_date);
     });
@@ -355,7 +507,7 @@ describe('MaintenanceService', () => {
         asset_id: asset1Id,
         type: MaintenanceType.PREVENTIVE,
         priority: MaintenancePriority.MEDIUM,
-        scheduled_date: new Date(),
+        scheduled_date: new Date('2024-01-01'),
         description: 'Maintenance 1',
         is_external: false,
       });
@@ -364,7 +516,7 @@ describe('MaintenanceService', () => {
         asset_id: asset2Id,
         type: MaintenanceType.CORRECTIVE,
         priority: MaintenancePriority.HIGH,
-        scheduled_date: new Date(),
+        scheduled_date: new Date('2024-02-01'),
         description: 'Maintenance 2',
         is_external: true,
         status: MaintenanceStatus.COMPLETED,
@@ -374,6 +526,12 @@ describe('MaintenanceService', () => {
     it('should return all maintenance records', async () => {
       const records = await service.findAllMaintenanceRecords();
       expect(records).toHaveLength(2);
+    });
+
+    it('should sort by scheduled_date desc', async () => {
+      const records = await service.findAllMaintenanceRecords();
+      expect(records[0].description).toBe('Maintenance 2'); // 2024-02
+      expect(records[1].description).toBe('Maintenance 1'); // 2024-01
     });
 
     it('should filter by organization_id', async () => {
@@ -426,15 +584,12 @@ describe('MaintenanceService', () => {
       recordId = record.id;
     });
 
-    it('should start maintenance', async () => {
+    it('should start maintenance and flip asset status atomically', async () => {
       const result = await service.startMaintenance(recordId);
 
       expect(result.status).toBe(MaintenanceStatus.IN_PROGRESS);
       expect(result.started_at).toBeInstanceOf(Date);
-    });
-
-    it('should update asset status to MAINTENANCE', async () => {
-      await service.startMaintenance(recordId);
+      expect(prisma.$transaction).toHaveBeenCalled();
 
       const asset = await service.findAssetById(assetId);
       expect(asset.status).toBe(AssetStatus.MAINTENANCE);
@@ -476,7 +631,7 @@ describe('MaintenanceService', () => {
       await service.startMaintenance(recordId);
     });
 
-    it('should complete maintenance', async () => {
+    it('should complete maintenance and compute total_cost', async () => {
       const dto: CompleteMaintenanceDto = {
         completed_at: new Date(),
         work_performed: 'Cleaned and calibrated',
@@ -491,14 +646,16 @@ describe('MaintenanceService', () => {
       expect(result.status).toBe(MaintenanceStatus.COMPLETED);
       expect(result.completed_at).toEqual(dto.completed_at);
       expect(result.total_cost).toBe(150);
+      expect(result.parts_replaced).toEqual(['O-ring', 'Gasket']);
     });
 
-    it('should update asset status to ACTIVE', async () => {
+    it('should flip asset status to ACTIVE and set last_maintenance_date', async () => {
       await service.completeMaintenance(recordId, {
         completed_at: new Date(),
         work_performed: 'Test',
       });
 
+      expect(prisma.$transaction).toHaveBeenCalled();
       const asset = await service.findAssetById(assetId);
       expect(asset.status).toBe(AssetStatus.ACTIVE);
       expect(asset.last_maintenance_date).toBeInstanceOf(Date);
@@ -513,12 +670,23 @@ describe('MaintenanceService', () => {
 
       const asset = await service.findAssetById(assetId);
       expect(asset.next_maintenance_date).toBeInstanceOf(Date);
-      // 2024-01-15 + 30 days = 2024-02-14
       const expectedDate = new Date('2024-01-15');
       expectedDate.setDate(expectedDate.getDate() + 30);
       expect(asset.next_maintenance_date!.getDate()).toBe(
         expectedDate.getDate(),
       );
+    });
+
+    it('should prefer explicit next_maintenance_date over recurring derivation', async () => {
+      const explicit = new Date('2025-06-01');
+      await service.completeMaintenance(recordId, {
+        completed_at: new Date('2024-01-15'),
+        work_performed: 'Test',
+        next_maintenance_date: explicit,
+      });
+
+      const asset = await service.findAssetById(assetId);
+      expect(asset.next_maintenance_date).toEqual(explicit);
     });
 
     it('should throw BadRequestException if not in progress', async () => {
@@ -538,6 +706,7 @@ describe('MaintenanceService', () => {
 
   describe('cancelMaintenance', () => {
     let recordId: string;
+    let assetId: string;
 
     beforeEach(async () => {
       const asset = await service.createAsset({
@@ -545,10 +714,11 @@ describe('MaintenanceService', () => {
         name: 'Test Asset',
         type: AssetType.ESPRESSO_MACHINE,
       });
+      assetId = asset.id;
 
       const record = await service.createMaintenanceRecord({
         organization_id: 'org-1',
-        asset_id: asset.id,
+        asset_id: assetId,
         type: MaintenanceType.PREVENTIVE,
         priority: MaintenancePriority.MEDIUM,
         scheduled_date: new Date(),
@@ -566,6 +736,24 @@ describe('MaintenanceService', () => {
 
       expect(result.status).toBe(MaintenanceStatus.CANCELLED);
       expect(result.notes).toContain('Equipment not available');
+    });
+
+    it('should flip asset back to ACTIVE if it was IN_PROGRESS', async () => {
+      await service.startMaintenance(recordId);
+      let asset = await service.findAssetById(assetId);
+      expect(asset.status).toBe(AssetStatus.MAINTENANCE);
+
+      await service.cancelMaintenance(recordId, 'Aborted');
+
+      asset = await service.findAssetById(assetId);
+      expect(asset.status).toBe(AssetStatus.ACTIVE);
+    });
+
+    it('should NOT change asset status when cancelling a SCHEDULED record', async () => {
+      await service.cancelMaintenance(recordId, 'Not needed');
+
+      const asset = await service.findAssetById(assetId);
+      expect(asset.status).toBe(AssetStatus.ACTIVE);
     });
 
     it('should throw BadRequestException if already completed', async () => {
@@ -722,6 +910,7 @@ describe('MaintenanceService', () => {
       expect(stats.total_assets).toBe(2);
       expect(stats.assets_by_type[AssetType.ESPRESSO_MACHINE]).toBe(1);
       expect(stats.assets_by_type[AssetType.GRINDER]).toBe(1);
+      // both assets end ACTIVE (asset2 flipped back on completion)
       expect(stats.assets_by_status[AssetStatus.ACTIVE]).toBe(2);
       expect(stats.total_maintenance_records).toBe(2);
       expect(stats.maintenance_by_type[MaintenanceType.PREVENTIVE]).toBe(1);
