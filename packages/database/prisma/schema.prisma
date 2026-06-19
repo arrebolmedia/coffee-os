@@ -164,7 +164,7 @@ model Product {
   organizationId String @map("organization_id")
   categoryId     String @map("category_id")
 
-  sku         String  @unique
+  sku         String
   name        String
   description String?
   image       String?
@@ -214,6 +214,8 @@ model Product {
   productModifiers      ProductModifier[]
   inventory             Inventory[]
 
+  // SKU is unique per organization (not globally) — two orgs may reuse a SKU.
+  @@unique([sku, organizationId])
   @@map("products")
 }
 
