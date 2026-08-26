@@ -35,9 +35,18 @@ export class CreateRoleDto {
   @IsOptional()
   description?: string;
 
+  /**
+   * Aceptados por compatibilidad pero **ignorados**: son banderas del servidor.
+   *
+   * Se escribian tal cual venian del cliente, asi que cualquiera podia crear un
+   * rol con `is_system: true` — y despues ni updateRole ni deleteRole lo dejan
+   * tocar ("Cannot update/delete a system role"). Era una forma de dejarse un
+   * registro inmutable en la propia organizacion sin querer. Los roles de
+   * sistema se siembran, no se crean por API.
+   */
   @IsBoolean()
   @IsOptional()
-  is_system?: boolean = false;
+  is_system?: boolean;
 
   @IsEnum(SystemRole)
   @IsOptional()

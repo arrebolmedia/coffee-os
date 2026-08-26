@@ -288,8 +288,9 @@ export class RolesService {
           name: createDto.name,
           code: createDto.code,
           description: createDto.description ?? null,
-          isSystem: createDto.is_system ?? false,
-          systemRole: createDto.system_role ?? null,
+          // Banderas del servidor: nunca se toman del cliente. Ver CreateRoleDto.
+          isSystem: false,
+          systemRole: null,
           color: createDto.color ?? null,
           icon: createDto.icon ?? null,
           scopes: [],
@@ -426,9 +427,6 @@ export class RolesService {
     if (updateDto.code !== undefined) data.code = updateDto.code;
     if (updateDto.description !== undefined) {
       data.description = updateDto.description;
-    }
-    if (updateDto.system_role !== undefined) {
-      data.systemRole = updateDto.system_role;
     }
     if (updateDto.color !== undefined) data.color = updateDto.color;
     if (updateDto.icon !== undefined) data.icon = updateDto.icon;

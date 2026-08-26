@@ -246,6 +246,26 @@ describe('RolesService', () => {
       expect(result.is_system).toBe(false);
     });
 
+    it('should ignore is_system and system_role sent by the client', async () => {
+      // Se escribian tal cual: un cliente podia crear un rol is_system:true que
+      // despues ni updateRole ni deleteRole dejaban tocar.
+      prismaMock.role.findFirst.mockResolvedValue(null);
+      prismaMock.role.create.mockResolvedValue(roleRow());
+
+      await service.createRole(orgId, {
+        name: 'Fake system role',
+        code: 'FAKE_SYSTEM',
+        is_system: true,
+        system_role: SystemRole.OWNER,
+      });
+
+      expect(prismaMock.role.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ isSystem: false, systemRole: null }),
+        }),
+      );
+    });
+
     it('should throw ConflictException if the code exists in the organization', async () => {
       prismaMock.role.findFirst.mockResolvedValue({ id: 'role-existing' });
 
@@ -409,6 +429,20 @@ describe('RolesService', () => {
       expect(result.name).toBe('Senior Barista');
       expect(result.color).toBe('#00FF00');
       expect(result.code).toBe('BARISTA');
+    });
+
+    it('should ignore system_role sent by the client', async () => {
+      prismaMock.role.findFirst.mockResolvedValue(roleRow());
+      prismaMock.role.update.mockResolvedValue(roleRow({ name: 'Renamed' }));
+
+      await service.updateRole(orgId, 'role-1', {
+        name: 'Renamed',
+        system_role: SystemRole.OWNER,
+      });
+
+      const data = prismaMock.role.update.mock.calls[0][0].data;
+      expect(data).not.toHaveProperty('systemRole');
+      expect(data.name).toBe('Renamed');
     });
 
     it('should refuse to update a global system role', async () => {

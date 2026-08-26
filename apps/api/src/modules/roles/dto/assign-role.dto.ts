@@ -1,4 +1,4 @@
-import { IsArray, IsDateString, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsDate, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class AssignRoleDto {
@@ -21,12 +21,19 @@ export class AssignRoleDto {
   @IsOptional()
   location_ids?: string[];
 
-  @IsDateString()
+  /**
+   * `@Type(() => Date)` convierte el ISO entrante en Date ANTES de validar, asi
+   * que el `@IsDateString()` que habia aqui lo rechazaba por no ser un string:
+   * las asignaciones temporales devolvian 400 con cualquier fecha valida y eran
+   * inalcanzables por HTTP. El servicio necesita un Date -va directo a Prisma-,
+   * de modo que la pareja correcta es @IsDate + @Type.
+   */
+  @IsDate()
   @IsOptional()
   @Type(() => Date)
   valid_from?: Date;
 
-  @IsDateString()
+  @IsDate()
   @IsOptional()
   @Type(() => Date)
   valid_until?: Date;
