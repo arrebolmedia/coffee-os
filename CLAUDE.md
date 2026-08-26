@@ -5,21 +5,45 @@ Plataforma multi-tenant de gestión para cafeterías mexicanas. Monorepo Turbo c
 ## Arquitectura
 
 ```
-apps/admin-web  (Next.js :3000)  — Dashboard administrativo
-apps/pos-web    (Next.js :3001)  — Punto de venta
+apps/pos-web    (Next.js :3001)  — Punto de venta (46 rutas; absorbió el admin)
 apps/api        (NestJS  :4000)  — API REST + Swagger en /docs
-apps/mobile     (React Native)   — App móvil (en desarrollo)
-packages/database               — Prisma schema (40 modelos, PostgreSQL)
-packages/shared                 — Tipos y utilidades compartidas
+packages/database               — Prisma schema (PostgreSQL)
+```
+
+`apps/admin-web` se eliminó en agosto de 2026: pos-web era superset de sus 27 rutas.
+El historial de git conserva el original.
+
+## Levantar el entorno
+
+El sistema **no arranca sin Docker**: `DATABASE_URL` apunta a `localhost:5434`, que es
+el mapeo `5434:5432` del `docker-compose.yml`. El Postgres nativo en 5432 es otra
+instancia y no tiene `coffeeos_dev`. Sin esto, la API levanta igual porque Prisma
+conecta en _lazy_, pero cada request que toca BD devuelve 500.
+
+```bash
+docker-compose up -d postgres redis
+```
+
+Solo esos dos: el compose trae además baserow, n8n, metabase, mailhog, minio,
+prometheus y grafana que no hacen falta para desarrollar.
+
+Credenciales de desarrollo: `owner@coffeedemo.mx` / `password123`.
+
+## Dev servers
+
+Cuando se pide "abre en local" o "levanta el servidor", levantar **ambos** en paralelo,
+en un solo mensaje con `run_in_background: true`.
+
+```bash
+cd apps/api && npm run dev       # :4000
+cd apps/pos-web && npm run dev   # :3001
 ```
 
 ## Comandos esenciales
 
 ```bash
-# Desde la raíz del monorepo
-npm run dev              # Levanta todo
-cd apps/api && npm run dev    # Solo API
-cd apps/admin-web && npm run dev  # Solo admin
+npm run dev                                    # Levanta todo
+npm run build                                  # turbo run build
 
 # Tests
 cd apps/api && npx jest --no-coverage          # Todos los tests del API
@@ -27,87 +51,91 @@ cd apps/api && npx jest <nombre> --no-coverage # Test específico
 
 # TypeScript check (sin compilar)
 cd apps/api && npx tsc --noEmit
-cd apps/admin-web && npx tsc --noEmit
 cd apps/pos-web && npx tsc --noEmit
 
 # Prisma (desde packages/database o apps/api)
 npx prisma generate
 npx prisma migrate dev --name <nombre>
 npx prisma studio
+
+npm run db:seed          # seed.ts — idempotente, acotado por organización
+npm run db:seed:simple   # DESTRUCTIVO: deleteMany sin filtro. No usar por defecto.
 ```
 
 ## Reglas críticas
 
+### Multi-tenancy
+
+- **La organización sale del JWT, nunca del cliente.** Usar `@CurrentOrg()`; no aceptar
+  `organization_id` por query, body ni path.
+- `TenantGuard` está registrado como `APP_GUARD` después de `JwtAuthGuard` (el orden
+  importa: necesita `request.user`) y valida body, query y path params.
+- Los lookups por id van con `findFirst({ where: { id, organizationId } })`, no
+  `findUnique({ where: { id } })`, y los borrados con `deleteMany`. Así un registro
+  ajeno da 404 en vez de filtrar que existe.
+- Quedan ~89 lookups sin filtro de organización. La solución de fondo es una extensión
+  de Prisma Client con `AsyncLocalStorage`, no arreglarlos uno por uno.
+
 ### Backend (NestJS)
+
 - `DatabaseModule` es `@Global()` — PrismaService disponible en todos los módulos sin importarlo explícitamente.
 - `JwtAuthGuard` es `APP_GUARD` global — todos los endpoints requieren auth por defecto. Usar `@Public()` para rutas públicas.
-- Los DTOs usan **snake_case** para recibir datos del cliente (`organization_id`, `category_id`, `base_price`).
+- Los DTOs usan **snake_case** para recibir datos del cliente (`category_id`, `base_price`).
 - Prisma devuelve **camelCase** en las respuestas (`organizationId`, `categoryId`, `stockQuantity`).
 - `ValidationPipe` tiene `whitelist: true` y `forbidNonWhitelisted: true` — el cliente solo puede enviar campos que existen en el DTO.
+- **Declarar `@Get(':id')` después de las rutas literales.** Al revés, `:id` captura el
+  segmento y deja inalcanzable la ruta literal.
+- Los ids son cuid, no uuid: en los DTOs va `@IsString()`, no `@IsUUID()`.
 
 ### Frontend (Next.js)
-- Los tipos en `apps/admin-web/src/types/index.ts` usan **camelCase** (coinciden con las respuestas de Prisma).
-- Los formularios que envían datos al backend usan los nombres de los DTOs (snake_case o camelCase según el DTO).
-- `apiClient` en `apps/admin-web/src/lib/api-client.ts` apunta a `:4000` (API).
-- Headers de contexto: `X-Organization-Id` y `X-Location-Id` (con minúscula d al final).
+
+- **No usar `console.*`** — usar `src/lib/logger.ts`. La regla `no-console` es `error`
+  bajo `NODE_ENV=production`, que es como corre `next build`.
+- Los formularios que envían datos al backend usan los nombres de los DTOs.
+- Headers de contexto: `X-Organization-Id` y `X-Location-Id`.
+- pos-web tiene su propio `.eslintrc.json` con el parser de typescript-eslint fijado
+  explícitamente. No quitarlo antes del upgrade a Next 15: `eslint-config-next@14`
+  arrastra una copia anidada del parser v6 que hace crashear al plugin v8, y
+  `next build` degrada ese crash a warning y pasa igual, sin evaluar ninguna regla.
 
 ### Tests (NestJS/Jest)
+
 - **Siempre** proveer `PrismaService` como mock en los TestingModule. Sin esto, NestJS no puede resolver dependencias y todos los tests fallan.
-- Patrón correcto:
   ```typescript
   const mockPrismaService = {
     modelName: { create: jest.fn(), findMany: jest.fn(), ... }
   };
   providers: [MyService, { provide: PrismaService, useValue: mockPrismaService }]
   ```
-- Usar `mockResolvedValueOnce` para cada llamada esperada. Usar `jest.clearAllMocks()` en `beforeEach`.
+- Usar `mockResolvedValueOnce` para cada llamada esperada y `jest.clearAllMocks()` en `beforeEach`.
+- Los tests unitarios son mock-based: **pasan con la BD caída** y no detectan
+  desalineación real con el schema. Para eso están los e2e de `apps/api/test/integration`,
+  que corren contra Postgres real y siembran dos organizaciones.
 
-## Estado actual del sistema (abril 2026)
+## Estado del sistema (agosto 2026)
 
-### Módulos completamente funcionales (Prisma real)
-- auth, products, categories, modifiers, pos, orders, cash-registers, shifts
-- discounts, taxes, inventory, inventory-items, inventory-movements
-- recipes, suppliers, purchase-orders, quality, integrations (twilio, mailrelay, cfdi)
-- upload, health, database, redis
-- **organizations** — CRUD completo (GET/POST/PATCH/DELETE /organizations, GET /organizations/slug/:slug)
-- **crm/customers** — migrado a Prisma (migración `20260407230330_add_customer_full_fields`)
-- **crm/loyalty** — migrado a Prisma (migración `20260407232649_add_loyalty_campaigns`): `LoyaltyTransaction`, `LoyaltyReward`
-- **crm/campaigns** — migrado a Prisma: `Campaign`, `CampaignRecipient`
-- **crm/rfm** — migrado a Prisma: calcula R/F/M sobre `LoyaltyTransaction`, distribución sobre `Customer.rfmSegment`
+El sistema vende de punta a punta: login → orden en POS → cobro → persistencia en
+Postgres, verificado en navegador. Tests: 55/55 suites unitarias del API y 4/4 e2e.
 
-### Módulos con datos en memoria (Maps) — pendientes de migrar a Prisma
-- finance (expenses, permits, p&l) — sin schema Prisma
-- hr (employees, certifications, evaluations) — sin schema Prisma
+Plan de reparación vigente, con lo hecho y lo pendiente:
+[docs/PLAN-REPARACION-2026-08-12.md](docs/PLAN-REPARACION-2026-08-12.md).
 
-### Analytics (implementado con Prisma real en abril 2026)
-- `sales-analytics.service.ts` — queries sobre Ticket/TicketLine
-- `product-analytics.service.ts` — groupBy TicketLine por producto
-- `dashboard.service.ts` — orquesta los anteriores
+Pendientes de mayor riesgo:
 
-### Tests (estado: abril 2026)
-- **52 test suites pasan, 0 fallan** (1054 passed, 34 skipped)
-- Los 34 skipped son bloques `describe.skip` pre-existentes en `categories.service.spec.ts`
-- Todo el módulo CRM usa mocks Prisma: `customers`, `organizations`, `loyalty`, `campaigns`, `rfm`
-
-### Frontend admin-web
-- 0 errores de TypeScript (`npx tsc --noEmit` limpio)
-- Tipos `Product` y `Category` unificados a camelCase (coinciden con respuestas Prisma)
-
-### Frontend pos-web
-- `inventory/page.tsx` corregido (campos `min_stock`, `max_stock`, `product?.name`, etc.)
-- **`employees/page.tsx`, `InventoryManager.tsx`, tests de suppliers/quality corregidos abril 2026** — 0 errores TS de código fuente
-- Único error remanente: `.next/types/app/api/auth/[...nextauth]/route.ts` (artefacto generado por Next; requiere mover `authOptions` fuera de la route)
-
-## Próximos pasos prioritarios
-
-1. **Migrar Finance a Prisma** — expenses, permits, p&l — sin schema aún.
-2. **Migrar HR a Prisma** — employees, certifications, evaluations — sin schema aún.
-3. **Eliminar bloques `describe.skip`** en `categories.service.spec.ts` (34 tests skipped).
-4. **Mover `authOptions`** fuera de `app/api/auth/[...nextauth]/route.ts` para eliminar el último error TS generado por Next.
+1. **Inventario no descuenta automáticamente.** Con `enabled:true`, llevar una orden a
+   `COMPLETED` no descuenta: `deductForOrder` no lo llama nadie fuera de su módulo y
+   `useDeductStockForOrder` está huérfano en el frontend.
+2. **`GET /modifiers` es visible desde cualquier tenant** — `Modifier` no tiene `organizationId`.
+3. **Next.js 14.0.4 está vetado** por tres CVEs, entre ellas un bypass de auth en
+   middleware. Upgrade autorizado a `>=15.2.3 <16.0.0`.
+4. **67 vulnerabilidades de npm**, 3 críticas.
+5. **CFDI está bloqueado a propósito**: el timbrado era un mock que fingía `stamped`
+   con `Math.random()`. No desbloquearlo sin integrar un PAC real.
 
 ## Convenciones de código
 
-- Los servicios de analytics deben inyectar PrismaService en el constructor (no `@Inject()`).
 - Campos de inventario en Prisma: `stockQuantity`, `minimumStock`, `reorderPoint` (no `current_stock`, `min_stock`).
-- Los enums de Prisma (`ProductStatus`, `ProductType`) son lowercase: `'active'`, `'inactive'`, `'simple'` — los enums del frontend son uppercase: `'ACTIVE'`, `'INACTIVE'`, `'SIMPLE'`.
+- Los enums de Prisma (`ProductStatus`, `ProductType`) son lowercase: `'active'`, `'simple'` — los del frontend son uppercase: `'ACTIVE'`, `'SIMPLE'`.
 - El Ticket es la transacción de venta. Order es la orden de cocina (KDS).
+- Dinero redondeado a 2 decimales al escribir, no `decrement` crudo: acumula ruido de
+  coma flotante (`6.964000000000001`).
