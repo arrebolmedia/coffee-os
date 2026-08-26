@@ -21,12 +21,17 @@ async function main() {
   await prisma.role.deleteMany({});
   console.log('✅ All data cleaned');
 
-  // 2. Crear roles básicos
+  // 2. Crear roles básicos.
+  //    Son el catálogo GLOBAL del sistema (organizationId = null): los usuarios
+  //    de todas las organizaciones apuntan a estas mismas filas vía User.roleId.
   console.log('👥 Creating roles...');
   const roles = await Promise.all([
     prisma.role.create({
       data: {
         name: 'owner',
+        code: 'OWNER',
+        systemRole: 'owner',
+        isSystem: true,
         description: 'Dueño - Acceso total al sistema',
         scopes: ['all'],
         active: true,
@@ -35,6 +40,9 @@ async function main() {
     prisma.role.create({
       data: {
         name: 'manager',
+        code: 'MANAGER',
+        systemRole: 'manager',
+        isSystem: true,
         description: 'Gerente - Gestión operativa completa',
         scopes: ['pos', 'inventory', 'reports', 'customers', 'employees'],
         active: true,
@@ -43,6 +51,9 @@ async function main() {
     prisma.role.create({
       data: {
         name: 'barista',
+        code: 'BARISTA',
+        systemRole: 'barista',
+        isSystem: true,
         description: 'Barista - Operación del POS',
         scopes: ['pos'],
         active: true,
@@ -66,7 +77,7 @@ async function main() {
 
   // 4. Crear ubicación demo
   console.log('📍 Creating demo location...');
-  const location = await prisma.location.create({
+  await prisma.location.create({
     data: {
       organizationId: org.id,
       name: 'Sucursal Centro',
@@ -89,7 +100,7 @@ async function main() {
   console.log('👤 Creating demo users...');
   const hashedPassword = await bcrypt.hash('password123', 10);
 
-  const users = await Promise.all([
+  await Promise.all([
     prisma.user.create({
       data: {
         email: 'owner@coffeedemo.mx',
@@ -137,12 +148,12 @@ async function main() {
   console.log('   ❌ 0 Inventory Items');
   console.log('   ❌ 0 Categories');
   console.log('   ❌ 0 Suppliers');
-  
+
   console.log('\n📝 Demo credentials:');
   console.log('   Owner:    owner@coffeedemo.mx / password123');
   console.log('   Manager:  manager@coffeedemo.mx / password123');
   console.log('   Barista:  barista@coffeedemo.mx / password123');
-  
+
   console.log('\n🚀 Sistema listo para empezar desde cero!');
   console.log('   1. Crear categorías');
   console.log('   2. Crear proveedores');

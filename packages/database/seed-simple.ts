@@ -1,23 +1,13 @@
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Seeding database (Simple - 3 Products)...');
 
-  // 1. Limpiar datos existentes (excepto roles y usuarios)
-  console.log('🧹 Cleaning existing data...');
-  await prisma.recipeIngredient.deleteMany({});
-  await prisma.recipe.deleteMany({});
-  await prisma.inventory.deleteMany({});
-  await prisma.product.deleteMany({});
-  await prisma.category.deleteMany({});
-  await prisma.inventoryItem.deleteMany({});
-  await prisma.supplier.deleteMany({});
-  console.log('✅ Data cleaned');
-
-  // Obtener organización y ubicación existentes
+  // La organización se resuelve ANTES de borrar: los deleteMany de abajo van
+  // acotados a ella. Sin filtro borraban el catálogo de TODAS las
+  // organizaciones de la base, incluidos otros tenants.
   const org = await prisma.organization.findFirst({
     where: { slug: 'coffee-demo' },
   });
@@ -25,6 +15,18 @@ async function main() {
   if (!org) {
     throw new Error('Organization not found. Run main seed first.');
   }
+
+  // 1. Limpiar datos existentes de ESTA organización (no toca roles ni usuarios)
+  console.log(`🧹 Cleaning existing data for org ${org.slug}...`);
+  const orgScope = { organizationId: org.id };
+  await prisma.recipeIngredient.deleteMany({ where: { recipe: orgScope } });
+  await prisma.recipe.deleteMany({ where: orgScope });
+  await prisma.inventory.deleteMany({ where: orgScope });
+  await prisma.product.deleteMany({ where: orgScope });
+  await prisma.category.deleteMany({ where: orgScope });
+  await prisma.inventoryItem.deleteMany({ where: orgScope });
+  await prisma.supplier.deleteMany({ where: orgScope });
+  console.log('✅ Data cleaned');
 
   const location = await prisma.location.findFirst({
     where: { organizationId: org.id },
@@ -38,7 +40,7 @@ async function main() {
 
   // 2. Crear proveedor
   console.log('📦 Creating supplier...');
-  const supplier = await prisma.supplier.create({
+  await prisma.supplier.create({
     data: {
       name: 'Café Premium México',
       contactName: 'Carlos Rodríguez',
