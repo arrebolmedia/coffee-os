@@ -45,8 +45,11 @@ export class InventoryController {
 
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  async findById(@Param('id') id: string) {
-    return this.inventoryService.findById(id);
+  async findById(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.inventoryService.findById(id, user.organizationId);
   }
 
   @Get('sku/:sku/:organization_id')

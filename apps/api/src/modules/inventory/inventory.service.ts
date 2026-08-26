@@ -217,8 +217,10 @@ export class InventoryService {
     return mapped;
   }
 
-  async findById(id: string): Promise<InventoryItem> {
-    const item = await this.prisma.inventoryItem.findUnique({ where: { id } });
+  async findById(id: string, organizationId?: string): Promise<InventoryItem> {
+    const item = await this.prisma.inventoryItem.findFirst({
+      where: { id, ...(organizationId ? { organizationId } : {}) },
+    });
     if (!item) {
       throw new NotFoundException(`Inventory item with ID ${id} not found`);
     }
