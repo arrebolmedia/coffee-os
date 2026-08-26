@@ -2,8 +2,18 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import * as sharp from 'sharp';
+// sharp@0.35 publica tipos duales, pero su campo "types" apunta al .d.mts (ESM)
+// y este workspace compila a CommonJS sin moduleResolution node16, asi que TS lee
+// los tipos ESM: el namespace no es invocable y el callable vive en .default.
+// En runtime require("sharp") si devuelve la funcion (su export CJS no tiene
+// .default), de modo que un default import compilaria pero seria undefined.
+// import-equals da el valor correcto y el cast le pone el tipo correcto; es la
+// excepcion que la regla no-require-imports no sabe expresar.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+import sharpModule = require('sharp');
 import { v4 as uuidv4 } from 'uuid';
+
+const sharp = sharpModule as unknown as typeof sharpModule.default;
 
 export interface UploadedFileInfo {
   filename: string;
