@@ -1585,6 +1585,40 @@ async function main() {
   }
   console.log(`✅ Existencias por producto (${stockRows})`);
 
+  // --------------------------------------------------------
+  // 14. Descuento automático de inventario
+  // --------------------------------------------------------
+  // El default del código es `enabled: false` — opt-in deliberado para un
+  // tenant real. Pero la demo con el flag apagado enseña justo la ilusión que
+  // este módulo tuvo durante meses: un inventario que nunca se mueve por más
+  // que se venda. Las 14 recetas sembradas tienen unidades que sí convierten,
+  // así que aquí se enciende para que una venta descuente de verdad.
+  await prisma.setting.upsert({
+    where: {
+      organizationId_category_key: {
+        organizationId,
+        category: 'inventory',
+        key: 'auto_deduct',
+      },
+    },
+    create: {
+      organizationId,
+      category: 'inventory',
+      key: 'auto_deduct',
+      type: 'json',
+      description: 'Descuento automático de insumos al servir una orden',
+      value: {
+        enabled: true,
+        deduct_on_order_complete: true,
+        allow_negative_stock: false,
+        send_low_stock_alerts: true,
+        reconciliation_frequency: 'weekly',
+      },
+    },
+    update: {},
+  });
+  console.log('✅ Descuento automático de inventario activado');
+
   // ----------------------------------------------------------
   // Resumen
   // ----------------------------------------------------------
