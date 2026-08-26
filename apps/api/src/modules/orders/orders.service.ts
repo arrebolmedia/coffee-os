@@ -6,11 +6,21 @@ import {
 import { OrderPriority, OrderStatus, OrderType, Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../database/prisma.service';
+import { InventoryAutomationService } from '../inventory/inventory-automation.service';
 import { CreateOrderDto, UpdateOrderStatusDto } from './dto';
+
+/** Estados que representan una venta consumada y disparan el descuento de insumos. */
+const DEDUCTING_ORDER_STATUSES: OrderStatus[] = [
+  OrderStatus.SERVED,
+  OrderStatus.COMPLETED,
+];
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly inventoryAutomation: InventoryAutomationService,
+  ) {}
 
   async findAll(params: {
     page?: number;
@@ -257,8 +267,12 @@ export class OrdersService {
     [OrderStatus.CANCELLED]: [],
   };
 
-  async updateStatus(id: string, updateStatusDto: UpdateOrderStatusDto) {
-    const current = await this.findOne(id);
+  async updateStatus(
+    id: string,
+    updateStatusDto: UpdateOrderStatusDto,
+    organizationId?: string,
+  ) {
+    const current = await this.findOne(id, organizationId);
 
     const allowed = OrdersService.ORDER_TRANSITIONS[current.status] ?? [];
     if (
@@ -300,11 +314,28 @@ export class OrdersService {
         break;
     }
 
-    return this.prisma.order.update({
+    const order = await this.prisma.order.update({
       where: { id },
       data,
       include: { items: true, ticket: true },
     });
+
+    // Descuento automático de insumos al consumarse la venta. No comparte
+    // transacción con el cambio de estado a propósito: la orden ya se sirvió
+    // físicamente, así que el estado manda y el fallo del descuento se hace
+    // ruidoso en vez de bloquear. Ver `autoDeductOnSale`.
+    if (
+      organizationId &&
+      DEDUCTING_ORDER_STATUSES.includes(updateStatusDto.status)
+    ) {
+      const inventory = await this.inventoryAutomation.autoDeductOnSale(
+        order.id,
+        organizationId,
+      );
+      return { ...order, inventory_deduction: inventory };
+    }
+
+    return order;
   }
 
   private generateOrderNumber(): string {

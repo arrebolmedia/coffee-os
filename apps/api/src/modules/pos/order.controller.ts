@@ -56,24 +56,31 @@ export class OrderController {
     return order;
   }
 
+  // Los cuatro mutadores del KDS recibian solo el id y actualizaban por
+  // `where: { id }`: cualquier usuario autenticado podia mover de estado la
+  // orden de otra organizacion. Ahora todos derivan la organizacion del JWT.
   @Patch(':id/status')
-  async updateStatus(@Param('id') id: string, @Body('status') status: string) {
-    return this.posService.updateOrderStatus(id, status);
+  async updateStatus(
+    @Param('id') id: string,
+    @Body('status') status: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.posService.updateOrderStatus(id, status, user.organizationId);
   }
 
   @Post(':id/start')
-  async start(@Param('id') id: string) {
-    return this.posService.startOrder(id);
+  async start(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
+    return this.posService.startOrder(id, user.organizationId);
   }
 
   @Post(':id/ready')
-  async ready(@Param('id') id: string) {
-    return this.posService.markOrderReady(id);
+  async ready(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
+    return this.posService.markOrderReady(id, user.organizationId);
   }
 
   @Post(':id/served')
-  async served(@Param('id') id: string) {
-    return this.posService.markOrderServed(id);
+  async served(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
+    return this.posService.markOrderServed(id, user.organizationId);
   }
 
   @Post(':id/cancel')

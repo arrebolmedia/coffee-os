@@ -222,29 +222,12 @@ export function useOrganizationTheoreticalStock(
 // STOCK DEDUCTION HOOKS
 // ============================================================================
 
-/**
- * Deduct stock for an order
- */
-export function useDeductStockForOrder() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (orderId: string) =>
-      inventoryAutomationService.deductStockForOrder(orderId),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({
-        queryKey: inventoryAutomationKeys.all,
-      });
-      queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      toast.success(
-        `Stock descontado: ${result.total_items_deducted} items actualizados`,
-      );
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al descontar stock');
-    },
-  });
-}
+// useDeductStockForOrder() vivía aquí y no lo importaba nadie. Mientras existió,
+// hacía creer que el descuento de stock lo dispara el frontend al completar la
+// orden — y como el hook estaba huérfano, no lo disparaba nadie. Ahora lo hace
+// el backend dentro del ciclo de vida de la orden (SERVED/COMPLETED), que es
+// donde no se puede olvidar. El endpoint manual sigue existiendo para
+// recuperar un descuento que falló: inventoryAutomationService.deductStockForOrder.
 
 /**
  * Preview stock deduction without executing

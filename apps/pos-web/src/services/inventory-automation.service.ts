@@ -223,7 +223,12 @@ class InventoryAutomationService {
   // ============================================================================
 
   /**
-   * Deduct stock for an order (called when order is completed)
+   * Descuento manual de stock para una orden.
+   *
+   * El descuento normal ya NO pasa por aquí: lo hace el backend al mover la
+   * orden a SERVED/COMPLETED. Esto queda como vía de recuperación para cuando
+   * ese descuento automático falla (la respuesta del cambio de estado lo
+   * indica en `inventory_deduction.status === 'error'`).
    */
   async deductStockForOrder(orderId: string): Promise<{
     deductions: StockDeductionLog[];

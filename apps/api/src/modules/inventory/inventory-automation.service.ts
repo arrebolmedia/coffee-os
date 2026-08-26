@@ -84,6 +84,13 @@ export interface FailedDeduction {
   reason: string;
 }
 
+/** Resultado del descuento automático disparado por el ciclo de vida de la orden. */
+export type AutoDeductOutcome =
+  | { status: 'deducted'; items_deducted: number; failures: FailedDeduction[] }
+  | { status: 'disabled' }
+  | { status: 'skipped'; reason: string }
+  | { status: 'error'; message: string };
+
 @Injectable()
 export class InventoryAutomationService {
   private readonly logger = new Logger(InventoryAutomationService.name);
@@ -497,6 +504,59 @@ export class InventoryAutomationService {
       low_stock_alerts: lowStockAlerts,
       warnings,
     };
+  }
+
+  /**
+   * Punto de entrada del ciclo de vida de la orden: se llama al pasar a
+   * SERVED/COMPLETED.
+   *
+   * **Nunca lanza.** El descuento no puede bloquear la venta: cuando una orden
+   * se marca servida el café ya salió por la barra, y negarse a registrar ese
+   * hecho porque el inventario no cuadra es peor que registrarlo con el
+   * inventario descuadrado. Por eso no comparte transacción con el cambio de
+   * estado: no queremos "ambas o ninguna", queremos que el estado gane y que
+   * el fallo del descuento sea ruidoso en vez de silencioso.
+   *
+   * Que no lance no significa que se pierda: el resultado viaja en la
+   * respuesta, los fallos quedan en el log a nivel error, y el reporte de
+   * exactitud de `stock-reconciliation` delata cualquier descuadre.
+   */
+  async autoDeductOnSale(
+    orderId: string,
+    organizationId: string,
+  ): Promise<AutoDeductOutcome> {
+    try {
+      const config = await this.getConfig(organizationId);
+      if (!config.enabled) {
+        return { status: 'disabled' };
+      }
+
+      const result = await this.deductForOrder(orderId, organizationId);
+      return {
+        status: 'deducted',
+        items_deducted: result.total_items_deducted,
+        failures: result.failed_deductions,
+      };
+    } catch (err) {
+      if (err instanceof ConflictException) {
+        // Condiciones esperadas: ya se había descontado (SERVED -> COMPLETED
+        // pasa por aquí dos veces) o una petición concurrente ganó la carrera.
+        // El índice único parcial garantiza que en ningún caso hubo doble
+        // descuento, así que esto es la idempotencia funcionando, no un error.
+        this.logger.warn(
+          `Orden ${orderId}: descuento automático omitido — ${err.message}`,
+        );
+        return { status: 'skipped', reason: err.message };
+      }
+      this.logger.error(
+        `Orden ${orderId}: el descuento automático de inventario falló`,
+        err instanceof Error ? err.stack : String(err),
+      );
+      return {
+        status: 'error',
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
   }
 
   private async collectLowStock(itemIds: string[]) {

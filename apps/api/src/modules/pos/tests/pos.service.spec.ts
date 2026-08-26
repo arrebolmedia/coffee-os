@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { PosService } from '../pos.service';
 import { PrismaService } from '../../database/prisma.service';
+import { InventoryAutomationService } from '../../inventory/inventory-automation.service';
 
 /**
  * Unit coverage for the loyalty 9+1 redemption wired into createTicket().
@@ -30,6 +31,10 @@ describe('PosService.createTicket loyalty redemption', () => {
     $transaction: jest.fn((cb: any) => cb(tx)),
   };
 
+  const mockInventoryAutomation = {
+    autoDeductOnSale: jest.fn(),
+  };
+
   const baseData = {
     locationId: 'loc1',
     userId: 'u1',
@@ -39,6 +44,9 @@ describe('PosService.createTicket loyalty redemption', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockInventoryAutomation.autoDeductOnSale.mockResolvedValue({
+      status: 'disabled',
+    });
 
     mockPrisma.product.findUnique.mockResolvedValue({ taxRate: 0.16 });
     mockPrisma.ticket.findUnique.mockResolvedValue({ id: 'tk1' });
@@ -56,7 +64,14 @@ describe('PosService.createTicket loyalty redemption', () => {
     tx.loyaltyTransaction.create.mockResolvedValue({});
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [PosService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        PosService,
+        { provide: PrismaService, useValue: mockPrisma },
+        {
+          provide: InventoryAutomationService,
+          useValue: mockInventoryAutomation,
+        },
+      ],
     }).compile();
 
     service = module.get<PosService>(PosService);

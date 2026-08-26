@@ -5,8 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { InventoryAutomationService } from '../inventory/inventory-automation.service';
 import { MovementType, PaymentMethod, PaymentStatus } from '@prisma/client';
 import { randomUUID } from 'crypto';
+
+/** Estados que representan una venta consumada y disparan el descuento de insumos. */
+const DEDUCTING_ORDER_STATUSES = ['SERVED', 'COMPLETED'];
 
 @Injectable()
 export class PosService {
@@ -17,7 +21,10 @@ export class PosService {
   private static readonly LOYALTY_REDEMPTION_THRESHOLD_POINTS = 9;
   private static readonly LOYALTY_REDEMPTION_DISCOUNT = 50;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly inventoryAutomation: InventoryAutomationService,
+  ) {}
 
   // ========================================
   // TICKETS (POS)
@@ -443,8 +450,27 @@ export class PosService {
     });
   }
 
-  async updateOrderStatus(id: string, status: string) {
-    return this.prisma.order.update({
+  /**
+   * Comprueba que la orden pertenece a la organización antes de mutarla.
+   *
+   * Estos endpoints del KDS recibían sólo el id y actualizaban por
+   * `prisma.order.update({ where: { id } })`, así que cualquier usuario
+   * autenticado podía mover de estado la orden de otra organización. La
+   * pertenencia se resuelve por la sucursal, igual que en `findOneOrder`.
+   */
+  private async assertOrderInOrg(id: string, organizationId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id, location: { organizationId } },
+      select: { id: true, status: true, startedAt: true },
+    });
+    if (!order) throw new NotFoundException(`Order ${id} not found`);
+    return order;
+  }
+
+  async updateOrderStatus(id: string, status: string, organizationId: string) {
+    await this.assertOrderInOrg(id, organizationId);
+
+    const order = await this.prisma.order.update({
       where: { id },
       data: { status: status as any },
       include: {
@@ -452,9 +478,13 @@ export class PosService {
         ticket: true,
       },
     });
+
+    return this.withAutoDeduction(order, organizationId);
   }
 
-  async startOrder(id: string) {
+  async startOrder(id: string, organizationId: string) {
+    await this.assertOrderInOrg(id, organizationId);
+
     return this.prisma.order.update({
       where: { id },
       data: {
@@ -465,23 +495,8 @@ export class PosService {
     });
   }
 
-  async completeOrder(id: string) {
-    return this.prisma.order.update({
-      where: { id },
-      data: {
-        status: 'COMPLETED',
-        servedAt: new Date(),
-      },
-      include: { items: true },
-    });
-  }
-
-  async markOrderReady(id: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
-    });
-
-    if (!order) throw new NotFoundException(`Order ${id} not found`);
+  async markOrderReady(id: string, organizationId: string) {
+    const order = await this.assertOrderInOrg(id, organizationId);
 
     const prepTime = order.startedAt
       ? Math.floor((Date.now() - order.startedAt.getTime()) / 1000)
@@ -501,8 +516,10 @@ export class PosService {
     });
   }
 
-  async markOrderServed(id: string) {
-    return this.prisma.order.update({
+  async markOrderServed(id: string, organizationId: string) {
+    await this.assertOrderInOrg(id, organizationId);
+
+    const order = await this.prisma.order.update({
       where: { id },
       data: {
         status: 'SERVED',
@@ -513,6 +530,33 @@ export class PosService {
         ticket: true,
       },
     });
+
+    return this.withAutoDeduction(order, organizationId);
+  }
+
+  /**
+   * Dispara el descuento automático de insumos cuando la orden llega a un
+   * estado de venta consumada, y adjunta el resultado a la respuesta.
+   *
+   * Antes esto no lo llamaba nadie: `deductForOrder` sólo era alcanzable por su
+   * propio endpoint y el hook del frontend que debía invocarlo estaba huérfano,
+   * así que el POS informaba `enabled: true` y no descontaba nunca.
+   *
+   * No comparte transacción con el cambio de estado a propósito: ver
+   * `InventoryAutomationService.autoDeductOnSale`.
+   */
+  private async withAutoDeduction<T extends { id: string; status: string }>(
+    order: T,
+    organizationId: string,
+  ) {
+    if (!DEDUCTING_ORDER_STATUSES.includes(order.status)) {
+      return order;
+    }
+    const inventory = await this.inventoryAutomation.autoDeductOnSale(
+      order.id,
+      organizationId,
+    );
+    return { ...order, inventory_deduction: inventory };
   }
 
   // ========================================

@@ -99,8 +99,15 @@ export class OrdersController {
   async updateStatus(
     @Param('id') id: string,
     @Body() updateStatusDto: UpdateOrderStatusDto,
+    @CurrentUser() user: CurrentUserType,
   ) {
-    return this.ordersService.updateStatus(id, updateStatusDto);
+    // Sin la organizacion, el findOne interno consultaba sin filtro y se podia
+    // mover de estado la orden de otro tenant.
+    return this.ordersService.updateStatus(
+      id,
+      updateStatusDto,
+      this.requireOrg(user),
+    );
   }
 
   /**
