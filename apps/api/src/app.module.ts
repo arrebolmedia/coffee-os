@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 
@@ -55,6 +55,7 @@ import { RedisModule } from './modules/redis/redis.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard.global';
 import { TenantGuard } from './common/guards/tenant.guard';
+import { TenantContextMiddleware } from './common/tenancy/tenant-context.middleware';
 
 @Module({
   imports: [
@@ -142,4 +143,11 @@ import { TenantGuard } from './common/guards/tenant.guard';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Abre el contexto de organización para TODA la superficie de la API,
+    // incluidas las rutas @Public(): el scope se abre vacío y sólo se rellena
+    // cuando hay usuario autenticado.
+    consumer.apply(TenantContextMiddleware).forRoutes('*');
+  }
+}
