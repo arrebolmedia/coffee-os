@@ -1362,3 +1362,85 @@ habría cargado nunca.
 El toast de éxito del POS dice «Orden #TKT-…», pero ese identificador es el número de
 **ticket**, no el de la orden de cocina (`ORD-…`). No es un fallo funcional; al cajero le
 enseña un número con la etiqueta de otra cosa.
+
+---
+
+### Sprint 5 — ✅ completado 2026-08-26
+
+Estaba listado como «~1 hora, no bloquea nada». Uno de sus puntos resultó ser un cobro
+incorrecto.
+
+#### El IVA de Panadería no eran dos fuentes de verdad, eran tres
+
+El pendiente decía: «productos con `tax_rate = 0.16` conviviendo con una regla “IVA 0%
+Panadería” para la misma categoría — decidir cuál manda». Al medirlo:
+
+1. **El backend calculaba el IVA sobre el subtotal SIN descontar.** `tax` se cerraba antes
+   de conocer el descuento y el descuento se restaba después. Con el canje de lealtad de
+   $50 eso son **$8 de IVA que no corresponden**, en cada venta con descuento. En México el
+   descuento reduce la base gravable. Corregido, repartiendo el descuento
+   proporcionalmente entre líneas — que es lo que hay que hacer cuando conviven varias
+   tasas, y con una sola da exactamente `(subtotal − descuento) × tasa`.
+2. **El carrito aplicaba un `0.16` fijo a todo**, mientras el backend grava con la tasa de
+   _cada_ producto. Coincidían sólo mientras todos los productos estuvieran al 16 %. El día
+   que uno vaya al 0 % —que es lo que la regla de Panadería dice que debería—, **al cajero
+   le aparecería un total y se le cobraría otro al cliente**. El carrito grava ahora por
+   producto y descuenta la base igual que el backend.
+3. **La tabla `taxes` no la consulta nadie.** La regla «IVA 0% Panadería para llevar» existe
+   en los datos, cita el art. 2-A LIVA y no influye en ningún cálculo: el importe del ticket
+   sale de `Product.taxRate`. Unificar las dos fuentes es trabajo aparte.
+
+**La tasa de los 5 productos de Panadería se deja como está.** Elegir entre 16 % y tasa 0
+es una decisión fiscal del dueño, no de esta reparación. Lo que sí se arregló es que las
+dos pantallas digan lo mismo, sea cual sea la decisión.
+
+7 tests nuevos fijan la aritmética. El test de lealtad afirmaba `tax 16 / total 66`; ahora
+afirma `tax 8 / total 58`.
+
+#### La raíz
+
+87 `.md` movidos a `docs/_archive/` con `git mv`. Quedan `README.md`, `CLAUDE.md` y
+`CONTRIBUTING.md`.
+
+Los otros 6 **no se tocaron**: `TOKENS-Y-SECRETS.md` y compañía están en `.gitignore` por
+contener credenciales, y moverlos a `docs/` los habría metido al repo.
+
+> Trampa que había que resolver antes de mover nada: `.gitignore` tenía `_archive/` sin
+> anclar, así que también habría ignorado `docs/_archive/` y los 87 archivos habrían salido
+> del control de versiones justo al moverlos. Anclado a `/_archive/`.
+
+`apps/mobile`, `packages/shared`, `packages/ui` y `packages/integrations` eran directorios
+vacíos —cero archivos, sin `package.json`, así que npm ni siquiera los tomaba por
+workspaces—. Eliminados, y con ellos dos alias de `tsconfig` del API que apuntaban a
+directorios inexistentes.
+
+#### El «polling excesivo» no era polling
+
+`apiFetch` llama a `getSession()` en **toda** petición autenticada, y `getSession()` hace un
+fetch a `/api/auth/session` cada vez: una sola pantalla del POS dispara decenas en paralelo.
+No hay ningún temporizador.
+
+Se comparte la **promesa en vuelo**, no el resultado: la sesión no se cachea ni un
+milisegundo más allá de lo que tarda la petición ya en curso. Así se colapsa la ráfaga sin
+arriesgarse a mandar un token caducado, que es lo que pasaría con un caché por tiempo.
+
+#### El límite de 500 líneas: cerrado a medias, y dicho
+
+`inventory-automation.service.ts` estaba en 727. Se extrajo su única costura real —la
+configuración, que es serializar una fila de `settings` y no mecánica de descuento— y quedan
+141 + 624.
+
+**624 sigue pasándose de 500.** Cortar más sería cortar por el número: descuento y reversión
+son la misma operación y su inversa. Y al medir apareció que este archivo ni siquiera es de
+los mayores: `settings.service` tiene **1029** líneas, `pos.service` **1006**, `onboarding`
+866 y `notifications` 865. Ponerlos todos bajo 500 es un refactor aparte, no higiene.
+
+#### Verificación
+
+| Check                              | Resultado                 |
+| ---------------------------------- | ------------------------- |
+| Tests unitarios API                | ✅ 56 suites · 1141 tests |
+| Tests e2e API                      | ✅ 6 suites · 54 tests    |
+| Tests pos-web                      | ✅ 10 suites · 112 tests  |
+| Playwright                         | ✅ 35/35                  |
+| `tsc --noEmit` · `turbo run build` | ✅                        |
