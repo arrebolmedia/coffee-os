@@ -1,12 +1,14 @@
-import { IsEnum, IsUUID } from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { Action, Resource } from '../interfaces';
 
 export class CheckPermissionDto {
-  @IsUUID()
+  @IsString()
   user_id: string;
 
-  @IsUUID()
-  organization_id: string;
+  /** Opcional: la organización efectiva sale del JWT (`@CurrentOrg()`). */
+  @IsString()
+  @IsOptional()
+  organization_id?: string;
 
   @IsEnum(Resource)
   resource: Resource;

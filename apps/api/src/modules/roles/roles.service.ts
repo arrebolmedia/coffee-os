@@ -5,9 +5,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  Prisma,
+  Permission as PrismaPermission,
+  Role as PrismaRole,
+  UserRoleAssignment as PrismaUserRole,
+} from '@prisma/client';
+import {
+  Action,
   Effect,
   Permission,
   PermissionCheck,
+  Resource,
   Role,
   RoleStats,
   SystemRole,
@@ -26,162 +34,243 @@ import {
 } from './dto';
 import { PrismaService } from '../database/prisma.service';
 
+type RoleRow = PrismaRole & {
+  permissions?: { permissionId: string }[];
+};
+
+type AssignmentWithPermissions = PrismaUserRole & {
+  role: PrismaRole & {
+    permissions: { permission: PrismaPermission }[];
+  };
+};
+
+/**
+ * RBAC service — fully persisted in Postgres.
+ *
+ * Tenancy model (decided when the three in-memory Maps were migrated):
+ *
+ *  - `roles` rows with `organizationId = null` are GLOBAL system roles. The
+ *    seeded catalog (owner/manager/barista) is shared by every tenant because
+ *    `User.roleId` of users in *all* organizations points at those same rows;
+ *    scoping them to one organization would orphan the rest. They are readable
+ *    by every tenant and immutable through the API.
+ *  - Every role created through the API belongs to the caller's organization
+ *    (taken from the JWT via `@CurrentOrg()`, never from the request body) and
+ *    is invisible to other tenants.
+ *  - `permissions` and `user_roles` are always tenant-owned: there is no global
+ *    variant, so every query filters by `organizationId`.
+ *
+ * Reads by `:id` use `findFirst` with the organization filter (not
+ * `findUnique`) so a valid id from another tenant returns 404 instead of data.
+ */
 @Injectable()
 export class RolesService {
-  // NOTE: permissions and user-role assignments are still in-memory (RBAC
-  // subsystem not yet migrated). Role READS (findAllRoles/findRoleById) are
-  // Prisma-backed because the `roles` table is the source of truth that
-  // User.roleId and employee creation validate against.
   constructor(private readonly prisma: PrismaService) {}
 
-  private readonly permissions = new Map<string, Permission>();
-  private readonly roles = new Map<string, Role>();
-  private readonly userRoles = new Map<string, UserRole>();
+  /** Roles a tenant may see: its own plus the global system catalog. */
+  private visibleRoles(organizationId: string): Prisma.RoleWhereInput {
+    return { OR: [{ organizationId }, { organizationId: null }] };
+  }
 
-  /**
-   * Map a Prisma role row to the API role shape. `code` is derived from the
-   * name so consumers expecting a code keep working until the schema gains one.
-   */
-  private mapPrismaRole(r: {
-    id: string;
-    name: string;
-    description: string | null;
-    scopes: string[];
-    active: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-  }): Record<string, unknown> {
+  private toApiRole(row: RoleRow): Role {
     return {
-      id: r.id,
-      name: r.name,
-      code: r.name.toUpperCase().replace(/\s+/g, '_'),
-      description: r.description ?? undefined,
-      scopes: r.scopes,
-      permission_ids: r.scopes,
-      active: r.active,
-      created_at: r.createdAt,
-      updated_at: r.updatedAt,
+      id: row.id,
+      organization_id: row.organizationId,
+      name: row.name,
+      code: row.code,
+      description: row.description ?? undefined,
+      is_system: row.isSystem,
+      system_role: (row.systemRole as SystemRole | null) ?? undefined,
+      permission_ids: (row.permissions ?? []).map((p) => p.permissionId),
+      scopes: row.scopes,
+      active: row.active,
+      color: row.color ?? undefined,
+      icon: row.icon ?? undefined,
+      created_at: row.createdAt,
+      updated_at: row.updatedAt,
     };
+  }
+
+  private toApiPermission(row: PrismaPermission): Permission {
+    return {
+      id: row.id,
+      organization_id: row.organizationId,
+      resource: row.resource as Resource,
+      action: row.action as Action,
+      effect: row.effect as Effect,
+      conditions: (row.conditions as Record<string, any> | null) ?? undefined,
+      name: row.name,
+      description: row.description ?? undefined,
+      created_at: row.createdAt,
+      updated_at: row.updatedAt,
+    };
+  }
+
+  private toApiUserRole(row: PrismaUserRole): UserRole {
+    return {
+      id: row.id,
+      user_id: row.userId,
+      role_id: row.roleId,
+      organization_id: row.organizationId,
+      location_ids: row.locationIds,
+      valid_from: row.validFrom ?? undefined,
+      valid_until: row.validUntil ?? undefined,
+      assigned_by: row.assignedBy,
+      assigned_at: row.assignedAt,
+      revoked_at: row.revokedAt ?? undefined,
+      revoked_by: row.revokedBy ?? undefined,
+    };
+  }
+
+  /** Ensures every referenced permission exists **inside the tenant**. */
+  private async assertPermissionsExist(
+    organizationId: string,
+    permissionIds: string[],
+  ): Promise<void> {
+    if (permissionIds.length === 0) return;
+
+    const found = await this.prisma.permission.findMany({
+      where: { id: { in: permissionIds }, organizationId },
+      select: { id: true },
+    });
+    const foundIds = new Set(found.map((p) => p.id));
+
+    for (const permissionId of permissionIds) {
+      if (!foundIds.has(permissionId)) {
+        throw new NotFoundException(`Permission ${permissionId} not found`);
+      }
+    }
   }
 
   /**
    * PERMISSIONS CRUD
    */
-  async createPermission(createDto: CreatePermissionDto): Promise<Permission> {
-    const permission: Permission = {
-      id: `perm-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-      ...createDto,
-      effect: createDto.effect || Effect.ALLOW,
-      created_at: new Date(),
-      updated_at: new Date(),
-    };
-
-    this.permissions.set(permission.id, permission);
-    return permission;
-  }
-
-  async findAllPermissions(query: QueryPermissionsDto): Promise<Permission[]> {
-    let permissions = Array.from(this.permissions.values());
-
-    // Filters
-    if (query.organization_id) {
-      permissions = permissions.filter(
-        (p) => p.organization_id === query.organization_id,
-      );
-    }
-
-    if (query.resource) {
-      permissions = permissions.filter((p) => p.resource === query.resource);
-    }
-
-    if (query.action) {
-      permissions = permissions.filter((p) => p.action === query.action);
-    }
-
-    if (query.search) {
-      const search = query.search.toLowerCase();
-      permissions = permissions.filter(
-        (p) =>
-          p.name.toLowerCase().includes(search) ||
-          (p.description && p.description.toLowerCase().includes(search)),
-      );
-    }
-
-    // Sort
-    const sortBy = query.sort_by || 'name';
-    const order = query.order || 'asc';
-
-    permissions.sort((a, b) => {
-      let aValue: any = a[sortBy as keyof Permission];
-      let bValue: any = b[sortBy as keyof Permission];
-
-      if (aValue === undefined)
-        aValue = order === 'asc' ? '' : Number.MIN_VALUE;
-      if (bValue === undefined)
-        bValue = order === 'asc' ? '' : Number.MIN_VALUE;
-
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return order === 'asc'
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      }
-
-      return 0;
+  async createPermission(
+    organizationId: string,
+    createDto: CreatePermissionDto,
+  ): Promise<Permission> {
+    const row = await this.prisma.permission.create({
+      data: {
+        organizationId,
+        resource: createDto.resource,
+        action: createDto.action,
+        effect: createDto.effect ?? Effect.ALLOW,
+        conditions: (createDto.conditions ??
+          Prisma.DbNull) as Prisma.InputJsonValue,
+        name: createDto.name,
+        description: createDto.description ?? null,
+      },
     });
 
-    return permissions;
+    return this.toApiPermission(row);
   }
 
-  async findPermissionById(id: string): Promise<Permission> {
-    const permission = this.permissions.get(id);
-    if (!permission) {
+  async findAllPermissions(
+    organizationId: string,
+    query: QueryPermissionsDto,
+  ): Promise<Permission[]> {
+    const order = query.order === 'desc' ? 'desc' : 'asc';
+    const sortable: Record<
+      string,
+      keyof Prisma.PermissionOrderByWithRelationInput
+    > = {
+      name: 'name',
+      resource: 'resource',
+      action: 'action',
+      effect: 'effect',
+      created_at: 'createdAt',
+      updated_at: 'updatedAt',
+    };
+    const sortBy = sortable[query.sort_by ?? 'name'] ?? 'name';
+
+    const rows = await this.prisma.permission.findMany({
+      where: {
+        organizationId,
+        ...(query.resource ? { resource: query.resource } : {}),
+        ...(query.action ? { action: query.action } : {}),
+        ...(query.search
+          ? {
+              OR: [
+                { name: { contains: query.search, mode: 'insensitive' } },
+                {
+                  description: {
+                    contains: query.search,
+                    mode: 'insensitive',
+                  },
+                },
+              ],
+            }
+          : {}),
+      },
+      orderBy: { [sortBy]: order },
+    });
+
+    return rows.map((row) => this.toApiPermission(row));
+  }
+
+  async findPermissionById(
+    organizationId: string,
+    id: string,
+  ): Promise<Permission> {
+    const row = await this.prisma.permission.findFirst({
+      where: { id, organizationId },
+    });
+    if (!row) {
       throw new NotFoundException(`Permission ${id} not found`);
     }
-    return permission;
+    return this.toApiPermission(row);
   }
 
   async updatePermission(
+    organizationId: string,
     id: string,
     updateDto: UpdatePermissionDto,
   ): Promise<Permission> {
-    const permission = await this.findPermissionById(id);
+    await this.findPermissionById(organizationId, id);
 
-    Object.assign(permission, {
-      ...updateDto,
-      updated_at: new Date(),
-    });
+    const data: Prisma.PermissionUpdateInput = {};
+    if (updateDto.resource !== undefined) data.resource = updateDto.resource;
+    if (updateDto.action !== undefined) data.action = updateDto.action;
+    if (updateDto.effect !== undefined) data.effect = updateDto.effect;
+    if (updateDto.name !== undefined) data.name = updateDto.name;
+    if (updateDto.description !== undefined) {
+      data.description = updateDto.description;
+    }
+    if (updateDto.conditions !== undefined) {
+      data.conditions = updateDto.conditions as Prisma.InputJsonValue;
+    }
 
-    this.permissions.set(id, permission);
-    return permission;
+    const row = await this.prisma.permission.update({ where: { id }, data });
+    return this.toApiPermission(row);
   }
 
-  async deletePermission(id: string): Promise<void> {
-    await this.findPermissionById(id);
+  async deletePermission(organizationId: string, id: string): Promise<void> {
+    await this.findPermissionById(organizationId, id);
 
-    // Check if permission is used in any role
-    const rolesUsingPermission = Array.from(this.roles.values()).filter(
-      (role) => role.permission_ids.includes(id),
-    );
+    const rolesUsingPermission = await this.prisma.rolePermission.count({
+      where: { permissionId: id },
+    });
 
-    if (rolesUsingPermission.length > 0) {
+    if (rolesUsingPermission > 0) {
       throw new BadRequestException(
-        `Permission is used in ${rolesUsingPermission.length} role(s)`,
+        `Permission is used in ${rolesUsingPermission} role(s)`,
       );
     }
 
-    this.permissions.delete(id);
+    await this.prisma.permission.delete({ where: { id } });
   }
 
   /**
    * ROLES CRUD
    */
-  async createRole(createDto: CreateRoleDto): Promise<Role> {
-    // Check code uniqueness within organization
-    const existing = Array.from(this.roles.values()).find(
-      (r) =>
-        r.code === createDto.code &&
-        r.organization_id === createDto.organization_id,
-    );
+  async createRole(
+    organizationId: string,
+    createDto: CreateRoleDto,
+  ): Promise<Role> {
+    const existing = await this.prisma.role.findFirst({
+      where: { organizationId, code: createDto.code },
+      select: { id: true },
+    });
 
     if (existing) {
       throw new ConflictException(
@@ -189,79 +278,133 @@ export class RolesService {
       );
     }
 
-    // Validate permission_ids exist
-    if (createDto.permission_ids && createDto.permission_ids.length > 0) {
-      for (const permId of createDto.permission_ids) {
-        if (!this.permissions.has(permId)) {
-          throw new NotFoundException(`Permission ${permId} not found`);
-        }
+    const permissionIds = createDto.permission_ids ?? [];
+    await this.assertPermissionsExist(organizationId, permissionIds);
+
+    try {
+      const row = await this.prisma.role.create({
+        data: {
+          organizationId,
+          name: createDto.name,
+          code: createDto.code,
+          description: createDto.description ?? null,
+          isSystem: createDto.is_system ?? false,
+          systemRole: createDto.system_role ?? null,
+          color: createDto.color ?? null,
+          icon: createDto.icon ?? null,
+          scopes: [],
+          ...(permissionIds.length
+            ? {
+                permissions: {
+                  create: permissionIds.map((permissionId) => ({
+                    permissionId,
+                  })),
+                },
+              }
+            : {}),
+        },
+        include: { permissions: { select: { permissionId: true } } },
+      });
+
+      return this.toApiRole(row);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          `Role ${createDto.name} already exists in this organization`,
+        );
       }
+      throw error;
     }
-
-    const role: Role = {
-      id: `role-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-      ...createDto,
-      permission_ids: createDto.permission_ids || [],
-      is_system: createDto.is_system || false,
-      created_at: new Date(),
-      updated_at: new Date(),
-    };
-
-    this.roles.set(role.id, role);
-    return role;
   }
 
-  // Prisma-backed: returns the real `roles` table (source of truth for
-  // User.roleId / employee creation). The Prisma Role model is global (no
-  // organization_id) and has no system_role flag, so those filters are no-ops.
-  async findAllRoles(query: QueryRolesDto): Promise<Record<string, unknown>[]> {
+  async findAllRoles(
+    organizationId: string,
+    query: QueryRolesDto,
+  ): Promise<Role[]> {
     const order = query.order === 'desc' ? 'desc' : 'asc';
     const sortBy = query.sort_by === 'created_at' ? 'createdAt' : 'name';
 
-    const roles = await this.prisma.role.findMany({
-      where: query.search
-        ? {
-            OR: [
-              { name: { contains: query.search, mode: 'insensitive' } },
-              { description: { contains: query.search, mode: 'insensitive' } },
-            ],
-          }
-        : undefined,
+    const rows = await this.prisma.role.findMany({
+      where: {
+        AND: [
+          this.visibleRoles(organizationId),
+          ...(query.system_role ? [{ systemRole: query.system_role }] : []),
+          ...(query.search
+            ? [
+                {
+                  OR: [
+                    {
+                      name: {
+                        contains: query.search,
+                        mode: Prisma.QueryMode.insensitive,
+                      },
+                    },
+                    {
+                      description: {
+                        contains: query.search,
+                        mode: Prisma.QueryMode.insensitive,
+                      },
+                    },
+                  ],
+                },
+              ]
+            : []),
+        ],
+      },
+      include: { permissions: { select: { permissionId: true } } },
       orderBy: { [sortBy]: order },
     });
 
-    return roles.map((r) => this.mapPrismaRole(r));
+    return rows.map((row) => this.toApiRole(row));
   }
 
-  async findRoleById(id: string): Promise<Role> {
-    const role = this.roles.get(id);
-    if (!role) {
+  async findRoleById(organizationId: string, id: string): Promise<Role> {
+    const row = await this.prisma.role.findFirst({
+      where: { id, ...this.visibleRoles(organizationId) },
+      include: { permissions: { select: { permissionId: true } } },
+    });
+
+    if (!row) {
       throw new NotFoundException(`Role ${id} not found`);
     }
-    return role;
+
+    return this.toApiRole(row);
   }
 
   async findRoleByCode(
     organizationId: string,
     code: string,
   ): Promise<Role | undefined> {
-    return Array.from(this.roles.values()).find(
-      (r) => r.organization_id === organizationId && r.code === code,
-    );
+    const row = await this.prisma.role.findFirst({
+      where: { code, organizationId },
+      include: { permissions: { select: { permissionId: true } } },
+    });
+
+    return row ? this.toApiRole(row) : undefined;
   }
 
-  async updateRole(id: string, updateDto: UpdateRoleDto): Promise<Role> {
-    const role = await this.findRoleById(id);
+  async updateRole(
+    organizationId: string,
+    id: string,
+    updateDto: UpdateRoleDto,
+  ): Promise<Role> {
+    const role = await this.findRoleById(organizationId, id);
 
-    // Prevent updating system roles
+    // Global catalog rows are shared by every tenant — never editable here.
+    if (role.organization_id === null) {
+      throw new BadRequestException('Cannot update a global system role');
+    }
+
     if (role.is_system) {
       throw new BadRequestException('Cannot update system role');
     }
 
-    // Check code conflicts
     if (updateDto.code && updateDto.code !== role.code) {
       const existing = await this.findRoleByCode(
-        role.organization_id,
+        organizationId,
         updateDto.code,
       );
       if (existing) {
@@ -271,61 +414,105 @@ export class RolesService {
       }
     }
 
-    // Validate permission_ids exist
-    if (updateDto.permission_ids && updateDto.permission_ids.length > 0) {
-      for (const permId of updateDto.permission_ids) {
-        if (!this.permissions.has(permId)) {
-          throw new NotFoundException(`Permission ${permId} not found`);
-        }
-      }
+    if (updateDto.permission_ids !== undefined) {
+      await this.assertPermissionsExist(
+        organizationId,
+        updateDto.permission_ids,
+      );
     }
 
-    Object.assign(role, {
-      ...updateDto,
-      updated_at: new Date(),
+    const data: Prisma.RoleUpdateInput = {};
+    if (updateDto.name !== undefined) data.name = updateDto.name;
+    if (updateDto.code !== undefined) data.code = updateDto.code;
+    if (updateDto.description !== undefined) {
+      data.description = updateDto.description;
+    }
+    if (updateDto.system_role !== undefined) {
+      data.systemRole = updateDto.system_role;
+    }
+    if (updateDto.color !== undefined) data.color = updateDto.color;
+    if (updateDto.icon !== undefined) data.icon = updateDto.icon;
+
+    const row = await this.prisma.$transaction(async (tx) => {
+      if (updateDto.permission_ids !== undefined) {
+        await tx.rolePermission.deleteMany({ where: { roleId: id } });
+        if (updateDto.permission_ids.length > 0) {
+          await tx.rolePermission.createMany({
+            data: updateDto.permission_ids.map((permissionId) => ({
+              roleId: id,
+              permissionId,
+            })),
+          });
+        }
+      }
+
+      return tx.role.update({
+        where: { id },
+        data,
+        include: { permissions: { select: { permissionId: true } } },
+      });
     });
 
-    this.roles.set(id, role);
-    return role;
+    return this.toApiRole(row);
   }
 
-  async deleteRole(id: string): Promise<void> {
-    const role = await this.findRoleById(id);
+  async deleteRole(organizationId: string, id: string): Promise<void> {
+    const role = await this.findRoleById(organizationId, id);
 
-    // Prevent deleting system roles
+    if (role.organization_id === null) {
+      throw new BadRequestException('Cannot delete a global system role');
+    }
+
     if (role.is_system) {
       throw new BadRequestException('Cannot delete system role');
     }
 
-    // Check if role is assigned to any user
-    const usersWithRole = Array.from(this.userRoles.values()).filter(
-      (ur) => ur.role_id === id && !ur.revoked_at,
-    );
+    const [assignments, users] = await Promise.all([
+      this.prisma.userRoleAssignment.count({
+        where: { roleId: id, revokedAt: null },
+      }),
+      // `User.roleId` is a RESTRICT foreign key: deleting a role still bound to
+      // a user would blow up at the database level, so check it up front.
+      this.prisma.user.count({ where: { roleId: id } }),
+    ]);
 
-    if (usersWithRole.length > 0) {
-      throw new BadRequestException(
-        `Role is assigned to ${usersWithRole.length} user(s)`,
-      );
+    const inUse = assignments + users;
+    if (inUse > 0) {
+      throw new BadRequestException(`Role is assigned to ${inUse} user(s)`);
     }
 
-    this.roles.delete(id);
+    await this.prisma.role.delete({ where: { id } });
   }
 
   /**
    * USER ROLE ASSIGNMENTS
    */
-  async assignRole(assignDto: AssignRoleDto): Promise<UserRole> {
-    // Validate role exists
-    const role = await this.findRoleById(assignDto.role_id);
+  async assignRole(
+    organizationId: string,
+    assignDto: AssignRoleDto,
+    assignedBy: string,
+  ): Promise<UserRole> {
+    const role = await this.findRoleById(organizationId, assignDto.role_id);
 
-    // Check if user already has this role (non-revoked)
-    const existing = Array.from(this.userRoles.values()).find(
-      (ur) =>
-        ur.user_id === assignDto.user_id &&
-        ur.role_id === assignDto.role_id &&
-        ur.organization_id === assignDto.organization_id &&
-        !ur.revoked_at,
-    );
+    // The user must belong to the caller's organization: without this check a
+    // tenant could grant its own roles to a user of another organization.
+    const user = await this.prisma.user.findFirst({
+      where: { id: assignDto.user_id, organizationId },
+      select: { id: true },
+    });
+    if (!user) {
+      throw new NotFoundException(`User ${assignDto.user_id} not found`);
+    }
+
+    const existing = await this.prisma.userRoleAssignment.findFirst({
+      where: {
+        userId: assignDto.user_id,
+        roleId: assignDto.role_id,
+        organizationId,
+        revokedAt: null,
+      },
+      select: { id: true },
+    });
 
     if (existing) {
       throw new ConflictException(
@@ -333,80 +520,103 @@ export class RolesService {
       );
     }
 
-    const userRole: UserRole = {
-      id: `ur-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-      user_id: assignDto.user_id,
-      role_id: assignDto.role_id,
-      organization_id: assignDto.organization_id,
-      location_ids: assignDto.location_ids,
-      valid_from: assignDto.valid_from,
-      valid_until: assignDto.valid_until,
-      assigned_by: assignDto.assigned_by,
-      assigned_at: new Date(),
-    };
+    const row = await this.prisma.userRoleAssignment.create({
+      data: {
+        userId: assignDto.user_id,
+        roleId: assignDto.role_id,
+        organizationId,
+        locationIds: assignDto.location_ids ?? [],
+        validFrom: assignDto.valid_from ?? null,
+        validUntil: assignDto.valid_until ?? null,
+        // Audit truth comes from the JWT, never from the request body.
+        assignedBy,
+      },
+    });
 
-    this.userRoles.set(userRole.id, userRole);
-    return userRole;
+    return this.toApiUserRole(row);
   }
 
-  async revokeRole(id: string, revokedBy: string): Promise<UserRole> {
-    const userRole = this.userRoles.get(id);
-    if (!userRole) {
+  async revokeRole(
+    organizationId: string,
+    id: string,
+    revokedBy: string,
+  ): Promise<UserRole> {
+    const assignment = await this.prisma.userRoleAssignment.findFirst({
+      where: { id, organizationId },
+    });
+
+    if (!assignment) {
       throw new NotFoundException(`User role assignment ${id} not found`);
     }
 
-    if (userRole.revoked_at) {
+    if (assignment.revokedAt) {
       throw new BadRequestException('Role assignment already revoked');
     }
 
-    userRole.revoked_at = new Date();
-    userRole.revoked_by = revokedBy;
+    const row = await this.prisma.userRoleAssignment.update({
+      where: { id },
+      data: { revokedAt: new Date(), revokedBy },
+    });
 
-    this.userRoles.set(id, userRole);
-    return userRole;
+    return this.toApiUserRole(row);
   }
 
-  async findUserRoles(query: QueryUserRolesDto): Promise<UserRole[]> {
-    let userRoles = Array.from(this.userRoles.values()).filter(
-      (ur) => !ur.revoked_at, // Only active assignments
-    );
+  async findUserRoles(
+    organizationId: string,
+    query: QueryUserRolesDto,
+  ): Promise<UserRole[]> {
+    const rows = await this.prisma.userRoleAssignment.findMany({
+      where: {
+        organizationId,
+        revokedAt: null, // Only active assignments
+        ...(query.user_id ? { userId: query.user_id } : {}),
+        ...(query.role_id ? { roleId: query.role_id } : {}),
+        ...(query.location_id
+          ? { locationIds: { has: query.location_id } }
+          : {}),
+      },
+      orderBy: { assignedAt: 'asc' },
+    });
 
-    if (query.user_id) {
-      userRoles = userRoles.filter((ur) => ur.user_id === query.user_id);
-    }
-
-    if (query.role_id) {
-      userRoles = userRoles.filter((ur) => ur.role_id === query.role_id);
-    }
-
-    if (query.organization_id) {
-      userRoles = userRoles.filter(
-        (ur) => ur.organization_id === query.organization_id,
-      );
-    }
-
-    if (query.location_id) {
-      userRoles = userRoles.filter(
-        (ur) => ur.location_ids && ur.location_ids.includes(query.location_id!),
-      );
-    }
-
-    return userRoles;
+    return rows.map((row) => this.toApiUserRole(row));
   }
 
   /**
    * PERMISSION CHECKING
    */
+  private async activeAssignments(
+    userId: string,
+    organizationId: string,
+  ): Promise<AssignmentWithPermissions[]> {
+    const now = new Date();
+
+    return this.prisma.userRoleAssignment.findMany({
+      where: {
+        userId,
+        organizationId,
+        revokedAt: null,
+        // An expired (or not yet valid) assignment must not grant anything.
+        AND: [
+          { OR: [{ validFrom: null }, { validFrom: { lte: now } }] },
+          { OR: [{ validUntil: null }, { validUntil: { gte: now } }] },
+        ],
+      },
+      include: {
+        role: { include: { permissions: { include: { permission: true } } } },
+      },
+    });
+  }
+
   async checkPermission(
+    organizationId: string,
     checkDto: CheckPermissionDto,
   ): Promise<PermissionCheck> {
-    // Get user's roles
-    const userRoles = await this.findUserRoles({
-      user_id: checkDto.user_id,
-      organization_id: checkDto.organization_id,
-    });
+    const assignments = await this.activeAssignments(
+      checkDto.user_id,
+      organizationId,
+    );
 
-    if (userRoles.length === 0) {
+    if (assignments.length === 0) {
       return {
         allowed: false,
         resource: checkDto.resource,
@@ -416,37 +626,35 @@ export class RolesService {
       };
     }
 
-    // Get all permissions from user's roles
     const matchedPermissions: string[] = [];
     let allowed = false;
 
-    for (const userRole of userRoles) {
-      const role = this.roles.get(userRole.role_id);
-      if (!role) continue;
+    for (const assignment of assignments) {
+      for (const link of assignment.role.permissions) {
+        const perm = link.permission;
 
-      for (const permId of role.permission_ids) {
-        const perm = this.permissions.get(permId);
-        if (!perm) continue;
-
-        // Check if permission matches
         if (
-          perm.resource === checkDto.resource &&
-          perm.action === checkDto.action
+          perm.resource !== checkDto.resource ||
+          perm.action !== checkDto.action
         ) {
-          matchedPermissions.push(permId);
+          continue;
+        }
 
-          if (perm.effect === Effect.ALLOW) {
-            allowed = true;
-          } else if (perm.effect === Effect.DENY) {
-            // DENY takes precedence
-            return {
-              allowed: false,
-              resource: checkDto.resource,
-              action: checkDto.action,
-              reason: `Explicit DENY: ${perm.name}`,
-              matched_permissions: [permId],
-            };
-          }
+        matchedPermissions.push(perm.id);
+
+        if (perm.effect === Effect.DENY) {
+          // DENY takes precedence
+          return {
+            allowed: false,
+            resource: checkDto.resource,
+            action: checkDto.action,
+            reason: `Explicit DENY: ${perm.name}`,
+            matched_permissions: [perm.id],
+          };
+        }
+
+        if (perm.effect === Effect.ALLOW) {
+          allowed = true;
         }
       }
     }
@@ -464,62 +672,61 @@ export class RolesService {
     userId: string,
     organizationId: string,
   ): Promise<Permission[]> {
-    const userRoles = await this.findUserRoles({
-      user_id: userId,
-      organization_id: organizationId,
-    });
-    const permissionSet = new Set<string>();
+    const assignments = await this.activeAssignments(userId, organizationId);
 
-    for (const userRole of userRoles) {
-      const role = this.roles.get(userRole.role_id);
-      if (role) {
-        role.permission_ids.forEach((pid) => permissionSet.add(pid));
+    const byId = new Map<string, Permission>();
+    for (const assignment of assignments) {
+      for (const link of assignment.role.permissions) {
+        byId.set(link.permission.id, this.toApiPermission(link.permission));
       }
     }
 
-    return Array.from(permissionSet)
-      .map((pid) => this.permissions.get(pid))
-      .filter((p): p is Permission => p !== undefined);
+    return Array.from(byId.values());
   }
 
   /**
    * STATISTICS
+   *
+   * Counts what the tenant actually sees through `GET /roles`: its own roles
+   * plus the global system catalog.
    */
   async getStats(organizationId: string): Promise<RoleStats> {
-    const orgRoles = Array.from(this.roles.values()).filter(
-      (r) => r.organization_id === organizationId,
+    const [roles, totalPermissions, assignments] = await Promise.all([
+      this.prisma.role.findMany({
+        where: this.visibleRoles(organizationId),
+        select: { id: true, isSystem: true, systemRole: true },
+      }),
+      this.prisma.permission.count({ where: { organizationId } }),
+      this.prisma.userRoleAssignment.findMany({
+        where: { organizationId, revokedAt: null },
+        select: { roleId: true },
+      }),
+    ]);
+
+    const bySystemRole = Object.values(SystemRole).reduce(
+      (acc, systemRole) => {
+        acc[systemRole] = roles.filter(
+          (r) => r.systemRole === systemRole,
+        ).length;
+        return acc;
+      },
+      {} as Record<SystemRole, number>,
     );
 
-    const systemRolesCount = orgRoles.filter((r) => r.is_system).length;
-    const customRolesCount = orgRoles.filter((r) => !r.is_system).length;
-
-    const bySystemRole: Record<SystemRole, number> = {} as any;
-    Object.values(SystemRole).forEach((sr) => {
-      bySystemRole[sr] = orgRoles.filter((r) => r.system_role === sr).length;
-    });
-
-    const totalPermissions = Array.from(this.permissions.values()).filter(
-      (p) => p.organization_id === organizationId,
-    ).length;
-
-    const totalUserRoles = Array.from(this.userRoles.values()).filter(
-      (ur) => ur.organization_id === organizationId && !ur.revoked_at,
-    ).length;
-
     const usersByRole: Record<string, number> = {};
-    orgRoles.forEach((role) => {
-      usersByRole[role.id] = Array.from(this.userRoles.values()).filter(
-        (ur) => ur.role_id === role.id && !ur.revoked_at,
+    for (const role of roles) {
+      usersByRole[role.id] = assignments.filter(
+        (a) => a.roleId === role.id,
       ).length;
-    });
+    }
 
     return {
-      total_roles: orgRoles.length,
-      system_roles_count: systemRolesCount,
-      custom_roles_count: customRolesCount,
+      total_roles: roles.length,
+      system_roles_count: roles.filter((r) => r.isSystem).length,
+      custom_roles_count: roles.filter((r) => !r.isSystem).length,
       by_system_role: bySystemRole,
       total_permissions: totalPermissions,
-      total_user_roles: totalUserRoles,
+      total_user_roles: assignments.length,
       users_by_role: usersByRole,
     };
   }

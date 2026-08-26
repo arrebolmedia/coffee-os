@@ -3,14 +3,18 @@ import {
   IsObject,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
 } from 'class-validator';
 import { Action, Effect, Resource } from '../interfaces';
 
 export class CreatePermissionDto {
-  @IsUUID()
-  organization_id: string;
+  /**
+   * Opcional y sólo por compatibilidad: el permiso se crea siempre en la
+   * organización del JWT (`@CurrentOrg()`).
+   */
+  @IsString()
+  @IsOptional()
+  organization_id?: string;
 
   @IsEnum(Resource)
   resource: Resource;

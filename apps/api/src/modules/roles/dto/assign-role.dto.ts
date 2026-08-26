@@ -1,18 +1,23 @@
-import { IsArray, IsDateString, IsOptional, IsUUID } from 'class-validator';
+import { IsArray, IsDateString, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class AssignRoleDto {
-  @IsUUID()
+  @IsString()
   user_id: string;
 
-  @IsUUID()
+  @IsString()
   role_id: string;
 
-  @IsUUID()
-  organization_id: string;
+  /**
+   * Opcional y sólo por compatibilidad: la organización se toma del JWT
+   * (`@CurrentOrg()`). Si viene, el `TenantGuard` global exige que coincida.
+   */
+  @IsString()
+  @IsOptional()
+  organization_id?: string;
 
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsString({ each: true })
   @IsOptional()
   location_ids?: string[];
 
@@ -26,6 +31,11 @@ export class AssignRoleDto {
   @Type(() => Date)
   valid_until?: Date;
 
-  @IsUUID()
-  assigned_by: string;
+  /**
+   * Ignorado: el autor de la asignación se toma del usuario autenticado para
+   * que la auditoría no sea falsificable desde el cliente.
+   */
+  @IsString()
+  @IsOptional()
+  assigned_by?: string;
 }

@@ -12,7 +12,7 @@ export enum Resource {
   ORGANIZATIONS = 'organizations',
   ROLES = 'roles',
   PERMISSIONS = 'permissions',
-  
+
   // POS & Operations
   POS = 'pos',
   PRODUCTS = 'products',
@@ -23,47 +23,47 @@ export enum Resource {
   PAYMENTS = 'payments',
   DISCOUNTS = 'discounts',
   TAXES = 'taxes',
-  
+
   // Inventory
   INVENTORY = 'inventory',
   INVENTORY_ITEMS = 'inventory_items',
   SUPPLIERS = 'suppliers',
   PURCHASE_ORDERS = 'purchase_orders',
   INVENTORY_MOVEMENTS = 'inventory_movements',
-  
+
   // Locations
   LOCATIONS = 'locations',
   SHIFTS = 'shifts',
   CASH_REGISTERS = 'cash_registers',
-  
+
   // Recipes & Costing
   RECIPES = 'recipes',
-  
+
   // Quality & Compliance
   QUALITY = 'quality',
   CHECKLISTS = 'checklists',
-  
+
   // CRM & Loyalty
   CRM = 'crm',
   CUSTOMERS = 'customers',
   LOYALTY = 'loyalty',
   CAMPAIGNS = 'campaigns',
-  
+
   // HR & Training
   HR = 'hr',
   EMPLOYEES = 'employees',
   TRAINING = 'training',
   EVALUATIONS = 'evaluations',
-  
+
   // Finance & Legal
   FINANCE = 'finance',
   REPORTS = 'reports',
   CFDI = 'cfdi',
-  
+
   // Analytics
   ANALYTICS = 'analytics',
   DASHBOARDS = 'dashboards',
-  
+
   // Settings & Config
   SETTINGS = 'settings',
   NOTIFICATIONS = 'notifications',
@@ -78,7 +78,7 @@ export enum Action {
   READ = 'read',
   UPDATE = 'update',
   DELETE = 'delete',
-  
+
   // Acciones especiales
   APPROVE = 'approve',
   CANCEL = 'cancel',
@@ -100,15 +100,15 @@ export enum Effect {
  * Roles predefinidos del sistema (Mexican coffee shop context)
  */
 export enum SystemRole {
-  SUPER_ADMIN = 'super_admin',       // Acceso total al sistema
-  OWNER = 'owner',                   // Propietario (acceso total a su org)
-  MANAGER = 'manager',               // Gerente de tienda
-  SHIFT_LEADER = 'shift_leader',     // Líder de turno
-  BARISTA = 'barista',               // Barista
-  CASHIER = 'cashier',               // Cajero
-  TRAINER = 'trainer',               // Capacitador
-  AUDITOR = 'auditor',               // Auditor (solo lectura + firmas)
-  ACCOUNTANT = 'accountant',         // Contador (finanzas + CFDI)
+  SUPER_ADMIN = 'super_admin', // Acceso total al sistema
+  OWNER = 'owner', // Propietario (acceso total a su org)
+  MANAGER = 'manager', // Gerente de tienda
+  SHIFT_LEADER = 'shift_leader', // Líder de turno
+  BARISTA = 'barista', // Barista
+  CASHIER = 'cashier', // Cajero
+  TRAINER = 'trainer', // Capacitador
+  AUDITOR = 'auditor', // Auditor (solo lectura + firmas)
+  ACCOUNTANT = 'accountant', // Contador (finanzas + CFDI)
 }
 
 /**
@@ -117,19 +117,19 @@ export enum SystemRole {
 export interface Permission {
   id: string;
   organization_id: string;
-  
+
   // Definición del permiso
   resource: Resource;
   action: Action;
   effect: Effect;
-  
+
   // Condiciones opcionales (JSON para flexibilidad)
   conditions?: Record<string, any>;
-  
+
   // Metadata
   name: string;
   description?: string;
-  
+
   // Audit
   created_at: Date;
   updated_at: Date;
@@ -140,24 +140,34 @@ export interface Permission {
  */
 export interface Role {
   id: string;
-  organization_id: string;
-  
+  /**
+   * `null` = rol global del sistema (catálogo sembrado owner/manager/barista,
+   * compartido por todas las organizaciones porque `User.roleId` de cada tenant
+   * apunta a esas mismas filas). Cualquier otro valor = rol propio del tenant.
+   */
+  organization_id: string | null;
+
   // Definición del rol
   name: string;
   code: string; // Unique within organization
   description?: string;
-  
+
   // Sistema vs Custom
   is_system: boolean; // true si es SystemRole
   system_role?: SystemRole;
-  
-  // Permisos asociados
+
+  // Permisos asociados (ids de la tabla `permissions`, vía `role_permissions`)
   permission_ids: string[];
-  
+
+  // Scopes gruesos heredados del seed ("pos", "inventory", "all")
+  scopes: string[];
+
+  active: boolean;
+
   // UI customization
   color?: string;
   icon?: string;
-  
+
   // Audit
   created_at: Date;
   updated_at: Date;
@@ -171,14 +181,14 @@ export interface UserRole {
   user_id: string;
   role_id: string;
   organization_id: string;
-  
+
   // Scope (opcional)
   location_ids?: string[]; // Si el rol aplica solo a ciertas ubicaciones
-  
+
   // Validity
   valid_from?: Date;
   valid_until?: Date;
-  
+
   // Audit
   assigned_by: string; // user_id
   assigned_at: Date;

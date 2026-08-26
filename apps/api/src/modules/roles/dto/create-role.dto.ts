@@ -4,15 +4,19 @@ import {
   IsEnum,
   IsOptional,
   IsString,
-  IsUUID,
   Matches,
   MaxLength,
 } from 'class-validator';
 import { SystemRole } from '../interfaces';
 
 export class CreateRoleDto {
-  @IsUUID()
-  organization_id: string;
+  /**
+   * Opcional y sólo por compatibilidad: el rol se crea siempre en la
+   * organización del JWT (`@CurrentOrg()`).
+   */
+  @IsString()
+  @IsOptional()
+  organization_id?: string;
 
   @IsString()
   @MaxLength(200)
@@ -40,7 +44,7 @@ export class CreateRoleDto {
   system_role?: SystemRole;
 
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsString({ each: true })
   @IsOptional()
   permission_ids?: string[] = [];
 

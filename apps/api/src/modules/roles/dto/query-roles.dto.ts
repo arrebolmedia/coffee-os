@@ -1,15 +1,14 @@
-import {
-  IsEnum,
-  IsIn,
-  IsOptional,
-  IsString,
-  IsUUID,
-  MaxLength,
-} from 'class-validator';
+import { IsEnum, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import { Action, Resource, SystemRole } from '../interfaces';
 
+/**
+ * Los ids del sistema son cuid, no uuid — por eso los filtros usan `@IsString`.
+ * `organization_id` es opcional en todos los queries: el filtro efectivo sale
+ * del JWT (`@CurrentOrg()`), y si el cliente lo manda el `TenantGuard` global
+ * exige que coincida.
+ */
 export class QueryPermissionsDto {
-  @IsUUID()
+  @IsString()
   @IsOptional()
   organization_id?: string;
 
@@ -36,7 +35,7 @@ export class QueryPermissionsDto {
 }
 
 export class QueryRolesDto {
-  @IsUUID()
+  @IsString()
   @IsOptional()
   organization_id?: string;
 
@@ -59,19 +58,19 @@ export class QueryRolesDto {
 }
 
 export class QueryUserRolesDto {
-  @IsUUID()
+  @IsString()
   @IsOptional()
   user_id?: string;
 
-  @IsUUID()
+  @IsString()
   @IsOptional()
   role_id?: string;
 
-  @IsUUID()
+  @IsString()
   @IsOptional()
   organization_id?: string;
 
-  @IsUUID()
+  @IsString()
   @IsOptional()
   location_id?: string;
 }
