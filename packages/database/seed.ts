@@ -1288,18 +1288,19 @@ async function main() {
 
   // ----------------------------------------------------------
   // 8. Modificadores + enlace a productos
-  //    NOTA: el modelo Modifier no tiene organizationId en el schema,
-  //    así que el catálogo de modificadores es global. Solo se enlazan
-  //    a productos de la organización A vía ProductModifier.
+  //    El catálogo es por organización desde la migración
+  //    20260826_modifier_organization: antes no tenía organizationId y
+  //    GET /modifiers devolvía los 16 a cualquier tenant.
   // ----------------------------------------------------------
   const modifiersByType = new Map<ModifierType, string[]>();
   for (const m of MODIFIERS) {
     let modifier = await prisma.modifier.findFirst({
-      where: { name: m.name, type: m.type },
+      where: { organizationId, name: m.name, type: m.type },
     });
     if (!modifier) {
       modifier = await prisma.modifier.create({
         data: {
+          organizationId,
           name: m.name,
           type: m.type,
           priceDelta: m.priceDelta,
@@ -1635,7 +1636,7 @@ async function main() {
   ] = await Promise.all([
     prisma.category.count({ where: { organizationId } }),
     prisma.product.count({ where: { organizationId } }),
-    prisma.modifier.count(),
+    prisma.modifier.count({ where: { organizationId } }),
     prisma.tax.count({ where: { organizationId } }),
     prisma.discount.count({ where: { organizationId } }),
     prisma.inventoryItem.count({ where: { organizationId } }),
@@ -1647,7 +1648,7 @@ async function main() {
   console.log('\n📊 Coffee Demo:');
   console.log(`   categorías        ${catCount}`);
   console.log(`   productos         ${prodCount}`);
-  console.log(`   modificadores     ${modCount} (catálogo global)`);
+  console.log(`   modificadores     ${modCount}`);
   console.log(`   impuestos         ${taxCount}`);
   console.log(`   descuentos        ${discCount}`);
   console.log(`   insumos           ${itemCount}`);

@@ -29,6 +29,7 @@ model Organization {
   users          User[]
   categories     Category[]
   products       Product[]
+  modifiers      Modifier[]
   recipes        Recipe[]
   inventoryItems InventoryItem[]
   suppliers      Supplier[]
@@ -339,8 +340,9 @@ model Inventory {
 }
 
 model Modifier {
-  id         String       @id @default(cuid())
-  name       String
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  name           String
   type       ModifierType
   priceDelta Float        @default(0) @map("price_delta")
 
@@ -349,9 +351,11 @@ model Modifier {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   products            ProductModifier[]
   ticketLineModifiers TicketLineModifier[]
 
+  @@index([organizationId])
   @@map("modifiers")
 }
 

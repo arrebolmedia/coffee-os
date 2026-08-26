@@ -12,7 +12,7 @@ import { QueryModifiersDto } from './dto/query-modifiers.dto';
 export class ModifiersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createModifierDto: CreateModifierDto) {
+  async create(createModifierDto: CreateModifierDto, organizationId: string) {
     // Check if a modifier with the same name and type already exists
     const existingModifier = await this.prisma.modifier.findFirst({
       where: {
@@ -31,7 +31,9 @@ export class ModifiersService {
     }
 
     return this.prisma.modifier.create({
-      data: createModifierDto,
+      // La organización va explícita aunque la extensión de tenancy también la
+      // inyectaría: la extensión es red de seguridad, no la fuente del dato.
+      data: { ...createModifierDto, organizationId },
       include: {
         _count: {
           select: {

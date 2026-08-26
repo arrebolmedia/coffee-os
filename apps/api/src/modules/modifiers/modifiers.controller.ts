@@ -15,6 +15,7 @@ import { ModifiersService } from './modifiers.service';
 import { CreateModifierDto } from './dto/create-modifier.dto';
 import { UpdateModifierDto } from './dto/update-modifier.dto';
 import { QueryModifiersDto } from './dto/query-modifiers.dto';
+import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 
 // TODO(schema): Modifier necesita organizationId para multi-tenancy.
 // El modelo Modifier en schema.prisma no tiene organizationId, por lo que
@@ -26,8 +27,11 @@ export class ModifiersController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createModifierDto: CreateModifierDto) {
-    return this.modifiersService.create(createModifierDto);
+  async create(
+    @Body() createModifierDto: CreateModifierDto,
+    @CurrentOrg() organizationId: string,
+  ) {
+    return this.modifiersService.create(createModifierDto, organizationId);
   }
 
   @Get()

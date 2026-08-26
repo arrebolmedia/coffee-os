@@ -20,7 +20,7 @@ export type TenantPolicy =
   | 'exempt';
 
 /**
- * Los 31 modelos que declaran `organizationId`.
+ * Los 32 modelos que declaran `organizationId`.
  *
  * Lo que NO está aquí no queda acotado por la extensión: modelos sin la columna
  * (`Order`, `Ticket`, `Shift`, `Payment`, `InventoryMovement`, que derivan la
@@ -42,6 +42,7 @@ export const MODEL_POLICIES: Record<string, TenantPolicy> = {
   LoyaltyReward: 'strict',
   LoyaltyTransaction: 'strict',
   MaintenanceRecord: 'strict',
+  Modifier: 'strict',
   Notification: 'strict',
   NotificationBatch: 'strict',
   NotificationPreference: 'strict',
@@ -207,16 +208,12 @@ export function applyTenantToData(
  *    puede inyectar una columna que no existe; esos servicios siguen filtrando a
  *    mano (`location: { organizationId }`), y sus fugas se cerraron una por una.
  *
- * 2. `Modifier` no tiene organización en el schema: el catálogo es global de
- *    facto. Es fuga conocida y pendiente — necesita migración con backfill, no
- *    una regla aquí.
- *
- * 3. Consultas crudas (`$queryRaw`, `$executeRaw`). Las extensiones de modelo no
+ * 2. Consultas crudas (`$queryRaw`, `$executeRaw`). Las extensiones de modelo no
  *    las ven.
  *
- * 4. Peticiones sin usuario autenticado (rutas `@Public()`): no hay organización
+ * 3. Peticiones sin usuario autenticado (rutas `@Public()`): no hay organización
  *    en el contexto, así que no se inyecta nada. Un endpoint público que exponga
  *    datos de tenant es un agujero que ninguna extensión puede tapar.
  *
- * 5. `isSuperAdmin`: cruza organizaciones por diseño y queda exento.
+ * 4. `isSuperAdmin`: cruza organizaciones por diseño y queda exento.
  */

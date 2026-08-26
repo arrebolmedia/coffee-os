@@ -67,10 +67,10 @@ describe('ModifiersController', () => {
 
       mockModifiersService.create.mockResolvedValue(mockModifier);
 
-      const result = await controller.create(createDto);
+      const result = await controller.create(createDto, 'org-test');
 
       expect(result).toEqual(mockModifier);
-      expect(service.create).toHaveBeenCalledWith(createDto);
+      expect(service.create).toHaveBeenCalledWith(createDto, 'org-test');
     });
   });
 

@@ -168,10 +168,10 @@ describe('tenant-scope', () => {
   });
 
   describe('cobertura del catálogo', () => {
-    it('declara los 31 modelos que tienen organizationId', () => {
+    it('declara los 32 modelos que tienen organizationId', () => {
       // Si alguien añade un modelo con organizationId y no lo declara aquí,
       // queda sin acotar en silencio. Este número es el recordatorio.
-      expect(Object.keys(MODEL_POLICIES)).toHaveLength(31);
+      expect(Object.keys(MODEL_POLICIES)).toHaveLength(32);
     });
 
     it('no deja ningún modelo declarado como exento por descuido', () => {

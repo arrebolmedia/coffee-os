@@ -69,11 +69,12 @@ describe('ModifiersService', () => {
       mockPrismaService.modifier.findFirst.mockResolvedValue(null);
       mockPrismaService.modifier.create.mockResolvedValue(mockModifier);
 
-      const result = await service.create(createDto);
+      const result = await service.create(createDto, 'org-test');
 
       expect(result).toEqual(mockModifier);
       expect(prisma.modifier.create).toHaveBeenCalledWith({
-        data: createDto,
+        // La organización va explícita en el data, no confiada a la extensión.
+        data: { ...createDto, organizationId: 'org-test' },
         include: expect.any(Object),
       });
     });
@@ -81,7 +82,7 @@ describe('ModifiersService', () => {
     it('should throw BadRequestException if modifier name+type already exists', async () => {
       mockPrismaService.modifier.findFirst.mockResolvedValue(mockModifier);
 
-      await expect(service.create(createDto)).rejects.toThrow(
+      await expect(service.create(createDto, 'org-test')).rejects.toThrow(
         BadRequestException,
       );
     });
