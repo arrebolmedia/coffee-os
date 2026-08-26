@@ -5,6 +5,7 @@
 
 import { api } from '@/lib/api';
 import { recipesService } from './recipes.service';
+import { logger } from '@/lib/logger';
 
 // ============================================================================
 // TYPES
@@ -129,7 +130,7 @@ class CostingService {
         last_calculated: new Date(),
       };
     } catch (error) {
-      console.error('Error calculating product COGS:', error);
+      logger.error('Error calculating product COGS:', error);
       throw error;
     }
   }
@@ -196,7 +197,7 @@ class CostingService {
         total_cogs: totalCOGS,
       };
     } catch (error) {
-      console.error('Error getting cost breakdown:', error);
+      logger.error('Error getting cost breakdown:', error);
       throw error;
     }
   }
@@ -264,7 +265,7 @@ class CostingService {
           (result) => (result as PromiseFulfilledResult<MarginAnalysis>).value,
         );
     } catch (error) {
-      console.error('Error getting bulk margin analysis:', error);
+      logger.error('Error getting bulk margin analysis:', error);
       throw error;
     }
   }
@@ -341,7 +342,7 @@ class CostingService {
         total_cost: totalCost,
       };
     } catch (error) {
-      console.error('Error generating profitability report:', error);
+      logger.error('Error generating profitability report:', error);
       throw error;
     }
   }

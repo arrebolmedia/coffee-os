@@ -5,6 +5,7 @@
 
 import { getSession, signOut } from 'next-auth/react';
 import toast from 'react-hot-toast';
+import { logger } from '@/lib/logger';
 
 // Body types that fetch can send raw without JSON.stringify and that should
 // NOT have an explicit Content-Type set (the browser does it).
@@ -48,7 +49,7 @@ export async function apiFetch<T = any>(
     try {
       session = await getSession();
     } catch (error) {
-      console.error('Error getting session:', error);
+      logger.error('Error getting session:', error);
     }
   }
 
@@ -100,7 +101,7 @@ export async function apiFetch<T = any>(
     return data;
   } catch (error) {
     // Solo loguear en consola, no mostrar toast (ya lo hizo handleErrorResponse)
-    console.error('API Fetch error:', error);
+    logger.error('API Fetch error:', error);
     throw error;
   }
 }
@@ -140,7 +141,7 @@ async function handleErrorResponse(response: Response): Promise<never> {
 
     case 404:
       // No mostrar toast para 404, solo loguear
-      console.warn('Resource not found:', errorMessage);
+      logger.warn('Resource not found:', errorMessage);
       break;
 
     case 409:
@@ -149,7 +150,7 @@ async function handleErrorResponse(response: Response): Promise<never> {
 
     case 422:
       // No mostrar toast para errores de validación, dejar que el componente los maneje
-      console.warn('Validation error:', errorMessage);
+      logger.warn('Validation error:', errorMessage);
       break;
 
     case 429:
@@ -164,7 +165,7 @@ async function handleErrorResponse(response: Response): Promise<never> {
 
     default:
       // Solo loguear otros errores
-      console.error('API Error:', response.status, errorMessage);
+      logger.error('API Error:', response.status, errorMessage);
       break;
   }
 

@@ -15,6 +15,20 @@ import {
 import { Save } from 'lucide-react';
 import { CategoryModal } from './CategoryModal';
 
+// Predefined categories for inventory (can be extended).
+// A nivel de módulo a propósito: si se declara dentro del componente se recrea en
+// cada render, y al añadirla a las deps del useEffect de reset el formulario se
+// limpiaría solo en cada render.
+const PREDEFINED_CATEGORIES = [
+  'Café en Grano',
+  'Lácteos',
+  'Jarabes',
+  'Bebidas',
+  'Insumos',
+  'Desechables',
+  'Otros',
+];
+
 export interface InventoryItem {
   id?: string;
   code: string;
@@ -77,25 +91,14 @@ export function InventoryItemModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCreateCategory, setShowCreateCategory] = useState(false);
 
-  // Predefined categories for inventory (can be extended)
-  const predefinedCategories = [
-    'Café en Grano',
-    'Lácteos',
-    'Jarabes',
-    'Bebidas',
-    'Insumos',
-    'Desechables',
-    'Otros',
-  ];
-
   // Build category options including current item's category if it exists
-  const categoryOptions = predefinedCategories.map((cat) => ({
+  const categoryOptions = PREDEFINED_CATEGORIES.map((cat) => ({
     value: cat,
     label: cat,
   }));
 
   // Add current category if it's not in predefined list (for edit mode)
-  if (formData.category && !predefinedCategories.includes(formData.category)) {
+  if (formData.category && !PREDEFINED_CATEGORIES.includes(formData.category)) {
     categoryOptions.unshift({
       value: formData.category,
       label: formData.category,
@@ -118,7 +121,7 @@ export function InventoryItemModal({
         code: '',
         name: '',
         description: '',
-        category: predefinedCategories[0], // Default to first category
+        category: PREDEFINED_CATEGORIES[0], // Default to first category
         unitOfMeasure: 'unit',
         costPerUnit: 0,
         parLevel: 0,

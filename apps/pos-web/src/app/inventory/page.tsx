@@ -21,6 +21,7 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { InventoryItemModal } from '@/components/inventory/InventoryItemModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { logger } from '@/lib/logger';
 import {
   AlertCircle,
   CheckCircle,
@@ -197,7 +198,7 @@ export default function InventoryPage() {
       setIsModalOpen(false);
       setSelectedItem(null);
     } catch (error: any) {
-      console.error('Error saving inventory item:', error);
+      logger.error('Error saving inventory item:', error);
       toast.error(
         error?.message || 'Error al guardar el artículo de inventario',
       );
@@ -211,7 +212,7 @@ export default function InventoryPage() {
         setIsDeleteDialogOpen(false);
         setItemToDelete(null);
       } catch (error: any) {
-        console.error('Error deleting inventory item:', error);
+        logger.error('Error deleting inventory item:', error);
         toast.error(
           error?.message || 'Error al eliminar el artículo de inventario',
         );

@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { Coffee, Eye, EyeOff, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { logger } from '@/lib/logger';
 
 // Only accept relative paths as callbackUrl to prevent open-redirect attacks
 // (e.g. ?callbackUrl=https://evil.com/phish, ?callbackUrl=//evil.com or
@@ -61,7 +62,7 @@ export default function LoginPage() {
         router.refresh();
       }
     } catch (err: any) {
-      console.error('Login error:', err);
+      logger.error('Login error:', err);
       toast.error('Error al iniciar sesión');
     } finally {
       setIsLoading(false);

@@ -15,6 +15,7 @@ import { ShoppingCart } from 'lucide-react';
 import { OfflineIndicator } from '@/components/pos/OfflineIndicator';
 import { MainLayout } from '@/components/layout/MainLayout';
 import type { Customer } from '@/types';
+import { logger } from '@/lib/logger';
 
 export default function POSPage() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -47,7 +48,7 @@ export default function POSPage() {
   };
 
   const handlePaymentSuccess = (orderId: string) => {
-    console.log('Order created:', orderId);
+    logger.debug('Order created:', orderId);
     // Could navigate to receipt page or show success message
   };
 

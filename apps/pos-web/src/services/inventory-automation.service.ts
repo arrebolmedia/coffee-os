@@ -4,6 +4,7 @@
  */
 
 import { api } from '@/lib/api';
+import { logger } from '@/lib/logger';
 
 // ============================================================================
 // TYPES
@@ -97,7 +98,7 @@ class InventoryAutomationService {
       );
       return this.unwrapArray<RecipeIngredientLink>(response);
     } catch (error) {
-      console.error('Error fetching recipe ingredient links:', error);
+      logger.error('Error fetching recipe ingredient links:', error);
       throw error;
     }
   }
@@ -161,7 +162,7 @@ class InventoryAutomationService {
       );
       return this.unwrapSingle(response);
     } catch (error) {
-      console.error('Error auto-linking ingredients:', error);
+      logger.error('Error auto-linking ingredients:', error);
       throw error;
     }
   }
@@ -240,7 +241,7 @@ class InventoryAutomationService {
       );
       return this.unwrapSingle(response);
     } catch (error) {
-      console.error('Error deducting stock for order:', error);
+      logger.error('Error deducting stock for order:', error);
       throw error;
     }
   }

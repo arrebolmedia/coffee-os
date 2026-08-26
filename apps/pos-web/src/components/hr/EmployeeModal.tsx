@@ -11,6 +11,7 @@ import {
   TextareaField,
 } from '@/components/ui/FormField';
 import { Button } from '@/components/ui/Button';
+import { logger } from '@/lib/logger';
 import {
   AlertCircle,
   Briefcase,
@@ -348,7 +349,7 @@ export function EmployeeModal({
       await onSave(formData);
       onClose();
     } catch (error) {
-      console.error('Error saving employee:', error);
+      logger.error('Error saving employee:', error);
     } finally {
       setIsSubmitting(false);
     }

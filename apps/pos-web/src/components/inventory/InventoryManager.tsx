@@ -12,6 +12,7 @@ import {
 } from '@/components/inventory/InventoryItemModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Button } from '@/components/ui/Button';
+import { logger } from '@/lib/logger';
 import {
   useCreateInventoryItem,
   useDeleteInventoryItem,
@@ -52,7 +53,7 @@ export function InventoryManager({
       setSelectedItem(null);
     } catch (error) {
       // Error is handled by mutation
-      console.error('Error saving inventory item:', error);
+      logger.error('Error saving inventory item:', error);
     }
   };
 
@@ -64,7 +65,7 @@ export function InventoryManager({
         setItemToDelete(null);
       } catch (error) {
         // Error is handled by mutation
-        console.error('Error deleting inventory item:', error);
+        logger.error('Error deleting inventory item:', error);
       }
     }
   };

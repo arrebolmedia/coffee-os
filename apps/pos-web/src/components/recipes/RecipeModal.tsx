@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/FormField';
 import { Button } from '@/components/ui/Button';
 import { IngredientsList, RecipeIngredientInput } from './IngredientsList';
+import { logger } from '@/lib/logger';
 
 interface RecipeModalProps {
   isOpen: boolean;
@@ -194,7 +195,7 @@ export function RecipeModal({
       await onSave(formData);
       onClose();
     } catch (error) {
-      console.error('Error saving recipe:', error);
+      logger.error('Error saving recipe:', error);
     } finally {
       setIsSubmitting(false);
     }

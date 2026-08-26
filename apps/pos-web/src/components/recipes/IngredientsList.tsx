@@ -83,8 +83,8 @@ export function IngredientsList({
       {ingredients.length === 0 && (
         <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
           <p className="text-gray-500 text-sm">
-            No hay ingredientes. Haz clic en "Agregar Ingrediente" para
-            comenzar.
+            No hay ingredientes. Haz clic en &quot;Agregar Ingrediente&quot;
+            para comenzar.
           </p>
         </div>
       )}

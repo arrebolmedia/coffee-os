@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { NumPad } from './NumPad';
+import { logger } from '@/lib/logger';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -138,7 +139,7 @@ export function PaymentModal({
       onSuccess(result.id);
       onClose();
     } catch (error) {
-      console.error('Error creating order:', error);
+      logger.error('Error creating order:', error);
     }
   };
 

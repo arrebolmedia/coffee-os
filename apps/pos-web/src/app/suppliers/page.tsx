@@ -17,6 +17,7 @@ import {
 import { SupplierFormModal } from '@/components/suppliers/SupplierFormModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Supplier } from '@/services/suppliers.service';
+import { logger } from '@/lib/logger';
 import {
   AlertCircle,
   CheckCircle,
@@ -156,7 +157,7 @@ export default function SuppliersPage() {
       setIsDeleteDialogOpen(false);
       setSupplierToDelete(null);
     } catch (error) {
-      console.error('Error deleting supplier:', error);
+      logger.error('Error deleting supplier:', error);
     }
   };
 

@@ -5,6 +5,7 @@
 
 import { DBSchema, IDBPDatabase, openDB } from 'idb';
 import { Category, Modifier, Order, Product, SyncQueueItem } from '@/types';
+import { logger } from '@/lib/logger';
 
 // ============================================================================
 // DATABASE SCHEMA
@@ -78,7 +79,7 @@ export async function initDB(): Promise<IDBPDatabase<CoffeeOSDB>> {
 
   dbInstance = await openDB<CoffeeOSDB>(DB_NAME, DB_VERSION, {
     upgrade(db, oldVersion, newVersion, transaction) {
-      console.log(`Upgrading DB from version ${oldVersion} to ${newVersion}`);
+      logger.debug(`Upgrading DB from version ${oldVersion} to ${newVersion}`);
 
       // Products store
       if (!db.objectStoreNames.contains('products')) {
@@ -353,7 +354,7 @@ export async function clearAllData(): Promise<void> {
     db.clear('metadata'),
   ]);
 
-  console.log('All IndexedDB data cleared');
+  logger.debug('All IndexedDB data cleared');
 }
 
 export async function getDatabaseStats(): Promise<{
@@ -430,5 +431,5 @@ export async function importDatabase(jsonData: string): Promise<void> {
     tx.done,
   ]);
 
-  console.log('Database imported successfully');
+  logger.debug('Database imported successfully');
 }

@@ -6,6 +6,7 @@
 'use client';
 
 import { useState } from 'react';
+import { logger } from '@/lib/logger';
 import {
   ArrowRight,
   Building2,
@@ -86,7 +87,7 @@ export default function RegisterOrganizationPage() {
 
   const handleSubmit = async () => {
     // En producción, esto enviaría los datos al API
-    console.log('Registering organization:', formData);
+    logger.debug('Registering organization:', formData);
     alert('¡Organización registrada exitosamente! (Demo)');
     window.location.href = '/dashboard';
   };

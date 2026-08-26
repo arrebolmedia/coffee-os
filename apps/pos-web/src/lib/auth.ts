@@ -1,5 +1,6 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import { logger } from '@/lib/logger';
 
 // Extend NextAuth types
 declare module 'next-auth' {
@@ -92,9 +93,7 @@ function decodeJwtPayload(token: string): Record<string, any> | null {
   }
 }
 
-async function refreshAccessToken(
-  refreshToken: string,
-): Promise<{
+async function refreshAccessToken(refreshToken: string): Promise<{
   accessToken: string;
   refreshToken: string;
   accessTokenExpires: number;
@@ -167,7 +166,7 @@ export const authOptions: NextAuthOptions = {
             expiresIn: data.expiresIn,
           };
         } catch (error) {
-          console.error('Auth error:', error);
+          logger.error('Auth error:', error);
           throw error;
         }
       },

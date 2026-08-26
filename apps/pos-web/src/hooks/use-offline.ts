@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { initOfflineListeners, useOfflineStore } from '@/store/offline.store';
 import { syncService } from '@/lib/sync.service';
 import { getDatabaseStats, initDB } from '@/lib/db';
+import { logger } from '@/lib/logger';
 import {
   registerServiceWorker,
   requestBackgroundSync,
@@ -40,7 +41,7 @@ export function useOffline() {
     const init = async () => {
       try {
         await initDB();
-        console.log('IndexedDB initialized');
+        logger.debug('IndexedDB initialized');
 
         // Register service worker
         registerServiceWorker();
@@ -52,7 +53,7 @@ export function useOffline() {
         const stats = await getDatabaseStats();
         setDbStats(stats);
       } catch (error) {
-        console.error('Error initializing offline support:', error);
+        logger.error('Error initializing offline support:', error);
       }
     };
 
@@ -76,7 +77,7 @@ export function useOffline() {
   // Manual sync trigger
   const triggerSync = async () => {
     if (!isOnline) {
-      console.warn('Cannot sync while offline');
+      logger.warn('Cannot sync while offline');
       return;
     }
 
@@ -85,7 +86,7 @@ export function useOffline() {
       const stats = await getDatabaseStats();
       setDbStats(stats);
     } catch (error) {
-      console.error('Manual sync failed:', error);
+      logger.error('Manual sync failed:', error);
     }
   };
 

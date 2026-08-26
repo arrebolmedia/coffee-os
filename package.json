@@ -26,7 +26,7 @@
     "db:migrate": "cd packages/database && npx prisma migrate dev",
     "db:migrate:deploy": "cd packages/database && npx prisma migrate deploy",
     "db:generate": "cd packages/database && npx prisma generate",
-    "db:seed": "cd packages/database && npx tsx seed-simple.ts",
+    "db:seed": "cd packages/database && npx tsx seed.ts",
     "db:studio": "cd packages/database && npx prisma studio",
     "db:reset": "cd packages/database && npx prisma migrate reset",
     "docker:up": "docker-compose up -d",
@@ -34,7 +34,8 @@
     "docker:logs": "docker-compose logs -f",
     "deploy:staging": "./scripts/deploy-staging.sh",
     "deploy:prod": "./scripts/deploy-prod.sh",
-    "setup": "npm install && npm run db:migrate && npm run db:seed"
+    "setup": "npm install && npm run db:migrate && npm run db:seed",
+    "db:seed:simple": "cd packages/database && npx tsx seed-simple.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.1.0",

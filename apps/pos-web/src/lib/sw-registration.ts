@@ -3,6 +3,8 @@
  * Registro y gestión del Service Worker
  */
 
+import { logger } from '@/lib/logger';
+
 export function registerServiceWorker(): void {
   if (typeof window === 'undefined') return;
 
@@ -11,7 +13,7 @@ export function registerServiceWorker(): void {
       registerSW();
     });
   } else {
-    console.warn('Service Workers are not supported in this browser');
+    logger.warn('Service Workers are not supported in this browser');
   }
 }
 
@@ -21,7 +23,7 @@ async function registerSW(): Promise<void> {
       scope: '/',
     });
 
-    console.log('[SW] Registration successful:', registration.scope);
+    logger.debug('[SW] Registration successful:', registration.scope);
 
     // Check for updates periodically
     setInterval(() => {
@@ -47,7 +49,7 @@ async function registerSW(): Promise<void> {
 
     // Listen for controller change (new SW activated)
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      console.log('[SW] Controller changed, reloading page');
+      logger.debug('[SW] Controller changed, reloading page');
       window.location.reload();
     });
 
@@ -61,10 +63,10 @@ async function registerSW(): Promise<void> {
     });
 
     if ('sync' in registration) {
-      console.log('[SW] Background Sync is supported');
+      logger.debug('[SW] Background Sync is supported');
     }
   } catch (error) {
-    console.error('[SW] Registration failed:', error);
+    logger.error('[SW] Registration failed:', error);
   }
 }
 
@@ -104,13 +106,13 @@ export function requestBackgroundSync(tag: string): void {
         return (registration as any).sync.register(tag);
       })
       .then(() => {
-        console.log('[SW] Background sync registered:', tag);
+        logger.debug('[SW] Background sync registered:', tag);
       })
       .catch((error: Error) => {
-        console.error('[SW] Background sync registration failed:', error);
+        logger.error('[SW] Background sync registration failed:', error);
       });
   } else {
-    console.warn('[SW] Background sync not supported');
+    logger.warn('[SW] Background sync not supported');
   }
 }
 

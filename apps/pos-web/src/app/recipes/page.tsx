@@ -20,6 +20,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { RecipeIngredientLinkingModal } from '@/components/recipes/RecipeIngredientLinkingModal';
 import { RecipeFormData, RecipeModal } from '@/components/recipes/RecipeModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { logger } from '@/lib/logger';
 import {
   AlertCircle,
   BookOpen,
@@ -198,7 +199,7 @@ export default function RecipesPage() {
       setIsModalOpen(false);
       setSelectedRecipe(null);
     } catch (error) {
-      console.error('Error saving recipe:', error);
+      logger.error('Error saving recipe:', error);
     }
   };
 
@@ -210,7 +211,7 @@ export default function RecipesPage() {
       setIsDeleteDialogOpen(false);
       setRecipeToDelete(null);
     } catch (error) {
-      console.error('Error deleting recipe:', error);
+      logger.error('Error deleting recipe:', error);
     }
   };
 

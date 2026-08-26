@@ -18,6 +18,7 @@ import {
   updateSyncQueueItem,
 } from '@/lib/db';
 import { Category, Modifier, Product, SyncQueueItem } from '@/types';
+import { logger } from '@/lib/logger';
 
 const MAX_RETRY_ATTEMPTS = 3;
 const SYNC_INTERVAL = 60000; // 1 minute
@@ -53,7 +54,7 @@ export class SyncService {
 
     // Sync when going online
     window.addEventListener('online', () => {
-      console.log('Connection restored - triggering sync');
+      logger.debug('Connection restored - triggering sync');
       this.syncAll();
     });
 
@@ -70,14 +71,14 @@ export class SyncService {
       }
     }, SYNC_INTERVAL);
 
-    console.log('Periodic sync started');
+    logger.debug('Periodic sync started');
   }
 
   stopPeriodicSync(): void {
     if (syncIntervalId) {
       clearInterval(syncIntervalId);
       syncIntervalId = null;
-      console.log('Periodic sync stopped');
+      logger.debug('Periodic sync stopped');
     }
   }
 
@@ -87,12 +88,12 @@ export class SyncService {
 
   async syncAll(): Promise<void> {
     if (isSyncing) {
-      console.log('Sync already in progress, skipping');
+      logger.debug('Sync already in progress, skipping');
       return;
     }
 
     if (!navigator.onLine) {
-      console.log('Offline, skipping sync');
+      logger.debug('Offline, skipping sync');
       return;
     }
 
@@ -107,9 +108,9 @@ export class SyncService {
       await this.uploadPendingChanges();
 
       useOfflineStore.getState().setSyncError(null);
-      console.log('Sync completed successfully');
+      logger.debug('Sync completed successfully');
     } catch (error: any) {
-      console.error('Sync failed:', error);
+      logger.error('Sync failed:', error);
       useOfflineStore.getState().setSyncError(error.message);
     } finally {
       isSyncing = false;
@@ -125,7 +126,7 @@ export class SyncService {
     const organizationId =
       useOfflineStore.getState().offlineData.products[0]?.organization_id;
     if (!organizationId) {
-      console.log('No organization context, skipping download');
+      logger.debug('No organization context, skipping download');
       return;
     }
 
@@ -141,7 +142,7 @@ export class SyncService {
         useOfflineStore
           .getState()
           .updateProducts(productsResponse.data as Product[]);
-        console.log(`Downloaded ${productsResponse.data.length} products`);
+        logger.debug(`Downloaded ${productsResponse.data.length} products`);
       }
 
       // Download categories
@@ -149,7 +150,7 @@ export class SyncService {
       if (categories.length > 0) {
         await saveCategories(categories as Category[]);
         useOfflineStore.getState().updateCategories(categories as Category[]);
-        console.log(`Downloaded ${categories.length} categories`);
+        logger.debug(`Downloaded ${categories.length} categories`);
       }
 
       // Download modifiers
@@ -157,10 +158,10 @@ export class SyncService {
       if (modifiers.length > 0) {
         await saveModifiers(modifiers as Modifier[]);
         useOfflineStore.getState().updateModifiers(modifiers as Modifier[]);
-        console.log(`Downloaded ${modifiers.length} modifiers`);
+        logger.debug(`Downloaded ${modifiers.length} modifiers`);
       }
     } catch (error) {
-      console.error('Error downloading data:', error);
+      logger.error('Error downloading data:', error);
       throw error;
     }
   }
@@ -173,11 +174,11 @@ export class SyncService {
     const pendingItems = await getSyncQueue('PENDING');
 
     if (pendingItems.length === 0) {
-      console.log('No pending changes to sync');
+      logger.debug('No pending changes to sync');
       return;
     }
 
-    console.log(`Syncing ${pendingItems.length} pending items`);
+    logger.debug(`Syncing ${pendingItems.length} pending items`);
 
     // Process in batches
     for (let i = 0; i < pendingItems.length; i += SYNC_BATCH_SIZE) {
@@ -203,16 +204,16 @@ export class SyncService {
           await this.syncCustomer(item);
           break;
         default:
-          console.warn(`Unknown sync type: ${item.type}`);
+          logger.warn(`Unknown sync type: ${item.type}`);
       }
 
       // Mark as success and remove from queue
       await updateSyncQueueItem(item.id, { status: 'SUCCESS' });
       await removeSyncQueueItem(item.id);
 
-      console.log(`Successfully synced ${item.type} ${item.id}`);
+      logger.debug(`Successfully synced ${item.type} ${item.id}`);
     } catch (error: any) {
-      console.error(`Error syncing ${item.type} ${item.id}:`, error);
+      logger.error(`Error syncing ${item.type} ${item.id}:`, error);
 
       // Increment attempts
       const attempts = item.attempts + 1;
@@ -224,7 +225,7 @@ export class SyncService {
           attempts,
           last_error: error.message,
         });
-        console.error(`Max retry attempts reached for ${item.type} ${item.id}`);
+        logger.error(`Max retry attempts reached for ${item.type} ${item.id}`);
       } else {
         // Retry later
         await updateSyncQueueItem(item.id, {
@@ -250,7 +251,7 @@ export class SyncService {
       // Persist server copy locally (replaces the optimistic offline order)
       await saveOrder(order as any);
 
-      console.log(`Order synced: ${order.order_number}`);
+      logger.debug(`Order synced: ${order.order_number}`);
     } else if (item.action === 'UPDATE') {
       await ordersService.updateOrder(item.data.id, item.data);
     }
@@ -281,7 +282,7 @@ export class SyncService {
   // ============================================================================
 
   async syncNow(): Promise<void> {
-    console.log('Manual sync triggered');
+    logger.debug('Manual sync triggered');
     await this.syncAll();
   }
 
@@ -289,7 +290,7 @@ export class SyncService {
     const pendingOrders = await getSyncQueue('PENDING');
     const orderItems = pendingOrders.filter((item) => item.type === 'ORDER');
 
-    console.log(`Syncing ${orderItems.length} pending orders`);
+    logger.debug(`Syncing ${orderItems.length} pending orders`);
 
     for (const item of orderItems) {
       await this.syncItem(item);
@@ -304,7 +305,7 @@ export class SyncService {
     item: SyncQueueItem,
     strategy: 'server-wins' | 'local-wins' | 'merge',
   ): Promise<void> {
-    console.log(
+    logger.debug(
       `Resolving conflict for ${item.type} ${item.id} using ${strategy}`,
     );
 
@@ -322,7 +323,7 @@ export class SyncService {
 
       case 'merge':
         // Merge logic (complex, depends on entity type)
-        console.warn('Merge strategy not implemented yet');
+        logger.warn('Merge strategy not implemented yet');
         break;
     }
   }
@@ -354,7 +355,7 @@ export class SyncService {
       await removeSyncQueueItem(item.id);
     }
 
-    console.log(`Cleared ${errorItems.length} errored items`);
+    logger.debug(`Cleared ${errorItems.length} errored items`);
   }
 
   async retryErroredItems(): Promise<void> {
@@ -368,7 +369,7 @@ export class SyncService {
       });
     }
 
-    console.log(`Reset ${errorItems.length} errored items for retry`);
+    logger.debug(`Reset ${errorItems.length} errored items for retry`);
     await this.syncAll();
   }
 }
