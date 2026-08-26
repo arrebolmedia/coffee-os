@@ -947,7 +947,7 @@ Lo grueso ya está hecho. Queda:
 | 1 · Next 15 + deps      | ~1 día   | ✅ **completado 2026-08-26.** En la práctica no tocó ninguna: ver el registro. Cierra la CVE del middleware. Toca las 46 rutas; hacerlo después obliga a rehacer lo demás. Cierra la CVE del middleware. |
 | 2 · Stock + roles       | ~1 día   | ✅ **completado 2026-08-26.** El sistema afirma que descuenta y no descuenta. Corrompe reportes cada venta.                                                                                              |
 | 3 · Extensión de Prisma | ~2 días  | ✅ **completado 2026-08-26.** Cierra la clase de fuga, no las 89 instancias.                                                                                                                             |
-| 4 · Tests del dinero    | ~1 día   | Red de seguridad sobre lo anterior; necesita 1–3 estables.                                                                                                                                               |
+| 4 · Tests del dinero    | ~1 día   | ✅ **completado 2026-08-26.** Red de seguridad sobre lo anterior; necesita 1–3 estables.                                                                                                                 |
 | 5 · Higiene             | ~1 h     | No bloquea nada.                                                                                                                                                                                         |
 
 **Total: ~5–6 días.** CFDI queda fuera a propósito: la decisión fue bloquear el mock, y
@@ -1270,3 +1270,95 @@ quedan como redundancia.
 
 > El caso de `modifiers` es el que mejor lo demuestra: `modifiers.service.findAll` **no
 > filtra por organización en su código**. El filtro lo pone la extensión.
+
+---
+
+### Sprint 4 — ✅ completado 2026-08-26
+
+Playwright pasa de **23 pasando / 11 fallando** a **35/35**, y ahora prueba lo que decía
+probar.
+
+#### El test nuevo encontró un fallo que yo mismo había introducido
+
+Los 8 specs que había eran smoke de interfaz: comprobaban que las pantallas montan y que
+la aritmética del carrito cuadra, pero **ninguno completaba una venta**. El spec nuevo sí:
+cobra por interfaz y verifica contra la API que la orden existe y que el inventario bajó
+exactamente lo que dice la receta.
+
+Y al hacerlo, el stock bajaba **0.036 kg donde la receta dice 0.018**. En la base había dos
+movimientos por venta, `Venta Ticket #TKT-…` y `RECIPE_DEDUCTION`, separados por 294 ms.
+
+**Mi diagnóstico del Sprint 2 estaba mal.** Afirmé que «el POS creía que descontaba y nunca
+descontaba». Falso: `pos.service.closeTicket` **ya descontaba al cobrar**, con una
+implementación propia, dentro de la transacción del ticket. Lo que estaba muerto era el
+módulo de automatización, no el descuento. Al cablearlo en SERVED sin saber que el otro
+camino existía, cada venta pasó a comerse el doble de insumos.
+
+Queda **una sola implementación**, la del servicio de automatización — la de `closeTicket`
+multiplicaba `quantity * line.quantity` ignorando `recipe.yield`, no convertía unidades,
+hacía `decrement` crudo y no tenía ni idempotencia ni flag—. Y se dispara **al cobrar**, no
+al servir: el pago siempre ocurre, mientras que avanzar la orden en el KDS depende de que
+alguien la mueva, y en la base de desarrollo hay órdenes que llevan días en PENDING. Si el
+descuento colgara sólo de SERVED, el stock no se movería nunca. Servir después devuelve
+`skipped`.
+
+> Lección de método: la venta funcionaba en todas mis verificaciones del Sprint 2 —el
+> stock bajaba— y el número era correcto **porque medí con una llamada a la API que no
+> pasaba por `closeTicket`**. Sólo el flujo real de interfaz recorría los dos caminos a la
+> vez.
+
+#### Tres specs que habían dejado de probar lo que decían
+
+1. **`fixed-pages-smoke` daba 9 páginas «crasheando».** Usaba la existencia de
+   `<nextjs-portal>` como señal de error, y en Next 15 ese portal se renderiza **siempre**
+   porque también aloja el indicador de dev tools. Ahora mira el diálogo de dentro,
+   verificado en ambos sentidos contra una página que lanza a propósito (1 diálogo) y una
+   sana (0).
+2. **`pos-sale-flow` afirmaba que cobrar falla** por falta de sucursal asignada. Se arregló
+   en agosto: documentar la limitación pasó a documentar algo que ya no ocurre.
+3. **`auth-flow` no podía probar el redirect** de rutas protegidas porque la config
+   activaba el bypass de autenticación. Los specs ya arrancan con una sesión real guardada
+   por `auth.setup.ts`, así que el bypass sólo servía para que el middleware dejara pasar
+   todo. Eliminado.
+
+#### Un bug encontrado por perseguir ruido
+
+El plan tenía como pendiente menor «falta `public/images/placeholder.png` → 400 en
+`/_next/image`». Crear el archivo no bastó: el matcher del middleware no excluía `images/`,
+así que **`next/image` estaba roto para cualquier imagen local**. El optimizador se pide la
+imagen a sí mismo, sin cookie de sesión; el middleware le devolvía un 307 al login y el
+optimizador respondía 400 «isn't a valid image … received null». Ninguna foto de producto
+habría cargado nunca.
+
+#### Rutas del dinero
+
+- `api.ts` sólo contemplaba el 204, pero hay endpoints que responden **200 con el cuerpo
+  vacío**; ahí `response.json()` lanzaba y dejaba la query en error — el ruido de consola
+  que se anotó en el Sprint 1. Un JSON mal formado sigue fallando: no es lo mismo «sin
+  cuerpo» que «cuerpo roto».
+- `buildQueryString` enviaba la cadena vacía, así que un filtro en blanco viajaba como
+  `?startDate=`. 8 tests nuevos fijan ambas cosas.
+
+#### Deuda cerrada
+
+- `RecipeModal` conservaba el último `exhaustive-deps` del proyecto. Resuelto con un ref
+  más un efecto aparte que rellena el desplegable si las categorías llegan tarde — que era
+  el bug latente que la deuda escondía. **exhaustive-deps queda en 0** en todo pos-web.
+- El seed crea la organización B con id fijo y su usuario, deliberadamente vacía. Antes
+  vivía sólo en la base de quien la hubiera creado a mano.
+
+#### Verificación
+
+| Check                              | Resultado                 |
+| ---------------------------------- | ------------------------- |
+| Tests unitarios API                | ✅ 56 suites · 1141 tests |
+| Tests e2e API                      | ✅ 6 suites · 54 tests    |
+| Tests pos-web                      | ✅ 10 suites · 106 tests  |
+| Playwright                         | ✅ **35/35**              |
+| `tsc --noEmit` · `turbo run build` | ✅                        |
+
+#### Anotado, sin arreglar
+
+El toast de éxito del POS dice «Orden #TKT-…», pero ese identificador es el número de
+**ticket**, no el de la orden de cocina (`ORD-…`). No es un fallo funcional; al cajero le
+enseña un número con la etiqueta de otra cosa.
