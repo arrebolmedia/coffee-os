@@ -123,17 +123,12 @@ test.describe('POS Sale Flow', () => {
     expect(Math.abs(modalTotal - cartTotal)).toBeLessThanOrEqual(0.01);
   });
 
-  test('charging without an assigned location shows an error (expected current behavior)', async ({
-    page,
-  }) => {
-    // KNOWN LIMITATION (documented): the demo user owner@coffeedemo.mx has no
-    // UserLocation (session locationId = null). useCreateOrder() in
-    // src/hooks/use-pos.ts throws "El usuario no tiene una sucursal asignada"
-    // before hitting the API. The onError handler reads
-    // error?.response?.data?.message (an Axios shape) which is undefined for a
-    // plain Error, so the toast shown to the cashier is the GENERIC
-    // "Error al crear la orden" — the specific "sucursal" message is swallowed.
-    // We assert the error toast appears and the cart is NOT cleared.
+  test('cobrar completa la venta y vacia el carrito', async ({ page }) => {
+    // Este test afirmaba lo contrario: que cobrar fallaba porque el usuario
+    // demo no tenia sucursal asignada (la sesion traia locationId null y
+    // use-pos.ts abortaba antes de llamar a la API). Se arreglo en agosto
+    // anadiendo locationId a la respuesta del login, asi que documentar la
+    // limitacion paso a ser documentar algo que ya no ocurre.
     await addFirstProduct(page);
 
     await page.getByRole('button', { name: /Cobrar/i }).click();
@@ -141,8 +136,7 @@ test.describe('POS Sale Flow', () => {
       page.getByRole('heading', { name: /Procesar Pago/i }),
     ).toBeVisible();
 
-    // Card payments are always "exact", so Confirmar Pago enables immediately.
-    // ("Tarjeta Débito o crédito" — avoid matching the "Mixto Efectivo + Tarjeta" button)
+    // Con tarjeta el importe siempre es exacto, asi que Confirmar se habilita solo.
     await page
       .getByRole('button', { name: /Tarjeta Débito o crédito/i })
       .click();
@@ -150,17 +144,14 @@ test.describe('POS Sale Flow', () => {
     await expect(confirm).toBeEnabled();
     await confirm.click();
 
-    // Error toast (generic message wraps the missing-location error)
-    await expect(
-      page.getByText(/Error al crear la orden|sucursal/i).first(),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/creada exitosamente/i).first()).toBeVisible({
+      timeout: 20_000,
+    });
 
-    // The sale did not complete: cart still has the item after closing modal
-    await page.getByRole('button', { name: /^Atrás$/ }).click();
-    await page.getByRole('button', { name: /^Cancelar$/ }).click();
-    await expect(
-      cartAside(page).getByRole('heading', { name: /Carrito \(1 item/i }),
-    ).toBeVisible();
+    // La venta se consumo: el carrito queda vacio.
+    await expect(page.locator('[data-testid="cart-empty"]')).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test('clearing the cart returns to the empty state', async ({ page }) => {

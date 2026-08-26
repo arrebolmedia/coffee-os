@@ -53,7 +53,14 @@ export const config = {
      * - manifest.json (PWA manifest)
      * - sw.js (service worker)
      * - workbox-*.js (workbox files)
+     * - images/ (assets estaticos de public/)
+     *
+     * `images` no estaba excluido, y eso rompia next/image para CUALQUIER
+     * imagen local: el optimizador se pide la imagen a si mismo, sin cookie de
+     * sesion; el middleware le devolvia un 307 al login y el optimizador
+     * respondia 400 "isn't a valid image ... received null". No era solo que
+     * faltara el placeholder: ninguna foto de producto habria cargado.
      */
-    '/((?!api/auth|_next/static|_next/image|favicon.ico|login|manifest.json|sw.js|workbox-.*\\.js).*)',
+    '/((?!api/auth|_next/static|_next/image|favicon.ico|login|manifest.json|sw.js|images/|workbox-.*\\.js).*)',
   ],
 };

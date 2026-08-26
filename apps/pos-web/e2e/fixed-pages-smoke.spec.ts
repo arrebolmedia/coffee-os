@@ -33,8 +33,15 @@ for (const { path, heading } of PAGES) {
       page.getByRole('heading', { name: heading }).first(),
     ).toBeVisible();
 
-    // Next.js renders a dev error overlay on an unhandled render error.
-    await expect(page.locator('nextjs-portal')).toHaveCount(0);
+    // El overlay de error de Next vive dentro de <nextjs-portal>. Comprobar la
+    // existencia del portal dejo de servir en Next 15: ahora se renderiza
+    // SIEMPRE, porque tambien aloja el indicador de dev tools, asi que estas 9
+    // paginas pasaron a fallar sin haberse roto. Lo que distingue un error es el
+    // dialogo de dentro. Verificado en ambos sentidos contra una pagina que
+    // lanza a proposito (1 dialogo) y una sana (0).
+    await expect(
+      page.locator('nextjs-portal [data-nextjs-dialog]'),
+    ).toHaveCount(0);
     expect(clientErrors, `client errors on ${path}`).toEqual([]);
   });
 }

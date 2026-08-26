@@ -104,9 +104,11 @@ export default defineConfig({
     command: 'npm run dev',
     url: 'http://localhost:3001',
     reuseExistingServer: !process.env.CI,
-    env: {
-      E2E_BYPASS_AUTH: 'true',
-    },
+    // Sin bypass de autenticacion: los specs ya arrancan con una sesion real
+    // guardada por auth.setup.ts, asi que activarlo solo servia para que el
+    // middleware dejara pasar todo — y con ello, para que la suite no probara
+    // nunca la proteccion de rutas.
+    env: {},
     timeout: 120 * 1000,
   },
 });
