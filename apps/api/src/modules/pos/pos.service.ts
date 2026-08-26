@@ -304,8 +304,9 @@ export class PosService {
       amount: number;
       reference?: string;
     }>,
+    organizationId?: string,
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    const closed = await this.prisma.$transaction(async (tx) => {
       const ticket = await tx.ticket.findUnique({
         where: { id },
         include: { lines: { include: { product: true } } },
@@ -336,40 +337,12 @@ export class PosService {
         });
       }
 
-      // Decrement inventory and record movements inside the transaction.
-      for (const line of ticket.lines) {
-        const recipe = await tx.recipe.findFirst({
-          where: { productId: line.productId, active: true },
-          include: { ingredients: true },
-          orderBy: { version: 'desc' },
-        });
-
-        if (recipe) {
-          for (const ingredient of recipe.ingredients) {
-            const quantityToDeduct = ingredient.quantity * line.quantity;
-
-            await tx.inventoryItem.update({
-              where: { id: ingredient.inventoryItemId },
-              data: { currentStock: { decrement: quantityToDeduct } },
-            });
-
-            await tx.inventoryMovement.create({
-              data: {
-                locationId: ticket.locationId,
-                inventoryItemId: ingredient.inventoryItemId,
-                type: MovementType.OUT,
-                quantity: quantityToDeduct,
-                reason: `Venta Ticket #${ticket.ticketNumber}`,
-                reference: ticket.id,
-              },
-            });
-          }
-        } else {
-          this.logger.warn(
-            `No recipe found for product ${line.product.name} (${line.productId}) - Inventory not deducted`,
-          );
-        }
-      }
+      // El descuento de inventario NO va aquí. Vivía en este bucle, con una
+      // implementación propia que ignoraba `recipe.yield`, no convertía
+      // unidades, no redondeaba (dejaba 6.964000000000001), no tenía
+      // idempotencia y descontaba aunque el flag estuviera apagado. Ahora lo
+      // hace InventoryAutomationService después de commitear, que es la única
+      // implementación y trae todas esas garantías.
 
       return tx.ticket.update({
         where: { id },
@@ -389,6 +362,28 @@ export class PosService {
         },
       });
     });
+
+    // El cobro es el momento en que la venta se consuma, así que es cuando se
+    // descuentan los insumos. Va FUERA de la transacción a propósito: si el
+    // inventario no cuadra, el cobro ya ocurrió y el software tiene que
+    // registrarlo igual — ver `autoDeductOnSale`, que nunca lanza.
+    //
+    // La orden sigue PENDING en cocina; `requireSaleStatus: false` dice que la
+    // autorización aquí es el ticket pagado, no el estado del KDS. Si después
+    // alguien lleva la orden a SERVED, ese segundo intento devuelve `skipped`:
+    // la idempotencia la garantiza el índice único de la base.
+    if (organizationId) {
+      const inventory = await Promise.all(
+        (closed.orders ?? []).map((order) =>
+          this.inventoryAutomation.autoDeductOnSale(order.id, organizationId, {
+            requireSaleStatus: false,
+          }),
+        ),
+      );
+      return { ...closed, inventory_deduction: inventory[0] ?? null };
+    }
+
+    return closed;
   }
 
   // ========================================

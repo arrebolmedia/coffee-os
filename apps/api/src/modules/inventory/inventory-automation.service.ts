@@ -382,7 +382,11 @@ export class InventoryAutomationService {
    * Idempotent: a second call for the same order is rejected with 409 unless
    * the previous deduction was reversed first.
    */
-  async deductForOrder(orderId: string, organizationId: string) {
+  async deductForOrder(
+    orderId: string,
+    organizationId: string,
+    opts: { requireSaleStatus?: boolean } = {},
+  ) {
     const config = await this.getConfig(organizationId);
     const { order, lines, failures, warnings } = await this.planDeduction(
       orderId,
@@ -403,7 +407,15 @@ export class InventoryAutomationService {
     // CANCELLED fabricaba una discrepancia permanente: el stock bajaba pero la
     // orden no cuenta como vendida, así que el reporte de exactitud lo
     // registraba como merma inexistente.
-    if (!DEDUCTIBLE_ORDER_STATUSES.includes(order.status)) {
+    // `requireSaleStatus: false` lo usa el cobro del POS: ahí la orden todavía
+    // está PENDING en cocina, pero el ticket acaba de pagarse y eso ES la venta
+    // consumada. La guarda sigue activa para el endpoint manual, que es donde
+    // hace falta impedir que alguien descuente de una orden CANCELLED.
+    const requireSaleStatus = opts.requireSaleStatus ?? true;
+    if (
+      requireSaleStatus &&
+      !DEDUCTIBLE_ORDER_STATUSES.includes(order.status)
+    ) {
       throw new ConflictException(
         `No se puede descontar inventario de una orden en estado ${order.status}. ` +
           `Estados válidos: ${DEDUCTIBLE_ORDER_STATUSES.join(', ')}.`,
@@ -524,6 +536,7 @@ export class InventoryAutomationService {
   async autoDeductOnSale(
     orderId: string,
     organizationId: string,
+    opts: { requireSaleStatus?: boolean } = {},
   ): Promise<AutoDeductOutcome> {
     try {
       const config = await this.getConfig(organizationId);
@@ -531,7 +544,7 @@ export class InventoryAutomationService {
         return { status: 'disabled' };
       }
 
-      const result = await this.deductForOrder(orderId, organizationId);
+      const result = await this.deductForOrder(orderId, organizationId, opts);
       return {
         status: 'deducted',
         items_deducted: result.total_items_deducted,

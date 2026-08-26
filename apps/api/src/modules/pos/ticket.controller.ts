@@ -11,6 +11,10 @@ import {
 import { PosService } from './pos.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { CloseTicketDto } from './dto/close-ticket.dto';
+import {
+  CurrentUser,
+  CurrentUserType,
+} from '../auth/decorators/current-user.decorator';
 
 @Controller('pos/tickets')
 export class TicketController {
@@ -39,7 +43,8 @@ export class TicketController {
     @Param('id') id: string,
     @Body(new ValidationPipe({ whitelist: true, transform: true }))
     data: CloseTicketDto,
+    @CurrentUser() user: CurrentUserType,
   ) {
-    return this.posService.closeTicket(id, data.payments);
+    return this.posService.closeTicket(id, data.payments, user.organizationId);
   }
 }
