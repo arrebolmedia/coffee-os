@@ -1,9 +1,15 @@
 import { Controller, Get, Query, UnauthorizedException } from '@nestjs/common';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import {
   CurrentUser,
   CurrentUserType,
 } from '../auth/decorators/current-user.decorator';
+import {
+  PnLCompareQueryDto,
+  PnLMonthlyQueryDto,
+  PnLRangeQueryDto,
+  PnLYearlyQueryDto,
+} from './dto/query-pnl.dto';
 import { PnLService } from './pnl.service';
 
 @ApiBearerAuth()
@@ -21,64 +27,68 @@ export class PnLController {
   }
 
   @Get()
+  @ApiQuery({ name: 'start_date', required: true, example: '2026-01-01' })
+  @ApiQuery({ name: 'end_date', required: true, example: '2026-12-31' })
+  @ApiQuery({ name: 'location_id', required: false })
   async calculatePnL(
-    @Query('start_date') startDate: string,
-    @Query('end_date') endDate: string,
+    @Query() query: PnLRangeQueryDto,
     @CurrentUser() user: CurrentUserType,
-    @Query('location_id') locationId?: string,
   ) {
     return this.pnlService.calculatePnL(
       this.requireOrg(user),
-      new Date(startDate),
-      new Date(endDate),
-      locationId,
+      new Date(query.start_date),
+      new Date(query.end_date),
+      query.location_id,
     );
   }
 
   @Get('monthly')
+  @ApiQuery({ name: 'year', required: true, example: 2026 })
+  @ApiQuery({ name: 'month', required: true, example: 1 })
+  @ApiQuery({ name: 'location_id', required: false })
   async calculateMonthlyPnL(
-    @Query('year') year: string,
-    @Query('month') month: string,
+    @Query() query: PnLMonthlyQueryDto,
     @CurrentUser() user: CurrentUserType,
-    @Query('location_id') locationId?: string,
   ) {
     return this.pnlService.calculateMonthlyPnL(
       this.requireOrg(user),
-      parseInt(year),
-      parseInt(month),
-      locationId,
+      query.year,
+      query.month,
+      query.location_id,
     );
   }
 
   @Get('yearly')
+  @ApiQuery({ name: 'year', required: true, example: 2026 })
+  @ApiQuery({ name: 'location_id', required: false })
   async calculateYearlyPnL(
-    @Query('year') year: string,
+    @Query() query: PnLYearlyQueryDto,
     @CurrentUser() user: CurrentUserType,
-    @Query('location_id') locationId?: string,
   ) {
     return this.pnlService.calculateYearlyPnL(
       this.requireOrg(user),
-      parseInt(year),
-      locationId,
+      query.year,
+      query.location_id,
     );
   }
 
   @Get('compare')
+  @ApiQuery({ name: 'period1_start', required: true, example: '2026-01-01' })
+  @ApiQuery({ name: 'period1_end', required: true, example: '2026-06-30' })
+  @ApiQuery({ name: 'period2_start', required: true, example: '2026-07-01' })
+  @ApiQuery({ name: 'period2_end', required: true, example: '2026-12-31' })
+  @ApiQuery({ name: 'location_id', required: false })
   async comparePeriods(
-    @Query('period1_start') period1Start: string,
-    @Query('period1_end') period1End: string,
-    @Query('period2_start') period2Start: string,
-    @Query('period2_end') period2End: string,
+    @Query() query: PnLCompareQueryDto,
     @CurrentUser() user: CurrentUserType,
-    @Query('location_id') locationId?: string,
   ) {
     return this.pnlService.comparePeriods(
       this.requireOrg(user),
-      new Date(period1Start),
-      new Date(period1End),
-      new Date(period2Start),
-      new Date(period2End),
-      locationId,
+      new Date(query.period1_start),
+      new Date(query.period1_end),
+      new Date(query.period2_start),
+      new Date(query.period2_end),
+      query.location_id,
     );
   }
 }

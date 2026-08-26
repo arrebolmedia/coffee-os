@@ -47,6 +47,22 @@ export interface CFDITotales {
   total: number;
 }
 
+/**
+ * Estados posibles de un CFDI.
+ *
+ * IMPORTANTE: el ÚNICO estado con validez fiscal es 'stamped', y solo puede
+ * asignarlo la respuesta de un PAC real. 'mock' identifica los comprobantes
+ * que pasaron por el camino simulado: NO existen ante el SAT, no tienen UUID
+ * ni sello válidos y su XML no debe entregarse a nadie.
+ */
+export type CFDIStatus =
+  | 'draft'
+  | 'pending'
+  | 'mock'
+  | 'stamped'
+  | 'cancelled'
+  | 'error';
+
 export interface CFDI {
   id: string;
   organization_id: string;
@@ -74,7 +90,7 @@ export interface CFDI {
   totales: CFDITotales;
 
   // Status
-  status: 'draft' | 'pending' | 'stamped' | 'cancelled' | 'error';
+  status: CFDIStatus;
   errorMessage?: string;
 
   // PAC Integration
@@ -120,6 +136,8 @@ export interface CFDIStats {
   totalEmitidos: number;
   totalCancelados: number;
   totalActivos: number;
+  /** CFDIs que pasaron por el camino mock. Sin validez fiscal, no cuentan como emitidos. */
+  totalMock: number;
   montoTotal: number;
   ivaTotal: number;
   subtotal: number;

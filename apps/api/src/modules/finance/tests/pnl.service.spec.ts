@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PnLService } from '../pnl.service';
 import { PrismaService } from '../../database/prisma.service';
@@ -108,6 +109,67 @@ describe('PnLService', () => {
 
       expect(pnl.period_start).toEqual(start);
       expect(pnl.period_end).toEqual(end);
+    });
+  });
+
+  // Regresión: `new Date(undefined)` llegaba a prisma.ticket.aggregate() y
+  // reventaba con PrismaClientValidationError -> 500. Debe ser 400.
+  describe('date validation', () => {
+    const valid = new Date('2026-01-01');
+
+    it('should throw BadRequest instead of hitting Prisma with an Invalid Date', async () => {
+      await expect(
+        service.calculatePnL('org_1', new Date(undefined as any), valid),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(mockPrismaService.ticket.aggregate).not.toHaveBeenCalled();
+    });
+
+    it('should name the offending parameter in the message', async () => {
+      await expect(
+        service.calculatePnL('org_1', valid, new Date('no-es-fecha')),
+      ).rejects.toThrow(/end_date/);
+    });
+
+    it('should reject an inverted range', async () => {
+      await expect(
+        service.calculatePnL('org_1', new Date('2026-12-31'), valid),
+      ).rejects.toThrow(/start_date must be earlier than or equal to end_date/);
+    });
+
+    it('should reject out-of-range month without silently rolling over', async () => {
+      await expect(
+        service.calculateMonthlyPnL('org_1', 2026, 99),
+      ).rejects.toThrow(/month/);
+      await expect(
+        service.calculateMonthlyPnL('org_1', 2026, 0),
+      ).rejects.toThrow(/month/);
+      expect(mockPrismaService.ticket.aggregate).not.toHaveBeenCalled();
+    });
+
+    it('should reject NaN / out-of-range year on monthly and yearly', async () => {
+      await expect(
+        service.calculateMonthlyPnL('org_1', NaN, 1),
+      ).rejects.toThrow(/year/);
+      await expect(service.calculateYearlyPnL('org_1', NaN)).rejects.toThrow(
+        /year/,
+      );
+      await expect(service.calculateYearlyPnL('org_1', 1800)).rejects.toThrow(
+        /year/,
+      );
+      expect(mockPrismaService.ticket.aggregate).not.toHaveBeenCalled();
+    });
+
+    it('should name which of the two compare periods is invalid', async () => {
+      await expect(
+        service.comparePeriods(
+          'org_1',
+          valid,
+          new Date('2026-01-31'),
+          new Date(undefined as any),
+          valid,
+        ),
+      ).rejects.toThrow(/period2_start/);
     });
   });
 

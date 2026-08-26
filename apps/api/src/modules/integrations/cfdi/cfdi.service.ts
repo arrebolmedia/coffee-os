@@ -1,18 +1,35 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
+  NotImplementedException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value || value.trim().length === 0) {
-    throw new Error(
-      `${name} environment variable is required and must not be empty`,
-    );
-  }
-  return value;
+/**
+ * Lee una variable de entorno sin defaults. Ausente o vacía => cadena vacía,
+ * que este servicio interpreta como "no configurado" (modo mock bloqueado).
+ */
+function optionalEnv(name: string): string {
+  return (process.env[name] ?? '').trim();
 }
+
+/**
+ * Mensajes de bloqueo. Son deliberadamente explícitos: cualquier consumidor
+ * (POS, cliente, contador) debe entender que NO existe comprobante fiscal.
+ */
+const PAC_NOT_CONFIGURED_MESSAGE =
+  'No hay PAC (Proveedor Autorizado de Certificación) configurado. ' +
+  'Este sistema NO puede timbrar ante el SAT: no se generó ningún ' +
+  'comprobante fiscal y nada de lo emitido aquí tiene validez fiscal. ' +
+  'Configura PAC_API_URL y PAC_API_KEY con un PAC real para habilitar el timbrado.';
+
+const PAC_CLIENT_NOT_IMPLEMENTED_MESSAGE =
+  'Hay credenciales de PAC configuradas (PAC_API_URL/PAC_API_KEY) pero el ' +
+  'cliente de timbrado real todavía no está implementado. No se envió nada al ' +
+  'SAT y no se emitió ningún comprobante con validez fiscal.';
+
 import { CancelCFDIDto, CreateCFDIDto } from './dto';
 import {
   CFDI,
@@ -26,22 +43,41 @@ import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class CFDIService {
+  private readonly logger = new Logger(CFDIService.name);
   private cfdis: Map<string, CFDI> = new Map();
 
   // PAC Configuration — credentials must come from environment, no defaults.
   private readonly pacConfig = {
-    apiUrl: requireEnv('PAC_API_URL'),
-    apiKey: requireEnv('PAC_API_KEY'),
-    rfcEmisor: requireEnv('RFC_EMISOR'),
-    nombreEmisor: requireEnv('NOMBRE_EMISOR'),
-    regimenFiscal: requireEnv('REGIMEN_FISCAL'),
-    lugarExpedicion: requireEnv('LUGAR_EXPEDICION'),
+    apiUrl: optionalEnv('PAC_API_URL'),
+    apiKey: optionalEnv('PAC_API_KEY'),
+    rfcEmisor: optionalEnv('RFC_EMISOR'),
+    nombreEmisor: optionalEnv('NOMBRE_EMISOR'),
+    regimenFiscal: optionalEnv('REGIMEN_FISCAL'),
+    lugarExpedicion: optionalEnv('LUGAR_EXPEDICION'),
   };
 
   /**
-   * Crear un CFDI (factura electrónica)
+   * ¿Hay credenciales de PAC? Estar configurado NO implica que se haya
+   * timbrado algo: el timbrado real solo lo confirma la respuesta del PAC.
+   */
+  isPacConfigured(): boolean {
+    return this.pacConfig.apiUrl !== '' && this.pacConfig.apiKey !== '';
+  }
+
+  /**
+   * Crear un CFDI (factura electrónica) en borrador.
+   *
+   * Crear un borrador es seguro (no se declara nada ante el SAT), pero sin
+   * PAC ese borrador jamás podrá timbrarse.
    */
   async create(createCFDIDto: CreateCFDIDto): Promise<CFDI> {
+    if (!this.isPacConfigured()) {
+      this.logger.warn(
+        'Creando CFDI en borrador sin PAC configurado: no podrá timbrarse ni ' +
+          'descargarse como factura.',
+      );
+    }
+
     // Validar datos
     const validation = this.validateCFDI(createCFDIDto);
     if (!validation.valid) {
@@ -83,7 +119,10 @@ export class CFDIService {
   }
 
   /**
-   * Timbrar CFDI con PAC (Proveedor Autorizado de Certificación)
+   * Timbrar CFDI con PAC (Proveedor Autorizado de Certificación).
+   *
+   * NUNCA finge un timbre. Sin PAC configurado el CFDI queda marcado como
+   * 'mock' (sin UUID, sin sello, sin XML) y la operación falla con 503.
    */
   async stampCFDI(id: string): Promise<CFDIStampResponse> {
     const cfdi = this.cfdis.get(id);
@@ -99,49 +138,70 @@ export class CFDIService {
       throw new BadRequestException('CFDI cancelado no puede ser timbrado');
     }
 
-    try {
-      // Mock PAC integration - in production, call real PAC API
-      const uuid = this.generateUUID();
-      const xmlContent = this.generateXML(cfdi, uuid);
-
-      cfdi.uuid = uuid;
-      cfdi.status = 'stamped';
-      cfdi.xmlContent = xmlContent;
-      cfdi.sello = this.generateSello();
-      cfdi.noCertificado = '00001000000123456789';
-      cfdi.cadenaOriginalSAT = this.generateCadenaOriginal(cfdi);
-      cfdi.pdfUrl = `https://storage.example.com/cfdis/${uuid}.pdf`;
-      cfdi.updated_at = new Date();
-
-      this.cfdis.set(id, cfdi);
-
-      return {
-        success: true,
-        uuid: cfdi.uuid,
-        xml: cfdi.xmlContent,
-        pdf: cfdi.pdfUrl,
-        cadenaOriginal: cfdi.cadenaOriginalSAT,
-        sello: cfdi.sello,
-        noCertificado: cfdi.noCertificado,
-      };
-    } catch (error) {
-      cfdi.status = 'error';
-      cfdi.errorMessage = error.message;
+    if (!this.isPacConfigured()) {
+      // Modo mock: se marca el comprobante de forma inconfundible y se
+      // limpia cualquier dato fiscal para que no pueda pasar por timbrado.
+      cfdi.status = 'mock';
+      cfdi.errorMessage = PAC_NOT_CONFIGURED_MESSAGE;
+      cfdi.uuid = undefined;
+      cfdi.sello = undefined;
+      cfdi.noCertificado = undefined;
+      cfdi.certificadoSAT = undefined;
+      cfdi.selloSAT = undefined;
+      cfdi.cadenaOriginalSAT = undefined;
+      cfdi.xmlContent = undefined;
+      cfdi.pdfUrl = undefined;
       cfdi.updated_at = new Date();
       this.cfdis.set(id, cfdi);
 
-      return {
-        success: false,
-        uuid: '',
-        error: error.message,
-      };
+      this.logger.error(
+        `CFDI ${id}: timbrado bloqueado, no hay PAC configurado. ` +
+          'No se emitió ningún comprobante ante el SAT.',
+      );
+
+      throw new ServiceUnavailableException(PAC_NOT_CONFIGURED_MESSAGE);
     }
+
+    return this.stampWithPac(cfdi);
   }
 
   /**
-   * Cancelar un CFDI
+   * Timbrado real contra el PAC. Pendiente de implementar.
+   *
+   * Aquí va la llamada HTTP a `this.pacConfig.apiUrl` autenticada con
+   * `this.pacConfig.apiKey`, firmando el comprobante con el CSD del emisor.
+   * El PAC es quien devuelve UUID, SelloCFD, SelloSAT, NoCertificadoSAT,
+   * cadena original y el XML timbrado: SOLO con esa respuesta puede el CFDI
+   * pasar a `status = 'stamped'`. Mientras no exista ese cliente, esta ruta
+   * falla en vez de fingir éxito.
+   */
+  private async stampWithPac(cfdi: CFDI): Promise<CFDIStampResponse> {
+    cfdi.status = 'error';
+    cfdi.errorMessage = PAC_CLIENT_NOT_IMPLEMENTED_MESSAGE;
+    cfdi.updated_at = new Date();
+    this.cfdis.set(cfdi.id, cfdi);
+
+    this.logger.error(`CFDI ${cfdi.id}: ${PAC_CLIENT_NOT_IMPLEMENTED_MESSAGE}`);
+
+    throw new NotImplementedException(PAC_CLIENT_NOT_IMPLEMENTED_MESSAGE);
+  }
+
+  /**
+   * Cancelar un CFDI ante el SAT.
+   *
+   * Sin PAC no existe cancelación posible: marcar el registro como
+   * 'cancelled' localmente sería mentir sobre el estado ante el SAT.
    */
   async cancel(cancelDto: CancelCFDIDto): Promise<CFDICancelResponse> {
+    if (!this.isPacConfigured()) {
+      this.logger.error(
+        `Cancelación bloqueada para UUID ${cancelDto.uuid}: no hay PAC configurado.`,
+      );
+      throw new ServiceUnavailableException(
+        'No se puede cancelar ante el SAT: ' + PAC_NOT_CONFIGURED_MESSAGE,
+      );
+    }
+
     const cfdi = Array.from(this.cfdis.values()).find(
       (c) =>
         c.uuid === cancelDto.uuid &&
@@ -154,32 +214,39 @@ export class CFDIService {
       );
     }
 
+    if (cfdi.status === 'mock') {
+      throw new BadRequestException(
+        'Este CFDI nunca fue timbrado (status "mock"): no existe ante el SAT, ' +
+          'por lo que no hay nada que cancelar.',
+      );
+    }
+
     if (cfdi.status !== 'stamped') {
       throw new BadRequestException('Solo se pueden cancelar CFDIs timbrados');
     }
 
-    try {
-      // Mock PAC cancellation - in production, call real PAC API
-      cfdi.status = 'cancelled';
-      cfdi.canceledAt = new Date();
-      cfdi.motivoCancelacion = cancelDto.motivoCancelacion;
-      cfdi.updated_at = new Date();
+    return this.cancelWithPac(cfdi, cancelDto);
+  }
 
-      this.cfdis.set(cfdi.id, cfdi);
+  /**
+   * Cancelación real contra el PAC. Pendiente de implementar.
+   *
+   * Debe enviar la solicitud de cancelación con el motivo (y el folio
+   * sustituto si aplica) y solo marcar `status = 'cancelled'` cuando el SAT
+   * confirme el acuse. No se simula.
+   */
+  private async cancelWithPac(
+    cfdi: CFDI,
+    cancelDto: CancelCFDIDto,
+  ): Promise<CFDICancelResponse> {
+    this.logger.error(
+      `CFDI ${cfdi.id} (UUID ${cancelDto.uuid}): ${PAC_CLIENT_NOT_IMPLEMENTED_MESSAGE}`,
+    );
 
-      return {
-        success: true,
-        uuid: cfdi.uuid!,
-        fechaCancelacion: cfdi.canceledAt,
-        estatusCancelacion: 'Cancelado',
-      };
-    } catch (error) {
-      return {
-        success: false,
-        uuid: cancelDto.uuid,
-        error: error.message,
-      };
-    }
+    throw new NotImplementedException(
+      'Cancelación ante el SAT no disponible: ' +
+        PAC_CLIENT_NOT_IMPLEMENTED_MESSAGE,
+    );
   }
 
   /**
@@ -240,10 +307,28 @@ export class CFDIService {
   }
 
   /**
-   * Descargar XML de un CFDI
+   * Descargar XML de un CFDI.
+   *
+   * Solo se entrega XML timbrado por un PAC real. Un XML sin timbre válido
+   * entregado como factura es riesgo fiscal, así que se bloquea.
    */
   async downloadXML(id: string): Promise<string> {
     const cfdi = await this.findById(id);
+
+    if (cfdi.status === 'mock') {
+      throw new ServiceUnavailableException(
+        'Este CFDI es una simulación (status "mock"): no tiene UUID, sello ni ' +
+          'Timbre Fiscal Digital, no existe ante el SAT y no se puede ' +
+          'descargar como factura. ' +
+          PAC_NOT_CONFIGURED_MESSAGE,
+      );
+    }
+
+    if (!this.isPacConfigured()) {
+      throw new ServiceUnavailableException(
+        'Descarga de XML bloqueada. ' + PAC_NOT_CONFIGURED_MESSAGE,
+      );
+    }
 
     if (cfdi.status !== 'stamped') {
       throw new BadRequestException(
@@ -267,7 +352,7 @@ export class CFDIService {
     endDate?: Date,
   ): Promise<CFDIStats> {
     let cfdis = Array.from(this.cfdis.values()).filter(
-      (c) => c.organization_id === organization_id && c.status === 'stamped',
+      (c) => c.organization_id === organization_id,
     );
 
     if (startDate) {
@@ -278,22 +363,30 @@ export class CFDIService {
       cfdis = cfdis.filter((c) => c.fecha <= endDate);
     }
 
+    // Solo cuenta como emitido lo timbrado por un PAC real. Los 'mock' se
+    // reportan aparte para que su volumen sea visible y no se confunda con
+    // facturación real.
+    const stamped = cfdis.filter((c) => c.status === 'stamped');
+    const cancelled = cfdis.filter((c) => c.status === 'cancelled');
+    const mock = cfdis.filter((c) => c.status === 'mock');
+
     const stats: CFDIStats = {
-      totalEmitidos: cfdis.filter((c) => c.status === 'stamped').length,
-      totalCancelados: cfdis.filter((c) => c.status === 'cancelled').length,
-      totalActivos: cfdis.filter((c) => c.status === 'stamped').length,
-      montoTotal: cfdis.reduce((sum, c) => sum + c.totales.total, 0),
-      ivaTotal: cfdis.reduce(
+      totalEmitidos: stamped.length,
+      totalCancelados: cancelled.length,
+      totalActivos: stamped.length,
+      totalMock: mock.length,
+      montoTotal: stamped.reduce((sum, c) => sum + c.totales.total, 0),
+      ivaTotal: stamped.reduce(
         (sum, c) => sum + c.totales.totalImpuestosTrasladados,
         0,
       ),
-      subtotal: cfdis.reduce((sum, c) => sum + c.totales.subtotal, 0),
+      subtotal: stamped.reduce((sum, c) => sum + c.totales.subtotal, 0),
       porTipoComprobante: {},
       porFormaPago: {},
     };
 
     // Agrupar por tipo de comprobante
-    cfdis.forEach((cfdi) => {
+    stamped.forEach((cfdi) => {
       stats.porTipoComprobante[cfdi.tipoDeComprobante] =
         (stats.porTipoComprobante[cfdi.tipoDeComprobante] || 0) + 1;
 
@@ -394,65 +487,12 @@ export class CFDIService {
     };
   }
 
-  /**
-   * Generar UUID para CFDI (mock)
-   */
-  private generateUUID(): string {
-    return `${uuidv4()}`.toUpperCase();
-  }
-
-  /**
-   * Generar XML del CFDI (mock - in production use proper XML library)
-   */
-  private generateXML(cfdi: CFDI, uuid: string): string {
-    return `<?xml version="1.0" encoding="UTF-8"?>
-<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4"
-  Version="4.0"
-  Fecha="${cfdi.fecha.toISOString()}"
-  Sello="${this.generateSello()}"
-  FormaPago="${cfdi.formaPago}"
-  NoCertificado="00001000000123456789"
-  SubTotal="${cfdi.totales.subtotal}"
-  Descuento="${cfdi.totales.descuento}"
-  Total="${cfdi.totales.total}"
-  TipoDeComprobante="${cfdi.tipoDeComprobante}"
-  MetodoPago="${cfdi.metodoPago}"
-  LugarExpedicion="${this.pacConfig.lugarExpedicion}">
-  <cfdi:Emisor Rfc="${cfdi.emisor.rfc}" Nombre="${cfdi.emisor.nombre}" RegimenFiscal="${cfdi.emisor.regimenFiscal}"/>
-  <cfdi:Receptor Rfc="${cfdi.receptor.rfc}" Nombre="${cfdi.receptor.nombre}" UsoCFDI="${cfdi.receptor.usoCFDI}" RegimenFiscalReceptor="${cfdi.receptor.regimenFiscalReceptor}"/>
-  <cfdi:Conceptos>
-    ${cfdi.conceptos
-      .map(
-        (c) => `
-    <cfdi:Concepto ClaveProdServ="${c.claveProdServ}" Cantidad="${c.cantidad}" ClaveUnidad="${c.claveUnidad}" Descripcion="${c.descripcion}" ValorUnitario="${c.valorUnitario}" Importe="${c.importe}"/>`,
-      )
-      .join('')}
-  </cfdi:Conceptos>
-  <cfdi:Complemento>
-    <tfd:TimbreFiscalDigital xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
-      Version="1.1"
-      UUID="${uuid}"
-      FechaTimbrado="${new Date().toISOString()}"
-      SelloCFD="${this.generateSello()}"
-      NoCertificadoSAT="00001000000987654321"
-      SelloSAT="${this.generateSello()}"/>
-  </cfdi:Complemento>
-</cfdi:Comprobante>`;
-  }
-
-  /**
-   * Generar sello digital (mock)
-   */
-  private generateSello(): string {
-    return Buffer.from(Math.random().toString())
-      .toString('base64')
-      .slice(0, 50);
-  }
-
-  /**
-   * Generar cadena original (mock)
-   */
-  private generateCadenaOriginal(cfdi: CFDI): string {
-    return `||1.1|${cfdi.uuid}|${cfdi.fecha.toISOString()}|${cfdi.sello}|00001000000987654321||`;
-  }
+  // NOTA: aquí vivían generateUUID/generateXML/generateSello/
+  // generateCadenaOriginal, que fabricaban un TimbreFiscalDigital falso
+  // (UUID inventado, SelloCFD/SelloSAT con Math.random y NoCertificadoSAT
+  // literal '00001000000987654321') y lo entregaban como factura válida.
+  // Se eliminaron: el UUID, los sellos, el número de certificado y el XML
+  // timbrado los emite EXCLUSIVAMENTE el PAC. Cuando se implemente
+  // `stampWithPac`, esos valores llegan en la respuesta del PAC y se guardan
+  // tal cual; este servicio no debe generarlos nunca.
 }

@@ -1,8 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { ProfitAndLoss } from './interfaces';
 
 const DEFAULT_TAX_RATE = 0.3;
+const YEAR_MIN = 2000;
+const YEAR_MAX = 2100;
 
 @Injectable()
 export class PnLService {
@@ -14,12 +20,51 @@ export class PnLService {
     return Number(value.toFixed(2));
   }
 
+  /**
+   * Defense in depth: nunca dejar que un Date inválido llegue a Prisma.
+   * `new Date(undefined)` / `new Date('hola')` producen "Invalid Date" y
+   * prisma.ticket.aggregate() lanza PrismaClientValidationError -> 500.
+   * Aquí se convierte en un 400 con el nombre del parámetro culpable.
+   */
+  private assertValidDate(value: Date, param: string): void {
+    if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+      throw new BadRequestException(
+        `${param} is required and must be a valid ISO date (format: YYYY-MM-DD)`,
+      );
+    }
+  }
+
+  private assertValidRange(
+    startDate: Date,
+    endDate: Date,
+    startParam: string,
+    endParam: string,
+  ): void {
+    this.assertValidDate(startDate, startParam);
+    this.assertValidDate(endDate, endParam);
+    if (startDate.getTime() > endDate.getTime()) {
+      throw new BadRequestException(
+        `${startParam} must be earlier than or equal to ${endParam}`,
+      );
+    }
+  }
+
+  private assertValidYear(year: number, param = 'year'): void {
+    if (!Number.isInteger(year) || year < YEAR_MIN || year > YEAR_MAX) {
+      throw new BadRequestException(
+        `${param} is required and must be an integer between ${YEAR_MIN} and ${YEAR_MAX}`,
+      );
+    }
+  }
+
   async calculatePnL(
     organizationId: string,
     startDate: Date,
     endDate: Date,
     locationId?: string,
   ): Promise<ProfitAndLoss> {
+    this.assertValidRange(startDate, endDate, 'start_date', 'end_date');
+
     // Multi-tenant guard: if a locationId is provided, it must belong to the
     // caller's organization (404 otherwise — don't leak existence).
     if (locationId) {
@@ -240,6 +285,15 @@ export class PnLService {
     month: number,
     locationId?: string,
   ): Promise<ProfitAndLoss> {
+    this.assertValidYear(year);
+    // Sin este check, month=99 rodaba silenciosamente a marzo de 2034 y
+    // month=0 a diciembre del año anterior: un P&L de un periodo que nadie pidió.
+    if (!Number.isInteger(month) || month < 1 || month > 12) {
+      throw new BadRequestException(
+        'month is required and must be an integer between 1 and 12',
+      );
+    }
+
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
     return this.calculatePnL(organizationId, startDate, endDate, locationId);
@@ -250,6 +304,8 @@ export class PnLService {
     year: number,
     locationId?: string,
   ): Promise<ProfitAndLoss> {
+    this.assertValidYear(year);
+
     const startDate = new Date(year, 0, 1);
     const endDate = new Date(year, 11, 31, 23, 59, 59);
     return this.calculatePnL(organizationId, startDate, endDate, locationId);
@@ -263,6 +319,19 @@ export class PnLService {
     period2End: Date,
     locationId?: string,
   ): Promise<any> {
+    this.assertValidRange(
+      period1Start,
+      period1End,
+      'period1_start',
+      'period1_end',
+    );
+    this.assertValidRange(
+      period2Start,
+      period2End,
+      'period2_start',
+      'period2_end',
+    );
+
     const [pnl1, pnl2] = await Promise.all([
       this.calculatePnL(organizationId, period1Start, period1End, locationId),
       this.calculatePnL(organizationId, period2Start, period2End, locationId),

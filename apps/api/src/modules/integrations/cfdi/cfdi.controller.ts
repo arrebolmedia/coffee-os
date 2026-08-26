@@ -2,15 +2,17 @@ import {
   Body,
   Controller,
   Get,
-  Header,
   HttpCode,
   HttpStatus,
   Param,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { CFDIService } from './cfdi.service';
 import { CancelCFDIDto, CreateCFDIDto } from './dto';
+import { CurrentOrg } from '../../../common/decorators/current-org.decorator';
 
 @Controller('integrations/cfdi')
 export class CFDIController {
@@ -26,15 +28,6 @@ export class CFDIController {
   }
 
   /**
-   * Timbrar un CFDI con el PAC
-   */
-  @Post(':id/stamp')
-  @HttpCode(HttpStatus.OK)
-  async stamp(@Param('id') id: string) {
-    return this.cfdiService.stampCFDI(id);
-  }
-
-  /**
    * Cancelar un CFDI
    */
   @Post('cancel')
@@ -44,11 +37,12 @@ export class CFDIController {
   }
 
   /**
-   * Obtener un CFDI por ID
+   * Timbrar un CFDI con el PAC
    */
-  @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.cfdiService.findById(id);
+  @Post(':id/stamp')
+  @HttpCode(HttpStatus.OK)
+  async stamp(@Param('id') id: string) {
+    return this.cfdiService.stampCFDI(id);
   }
 
   /**
@@ -64,7 +58,7 @@ export class CFDIController {
    */
   @Get('organization/:organization_id')
   async findAll(
-    @Param('organization_id') organization_id: string,
+    @CurrentOrg() organization_id: string,
     @Query('location_id') location_id?: string,
     @Query('status') status?: string,
     @Query('startDate') startDate?: string,
@@ -79,21 +73,11 @@ export class CFDIController {
   }
 
   /**
-   * Descargar XML de un CFDI
-   */
-  @Get(':id/xml')
-  @Header('Content-Type', 'application/xml')
-  @Header('Content-Disposition', 'attachment; filename="cfdi.xml"')
-  async downloadXML(@Param('id') id: string) {
-    return this.cfdiService.downloadXML(id);
-  }
-
-  /**
    * Obtener estadísticas de CFDIs
    */
   @Get('organization/:organization_id/stats')
   async getStats(
-    @Param('organization_id') organization_id: string,
+    @CurrentOrg() organization_id: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
@@ -115,5 +99,31 @@ export class CFDIController {
       valid,
       message: valid ? 'RFC válido' : 'RFC inválido',
     };
+  }
+
+  /**
+   * Obtener un CFDI por ID
+   */
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    return this.cfdiService.findById(id);
+  }
+
+  /**
+   * Descargar XML de un CFDI timbrado.
+   *
+   * Bloqueado mientras no haya PAC real: devuelve 503 y NO entrega XML de
+   * comprobantes 'mock' (que no existen ante el SAT). Las cabeceras de XML se
+   * ponen solo en el caso de éxito, para que un error viaje como JSON.
+   */
+  @Get(':id/xml')
+  async downloadXML(
+    @Param('id') id: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const xml = await this.cfdiService.downloadXML(id);
+    res.setHeader('Content-Type', 'application/xml');
+    res.setHeader('Content-Disposition', 'attachment; filename="cfdi.xml"');
+    return xml;
   }
 }

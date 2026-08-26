@@ -221,13 +221,16 @@ export class CashRegistersService {
   async remove(id: string, organizationId?: string) {
     await this.findOne(id, organizationId);
 
-    return this.prisma.$transaction([
+    // Se devuelve la caja borrada, no el array crudo del $transaction: al
+    // cliente le llegaba [{count:5},{count:2},{...}], que no es un contrato útil.
+    const [, , deleted] = await this.prisma.$transaction([
       this.prisma.cashDenomination.deleteMany({
         where: { cashRegisterId: id },
       }),
       this.prisma.cashExpense.deleteMany({ where: { cashRegisterId: id } }),
       this.prisma.cashRegister.delete({ where: { id } }),
     ]);
+    return deleted;
   }
 
   private calculateDenominations(
