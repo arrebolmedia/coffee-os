@@ -114,8 +114,10 @@ docker-compose.override.yml
 .claude/
 .mcp.json
 
-# Local archive of removed workspaces (history keeps the originals)
-_archive/
+# Copia local del workspace retirado (el historial conserva los originales).
+# Anclada a la raiz a proposito: sin la barra inicial, el patron tambien
+# ignoraria docs/_archive/, que si va al repo.
+/_archive/
 
 # Playwright artifacts
 playwright-report/
