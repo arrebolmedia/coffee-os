@@ -329,17 +329,17 @@ cash-registers), así que sirve de red de seguridad para las fases anteriores.
 
 ## 4. Resumen de esfuerzo
 
-| Fase                      | Esfuerzo   | Bloqueante | Estado                                                        |
-| ------------------------- | ---------- | ---------- | ------------------------------------------------------------- |
-| 0 · Entorno               | ~45 min    | ✅         | ✅ **completada** 2026-08-12                                  |
-| 1 · Build                 | ~2–3 h     | ✅         | ✅ **completada** 2026-08-12                                  |
-| **2.5 · Multi-tenant** 🔴 | ~1–2 días  | —          | 🟡 **fugas conocidas cerradas**; falta la extensión de Prisma |
-| 3 · Stubs                 | ~1–2 días  | —          | pendiente                                                     |
-| 2 · Next.js 15            | ~medio día | —          | pendiente                                                     |
-| 2.6 · Deps vulnerables    | ~medio día | —          | pendiente                                                     |
-| 4 · Tests                 | ~medio día | —          | pendiente                                                     |
-| 5 · Higiene               | ~1 h       | —          | pendiente                                                     |
-| 6 · E2E                   | ~medio día | —          | pendiente                                                     |
+| Fase                      | Esfuerzo   | Bloqueante | Estado                                                          |
+| ------------------------- | ---------- | ---------- | --------------------------------------------------------------- |
+| 0 · Entorno               | ~45 min    | ✅         | ✅ **completada** 2026-08-12                                    |
+| 1 · Build                 | ~2–3 h     | ✅         | ✅ **completada** 2026-08-12                                    |
+| **2.5 · Multi-tenant** 🔴 | ~1–2 días  | —          | ✅ **cerrada** 2026-08-26 con la extensión de Prisma (Sprint 3) |
+| 3 · Stubs                 | ~1–2 días  | —          | ✅ **cerrada** 2026-08-26 (Sprint 2)                            |
+| 2 · Next.js 15            | ~medio día | —          | ✅ **cerrada** 2026-08-26 (Sprint 1)                            |
+| 2.6 · Deps vulnerables    | ~medio día | —          | ✅ **cerrada** 2026-08-26 (Sprint 1): 60 → 34, 0 críticas       |
+| 4 · Tests                 | ~medio día | —          | ✅ **cerrada** 2026-08-26 (Sprint 4)                            |
+| 5 · Higiene               | ~1 h       | —          | ✅ **cerrada** 2026-08-26 (Sprint 5)                            |
+| 6 · E2E                   | ~medio día | —          | ✅ **cerrada** 2026-08-26 (Sprint 4): Playwright 35/35          |
 
 **Total: ~7–8 días** (partió de 4–5; subieron las fases 2.5 y 2.6, ambas descubiertas
 al ejecutar el sistema en vez de solo leerlo).
@@ -942,13 +942,13 @@ Lo grueso ya está hecho. Queda:
 
 ### Resumen
 
-| Sprint                  | Esfuerzo | Por qué en ese orden                                                                                                                                                                                     |
-| ----------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1 · Next 15 + deps      | ~1 día   | ✅ **completado 2026-08-26.** En la práctica no tocó ninguna: ver el registro. Cierra la CVE del middleware. Toca las 46 rutas; hacerlo después obliga a rehacer lo demás. Cierra la CVE del middleware. |
-| 2 · Stock + roles       | ~1 día   | ✅ **completado 2026-08-26.** El sistema afirma que descuenta y no descuenta. Corrompe reportes cada venta.                                                                                              |
-| 3 · Extensión de Prisma | ~2 días  | ✅ **completado 2026-08-26.** Cierra la clase de fuga, no las 89 instancias.                                                                                                                             |
-| 4 · Tests del dinero    | ~1 día   | ✅ **completado 2026-08-26.** Red de seguridad sobre lo anterior; necesita 1–3 estables.                                                                                                                 |
-| 5 · Higiene             | ~1 h     | No bloquea nada.                                                                                                                                                                                         |
+| Sprint                  | Esfuerzo | Por qué en ese orden                                                                                                                                   |
+| ----------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1 · Next 15 + deps      | ~1 día   | ✅ **completado 2026-08-26.** Se hizo primero porque tocaba las 46 rutas — en la práctica no tocó ninguna. Cierra la CVE del middleware.               |
+| 2 · Stock + roles       | ~1 día   | ✅ **completado 2026-08-26.** El motivo declarado («afirma que descuenta y no descuenta») resultó falso: sí descontaba, por otro camino. Ver Sprint 4. |
+| 3 · Extensión de Prisma | ~2 días  | ✅ **completado 2026-08-26.** Cierra la clase de fuga, no las 89 instancias.                                                                           |
+| 4 · Tests del dinero    | ~1 día   | ✅ **completado 2026-08-26.** Red de seguridad sobre lo anterior; necesita 1–3 estables.                                                               |
+| 5 · Higiene             | ~1 h     | ✅ **completado 2026-08-26.** No bloqueaba nada, salvo que uno de sus puntos era un cobro incorrecto de IVA.                                           |
 
 **Total: ~5–6 días.** CFDI queda fuera a propósito: la decisión fue bloquear el mock, y
 desbloquearlo exige integrar un PAC real, que es un proyecto aparte.
