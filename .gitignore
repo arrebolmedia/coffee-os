@@ -107,3 +107,16 @@ docker-compose.override.yml
 
 # Sentry Config File
 .sentryclirc
+# Tooling caches (agent orchestration, monorepo)
+.turbo/
+.swarm/
+.claude-flow/
+.claude/
+.mcp.json
+
+# Local archive of removed workspaces (history keeps the originals)
+_archive/
+
+# Playwright artifacts
+playwright-report/
+test-results/
