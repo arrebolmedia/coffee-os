@@ -85,12 +85,18 @@ describe('PosService.createTicket loyalty redemption', () => {
 
     await service.createTicket({ ...baseData, redeemLoyalty: true });
 
-    // subtotal 100, tax 16, discount +50 -> total 66.
+    // El descuento reduce la base gravable: subtotal 100, descuento 50, así que
+    // el IVA va sobre 50 -> 8, y el total es 58.
+    //
+    // Antes se afirmaba tax 16 y total 66, es decir, el IVA calculado sobre el
+    // subtotal sin descontar: $8 de más al cliente en cada canje de lealtad. Y
+    // el carrito del POS sí descontaba antes de calcular, de modo que la
+    // pantalla y el cobro no coincidían.
     const ticketArg = tx.ticket.create.mock.calls[0][0].data;
     expect(ticketArg.subtotal).toBe(100);
-    expect(ticketArg.tax).toBe(16);
+    expect(ticketArg.tax).toBe(8);
     expect(ticketArg.discount).toBe(50);
-    expect(ticketArg.total).toBe(66);
+    expect(ticketArg.total).toBe(58);
 
     // Race-safe decrement guarded by the current balance.
     const decArg = tx.customer.updateMany.mock.calls[0][0];

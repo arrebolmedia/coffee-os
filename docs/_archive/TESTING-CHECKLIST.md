@@ -219,6 +219,6 @@
 ---
 
 **Ejecutado por**: [Tu nombre]  
-**Fecha**: ****\_\_\_****  
-**Duración de pruebas**: ****\_\_\_****  
+**Fecha**: \***\*\_\_\_\*\***  
+**Duración de pruebas**: \***\*\_\_\_\*\***  
 **Status**: [ ] PASS / [ ] FAIL

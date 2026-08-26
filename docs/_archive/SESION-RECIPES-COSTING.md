@@ -12,6 +12,7 @@
 ## 🎯 Objetivo
 
 Implementar un sistema completo de gestión de recetas con:
+
 - Costeo automático de productos
 - Escalado de porciones
 - Análisis de rentabilidad
@@ -46,14 +47,14 @@ Implementar un sistema completo de gestión de recetas con:
 
 1. **recipe.interface.ts** (150+ líneas)
    - 9 interfaces:
-     * `Recipe`: Interfaz principal con 25+ campos
-     * `RecipeIngredient`: Ingredientes con costos
-     * `RecipeStep`: Pasos de preparación
-     * `RecipeCostBreakdown`: Desglose detallado de costos
-     * `IngredientCostDetail`: Costo por ingrediente
-     * `ScaledRecipe`: Receta escalada
-     * `RecipeStats`: Estadísticas agregadas
-     * `RecipeProfitability`: Análisis de rentabilidad
+     - `Recipe`: Interfaz principal con 25+ campos
+     - `RecipeIngredient`: Ingredientes con costos
+     - `RecipeStep`: Pasos de preparación
+     - `RecipeCostBreakdown`: Desglose detallado de costos
+     - `IngredientCostDetail`: Costo por ingrediente
+     - `ScaledRecipe`: Receta escalada
+     - `RecipeStats`: Estadísticas agregadas
+     - `RecipeProfitability`: Análisis de rentabilidad
 
 2. **index.ts**
    - Barrel exports
@@ -76,33 +77,33 @@ Implementar un sistema completo de gestión de recetas con:
 
 **Endpoints REST (9 total):**
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| POST | `/recipes` | Crear receta |
-| GET | `/recipes` | Listar con filtros |
-| GET | `/recipes/:id` | Obtener por ID |
-| GET | `/recipes/:id/cost` | Desglose de costos |
-| POST | `/recipes/:id/scale` | Escalar receta |
-| PATCH | `/recipes/:id` | Actualizar |
-| DELETE | `/recipes/:id` | Eliminar |
-| GET | `/recipes/organization/:id/stats` | Estadísticas |
-| GET | `/recipes/organization/:id/profitability` | Rentabilidad |
+| Método | Ruta                                      | Descripción        |
+| ------ | ----------------------------------------- | ------------------ |
+| POST   | `/recipes`                                | Crear receta       |
+| GET    | `/recipes`                                | Listar con filtros |
+| GET    | `/recipes/:id`                            | Obtener por ID     |
+| GET    | `/recipes/:id/cost`                       | Desglose de costos |
+| POST   | `/recipes/:id/scale`                      | Escalar receta     |
+| PATCH  | `/recipes/:id`                            | Actualizar         |
+| DELETE | `/recipes/:id`                            | Eliminar           |
+| GET    | `/recipes/organization/:id/stats`         | Estadísticas       |
+| GET    | `/recipes/organization/:id/profitability` | Rentabilidad       |
 
 ### Tests (recipes.service.spec.ts - 28 tests)
 
 **Coverage por método:**
 
-| Método | Tests | Descripción |
-|--------|-------|-------------|
-| create | 3 | Completo, cálculo automático, mínimo |
-| findAll | 8 | Todos, filtros, búsqueda, ordenamiento |
-| findById | 2 | Existente, no encontrado |
-| calculateCost | 2 | Desglose, porcentajes |
-| scaleRecipe | 3 | Escalar arriba, abajo, recálculo |
-| update | 3 | Campos básicos, ingredientes, no encontrado |
-| delete | 2 | Eliminar, no encontrado |
-| getStats | 1 | Estadísticas completas |
-| analyzeProfitability | 2 | Ordenamiento, métricas |
+| Método               | Tests | Descripción                                 |
+| -------------------- | ----- | ------------------------------------------- |
+| create               | 3     | Completo, cálculo automático, mínimo        |
+| findAll              | 8     | Todos, filtros, búsqueda, ordenamiento      |
+| findById             | 2     | Existente, no encontrado                    |
+| calculateCost        | 2     | Desglose, porcentajes                       |
+| scaleRecipe          | 3     | Escalar arriba, abajo, recálculo            |
+| update               | 3     | Campos básicos, ingredientes, no encontrado |
+| delete               | 2     | Eliminar, no encontrado                     |
+| getStats             | 1     | Estadísticas completas                      |
+| analyzeProfitability | 2     | Ordenamiento, métricas                      |
 
 ---
 
@@ -142,22 +143,26 @@ enum PreparationMethod {
 ### 3. Parámetros de Preparación (13 campos)
 
 **Para Espresso:**
+
 - `dose_grams` (0-100g)
 - `extraction_time_seconds` (0-120s)
 - `pressure_bars` (0-15 bars)
 - `grind_size`
 
 **Para Filtrado (V60, Chemex):**
+
 - `water_temperature_celsius`
 - `bloom_time_seconds`
 - `total_brew_time_seconds`
 - `pour_pattern`
 
 **Para Cold Brew:**
+
 - `steep_time_hours`
 - `coffee_to_water_ratio` (1-20)
 
 **General:**
+
 - `water_quality_notes`
 
 ### 4. Costeo Automático
@@ -174,6 +179,7 @@ Suggested Price = Total Cost / (1 - target_margin_percentage / 100)
 ```
 
 **Ejemplo (Espresso Doble):**
+
 ```
 Ingredientes: 18g × $0.50/g = $9.00
 Labor: $9.00 × 20% = $1.80
@@ -193,6 +199,7 @@ scaled_quantity = original_quantity × scaling_factor
 ```
 
 **Ejemplo:**
+
 - Original: 1 porción, 18g café
 - Escalado: 4 porciones
 - Factor: 4 / 1 = 4
@@ -295,6 +302,7 @@ POST /recipes
 ```
 
 **Respuesta:**
+
 ```json
 {
   "id": "uuid-generated",
@@ -311,10 +319,11 @@ POST /recipes
 ### Obtener Desglose de Costos
 
 ```typescript
-GET /recipes/{id}/cost
+GET / recipes / { id } / cost;
 ```
 
 **Respuesta:**
+
 ```json
 {
   "recipe_id": "uuid",
@@ -352,6 +361,7 @@ POST /recipes/{id}/scale
 ```
 
 **Respuesta:**
+
 ```json
 {
   "id": "uuid",
@@ -362,23 +372,24 @@ POST /recipes/{id}/scale
   "scaled_ingredients": [
     {
       "inventory_item_id": "item-001",
-      "quantity": 72,  // 18 × 4
+      "quantity": 72, // 18 × 4
       "unit": "g"
     }
   ],
-  "total_cost": 46.8,  // 11.7 × 4
-  "cost_per_serving": 11.7,  // Se mantiene igual
-  "suggested_price": 156  // 39 × 4
+  "total_cost": 46.8, // 11.7 × 4
+  "cost_per_serving": 11.7, // Se mantiene igual
+  "suggested_price": 156 // 39 × 4
 }
 ```
 
 ### Obtener Estadísticas
 
 ```typescript
-GET /recipes/organization/{id}/stats
+GET / recipes / organization / { id } / stats;
 ```
 
 **Respuesta:**
+
 ```json
 {
   "total_recipes": 15,
@@ -410,10 +421,11 @@ GET /recipes/organization/{id}/stats
 ### Análisis de Rentabilidad
 
 ```typescript
-GET /recipes/organization/{id}/profitability
+GET / recipes / organization / { id } / profitability;
 ```
 
 **Respuesta:**
+
 ```json
 [
   {
@@ -422,7 +434,7 @@ GET /recipes/organization/{id}/profitability
     "cost": 3.9,
     "suggested_price": 19.5,
     "margin_percentage": 80,
-    "profitability_score": 133.08  // Alto margen + bajo costo
+    "profitability_score": 133.08 // Alto margen + bajo costo
   },
   {
     "recipe_id": "uuid-2",
@@ -438,7 +450,7 @@ GET /recipes/organization/{id}/profitability
     "cost": 260,
     "suggested_price": 520,
     "margin_percentage": 50,
-    "profitability_score": 36.15  // Bajo margen + alto costo
+    "profitability_score": 36.15 // Bajo margen + alto costo
   }
 ]
 ```
@@ -500,26 +512,31 @@ Time:        3.192 s
 ## 🚀 Impacto en CoffeeOS
 
 ### Control de Costos
+
 - **Automático**: Cada producto calcula su COGS en tiempo real
 - **Transparente**: Desglose completo por ingrediente con porcentajes
 - **Predictivo**: Precio sugerido basado en margen objetivo
 
 ### Escalabilidad Operativa
+
 - **Catering**: Escalar recetas para eventos (10x, 20x, 50x)
 - **Batch Production**: Preparar grandes cantidades con proporciones exactas
 - **Consistency**: Mismas proporciones sin importar el volumen
 
 ### Gestión de Menú
+
 - **Profitability**: Identificar recetas estrella vs perros
 - **Pricing Strategy**: Optimizar precios basados en costos reales
 - **Menu Engineering**: Decidir qué promover/eliminar basado en datos
 
 ### Capacitación
+
 - **Progresión**: 4 niveles de dificultad (fácil → experto)
 - **Precisión**: Parámetros exactos de café (dosis, presión, temperatura)
 - **Quality**: Pasos críticos marcados para consistencia
 
 ### Compliance
+
 - **Alérgenos**: Tracking de 8 tipos para seguridad del cliente
 - **Nutricional**: 7 nutrientes para transparencia
 - **Trazabilidad**: Cada ingrediente vinculado a inventario
@@ -528,17 +545,17 @@ Time:        3.192 s
 
 ## 📈 Métricas del Módulo
 
-| Métrica | Valor |
-|---------|-------|
-| Archivos creados/modificados | 10 |
-| Líneas de código | 1,323 |
-| Tests | 28 (100% passing) |
-| Endpoints REST | 9 |
-| Enums | 4 |
-| Interfaces | 9 |
-| DTOs | 5 |
-| Métodos del service | 9 |
-| Tiempo de ejecución tests | 3.192s |
+| Métrica                      | Valor             |
+| ---------------------------- | ----------------- |
+| Archivos creados/modificados | 10                |
+| Líneas de código             | 1,323             |
+| Tests                        | 28 (100% passing) |
+| Endpoints REST               | 9                 |
+| Enums                        | 4                 |
+| Interfaces                   | 9                 |
+| DTOs                         | 5                 |
+| Métodos del service          | 9                 |
+| Tiempo de ejecución tests    | 3.192s            |
 
 ---
 

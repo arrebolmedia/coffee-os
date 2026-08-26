@@ -90,16 +90,19 @@ Content-Type: application/json
 Once logged in, verify the following:
 
 #### ✅ Dashboard Stats
+
 - Sales stats should load (may show $0.00 if no orders yet)
 - Orders count
 - Customers count
 - Average ticket
 
 #### ✅ Recent Orders Table
+
 - Should display recent orders
 - Empty state if no orders
 
 #### ✅ Sales Chart
+
 - Should show last 7 days trend
 - May be empty initially
 
@@ -139,29 +142,34 @@ Content-Type: application/json
 ```
 
 #### View Products List
+
 1. Navigate to **Productos**
 2. Verify products appear in table
 3. Check pagination works
 4. Test search functionality
 
 #### Edit Product
+
 1. Click edit button on any product
 2. Modify fields
 3. Save changes
 4. Verify changes reflect immediately
 
 #### Upload Product Image
+
 1. Click on a product
 2. Upload image (max 5MB, JPG/PNG/WebP)
 3. Verify image appears
 4. Check thumbnails generated (small, medium, large)
 
 #### Delete Product
+
 1. Click delete button
 2. Confirm deletion
 3. Verify product removed from list
 
 #### Bulk Operations
+
 1. Select multiple products (checkboxes)
 2. Click "Eliminar" bulk button
 3. Confirm bulk deletion
@@ -172,18 +180,21 @@ Content-Type: application/json
 ### 5. Test Authentication Flow
 
 #### Token Refresh
+
 1. Wait for token to expire (or manually invalidate)
 2. Make an API call
 3. Verify automatic token refresh
 4. Request should succeed after refresh
 
 #### Logout
+
 1. Click user menu (top right)
 2. Click "Cerrar Sesión"
 3. Verify redirect to login page
 4. Verify tokens cleared from localStorage
 
 #### Protected Routes
+
 1. Log out
 2. Try accessing `/dashboard` or `/productos`
 3. Should redirect to `/login`
@@ -240,11 +251,13 @@ Content-Type: application/json
 ### Backend Not Starting
 
 **Error: Docker not running**
+
 ```
 Solution: Start Docker Desktop manually
 ```
 
 **Error: Port 4000 already in use**
+
 ```powershell
 # Find process using port 4000
 netstat -ano | findstr :4000
@@ -254,6 +267,7 @@ taskkill /PID <PID> /F
 ```
 
 **Error: Database connection failed**
+
 ```powershell
 # Verify PostgreSQL is running
 docker ps
@@ -265,6 +279,7 @@ docker logs coffeeos-postgres
 ### Frontend Not Connecting to Backend
 
 **Error: CORS errors in console**
+
 ```typescript
 // In apps/api/src/main.ts
 app.enableCors({
@@ -274,12 +289,14 @@ app.enableCors({
 ```
 
 **Error: 404 on API calls**
+
 ```
 Verify API_URL in .env.local:
 NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
 ```
 
 **Error: Network error**
+
 ```
 1. Check backend is running: http://localhost:4000/api/v1/health
 2. Check browser console for errors
@@ -289,6 +306,7 @@ NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
 ### Authentication Issues
 
 **Error: 401 Unauthorized on all requests**
+
 ```
 1. Check auth_token in localStorage
 2. Verify token hasn't expired
@@ -297,6 +315,7 @@ NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
 ```
 
 **Error: Infinite redirect loop**
+
 ```
 Solution: Clear localStorage and cookies
 localStorage.clear();

@@ -32,28 +32,28 @@ Se implementó el **módulo Products** completo, el componente central que conec
 ```typescript
 // 4 Enums
 export enum ProductType {
-  SIMPLE = 'simple',        // Producto único
-  VARIABLE = 'variable',    // Con variantes (Size, Temperature)
-  BUNDLE = 'bundle',        // Combo de productos
+  SIMPLE = 'simple', // Producto único
+  VARIABLE = 'variable', // Con variantes (Size, Temperature)
+  BUNDLE = 'bundle', // Combo de productos
 }
 
 export enum ProductStatus {
-  ACTIVE = 'active',        // Disponible para venta
-  INACTIVE = 'inactive',    // Temporalmente no disponible
-  DRAFT = 'draft',          // En desarrollo
-  ARCHIVED = 'archived',    // Descontinuado
+  ACTIVE = 'active', // Disponible para venta
+  INACTIVE = 'inactive', // Temporalmente no disponible
+  DRAFT = 'draft', // En desarrollo
+  ARCHIVED = 'archived', // Descontinuado
 }
 
 export enum PricingStrategy {
-  FIXED = 'fixed',          // Precio fijo
-  DYNAMIC = 'dynamic',      // Basado en demanda/hora
-  COST_PLUS = 'cost_plus',  // Costo + margen
+  FIXED = 'fixed', // Precio fijo
+  DYNAMIC = 'dynamic', // Basado en demanda/hora
+  COST_PLUS = 'cost_plus', // Costo + margen
 }
 
 export enum ModifierType {
-  EXTRA = 'extra',                    // Agregar ingrediente
-  SUBSTITUTION = 'substitution',      // Sustituir ingrediente
-  REMOVAL = 'removal',                // Quitar ingrediente
+  EXTRA = 'extra', // Agregar ingrediente
+  SUBSTITUTION = 'substitution', // Sustituir ingrediente
+  REMOVAL = 'removal', // Quitar ingrediente
   SPECIAL_REQUEST = 'special_request', // Instrucción especial
 }
 
@@ -63,26 +63,26 @@ export interface Product {
   id: string;
   organization_id: string;
   category_id: string;
-  recipe_id?: string;           // Link a Recipes para costeo
+  recipe_id?: string; // Link a Recipes para costeo
 
   // Identificación
-  sku: string;                  // Único por organización
+  sku: string; // Único por organización
   name: string;
   description?: string;
   barcode?: string;
 
   // Tipo y Estado
-  type: ProductType;            // simple/variable/bundle
-  status: ProductStatus;        // active/inactive/draft/archived
+  type: ProductType; // simple/variable/bundle
+  status: ProductStatus; // active/inactive/draft/archived
 
   // Pricing
   base_price: number;
-  cost?: number;                // Para calcular margin
+  cost?: number; // Para calcular margin
   pricing_strategy: PricingStrategy;
   target_margin_percentage?: number;
 
   // Tax
-  tax_rate: number;             // % 16 para México
+  tax_rate: number; // % 16 para México
   tax_included: boolean;
 
   // Configuración
@@ -118,9 +118,9 @@ export interface Product {
 export interface ProductVariant {
   id: string;
   product_id: string;
-  name: string;                 // "Small", "Medium", "Large"
-  sku: string;                  // SKU específico de variante
-  price_adjustment: number;     // +10 para Medium, +20 para Large
+  name: string; // "Small", "Medium", "Large"
+  sku: string; // SKU específico de variante
+  price_adjustment: number; // +10 para Medium, +20 para Large
   cost_adjustment?: number;
   attributes: VariantAttribute[]; // [{name: "Size", value: "Medium"}]
   stock_quantity?: number;
@@ -129,28 +129,28 @@ export interface ProductVariant {
 }
 
 export interface VariantAttribute {
-  name: string;   // "Size", "Temperature"
-  value: string;  // "Medium", "Hot"
+  name: string; // "Size", "Temperature"
+  value: string; // "Medium", "Hot"
 }
 
 export interface ProductModifier {
   id: string;
   product_id: string;
   organization_id: string;
-  name: string;                 // "Extra Shot", "Leche de Almendras"
+  name: string; // "Extra Shot", "Leche de Almendras"
   type: ModifierType;
-  price: number;                // Precio adicional
+  price: number; // Precio adicional
   is_required: boolean;
   is_default: boolean;
   is_available: boolean;
-  max_selections?: number;      // Límite de selecciones
+  max_selections?: number; // Límite de selecciones
 }
 
 export interface LocationPricing {
   id: string;
   product_id: string;
   location_id: string;
-  price_override: number;       // Precio específico de ubicación
+  price_override: number; // Precio específico de ubicación
   is_available: boolean;
 }
 
@@ -158,10 +158,10 @@ export interface ProductStats {
   total_products: number;
   by_type: Record<ProductType, number>;
   by_status: Record<ProductStatus, number>;
-  total_value: number;          // stock_quantity × cost
+  total_value: number; // stock_quantity × cost
   average_price: number;
   average_margin: number;
-  low_stock_count: number;      // stock_quantity <= reorder_point
+  low_stock_count: number; // stock_quantity <= reorder_point
 }
 
 export interface ProductProfitability {
@@ -170,9 +170,9 @@ export interface ProductProfitability {
   sku: string;
   base_price: number;
   cost: number;
-  margin_amount: number;        // base_price - cost
-  margin_percentage: number;    // (margin/base_price) × 100
-  profitability_score: number;  // Scoring combinado
+  margin_amount: number; // base_price - cost
+  margin_percentage: number; // (margin/base_price) × 100
+  profitability_score: number; // Scoring combinado
 }
 ```
 
@@ -664,21 +664,21 @@ export class UpdateModifierDto {
 
 **14 Endpoints REST**:
 
-| Método | Endpoint | Descripción | HTTP Code |
-|--------|----------|-------------|-----------|
-| POST | `/products` | Crear producto | 201 |
-| GET | `/products` | Listar con filtros | 200 |
-| GET | `/products/:id` | Obtener por ID | 200 |
-| GET | `/products/sku/:sku/:organization_id` | Obtener por SKU | 200 |
-| PATCH | `/products/:id` | Actualizar | 200 |
-| DELETE | `/products/:id` | Eliminar | 204 |
-| GET | `/products/:id/modifiers` | Listar modificadores | 200 |
-| POST | `/products/:id/modifiers` | Crear modificador | 201 |
-| PATCH | `/products/modifiers/:id` | Actualizar modificador | 200 |
-| DELETE | `/products/modifiers/:id` | Eliminar modificador | 204 |
-| PATCH | `/products/:id/stock` | Actualizar stock | 200 |
-| GET | `/products/organization/:id/stats` | Estadísticas | 200 |
-| GET | `/products/organization/:id/profitability` | Análisis rentabilidad | 200 |
+| Método | Endpoint                                   | Descripción            | HTTP Code |
+| ------ | ------------------------------------------ | ---------------------- | --------- |
+| POST   | `/products`                                | Crear producto         | 201       |
+| GET    | `/products`                                | Listar con filtros     | 200       |
+| GET    | `/products/:id`                            | Obtener por ID         | 200       |
+| GET    | `/products/sku/:sku/:organization_id`      | Obtener por SKU        | 200       |
+| PATCH  | `/products/:id`                            | Actualizar             | 200       |
+| DELETE | `/products/:id`                            | Eliminar               | 204       |
+| GET    | `/products/:id/modifiers`                  | Listar modificadores   | 200       |
+| POST   | `/products/:id/modifiers`                  | Crear modificador      | 201       |
+| PATCH  | `/products/modifiers/:id`                  | Actualizar modificador | 200       |
+| DELETE | `/products/modifiers/:id`                  | Eliminar modificador   | 204       |
+| PATCH  | `/products/:id/stock`                      | Actualizar stock       | 200       |
+| GET    | `/products/organization/:id/stats`         | Estadísticas           | 200       |
+| GET    | `/products/organization/:id/profitability` | Análisis rentabilidad  | 200       |
 
 ---
 
@@ -816,30 +816,30 @@ Personalización de productos con 4 tipos de modificadores:
 // Modifiers para un Latte
 [
   {
-    name: "Extra Shot",
+    name: 'Extra Shot',
     type: ModifierType.EXTRA,
     price: 10,
-    is_required: false
+    is_required: false,
   },
   {
-    name: "Leche de Almendras",
+    name: 'Leche de Almendras',
     type: ModifierType.SUBSTITUTION,
     price: 15,
-    is_required: false
+    is_required: false,
   },
   {
-    name: "Sin Azúcar",
+    name: 'Sin Azúcar',
     type: ModifierType.REMOVAL,
     price: 0,
-    is_required: false
+    is_required: false,
   },
   {
-    name: "Extra Caliente",
+    name: 'Extra Caliente',
     type: ModifierType.SPECIAL_REQUEST,
     price: 0,
-    is_required: false
-  }
-]
+    is_required: false,
+  },
+];
 ```
 
 ### 3. Pricing Strategies
@@ -1036,6 +1036,7 @@ Flexibilidad para diferentes modelos de negocio.
 ### 5. ¿Por qué Profitability Score Combinado?
 
 Combinar margin% y price da mejor visión:
+
 - **Margin alto + precio bajo**: Rentable pero bajo volumen
 - **Margin bajo + precio alto**: Riesgo de no vender
 - **Margin alto + precio alto**: ⭐ Star products
@@ -1148,13 +1149,13 @@ model Product {
   basePrice         Decimal        @map("base_price")
   cost              Decimal?
   pricingStrategy   PricingStrategy @map("pricing_strategy")
-  
+
   organization      Organization   @relation(fields: [organizationId])
   category          Category       @relation(fields: [categoryId])
   recipe            Recipe?        @relation(fields: [recipeId])
   variants          ProductVariant[]
   modifiers         ProductModifier[]
-  
+
   @@unique([organizationId, sku])
   @@index([categoryId])
   @@map("products")
@@ -1200,7 +1201,11 @@ Re-exportar enums evita imports circulares:
 
 ```typescript
 // create-product.dto.ts
-export enum ProductType { SIMPLE, VARIABLE, BUNDLE }
+export enum ProductType {
+  SIMPLE,
+  VARIABLE,
+  BUNDLE,
+}
 
 // query-products.dto.ts
 import { ProductType } from './create-product.dto';
@@ -1212,7 +1217,7 @@ Query params llegan como strings:
 
 ```typescript
 if (query.is_available === 'true') {
-  filtered = filtered.filter(p => p.is_available);
+  filtered = filtered.filter((p) => p.is_available);
 }
 ```
 

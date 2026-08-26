@@ -7,6 +7,7 @@ Implements the **Taxes module** for CoffeeOS, enabling Mexican tax compliance (I
 ## ✨ Features Added
 
 ### TaxesService
+
 - **Tax Categories**: IVA, IEPS, ISR, OTHER
 - **Tax Rate Management**: 0-100% validation
 - **Active/Inactive Support**: Enable/disable taxes
@@ -14,6 +15,7 @@ Implements the **Taxes module** for CoffeeOS, enabling Mexican tax compliance (I
 - **Breakdown Reporting**: Detailed tax breakdown by category
 
 ### TaxesController (7 Endpoints)
+
 ```typescript
 POST   /taxes                    // Create new tax
 GET    /taxes                    // List with pagination
@@ -25,11 +27,13 @@ DELETE /taxes/:id                // Delete tax
 ```
 
 ### DTOs
+
 - **CreateTaxDto** (59 lines): Tax creation with category validation
 - **UpdateTaxDto** (4 lines): Partial updates
 - **QueryTaxesDto** (31 lines): Filtering and pagination
 
 ### Business Rules
+
 - ✅ Tax rate must be 0-100%
 - ✅ Support for Mexican tax categories (IVA, IEPS, ISR)
 - ✅ Active/inactive tax filtering
@@ -41,6 +45,7 @@ DELETE /taxes/:id                // Delete tax
 **26 tests (100% passing)**
 
 ### Controller Tests (7)
+
 - ✅ Create tax
 - ✅ List taxes
 - ✅ Get active taxes
@@ -50,6 +55,7 @@ DELETE /taxes/:id                // Delete tax
 - ✅ Delete tax
 
 ### Service Tests (19)
+
 - ✅ Create tax
 - ✅ List with pagination
 - ✅ Filter by active status
@@ -87,9 +93,11 @@ DELETE /taxes/:id                // Delete tax
 ## 🔗 Integration Points
 
 ### Current
+
 - **DatabaseModule**: Prisma ORM access
 
 ### Future
+
 - **Transactions Module**: Apply taxes to transactions
 - **Products Module**: Product-specific tax categories
 - **CFDI Module**: Mexican invoice generation
@@ -103,7 +111,7 @@ const iva = await taxesService.create({
   name: 'IVA 16%',
   category: TaxCategory.IVA,
   rate: 16,
-  organizationId: 'org-1'
+  organizationId: 'org-1',
 });
 
 // Calculate single tax
@@ -111,26 +119,26 @@ const taxAmount = await taxesService.calculateTax(iva.id, 1000);
 // → Returns: 160 (16% of 1000)
 
 // Calculate multiple taxes
-const result = await taxesService.calculateMultipleTaxes(
-  [ivaId, iepsId],
-  1000
-);
+const result = await taxesService.calculateMultipleTaxes([ivaId, iepsId], 1000);
 // → Returns: { total: 240, breakdown: [{ taxId: '1', amount: 160 }, { taxId: '2', amount: 80 }] }
 ```
 
 ## 🎯 Business Value
 
 ### For Compliance
+
 - **Mexican Regulations**: IVA, IEPS, ISR support
 - **CFDI Integration**: Ready for electronic invoicing
 - **Tax Reporting**: Accurate tax breakdowns
 
 ### For Finance
+
 - **Automated Calculation**: No manual tax math
 - **Multiple Taxes**: Handle complex tax scenarios
 - **Audit Trail**: Track tax configurations
 
 ### For Operations
+
 - **Easy Configuration**: Simple tax setup
 - **Category Filtering**: Organize by tax type
 - **Active/Inactive**: Enable/disable without deletion
@@ -141,10 +149,10 @@ const result = await taxesService.calculateMultipleTaxes(
 
 Previous: Products, Categories, Modifiers, Inventory Items, Suppliers, Recipes, Transactions, Payments, Inventory Movements, Orders, Discounts
 
-**New:**
-12. ✅ **Taxes (26 tests)** ⭐
+**New:** 12. ✅ **Taxes (26 tests)** ⭐
 
 **Cumulative Stats:**
+
 - **Total Tests**: 378 (352 + 26)
 - **Total Endpoints**: 102+
 - **Test Coverage**: Comprehensive

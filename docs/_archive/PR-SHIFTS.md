@@ -7,6 +7,7 @@ Implements the **Shifts module** for CoffeeOS, enabling cash register shift mana
 ## ✨ Features Added
 
 ### ShiftsService
+
 - **Shift Status**: OPEN, CLOSED
 - **Opening Procedure**: Record opening cash amount
 - **Closing Procedure**: Record cash/card/transfers/other
@@ -17,6 +18,7 @@ Implements the **Shifts module** for CoffeeOS, enabling cash register shift mana
 - **Location Tracking**: Multi-location support
 
 ### ShiftsController (8 Endpoints)
+
 ```typescript
 POST   /shifts              // Open new shift
 GET    /shifts              // List with pagination
@@ -29,12 +31,14 @@ DELETE /shifts/:id          // Delete shift
 ```
 
 ### DTOs
+
 - **CreateShiftDto** (31 lines): Shift opening with opening cash
 - **CloseShiftDto** (31 lines): Shift closing with payment breakdown
 - **UpdateShiftDto** (4 lines): Partial updates
 - **QueryShiftsDto** (37 lines): Filtering and pagination
 
 ### Business Rules
+
 - ✅ Only one active shift per location
 - ✅ Cannot open shift if one is already open
 - ✅ Cannot close already closed shift
@@ -47,6 +51,7 @@ DELETE /shifts/:id          // Delete shift
 **26 tests (100% passing)**
 
 ### Controller Tests (8)
+
 - ✅ Open new shift
 - ✅ List shifts
 - ✅ Get active shift
@@ -57,6 +62,7 @@ DELETE /shifts/:id          // Delete shift
 - ✅ Delete shift
 
 ### Service Tests (18)
+
 - ✅ Create new shift
 - ✅ Throw if active shift exists
 - ✅ List with pagination
@@ -94,9 +100,11 @@ DELETE /shifts/:id          // Delete shift
 ## 🔗 Integration Points
 
 ### Current
+
 - **DatabaseModule**: Prisma ORM access
 
 ### Future
+
 - **Transactions Module**: Link transactions to shifts
 - **Payments Module**: Calculate expected totals
 - **Users Module**: Cashier assignment
@@ -112,7 +120,7 @@ const shift = await shiftsService.create({
   openingNotes: 'Inicio de turno matutino',
   userId: 'cashier-1',
   locationId: 'loc-1',
-  organizationId: 'org-1'
+  organizationId: 'org-1',
 });
 // → { id: '1', status: 'OPEN', openingCash: 1000, openedAt: '2024-01-20T08:00:00Z' }
 
@@ -122,7 +130,7 @@ const closed = await shiftsService.close(shift.id, {
   closingCard: 800,
   closingTransfers: 300,
   closingOther: 50,
-  notes: 'Cierre sin novedades'
+  notes: 'Cierre sin novedades',
 });
 // → { status: 'CLOSED', closedAt: '2024-01-20T20:00:00Z', variance: ... }
 
@@ -134,18 +142,21 @@ const summary = await shiftsService.calculateShiftSummary(shift.id);
 ## 🎯 Business Value
 
 ### For Cash Management
+
 - **Arqueo de Caja**: Complete cash reconciliation
 - **Variance Tracking**: Identify discrepancies
 - **Accountability**: Link shifts to cashiers
 - **Audit Trail**: Complete shift history
 
 ### For Operations
+
 - **Multi-Payment**: Cash, card, transfers, other
 - **Shift Notes**: Record important events
 - **Opening/Closing**: Clear procedures
 - **Active Shift Detection**: Prevent errors
 
 ### For Reporting
+
 - **Shift Performance**: Sales by shift
 - **Cashier Performance**: Track by user
 - **Location Performance**: Compare locations
@@ -157,10 +168,10 @@ const summary = await shiftsService.calculateShiftSummary(shift.id);
 
 Previous: Products, Categories, Modifiers, Inventory Items, Suppliers, Recipes, Transactions, Payments, Inventory Movements, Orders, Discounts, Taxes
 
-**New:**
-13. ✅ **Shifts (26 tests)** ⭐
+**New:** 13. ✅ **Shifts (26 tests)** ⭐
 
 **Cumulative Stats:**
+
 - **Total Tests**: 404 (378 + 26)
 - **Total Endpoints**: 110+
 - **Test Coverage**: Comprehensive

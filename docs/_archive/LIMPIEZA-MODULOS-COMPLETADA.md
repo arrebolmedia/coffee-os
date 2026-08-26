@@ -13,38 +13,43 @@
 
 ### ✅ Módulos Productivos (Conectados a API)
 
-| Módulo | Estado | Backend API | Notas |
-|--------|--------|-------------|-------|
-| **Dashboard** | ✅ Producción | `/analytics/dashboard` | KPIs limpiados, sin porcentajes mock |
-| **Costeo** | ✅ Producción | `/recipes/profitability` | Eliminados duplicados |
-| **Productos** | ✅ Producción | `/products` | CRUD completo |
-| **Recetas** | ✅ Producción | `/recipes` | Con ingredientes y costeo |
-| **Inventario** | ✅ Producción | `/inventory`, `/inventory-items` | Stock teórico vs físico |
-| **POS** | ✅ Producción | `/pos/orders`, `/pos/tickets` | Sistema completo de ventas |
+| Módulo         | Estado        | Backend API                      | Notas                                |
+| -------------- | ------------- | -------------------------------- | ------------------------------------ |
+| **Dashboard**  | ✅ Producción | `/analytics/dashboard`           | KPIs limpiados, sin porcentajes mock |
+| **Costeo**     | ✅ Producción | `/recipes/profitability`         | Eliminados duplicados                |
+| **Productos**  | ✅ Producción | `/products`                      | CRUD completo                        |
+| **Recetas**    | ✅ Producción | `/recipes`                       | Con ingredientes y costeo            |
+| **Inventario** | ✅ Producción | `/inventory`, `/inventory-items` | Stock teórico vs físico              |
+| **POS**        | ✅ Producción | `/pos/orders`, `/pos/tickets`    | Sistema completo de ventas           |
 
 ### 🚧 Módulos en Desarrollo (Limpiados)
 
 **Recursos Humanos (4):**
+
 - ✅ Training (Capacitación 30/60/90)
-- ✅ Attendance (Control de Asistencia)  
+- ✅ Attendance (Control de Asistencia)
 - ✅ Payroll (Nómina)
 - ✅ Employees (próximo a conectar)
 
 **CRM & Marketing (4):**
+
 - ✅ Loyalty (Programa 9+1)
 - ✅ Campaigns (Email Marketing)
 - ✅ Segmentation (Análisis RFM)
 - ✅ Messaging (WhatsApp/SMS)
 
 **Compliance & Calidad (1):**
+
 - ✅ Temperatures (Control NOM-251)
 
 **Finanzas & Legal (3):**
+
 - ✅ Accounting (Contabilidad)
 - ✅ P&L (Estado de Resultados)
 - ✅ CFDI (Facturación Electrónica)
 
 **Configuración (2):**
+
 - ✅ Integrations (Twilio, Mailrelay, PAC)
 - ✅ Invite Users (Invitaciones)
 
@@ -63,6 +68,7 @@ Estos módulos tienen backend completo pero frontend en desarrollo:
 **Archivo:** `apps/pos-web/src/components/ui/ModuleInDevelopment.tsx`
 
 **Características:**
+
 - ✅ Icono de construcción
 - ✅ Badge "En Desarrollo"
 - ✅ Descripción del módulo
@@ -74,6 +80,7 @@ Estos módulos tienen backend completo pero frontend en desarrollo:
 **Archivo Seed:** `packages/database/seed-simple.ts`
 
 **Datos Demo:**
+
 - ✅ 3 productos (Espresso, Americano, Latte)
 - ✅ 3 recetas completas con ingredientes
 - ✅ Costeo automático por receta
@@ -83,15 +90,18 @@ Estos módulos tienen backend completo pero frontend en desarrollo:
 ## 📝 Próximos Pasos Recomendados
 
 ### Prioridad Alta
+
 1. **Conectar Empleados** - Existe API `/hr/employees`
 2. **Conectar Analytics/Ventas** - Existe API `/analytics/dashboard`
 3. **Revisar Organización** - Configuración básica
 
 ### Prioridad Media
+
 4. **Loyalty/CRM** - Backend completo en `/crm`
 5. **Reports** - Sistema de reportes `/reports`
 
 ### Prioridad Baja
+
 - Training (Backend `/onboarding` disponible)
 - Accounting (Backend `/finance` disponible)
 - CFDI (Integración con PAC pendiente)
@@ -118,12 +128,14 @@ Estos módulos tienen backend completo pero frontend en desarrollo:
 ## ✨ Resultado Final
 
 **Antes:**
+
 - 18 módulos con datos mock/hardcoded
 - Dashboard con porcentajes falsos
 - Costeo con productos duplicados
 - 11 productos demo en seed
 
 **Después:**
+
 - 6 módulos productivos conectados a API real
 - 12 módulos limpios con banner "En Desarrollo"
 - Dashboard con datos 100% reales
@@ -132,7 +144,8 @@ Estos módulos tienen backend completo pero frontend en desarrollo:
 
 ---
 
-**Estado del Proyecto:** 
+**Estado del Proyecto:**
+
 - ✅ Core Funcional (POS, Productos, Inventario, Costeo)
 - 🚧 Módulos Secundarios Preparados para Desarrollo
 - 📊 Base de Datos Limpia y Simplificada

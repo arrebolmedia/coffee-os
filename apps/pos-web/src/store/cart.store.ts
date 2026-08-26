@@ -29,7 +29,19 @@ interface CartState {
   calculateTotals: () => void;
 }
 
-export const TAX_RATE = 0.16; // 16% IVA en México
+/**
+ * Tasa por defecto, sólo para productos que no traen la suya.
+ *
+ * NO es la tasa del carrito: cada línea se grava con `product.taxRate`, igual
+ * que hace el backend al crear el ticket. Aplicar un 0.16 fijo funcionaba
+ * mientras todo estuviera al 16 %, pero el día que un producto vaya al 0 % —el
+ * pan para llevar tributa a tasa 0 por el art. 2-A LIVA— la pantalla enseñaría
+ * un total y se cobraría otro.
+ */
+export const DEFAULT_TAX_RATE = 0.16;
+
+/** @deprecated Se conserva por compatibilidad; usar la tasa de cada producto. */
+export const TAX_RATE = DEFAULT_TAX_RATE;
 
 const calculateItemSubtotal = (item: CartItem): number => {
   const modifiersTotal = item.selected_modifiers.reduce(
@@ -228,9 +240,23 @@ export const useCartStore = create<CartState>()(
           state.cart.items.reduce((sum, item) => sum + item.subtotal, 0),
         );
         const discount = state.cart.discount || 0;
-        const taxableAmount = Math.max(0, subtotal - discount);
-        const tax = round2(taxableAmount * TAX_RATE);
-        const total = round2(Math.max(0, taxableAmount + tax));
+
+        // El descuento reduce la base gravable y se reparte proporcionalmente
+        // entre las líneas, que es lo que hay que hacer cuando conviven varias
+        // tasas. El backend calcula exactamente igual.
+        const baseRatio =
+          subtotal > 0 ? Math.max(0, subtotal - discount) / subtotal : 0;
+        const tax = round2(
+          state.cart.items.reduce(
+            (sum, item) =>
+              sum +
+              item.subtotal *
+                (item.product.taxRate ?? DEFAULT_TAX_RATE) *
+                baseRatio,
+            0,
+          ),
+        );
+        const total = round2(Math.max(0, subtotal - discount + tax));
 
         set({
           cart: {

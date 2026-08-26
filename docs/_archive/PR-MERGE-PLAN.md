@@ -40,6 +40,7 @@ feat/cash-register-module (23 tests)
 **DEBE seguirse este orden exacto para evitar conflictos:**
 
 ### 1️⃣ PR #1: Orders Module
+
 - **Branch**: `feat/orders-module`
 - **URL**: https://github.com/arrebolmedia/coffee-os/pull/new/feat/orders-module
 - **Base**: `main`
@@ -49,6 +50,7 @@ feat/cash-register-module (23 tests)
 - **Acción**: ✅ Mergear PRIMERO
 
 ### 2️⃣ PR #2: Discounts Module
+
 - **Branch**: `feat/discounts-module`
 - **URL**: https://github.com/arrebolmedia/coffee-os/pull/new/feat/discounts-module
 - **Base**: `main`
@@ -59,6 +61,7 @@ feat/cash-register-module (23 tests)
 - **Acción**: ✅ Mergear DESPUÉS de Orders
 
 ### 3️⃣ PR #3: Taxes Module
+
 - **Branch**: `feat/taxes-module`
 - **URL**: https://github.com/arrebolmedia/coffee-os/pull/new/feat/taxes-module
 - **Base**: `main`
@@ -69,6 +72,7 @@ feat/cash-register-module (23 tests)
 - **Acción**: ✅ Mergear DESPUÉS de Discounts
 
 ### 4️⃣ PR #4: Shifts Module
+
 - **Branch**: `feat/shifts-module`
 - **URL**: https://github.com/arrebolmedia/coffee-os/pull/new/feat/shifts-module
 - **Base**: `main`
@@ -79,6 +83,7 @@ feat/cash-register-module (23 tests)
 - **Acción**: ✅ Mergear DESPUÉS de Taxes
 
 ### 5️⃣ PR #5: Cash Registers Module
+
 - **Branch**: `feat/cash-register-module`
 - **URL**: https://github.com/arrebolmedia/coffee-os/pull/new/feat/cash-register-module
 - **Base**: `main`
@@ -93,7 +98,7 @@ feat/cash-register-module (23 tests)
 ### Para cada PR (en orden):
 
 1. **Abrir PR** usando la URL correspondiente
-2. **Copiar descripción** del archivo PR-*.md
+2. **Copiar descripción** del archivo PR-\*.md
 3. **Esperar CI checks** (deben pasar todos)
 4. **Mergear a main** usando "Squash and merge" o "Create a merge commit"
 5. **Cerrar branch** (opcional)
@@ -109,6 +114,7 @@ feat/cash-register-module (23 tests)
 ## 🧪 Tests Summary
 
 ### Totales por Módulo
+
 - Orders: 43 tests ✅
 - Discounts: 39 tests ✅
 - Taxes: 26 tests ✅
@@ -116,6 +122,7 @@ feat/cash-register-module (23 tests)
 - Cash Registers: 23 tests ✅
 
 ### Total General
+
 - **157 tests** (100% passing)
 - **46 endpoints** REST API
 - **4,803 líneas** de código
@@ -148,18 +155,21 @@ feat/cash-register-module (23 tests)
 Después de mergear todos los PRs:
 
 1. **Actualizar local main**:
+
    ```powershell
    git checkout main
    git pull origin main
    ```
 
 2. **Verificar todos los módulos**:
+
    ```powershell
    cd apps/api
    npm test
    ```
 
 3. **Eliminar branches locales** (opcional):
+
    ```powershell
    git branch -d feat/orders-module
    git branch -d feat/discounts-module
@@ -173,16 +183,19 @@ Después de mergear todos los PRs:
 ## 📊 Impacto Total
 
 ### Antes de esta sesión:
+
 - 9 módulos
 - 270 tests
 - 64 endpoints
 
 ### Después de todos los merges:
+
 - **14 módulos** (+5)
 - **427 tests** (+157)
 - **110 endpoints** (+46)
 
 ### Módulos POS Completados:
+
 ✅ Products, Categories, Modifiers, Inventory Items, Suppliers, Recipes  
 ✅ Transactions, Payments, Inventory Movements  
 ✅ **Orders, Discounts, Taxes, Shifts, Cash Registers** ← NUEVOS

@@ -46,6 +46,14 @@ export interface Product extends BaseEntity, OrganizationContext {
   category?: Category;
   price: number;
   cost?: number;
+  /**
+   * Tasa de IVA del producto, como la devuelve Prisma (0.16, 0, ...).
+   *
+   * El backend calcula el impuesto del ticket con ESTA tasa, producto a
+   * producto. El carrito la ignoraba y aplicaba un 0.16 fijo, así que
+   * coincidían sólo mientras todos los productos estuvieran al 16 %.
+   */
+  taxRate?: number;
   status: ProductStatus;
   image?: string;
   barcode?: string;

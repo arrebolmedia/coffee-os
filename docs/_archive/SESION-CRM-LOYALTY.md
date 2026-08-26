@@ -85,15 +85,15 @@ apps/api/src/modules/crm/
 
 ### Endpoints (7 total)
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `POST` | `/crm/customers` | Crear cliente |
-| `GET` | `/crm/customers` | Listar clientes con filtros |
-| `GET` | `/crm/customers/stats` | Estadísticas de clientes |
-| `GET` | `/crm/customers/:id` | Obtener cliente por ID |
-| `PATCH` | `/crm/customers/:id` | Actualizar cliente |
-| `POST` | `/crm/customers/:id/visit` | Registrar visita |
-| `DELETE` | `/crm/customers/:id` | Eliminar cliente |
+| Método   | Ruta                       | Descripción                 |
+| -------- | -------------------------- | --------------------------- |
+| `POST`   | `/crm/customers`           | Crear cliente               |
+| `GET`    | `/crm/customers`           | Listar clientes con filtros |
+| `GET`    | `/crm/customers/stats`     | Estadísticas de clientes    |
+| `GET`    | `/crm/customers/:id`       | Obtener cliente por ID      |
+| `PATCH`  | `/crm/customers/:id`       | Actualizar cliente          |
+| `POST`   | `/crm/customers/:id/visit` | Registrar visita            |
+| `DELETE` | `/crm/customers/:id`       | Eliminar cliente            |
 
 ### Ejemplo de Uso - Crear Cliente
 
@@ -171,21 +171,21 @@ checkLoyalty9Plus1(customerId) {
 
 ### Endpoints (13 total)
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `POST` | `/crm/loyalty/transactions` | Crear transacción manual |
-| `POST` | `/crm/loyalty/earn` | Ganar puntos por compra |
-| `POST` | `/crm/loyalty/redeem` | Redimir puntos por recompensa |
-| `GET` | `/crm/loyalty/check-9plus1/:customerId` | Verificar elegibilidad 9+1 |
-| `GET` | `/crm/loyalty/transactions` | Listar transacciones |
-| `GET` | `/crm/loyalty/transactions/:id` | Obtener transacción |
-| `GET` | `/crm/loyalty/balance/:customerId` | Balance del cliente |
-| `GET` | `/crm/loyalty/stats` | Estadísticas del programa |
-| `POST` | `/crm/loyalty/rewards` | Crear recompensa |
-| `GET` | `/crm/loyalty/rewards` | Listar recompensas |
-| `GET` | `/crm/loyalty/rewards/:id` | Obtener recompensa |
-| `PATCH` | `/crm/loyalty/rewards/:id` | Actualizar recompensa |
-| `DELETE` | `/crm/loyalty/rewards/:id` | Eliminar recompensa |
+| Método   | Ruta                                    | Descripción                   |
+| -------- | --------------------------------------- | ----------------------------- |
+| `POST`   | `/crm/loyalty/transactions`             | Crear transacción manual      |
+| `POST`   | `/crm/loyalty/earn`                     | Ganar puntos por compra       |
+| `POST`   | `/crm/loyalty/redeem`                   | Redimir puntos por recompensa |
+| `GET`    | `/crm/loyalty/check-9plus1/:customerId` | Verificar elegibilidad 9+1    |
+| `GET`    | `/crm/loyalty/transactions`             | Listar transacciones          |
+| `GET`    | `/crm/loyalty/transactions/:id`         | Obtener transacción           |
+| `GET`    | `/crm/loyalty/balance/:customerId`      | Balance del cliente           |
+| `GET`    | `/crm/loyalty/stats`                    | Estadísticas del programa     |
+| `POST`   | `/crm/loyalty/rewards`                  | Crear recompensa              |
+| `GET`    | `/crm/loyalty/rewards`                  | Listar recompensas            |
+| `GET`    | `/crm/loyalty/rewards/:id`              | Obtener recompensa            |
+| `PATCH`  | `/crm/loyalty/rewards/:id`              | Actualizar recompensa         |
+| `DELETE` | `/crm/loyalty/rewards/:id`              | Eliminar recompensa           |
 
 ### Ejemplo - Ganar Puntos
 
@@ -263,24 +263,24 @@ enum RewardType {
 
 ### Endpoints (15 total)
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `POST` | `/crm/campaigns` | Crear campaña |
-| `GET` | `/crm/campaigns` | Listar campañas |
-| `GET` | `/crm/campaigns/stats` | Estadísticas de campañas |
-| `GET` | `/crm/campaigns/:id` | Obtener campaña |
-| `PATCH` | `/crm/campaigns/:id/status` | Cambiar estado |
-| `DELETE` | `/crm/campaigns/:id` | Eliminar campaña |
-| `POST` | `/crm/campaigns/:id/recipients` | Agregar destinatario |
-| `GET` | `/crm/campaigns/:id/recipients` | Listar destinatarios |
-| `POST` | `/crm/campaigns/recipients/:id/sent` | Marcar como enviado |
-| `POST` | `/crm/campaigns/recipients/:id/delivered` | Marcar como entregado |
-| `POST` | `/crm/campaigns/recipients/:id/opened` | Marcar como abierto |
-| `POST` | `/crm/campaigns/recipients/:id/clicked` | Marcar como clic |
-| `POST` | `/crm/campaigns/recipients/:id/converted` | Marcar como convertido |
-| `POST` | `/crm/campaigns/recipients/:id/unsubscribed` | Marcar como desuscrito |
-| `POST` | `/crm/campaigns/birthday` | Crear campaña de cumpleaños |
-| `POST` | `/crm/campaigns/welcome` | Crear campaña de bienvenida |
+| Método   | Ruta                                         | Descripción                 |
+| -------- | -------------------------------------------- | --------------------------- |
+| `POST`   | `/crm/campaigns`                             | Crear campaña               |
+| `GET`    | `/crm/campaigns`                             | Listar campañas             |
+| `GET`    | `/crm/campaigns/stats`                       | Estadísticas de campañas    |
+| `GET`    | `/crm/campaigns/:id`                         | Obtener campaña             |
+| `PATCH`  | `/crm/campaigns/:id/status`                  | Cambiar estado              |
+| `DELETE` | `/crm/campaigns/:id`                         | Eliminar campaña            |
+| `POST`   | `/crm/campaigns/:id/recipients`              | Agregar destinatario        |
+| `GET`    | `/crm/campaigns/:id/recipients`              | Listar destinatarios        |
+| `POST`   | `/crm/campaigns/recipients/:id/sent`         | Marcar como enviado         |
+| `POST`   | `/crm/campaigns/recipients/:id/delivered`    | Marcar como entregado       |
+| `POST`   | `/crm/campaigns/recipients/:id/opened`       | Marcar como abierto         |
+| `POST`   | `/crm/campaigns/recipients/:id/clicked`      | Marcar como clic            |
+| `POST`   | `/crm/campaigns/recipients/:id/converted`    | Marcar como convertido      |
+| `POST`   | `/crm/campaigns/recipients/:id/unsubscribed` | Marcar como desuscrito      |
+| `POST`   | `/crm/campaigns/birthday`                    | Crear campaña de cumpleaños |
+| `POST`   | `/crm/campaigns/welcome`                     | Crear campaña de bienvenida |
 
 ### Ejemplo - Campaña de Cumpleaños
 
@@ -331,11 +331,11 @@ POST /crm/campaigns/birthday
 
 ```typescript
 enum CampaignChannel {
-  EMAIL,       // Email tradicional
-  WHATSAPP,    // WhatsApp Business API (canal preferido en México)
-  SMS,         // SMS tradicional
-  PUSH,        // Push notifications (app móvil)
-  IN_APP       // Mensajes dentro de la app
+  EMAIL, // Email tradicional
+  WHATSAPP, // WhatsApp Business API (canal preferido en México)
+  SMS, // SMS tradicional
+  PUSH, // Push notifications (app móvil)
+  IN_APP, // Mensajes dentro de la app
 }
 ```
 
@@ -346,6 +346,7 @@ enum CampaignChannel {
 ### ¿Qué es RFM?
 
 **R**ecency - **F**requency - **M**onetary: Metodología de segmentación basada en:
+
 - **Recency (R)**: ¿Cuándo fue la última compra? (días)
 - **Frequency (F)**: ¿Cuántas veces ha comprado? (número)
 - **Monetary (M)**: ¿Cuánto ha gastado en total? (pesos)
@@ -354,49 +355,49 @@ enum CampaignChannel {
 
 ```typescript
 // Recency (días desde última compra)
-if (days <= 7) return 5    // Muy reciente
-if (days <= 30) return 4   // Reciente
-if (days <= 60) return 3   // Promedio
-if (days <= 120) return 2  // Alejándose
-return 1                   // Perdido
+if (days <= 7) return 5; // Muy reciente
+if (days <= 30) return 4; // Reciente
+if (days <= 60) return 3; // Promedio
+if (days <= 120) return 2; // Alejándose
+return 1; // Perdido
 
 // Frequency (número de compras)
-if (count >= 20) return 5  // Super frecuente
-if (count >= 10) return 4  // Muy frecuente
-if (count >= 5) return 3   // Frecuente
-if (count >= 2) return 2   // Ocasional
-return 1                   // Una vez
+if (count >= 20) return 5; // Super frecuente
+if (count >= 10) return 4; // Muy frecuente
+if (count >= 5) return 3; // Frecuente
+if (count >= 2) return 2; // Ocasional
+return 1; // Una vez
 
 // Monetary (total gastado en pesos)
-if (total >= 10000) return 5  // $10,000+
-if (total >= 5000) return 4   // $5,000+
-if (total >= 2000) return 3   // $2,000+
-if (total >= 500) return 2    // $500+
-return 1                      // < $500
+if (total >= 10000) return 5; // $10,000+
+if (total >= 5000) return 4; // $5,000+
+if (total >= 2000) return 3; // $2,000+
+if (total >= 500) return 2; // $500+
+return 1; // < $500
 ```
 
 ### 11 Segmentos Predefinidos
 
-| Segmento | R | F | M | Descripción | Estrategia |
-|----------|---|---|---|-------------|------------|
-| **Champions** | 5 | 4-5 | 4-5 | Mejores clientes, compran frecuente y reciente | Recompensar, pedir referidos |
-| **Loyal Customers** | 3-4 | 4-5 | 4-5 | Clientes leales pero no tan recientes | Re-engagement |
-| **Potential Loyalists** | 4-5 | 2-3 | 2-3 | Compradores recientes con potencial | Programas de lealtad |
-| **Recent Customers** | 5 | 1 | 1-2 | Compraron hace poco, primera vez | Onboarding, welcome series |
-| **Promising** | 4-5 | 1 | 1 | Recientes, poco gasto | Upsell, educación |
-| **Need Attention** | 3 | 3 | 3 | Promedio en todo | Campañas de activación |
-| **About To Sleep** | 2-3 | 2-3 | 2-3 | Se están alejando | Win-back urgente |
-| **At Risk** | 2 | 4-5 | 4-5 | Buenos clientes alejándose | Retención agresiva |
-| **Cannot Lose Them** | 1 | 4-5 | 4-5 | Los mejores, pero perdidos | Recuperación premium |
-| **Hibernating** | 1-2 | 2 | 2 | Inactivos | Reactivación básica |
-| **Lost** | 1 | 1 | 1 | Completamente perdidos | Descarte o última oportunidad |
+| Segmento                | R   | F   | M   | Descripción                                    | Estrategia                    |
+| ----------------------- | --- | --- | --- | ---------------------------------------------- | ----------------------------- |
+| **Champions**           | 5   | 4-5 | 4-5 | Mejores clientes, compran frecuente y reciente | Recompensar, pedir referidos  |
+| **Loyal Customers**     | 3-4 | 4-5 | 4-5 | Clientes leales pero no tan recientes          | Re-engagement                 |
+| **Potential Loyalists** | 4-5 | 2-3 | 2-3 | Compradores recientes con potencial            | Programas de lealtad          |
+| **Recent Customers**    | 5   | 1   | 1-2 | Compraron hace poco, primera vez               | Onboarding, welcome series    |
+| **Promising**           | 4-5 | 1   | 1   | Recientes, poco gasto                          | Upsell, educación             |
+| **Need Attention**      | 3   | 3   | 3   | Promedio en todo                               | Campañas de activación        |
+| **About To Sleep**      | 2-3 | 2-3 | 2-3 | Se están alejando                              | Win-back urgente              |
+| **At Risk**             | 2   | 4-5 | 4-5 | Buenos clientes alejándose                     | Retención agresiva            |
+| **Cannot Lose Them**    | 1   | 4-5 | 4-5 | Los mejores, pero perdidos                     | Recuperación premium          |
+| **Hibernating**         | 1-2 | 2   | 2   | Inactivos                                      | Reactivación básica           |
+| **Lost**                | 1   | 1   | 1   | Completamente perdidos                         | Descarte o última oportunidad |
 
 ### Endpoints (2 total)
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `GET` | `/crm/rfm/calculate/:customerId` | Calcular RFM de un cliente |
-| `GET` | `/crm/rfm/distribution` | Distribución de segmentos |
+| Método | Ruta                             | Descripción                |
+| ------ | -------------------------------- | -------------------------- |
+| `GET`  | `/crm/rfm/calculate/:customerId` | Calcular RFM de un cliente |
+| `GET`  | `/crm/rfm/distribution`          | Distribución de segmentos  |
 
 ### Ejemplo - Calcular RFM
 
@@ -438,12 +439,12 @@ POST /crm/campaigns
 
 ### Distribución de Tests
 
-| Módulo | Tests | Líneas | Cobertura |
-|--------|-------|--------|-----------|
-| Customers | 20 | ~400 | CRUD, búsqueda, visitas, stats, LFPDPPP |
-| Loyalty | 17 | ~350 | Earn/redeem, 9+1, recompensas, balance |
-| Campaigns | 11 | ~200 | CRUD, recipientes, métricas, automatizadas |
-| RFM | 7 | ~180 | Scoring, segmentación, distribución |
+| Módulo    | Tests | Líneas | Cobertura                                  |
+| --------- | ----- | ------ | ------------------------------------------ |
+| Customers | 20    | ~400   | CRUD, búsqueda, visitas, stats, LFPDPPP    |
+| Loyalty   | 17    | ~350   | Earn/redeem, 9+1, recompensas, balance     |
+| Campaigns | 11    | ~200   | CRUD, recipientes, métricas, automatizadas |
+| RFM       | 7     | ~180   | Scoring, segmentación, distribución        |
 
 ### Ejecución de Tests
 
@@ -464,7 +465,7 @@ Time:        3.737 s
 it('should track LFPDPPP consent with IP and date', async () => {
   const customer = await service.create({
     consent_whatsapp: true,
-    consent_ip_address: '192.168.1.1'
+    consent_ip_address: '192.168.1.1',
   });
   expect(customer.consent_date).toBeDefined();
 });
@@ -613,7 +614,7 @@ El módulo **CRM & Loyalty** está 100% completo y probado. Incluye:
 ✅ 37 endpoints REST  
 ✅ 55 tests pasando al 100%  
 ✅ Documentación completa  
-✅ Enfoque en mercado mexicano (WhatsApp-first)  
+✅ Enfoque en mercado mexicano (WhatsApp-first)
 
 **Estado:** PRODUCTION-READY ✨
 

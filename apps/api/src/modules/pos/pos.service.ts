@@ -151,8 +151,10 @@ export class PosService {
       const lineTotal = round2(lineSubtotal + modifiersTotal * line.quantity);
       subtotal += lineTotal;
       const taxRate = productTaxRates.get(line.productId) ?? 0.16;
-      // Tax over (lineTotal + modifiers already included) — modifiers inherit
-      // product taxRate.
+      // IVA sobre (lineTotal + modificadores ya incluidos); los modificadores
+      // heredan la tasa del producto. Se acumula SIN descuento todavía: la
+      // base gravable definitiva no se conoce hasta que se cierra el descuento
+      // dentro de la transacción, porque el canje de lealtad se calcula ahí.
       tax += lineTotal * taxRate;
       return {
         ...line,
@@ -209,7 +211,23 @@ export class PosService {
         };
       }
 
-      const total = round2(Math.max(0, subtotal + tax - discount));
+      // El descuento reduce la BASE GRAVABLE: el IVA se calcula sobre el
+      // importe ya descontado.
+      //
+      // Antes no era así: el IVA se cerraba sobre el subtotal completo y el
+      // descuento se restaba después, de modo que una venta con el canje de
+      // lealtad de $50 cobraba $8 de IVA que no correspondían. Y el carrito del
+      // POS sí descontaba antes de calcular, así que al cajero le aparecía un
+      // total y se le cobraba otro al cliente.
+      //
+      // El descuento se reparte proporcionalmente entre las líneas, que es lo
+      // que hay que hacer cuando conviven varias tasas: con una sola tasa el
+      // resultado es exactamente `(subtotal - descuento) * tasa`.
+      const baseRatio =
+        subtotal > 0 ? Math.max(0, subtotal - discount) / subtotal : 0;
+      const taxAfterDiscount = round2(tax * baseRatio);
+
+      const total = round2(Math.max(0, subtotal - discount + taxAfterDiscount));
 
       const ticket = await tx.ticket.create({
         data: {
@@ -219,7 +237,7 @@ export class PosService {
           customerId: data.customerId,
           status: 'OPEN',
           subtotal,
-          tax,
+          tax: taxAfterDiscount,
           discount,
           total,
           notes: data.notes,

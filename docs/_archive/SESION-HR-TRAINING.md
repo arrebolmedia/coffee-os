@@ -11,9 +11,11 @@ Implementación completa del módulo **HR & Training** con 4 sub-módulos para g
 ## 📦 Módulos Implementados
 
 ### 1. **Employees** - Gestión de Empleados
+
 Gestión completa del ciclo de vida del empleado con cumplimiento normativo mexicano.
 
 **Características**:
+
 - ✅ Campos específicos mexicanos (RFC, CURP, NSS)
 - ✅ Estados: Activo, Inactivo, En permiso, Terminado
 - ✅ Tipos de empleo: Tiempo completo, Medio tiempo, Temporal, Contratista
@@ -23,22 +25,37 @@ Gestión completa del ciclo de vida del empleado con cumplimiento normativo mexi
 - ✅ Estadísticas por rol y tipo de empleo
 
 **Enums**:
+
 ```typescript
 enum EmployeeStatus {
-  ACTIVE, INACTIVE, ON_LEAVE, TERMINATED
+  ACTIVE,
+  INACTIVE,
+  ON_LEAVE,
+  TERMINATED,
 }
 
 enum EmploymentType {
-  FULL_TIME, PART_TIME, TEMPORARY, CONTRACTOR
+  FULL_TIME,
+  PART_TIME,
+  TEMPORARY,
+  CONTRACTOR,
 }
 
 enum EmployeeRole {
-  BARISTA, CASHIER, COOK, BAKER, SHIFT_SUPERVISOR,
-  ASSISTANT_MANAGER, MANAGER, REGIONAL_MANAGER, TRAINER
+  BARISTA,
+  CASHIER,
+  COOK,
+  BAKER,
+  SHIFT_SUPERVISOR,
+  ASSISTANT_MANAGER,
+  MANAGER,
+  REGIONAL_MANAGER,
+  TRAINER,
 }
 ```
 
 **Endpoints** (6):
+
 - `POST /hr/employees` - Crear empleado
 - `GET /hr/employees` - Listar con filtros
 - `GET /hr/employees/stats` - Estadísticas
@@ -51,9 +68,11 @@ enum EmployeeRole {
 ---
 
 ### 2. **Onboarding 30/60/90** - Onboarding Estructurado
+
 Programa de inducción estructurado por periodos (30, 60 y 90 días) con tareas asignadas.
 
 **Características**:
+
 - ✅ Planes de onboarding por periodo (DAY_30, DAY_60, DAY_90)
 - ✅ Tareas categorizadas (Training, Documentation, Equipment, Systems, Policies, Safety, Culture)
 - ✅ Asignación de mentores/managers
@@ -63,18 +82,27 @@ Programa de inducción estructurado por periodos (30, 60 y 90 días) con tareas 
 - ✅ Estadísticas de onboarding
 
 **Enums**:
+
 ```typescript
 enum OnboardingPeriod {
-  DAY_30, DAY_60, DAY_90
+  DAY_30,
+  DAY_60,
+  DAY_90,
 }
 
 enum TaskCategory {
-  TRAINING, DOCUMENTATION, EQUIPMENT, SYSTEMS,
-  POLICIES, SAFETY, CULTURE
+  TRAINING,
+  DOCUMENTATION,
+  EQUIPMENT,
+  SYSTEMS,
+  POLICIES,
+  SAFETY,
+  CULTURE,
 }
 ```
 
 **Endpoints** (6):
+
 - `POST /hr/onboarding` - Crear plan
 - `GET /hr/onboarding` - Listar con filtros
 - `GET /hr/onboarding/stats` - Estadísticas
@@ -87,9 +115,11 @@ enum TaskCategory {
 ---
 
 ### 3. **Certifications** - Certificaciones y Capacitación
+
 Sistema de tracking de certificaciones con alertas de vencimiento.
 
 **Características**:
+
 - ✅ 10 tipos de certificación (Food Handler, Barista, Manager, First Aid, Fire Safety, etc.)
 - ✅ Estados: Active, Expired, Pending, Revoked
 - ✅ Cálculo automático de días hasta vencimiento
@@ -100,19 +130,31 @@ Sistema de tracking de certificaciones con alertas de vencimiento.
 - ✅ Estadísticas por tipo
 
 **Enums**:
+
 ```typescript
 enum CertificationType {
-  FOOD_HANDLER, BARISTA, MANAGER, FIRST_AID,
-  FIRE_SAFETY, CUSTOMER_SERVICE, SAFETY_HYGIENE,
-  COFFEE_EXPERT, EQUIPMENT_OPERATION, CUSTOM
+  FOOD_HANDLER,
+  BARISTA,
+  MANAGER,
+  FIRST_AID,
+  FIRE_SAFETY,
+  CUSTOMER_SERVICE,
+  SAFETY_HYGIENE,
+  COFFEE_EXPERT,
+  EQUIPMENT_OPERATION,
+  CUSTOM,
 }
 
 enum CertificationStatus {
-  ACTIVE, EXPIRED, PENDING, REVOKED
+  ACTIVE,
+  EXPIRED,
+  PENDING,
+  REVOKED,
 }
 ```
 
 **Endpoints** (7):
+
 - `POST /hr/certifications` - Crear certificación
 - `GET /hr/certifications` - Listar con filtros
 - `GET /hr/certifications/expiring` - Próximas a vencer
@@ -126,9 +168,11 @@ enum CertificationStatus {
 ---
 
 ### 4. **Evaluations** - Evaluaciones de Desempeño
+
 Sistema de evaluación de desempeño con múltiples categorías y periodos.
 
 **Características**:
+
 - ✅ Periodos: Mensual, Trimestral, Semestral, Anual
 - ✅ 5 categorías evaluadas (escala 1-5):
   - Puntualidad
@@ -144,18 +188,26 @@ Sistema de evaluación de desempeño con múltiples categorías y periodos.
 - ✅ Estadísticas agregadas por categoría
 
 **Enums**:
+
 ```typescript
 enum EvaluationPeriod {
-  MONTHLY, QUARTERLY, SEMI_ANNUAL, ANNUAL
+  MONTHLY,
+  QUARTERLY,
+  SEMI_ANNUAL,
+  ANNUAL,
 }
 
 enum PerformanceRating {
-  EXCELLENT, GOOD, SATISFACTORY,
-  NEEDS_IMPROVEMENT, UNSATISFACTORY
+  EXCELLENT,
+  GOOD,
+  SATISFACTORY,
+  NEEDS_IMPROVEMENT,
+  UNSATISFACTORY,
 }
 ```
 
 **Endpoints** (6):
+
 - `POST /hr/evaluations` - Crear evaluación
 - `GET /hr/evaluations` - Listar con filtros
 - `GET /hr/evaluations/stats` - Estadísticas
@@ -170,6 +222,7 @@ enum PerformanceRating {
 ## 📊 Resumen Técnico
 
 ### Arquitectura
+
 - **DTOs**: 8 archivos con validación completa (`class-validator`)
 - **Interfaces**: 5 archivos para tipos TypeScript
 - **Services**: 4 servicios con lógica de negocio
@@ -177,6 +230,7 @@ enum PerformanceRating {
 - **Tests**: 4 archivos de pruebas (55 tests, 100% passing)
 
 ### Archivos Creados (26)
+
 ```
 apps/api/src/modules/hr/
 ├── dto/
@@ -211,12 +265,14 @@ apps/api/src/modules/hr/
 ```
 
 ### Endpoints Totales: 26
+
 - **Employees**: 6 endpoints
 - **Onboarding**: 6 endpoints
 - **Certifications**: 7 endpoints
 - **Evaluations**: 6 endpoints
 
 ### Tests: 55 (100% ✅)
+
 ```
 PASS  src/modules/hr/tests/employees.service.spec.ts (12 tests)
 PASS  src/modules/hr/tests/onboarding.service.spec.ts (11 tests)
@@ -225,6 +281,7 @@ PASS  src/modules/hr/tests/evaluations.service.spec.ts (16 tests)
 ```
 
 ### Cumplimiento Normativo Mexicano
+
 - ✅ **RFC** (Registro Federal de Contribuyentes)
 - ✅ **CURP** (Clave Única de Registro de Población)
 - ✅ **NSS** (Número de Seguridad Social)
@@ -236,26 +293,32 @@ PASS  src/modules/hr/tests/evaluations.service.spec.ts (16 tests)
 ## 🚀 Características Destacadas
 
 ### 1. Multi-tenancy
+
 Todos los servicios filtran por `organization_id` para aislamiento de datos.
 
 ### 2. Almacenamiento
+
 - In-memory con `Map<string, T>`
 - Preparado para migración a Prisma
 - Generación de IDs únicos
 
 ### 3. Validación
+
 - DTOs con decoradores de `class-validator`
 - Validación de rangos (scores 1-5)
 - Validación de fechas ISO 8601
 - Enums tipados
 
 ### 4. Cálculos Automáticos
+
 - **Certifications**: Días hasta vencimiento, detección de expiración
 - **Onboarding**: Porcentajes de completitud, flags por periodo
 - **Evaluations**: Promedio de scores
 
 ### 5. Estadísticas
+
 Cada sub-módulo incluye endpoint de estadísticas:
+
 - Conteos totales y por categoría
 - Promedios calculados
 - Agrupaciones (por rol, tipo, rating, etc.)
@@ -267,19 +330,19 @@ Cada sub-módulo incluye endpoint de estadísticas:
 ```
 1. CONTRATACIÓN
    └─> POST /hr/employees (crear empleado)
-       
+
 2. ONBOARDING
    └─> POST /hr/onboarding (crear plan 30/60/90)
    └─> PATCH /hr/onboarding/:id/tasks (completar tareas)
-       
+
 3. CERTIFICACIÓN
    └─> POST /hr/certifications (registrar certificados)
    └─> GET /hr/certifications/expiring (monitorear vencimientos)
-       
+
 4. EVALUACIÓN
    └─> POST /hr/evaluations (evaluar desempeño)
    └─> GET /hr/evaluations/employee/:id/history (ver historial)
-       
+
 5. GESTIÓN
    └─> GET /hr/employees/stats (métricas de personal)
    └─> GET /hr/onboarding/stats (progreso de onboarding)
@@ -292,6 +355,7 @@ Cada sub-módulo incluye endpoint de estadísticas:
 ## 📈 Progreso del Proyecto
 
 ### Módulos Backend Completados: 16/23
+
 - ✅ Organizations
 - ✅ Users
 - ✅ Auth
@@ -308,6 +372,7 @@ Cada sub-módulo incluye endpoint de estadísticas:
 - ✅ Integrations (CFDI, Twilio, Mailrelay)
 
 ### Tests Totales: 542 (487 + 55)
+
 - Quality module: 60 tests
 - **HR module: 55 tests** ← NUEVO
 - Otros módulos: 427 tests
@@ -317,16 +382,19 @@ Cada sub-módulo incluye endpoint de estadísticas:
 ## 🎯 Próximos Pasos
 
 ### Corto Plazo
+
 1. **Finance Module**: Mejorar funcionalidades contables
 2. **CRM Module**: Implementar loyalty program 9+1
 3. **Frontend POS**: Continuar desarrollo de interfaz
 
 ### Mediano Plazo
+
 1. **Prisma Migration**: Migrar de in-memory a PostgreSQL
 2. **API Gateway**: Implementar autenticación en rutas
 3. **Integration Tests**: Tests E2E completos
 
 ### Largo Plazo
+
 1. **Mobile App**: React Native para empleados
 2. **Analytics Dashboard**: Visualizaciones en tiempo real
 3. **n8n Workflows**: Automatizaciones HR
@@ -350,6 +418,7 @@ git push origin main  # Commit 43b1ebc
 ## 🔍 Detalles de Implementación
 
 ### Employees Service
+
 ```typescript
 // Búsqueda avanzada
 findAll({
@@ -381,6 +450,7 @@ findAll({
 ```
 
 ### Onboarding Service
+
 ```typescript
 // Plan con tasks
 {
@@ -408,6 +478,7 @@ findAll({
 ```
 
 ### Certifications Service
+
 ```typescript
 // Detección automática de expiración
 {
@@ -422,6 +493,7 @@ GET /hr/certifications/expiring?days=30
 ```
 
 ### Evaluations Service
+
 ```typescript
 // Evaluación completa
 {

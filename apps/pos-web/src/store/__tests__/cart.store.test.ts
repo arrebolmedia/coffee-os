@@ -378,4 +378,83 @@ describe('Cart Store', () => {
       expect(result2.current.cart.discount).toBe(15);
     });
   });
+  describe('IVA por producto', () => {
+    // El backend calcula el impuesto del ticket con la tasa de cada producto.
+    // El carrito aplicaba un 0.16 fijo, asi que coincidian solo mientras todo
+    // estuviera al 16 %.
+    const panLlevar: Product = {
+      ...mockProduct,
+      id: '2',
+      name: 'Concha de Vainilla',
+      sku: 'PAN001',
+      price: 100,
+      taxRate: 0,
+    };
+
+    it('grava cada linea con la tasa de su producto', () => {
+      const { result } = renderHook(() => useCartStore());
+
+      act(() => {
+        result.current.addItem(
+          { ...mockProduct, price: 100, taxRate: 0.16 },
+          1,
+        );
+        result.current.addItem(panLlevar, 1);
+      });
+
+      // 100 al 16 % = 16; 100 al 0 % = 0.
+      expect(result.current.cart.subtotal).toBe(200);
+      expect(result.current.cart.tax).toBe(16);
+      expect(result.current.cart.total).toBe(216);
+    });
+
+    it('usa 16 % por defecto si el producto no trae tasa', () => {
+      const { result } = renderHook(() => useCartStore());
+      const sinTasa: Product = { ...mockProduct, price: 100 };
+      delete (sinTasa as { taxRate?: number }).taxRate;
+
+      act(() => {
+        result.current.addItem(sinTasa, 1);
+      });
+
+      expect(result.current.cart.tax).toBe(16);
+    });
+
+    it('el descuento reduce la base gravable', () => {
+      // Es la aritmetica que el backend hacia mal: calculaba el IVA sobre el
+      // subtotal sin descontar, de modo que el canje de lealtad de $50 cobraba
+      // $8 de mas y la pantalla no cuadraba con el cobro.
+      const { result } = renderHook(() => useCartStore());
+
+      act(() => {
+        result.current.addItem(
+          { ...mockProduct, price: 100, taxRate: 0.16 },
+          1,
+        );
+        result.current.setDiscount(50);
+      });
+
+      expect(result.current.cart.subtotal).toBe(100);
+      expect(result.current.cart.tax).toBe(8);
+      expect(result.current.cart.total).toBe(58);
+    });
+
+    it('reparte el descuento proporcionalmente entre tasas distintas', () => {
+      const { result } = renderHook(() => useCartStore());
+
+      act(() => {
+        result.current.addItem(
+          { ...mockProduct, price: 100, taxRate: 0.16 },
+          1,
+        );
+        result.current.addItem(panLlevar, 1);
+        result.current.setDiscount(100); // la mitad del subtotal
+      });
+
+      // Base gravada al 16 %: 100 * 0.5 = 50 -> IVA 8. El pan sigue a 0.
+      expect(result.current.cart.subtotal).toBe(200);
+      expect(result.current.cart.tax).toBe(8);
+      expect(result.current.cart.total).toBe(108);
+    });
+  });
 });

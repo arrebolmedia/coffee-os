@@ -26,6 +26,7 @@ notepad .env
 ```
 
 Variables importantes:
+
 - `DATABASE_URL`: Conexión a PostgreSQL (puerto 5434)
 - `REDIS_URL`: Conexión a Redis
 - `JWT_SECRET`: Llave secreta para JWT (cambiar en producción)
@@ -34,11 +35,13 @@ Variables importantes:
 ### 3. Iniciar Servicios Docker
 
 **Opción A: Script automatizado** (Recomendado)
+
 ```powershell
 .\scripts\start-services.ps1
 ```
 
 **Opción B: Manual**
+
 ```powershell
 # Iniciar Docker Desktop primero, luego:
 docker-compose up -d postgres redis
@@ -56,16 +59,19 @@ cd ..\..
 ### 4. Iniciar Aplicaciones
 
 **Terminal 1: API Backend**
+
 ```powershell
 cd apps\api
 npm run start:dev
 ```
 
 El API estará en: http://localhost:4000
+
 - Swagger Docs: http://localhost:4000/api
 - Health Check: http://localhost:4000/health
 
 **Terminal 2: Admin Dashboard**
+
 ```powershell
 cd apps\admin-web
 npm run dev
@@ -74,6 +80,7 @@ npm run dev
 Admin Dashboard: http://localhost:3002
 
 **Terminal 3: POS Web** (Opcional)
+
 ```powershell
 cd apps\pos-web
 npm run dev
@@ -90,6 +97,7 @@ Ejecutar el script de prueba:
 ```
 
 Este script probará:
+
 - ✅ Health check
 - ✅ Crear categoría
 - ✅ Crear producto
@@ -132,14 +140,14 @@ npx tsx seed.ts
 
 ## 📊 Servicios Disponibles
 
-| Servicio | Puerto | URL | Credenciales |
-|----------|--------|-----|--------------|
-| API Backend | 4000 | http://localhost:4000 | - |
-| Admin Dashboard | 3002 | http://localhost:3002 | - |
-| POS Web | 3001 | http://localhost:3001 | - |
-| PostgreSQL | 5434 | localhost:5434 | user: `coffeeos` / pass: `coffeeos123` |
-| Redis | 6379 | localhost:6379 | - |
-| Prisma Studio | 5555 | http://localhost:5555 | - |
+| Servicio        | Puerto | URL                   | Credenciales                           |
+| --------------- | ------ | --------------------- | -------------------------------------- |
+| API Backend     | 4000   | http://localhost:4000 | -                                      |
+| Admin Dashboard | 3002   | http://localhost:3002 | -                                      |
+| POS Web         | 3001   | http://localhost:3001 | -                                      |
+| PostgreSQL      | 5434   | localhost:5434        | user: `coffeeos` / pass: `coffeeos123` |
+| Redis           | 6379   | localhost:6379        | -                                      |
+| Prisma Studio   | 5555   | http://localhost:5555 | -                                      |
 
 ## 🐛 Troubleshooting
 
