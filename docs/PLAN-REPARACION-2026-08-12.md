@@ -946,7 +946,7 @@ Lo grueso ya está hecho. Queda:
 | ----------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1 · Next 15 + deps      | ~1 día   | ✅ **completado 2026-08-26.** En la práctica no tocó ninguna: ver el registro. Cierra la CVE del middleware. Toca las 46 rutas; hacerlo después obliga a rehacer lo demás. Cierra la CVE del middleware. |
 | 2 · Stock + roles       | ~1 día   | ✅ **completado 2026-08-26.** El sistema afirma que descuenta y no descuenta. Corrompe reportes cada venta.                                                                                              |
-| 3 · Extensión de Prisma | ~2 días  | Cierra la clase de fuga, no las 89 instancias.                                                                                                                                                           |
+| 3 · Extensión de Prisma | ~2 días  | ✅ **completado 2026-08-26.** Cierra la clase de fuga, no las 89 instancias.                                                                                                                             |
 | 4 · Tests del dinero    | ~1 día   | Red de seguridad sobre lo anterior; necesita 1–3 estables.                                                                                                                                               |
 | 5 · Higiene             | ~1 h     | No bloquea nada.                                                                                                                                                                                         |
 
@@ -1181,3 +1181,92 @@ Sin ruido de coma flotante. `COMPLETED` después responde `skipped` y no toca el
 > nuevo no pudo enlazar, y el health check pasó contra el servidor rancio. Antes de creer
 > una medición contra un servidor local, comprobar qué PID tiene el puerto y a qué hora
 > arrancó.
+
+---
+
+### Sprint 3 — ✅ completado 2026-08-26
+
+Se invierte el default. Antes, olvidarse del filtro de organización no producía
+ningún síntoma; ahora hay que declarar explícitamente que se quiere cruzar.
+
+#### Cómo queda
+
+Un middleware abre un `AsyncLocalStorage` al principio de cada petición —tiene que
+ser middleware y no interceptor: el orden en NestJS es middleware → guards →
+interceptores, y `JwtAuthGuard` consulta la base antes de que corra ningún
+interceptor—. El scope se abre **vacío** y lo rellena `JwtStrategy.validate` en cuanto
+sabe a qué organización pertenece el usuario, que evita decodificar el JWT dos veces.
+La extensión de Prisma inyecta el filtro en toda consulta sobre los **32** modelos que
+declaran `organizationId`.
+
+`runUnscoped()` es la única vía de escape, y cada uso queda localizable con un grep.
+
+#### Tres cosas que un filtro genérico se habría comido
+
+**1. `Role` y `Permission` tienen `organizationId` NULLABLE.** Las filas con `null` son
+el catálogo de sistema, compartido por todas las organizaciones. Filtrar con `= org` a
+secas habría dejado a cada tenant sin ningún rol de sistema — y el síntoma habría
+aparecido lejos, en el login. De ahí la política `shared-global`, que filtra con un OR.
+
+**2. El filtro se combina con `AND`, no fusionando claves.** Si el `where` de la llamada
+trae su propio `OR`, fusionarlo al mismo nivel dejaría que ese OR se evaluara en paralelo
+al filtro de organización y lo anulara. Hay un test que fija exactamente eso.
+
+**3. `findUnique`, `update` y `delete` exigen un `where` único** y Prisma rechaza que se
+le añada `organizationId`. Las lecturas se resuelven descartando la fila ajena después de
+leerla; las escrituras, comprobando la pertenencia **antes** de mutar. Cuesta una consulta
+extra por update/delete: es el precio de no convertirlos en `updateMany`, que cambiaría la
+forma del resultado y rompería a quien lo consume.
+
+#### El error que casi hace inútil la vía de escape
+
+Prisma devuelve `PrismaPromise`s **perezosas**: la consulta no se ejecuta al construirla
+sino al esperarla. Con un `runUnscoped` síncrono, el idioma natural
+
+```ts
+await runUnscoped(() => prisma.user.findUnique(...))
+```
+
+construye la promesa dentro del scope y la ejecuta **fuera**: la vía de escape no escapa
+de nada, y en silencio. Se descubrió porque la primera versión de los tests fallaba por esa
+misma razón — el helper devolvía la promesa fuera del scope y las consultas salían sin
+filtrar. `runUnscoped` es `async` y espera dentro del scope precisamente por esto.
+
+Es también la razón de que la primera tanda de e2e diera 39/39 con la extensión ya
+escrita: **habrían pasado igual estando inerte**, porque todos consultan a través de
+servicios que ya filtraban a mano. Un verde que no prueba lo que parece.
+
+#### `Modifier`, la última fuga concreta
+
+No tenía `organizationId` en el schema: el catálogo era global de facto y `GET /modifiers`
+devolvía los 16 a cualquier tenant. La migración deriva la pertenencia de los productos
+que usan cada modificador —medido antes: los 16 son de una sola organización, ninguno
+huérfano, ninguno compartido— y **no pone valor por defecto para los huérfanos**: en un
+entorno donde queden filas sin rellenar, el `SET NOT NULL` falla y obliga a decidir a
+mano, igual que la migración de FKs de `shifts`.
+
+#### Lo que se decidió NO hacer
+
+El plan pedía quitar el `if (query.organization_id) where.organizationId = ...` de ~25
+servicios. **Su motivo era que «un controller nuevo que lo olvide reabre la
+enumeración» — y eso es justo lo que la extensión ya impide.** Quitarlos ahora son 25
+servicios de churn mecánico, con riesgo de regresión y sin ganancia de seguridad. Se
+quedan como redundancia.
+
+#### Verificación
+
+- **23 tests unitarios** sobre la lógica pura de políticas y reescritura, incluido uno que
+  falla si alguien añade un modelo con `organizationId` y no lo declara.
+- **15 tests de integración contra Postgres real** que hacen consultas deliberadamente
+  **sin** filtro, porque el resto de los e2e pasarían igual con la extensión inerte.
+  Cubren lectura, `findUnique` ajeno, create/update/delete cross-tenant, `deleteMany`, las
+  vías de escape y el catálogo compartido.
+- Totales: **56 suites · 1141 tests unitarios**, **6 suites · 54 e2e**, build 2/2.
+- **Sonda en vivo con dos tenants:** con el token de A, los recursos de B dan 404 en
+  suppliers, customers, categories y modifiers; A sigue viendo lo suyo completo (31
+  productos, 5 proveedores, 5 clientes, 8 categorías, 16 modificadores). Se comprobó que
+  las 8 categorías son las que hay en la base, no un sobre-filtrado.
+- Venta real punta a punta con la extensión activa, con su descuento de inventario.
+
+> El caso de `modifiers` es el que mejor lo demuestra: `modifiers.service.findAll` **no
+> filtra por organización en su código**. El filtro lo pone la extensión.
