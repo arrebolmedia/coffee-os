@@ -945,7 +945,7 @@ Lo grueso ya está hecho. Queda:
 | Sprint                  | Esfuerzo | Por qué en ese orden                                                                                                                                                                                     |
 | ----------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1 · Next 15 + deps      | ~1 día   | ✅ **completado 2026-08-26.** En la práctica no tocó ninguna: ver el registro. Cierra la CVE del middleware. Toca las 46 rutas; hacerlo después obliga a rehacer lo demás. Cierra la CVE del middleware. |
-| 2 · Stock + roles       | ~1 día   | El sistema afirma que descuenta y no descuenta. Corrompe reportes cada venta.                                                                                                                            |
+| 2 · Stock + roles       | ~1 día   | ✅ **completado 2026-08-26.** El sistema afirma que descuenta y no descuenta. Corrompe reportes cada venta.                                                                                              |
 | 3 · Extensión de Prisma | ~2 días  | Cierra la clase de fuga, no las 89 instancias.                                                                                                                                                           |
 | 4 · Tests del dinero    | ~1 día   | Red de seguridad sobre lo anterior; necesita 1–3 estables.                                                                                                                                               |
 | 5 · Higiene             | ~1 h     | No bloquea nada.                                                                                                                                                                                         |
@@ -1084,3 +1084,100 @@ Unexpected end of JSON input»_ desde `use-costing`. Causa: `apps/pos-web/src/li
 solo contempla el cuerpo vacío cuando el status es `204`, y algún endpoint de costeo
 responde **200 con cuerpo vacío**. No rompe la venta, pero ensucia la consola y deja la
 query en error. Candidato al Sprint 2 o 4.
+
+---
+
+### Sprint 2 — ✅ completado 2026-08-26
+
+#### El descuento ya no depende de que alguien se acuerde
+
+La lógica estaba completa y bien hecha —idempotente por índice único, respeta el flag,
+ignora `CANCELLED`—. Lo que faltaba era el cable: `deductForOrder` sólo era alcanzable
+desde su propio endpoint, y el hook del frontend que debía invocarlo estaba huérfano.
+`InventoryModule` incluso exportaba el servicio con un comentario explicando para qué.
+
+**El plan decía «enchufarlo en la transacción de la orden». Se hizo distinto, a
+propósito.** Cuando una orden se marca servida el café ya salió por la barra. Negarse a
+registrar ese hecho porque el inventario no cuadra es peor que registrarlo con el
+inventario descuadrado: el software estaría rechazando la realidad. Así que
+`autoDeductOnSale` **nunca lanza**: el cambio de estado manda, y el fallo del descuento
+se hace ruidoso (log a nivel error, `inventory_deduction.status = 'error'` en la
+respuesta, y el reporte de exactitud lo delata) en vez de bloquear la venta. La ausencia
+de doble descuento no dependía nunca de esa transacción — la garantiza el índice único
+parcial en la base.
+
+**Había dos caminos, no uno.** Una orden llega a SERVED/COMPLETED por `pos.service`
+(`markOrderServed`, `updateOrderStatus`) y por `orders.service.updateStatus`. Enchufarlo
+sólo donde decía el plan habría dejado el otro descontando a veces sí y a veces no, que
+es peor que no descontar nunca porque nadie lo nota.
+
+#### Tenancy, encontrado por el camino
+
+Los cuatro mutadores del KDS —`PATCH :id/status`, `POST :id/start`, `:id/ready`,
+`:id/served`— recibían sólo el id y actualizaban con `where: { id }`: **cualquier usuario
+autenticado podía mover de estado la orden de otra organización.** Lo mismo
+`orders.controller.updateStatus`, que no pasaba la organización y dejaba su `findOne`
+interno sin filtro. Los cinco derivan ahora la organización del JWT.
+
+No estaban en la lista de la Fase 2.5 porque aquella sonda probó lecturas; estos son
+endpoints de escritura que sólo aparecen si se buscan por el otro lado.
+
+#### Código muerto
+
+`pos.service.completeOrder` no tenía ruta ni llamadas. `useDeductStockForOrder` no lo
+importaba nadie y, mientras existió, hacía creer que el descuento lo dispara el cliente.
+El endpoint manual se queda como vía de recuperación.
+
+#### Restos de `roles`
+
+- `is_system` y `system_role` se escribían tal cual venían del cliente: cualquiera podía
+  crearse un rol `is_system: true` que después ni `updateRole` ni `deleteRole` dejan
+  tocar. Se siguen aceptando por compatibilidad pero se ignoran. **No era escalada de
+  privilegios** — `systemRole` no se lee fuera del módulo de roles.
+- `assign-role.dto` combinaba `@IsDateString()` con `@Type(() => Date)`. El `@Type`
+  convierte el ISO en `Date` **antes** de validar, así que `@IsDateString` lo rechazaba
+  por no ser string: las asignaciones temporales devolvían 400 con cualquier fecha
+  válida. La pareja correcta es `@IsDate` + `@Type`.
+
+**Dos pendientes del plan resultaron ya cerrados**, y se comprobaron en vez de darlos por
+buenos: `findRoleById` ya es Prisma y está acotado; y el turno huérfano lo borró la
+migración `20260812163104` al añadir la FK (0 filas huérfanas, `shifts_location_id_fkey`
+presente).
+
+**Uno se deja como está, a propósito:** `deleteRole` cuenta usuarios sin filtrar
+organización. Es correcto — `User.roleId` es una FK RESTRICT, así que el conteo tiene que
+ver _todas_ las filas o el borrado reventaría en la base en vez de dar un 400 limpio.
+
+#### El flag estaba apagado en desarrollo
+
+El default del código es `enabled: false` —opt-in razonable para un tenant real— y la BD
+de desarrollo no tenía ninguna fila de configuración. Es decir: el mecanismo ya
+funcionaba y una venta seguía respondiendo `disabled`. Encendido en el seed, tras
+comprobar que las 14 recetas sembradas usan unidades que sí convierten.
+
+#### Verificación
+
+Suite de integración nueva contra Postgres real, **porque los unitarios no podían
+detectar esto**: probaban `deductForOrder` directamente, que es exactamente lo que nadie
+llamaba. Recorre el camino real por HTTP: vender 2 unidades de un producto con receta de
+200 ml descuenta 400 ml y crea un movimiento OUT; pasar después a COMPLETED no vuelve a
+descontar; `/start` no descuenta; con el flag apagado el stock no se toca; y el token de
+otra organización recibe 404 sin que la orden cambie de estado.
+
+| Check                              | Resultado                    |
+| ---------------------------------- | ---------------------------- |
+| Tests unitarios API                | ✅ 55/55 suites · 1118 tests |
+| Tests e2e                          | ✅ 5/5 suites · 39 tests     |
+| `tsc --noEmit` · `turbo run build` | ✅                           |
+
+Y contra la base de desarrollo, con el API levantado: vender 3 espressos deja café
+**26 → 25.973 kg** y agua **210 → 209.91 l**, con dos movimientos `RECIPE_DEDUCTION`.
+Sin ruido de coma flotante. `COMPLETED` después responde `skipped` y no toca el stock.
+
+> **Trampa de método, la tercera de la jornada.** La primera medición dio
+> `inventory_deduction: undefined` y parecía que el cable no funcionaba. El código
+> compilado era correcto: lo que pasaba es que el API anterior **seguía vivo**. `TaskStop`
+> mata el shell, no el proceso `nest` hijo, así que el viejo conservaba el puerto 4000, el
+> nuevo no pudo enlazar, y el health check pasó contra el servidor rancio. Antes de creer
+> una medición contra un servidor local, comprobar qué PID tiene el puerto y a qué hora
+> arrancó.
