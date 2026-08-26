@@ -6,23 +6,24 @@
 import { NextResponse } from 'next/server';
 import { withAuth } from 'next-auth/middleware';
 
-// Allow Playwright smoke tests to run without authentication when explicitly requested.
+// Bypass para los smoke tests de Playwright, que corren con `next dev`.
+//
+// Va gateado por NODE_ENV a propósito: en un build de producción la condición
+// es estáticamente falsa y desaparece del bundle, así que no hay forma de
+// activarla en runtime. La versión anterior usaba NEXT_PUBLIC_E2E_BYPASS_AUTH,
+// que se inlinea en el bundle del cliente y habría dejado la app entera sin
+// autenticación si esa variable se colaba en un build de producción.
 const DISABLE_AUTH =
-  process.env.NEXT_PUBLIC_E2E_BYPASS_AUTH === 'true' ||
-  process.env.E2E_TEST === 'true';
+  process.env.NODE_ENV !== 'production' &&
+  process.env.E2E_BYPASS_AUTH === 'true';
 
 export default withAuth(
   function middleware(_req) {
-    // Si el modo de test está activo, bypass la autenticación
-    if (DISABLE_AUTH) {
-      return NextResponse.next();
-    }
     return NextResponse.next();
   },
   {
     callbacks: {
       authorized: ({ token }) => {
-        // Si está en modo test, permitir acceso
         if (DISABLE_AUTH) return true;
         // Si el refresh del token falló, la sesión es inválida
         if (

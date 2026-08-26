@@ -99,12 +99,13 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'node ../../node_modules/next/dist/bin/next dev -p 3001',
+    // `npm run dev` usa el binario del propio workspace. Apuntar a
+    // ../../node_modules/next arrancaba la copia hoisted, que era otra version.
+    command: 'npm run dev',
     url: 'http://localhost:3001',
     reuseExistingServer: !process.env.CI,
     env: {
-      NEXT_PUBLIC_E2E_BYPASS_AUTH: 'true',
-      E2E_TEST: 'true',
+      E2E_BYPASS_AUTH: 'true',
     },
     timeout: 120 * 1000,
   },

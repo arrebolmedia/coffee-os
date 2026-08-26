@@ -1,9 +1,10 @@
 {
   "extends": ["next/core-web-vitals"],
-  "parser": "@typescript-eslint/parser",
-  "parserOptions": {
-    "ecmaVersion": "latest",
-    "sourceType": "module",
-    "ecmaFeatures": { "jsx": true }
+  "ignorePatterns": ["next-env.d.ts"],
+  "settings": {
+    "next": {
+      "//": "El plugin de Next resuelve rootDir contra el cwd, y aqui hay dos: lint-staged corre ESLint desde la raiz del monorepo y `next lint` desde apps/pos-web. Se declaran las dos rutas que apuntan al mismo directorio. No usar '.', que desde la raiz hace que el plugin escanee el monorepo entero.",
+      "rootDir": ["apps/pos-web/", "../../apps/pos-web/"]
+    }
   }
 }

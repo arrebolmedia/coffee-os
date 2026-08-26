@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { Coffee, Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -28,7 +28,7 @@ const IS_DEV = process.env.NODE_ENV !== 'production';
 const DEV_EMAIL_DEFAULT = IS_DEV ? 'owner@coffeedemo.mx' : '';
 const DEV_PASSWORD_DEFAULT = IS_DEV ? 'password123' : '';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = sanitizeCallbackUrl(searchParams.get('callbackUrl'));
@@ -217,5 +217,28 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+// useSearchParams() obliga a Next 15 a renderizar del lado del cliente, y el
+// build falla si no hay un limite de Suspense encima. El fallback replica el
+// fondo y el logo para que no haya salto visual al hidratar.
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 flex items-center justify-center p-4">
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl mb-4 shadow-xl">
+              <Coffee className="w-12 h-12 text-white" />
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">CoffeeOS</h1>
+            <Loader2 className="w-6 h-6 text-amber-600 animate-spin mx-auto mt-4" />
+          </div>
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }
