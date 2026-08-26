@@ -17,6 +17,7 @@ import {
   QueryChecklistsDto,
 } from './dto';
 import { Checklist } from './interfaces';
+import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 
 @Controller('quality/checklists')
 export class ChecklistsController {
@@ -31,13 +32,19 @@ export class ChecklistsController {
   }
 
   @Get()
-  async findAll(@Query() query: QueryChecklistsDto): Promise<Checklist[]> {
-    return this.checklistsService.findAll(query);
+  async findAll(
+    @Query() query: QueryChecklistsDto,
+    @CurrentOrg() organizationId: string,
+  ): Promise<Checklist[]> {
+    return this.checklistsService.findAll({
+      ...query,
+      organization_id: organizationId,
+    });
   }
 
   @Get('stats')
   async getStats(
-    @Query('organization_id') organizationId: string,
+    @CurrentOrg() organizationId: string,
     @Query('location_id') locationId?: string,
   ): Promise<any> {
     return this.checklistsService.getComplianceStats(

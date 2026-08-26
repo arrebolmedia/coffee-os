@@ -24,6 +24,7 @@ import {
   EvaluationStatus,
   TrainingCategory,
 } from './interfaces/onboarding.interface';
+import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 
 @Controller('onboarding')
 export class OnboardingController {
@@ -38,7 +39,7 @@ export class OnboardingController {
 
   @Get('modules')
   findAllTrainingModules(
-    @Query('organization_id') organization_id?: string,
+    @CurrentOrg() organization_id: string,
     @Query('category') category?: TrainingCategory,
     @Query('level') level?: CompetencyLevel,
     @Query('is_active') is_active?: string,
@@ -80,7 +81,7 @@ export class OnboardingController {
 
   @Get('plans')
   findAllOnboardingPlans(
-    @Query('organization_id') organization_id?: string,
+    @CurrentOrg() organization_id: string,
     @Query('is_active') is_active?: string,
   ) {
     const activeFilter =
@@ -153,7 +154,7 @@ export class OnboardingController {
 
   @Get('evaluations')
   findAllEvaluations(
-    @Query('organization_id') organization_id?: string,
+    @CurrentOrg() organization_id: string,
     @Query('employee_id') employee_id?: string,
     @Query('status') status?: EvaluationStatus,
   ) {
@@ -173,7 +174,7 @@ export class OnboardingController {
 
   @Get('certifications')
   findAllCertifications(
-    @Query('organization_id') organization_id?: string,
+    @CurrentOrg() organization_id: string,
     @Query('employee_id') employee_id?: string,
     @Query('status') status?: CertificationStatus,
   ) {
@@ -186,7 +187,7 @@ export class OnboardingController {
 
   @Get('certifications/expiring/:organization_id')
   findExpiringCertifications(
-    @Param('organization_id') organization_id: string,
+    @CurrentOrg() organization_id: string,
     @Query('days') days?: string,
   ) {
     const daysNumber = days ? parseInt(days, 10) : 30;
@@ -199,7 +200,7 @@ export class OnboardingController {
   // ==================== REPORTS ====================
 
   @Get('stats/:organization_id')
-  getOnboardingStats(@Param('organization_id') organization_id: string) {
+  getOnboardingStats(@CurrentOrg() organization_id: string) {
     return this.onboardingService.getOnboardingStats(organization_id);
   }
 

@@ -12,6 +12,7 @@ import {
 import { TemperatureLogsService } from './temperature-logs.service';
 import { CreateTemperatureLogDto, QueryTemperatureLogsDto } from './dto';
 import { TemperatureLog } from './interfaces';
+import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 
 @Controller('quality/temperature-logs')
 export class TemperatureLogsController {
@@ -30,13 +31,17 @@ export class TemperatureLogsController {
   @Get()
   async findAll(
     @Query() query: QueryTemperatureLogsDto,
+    @CurrentOrg() organizationId: string,
   ): Promise<TemperatureLog[]> {
-    return this.temperatureLogsService.findAll(query);
+    return this.temperatureLogsService.findAll({
+      ...query,
+      organization_id: organizationId,
+    });
   }
 
   @Get('alerts')
   async getAlerts(
-    @Query('organization_id') organizationId: string,
+    @CurrentOrg() organizationId: string,
     @Query('location_id') locationId?: string,
   ): Promise<TemperatureLog[]> {
     return this.temperatureLogsService.getAlerts(organizationId, locationId);
@@ -44,7 +49,7 @@ export class TemperatureLogsController {
 
   @Get('stats')
   async getStats(
-    @Query('organization_id') organizationId: string,
+    @CurrentOrg() organizationId: string,
     @Query('location_id') locationId?: string,
   ): Promise<any> {
     return this.temperatureLogsService.getStats(organizationId, locationId);

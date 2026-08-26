@@ -17,6 +17,7 @@ import {
   QueryOnboardingPlansDto,
 } from './dto';
 import { OnboardingPlan } from './interfaces';
+import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 
 @Controller('hr/onboarding')
 export class OnboardingController {
@@ -26,7 +27,7 @@ export class OnboardingController {
   @HttpCode(HttpStatus.CREATED)
   async create(
     @Body() createDto: CreateOnboardingPlanDto,
-    @Query('organization_id') organizationId: string,
+    @CurrentOrg() organizationId: string,
   ): Promise<OnboardingPlan> {
     return this.onboardingService.create(createDto, organizationId);
   }
@@ -34,14 +35,16 @@ export class OnboardingController {
   @Get()
   async findAll(
     @Query() query: QueryOnboardingPlansDto,
+    @CurrentOrg() organizationId: string,
   ): Promise<OnboardingPlan[]> {
-    return this.onboardingService.findAll(query);
+    return this.onboardingService.findAll({
+      ...query,
+      organization_id: organizationId,
+    });
   }
 
   @Get('stats')
-  async getStats(
-    @Query('organization_id') organizationId: string,
-  ): Promise<any> {
+  async getStats(@CurrentOrg() organizationId: string): Promise<any> {
     return this.onboardingService.getStats(organizationId);
   }
 

@@ -13,7 +13,11 @@ describe('ShiftsService', () => {
       findMany: jest.fn(),
       findFirst: jest.fn(),
       findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
       update: jest.fn(),
+      // `close()` usa updateMany con guard de status para cerrar de forma
+      // atómica; sin este mock la suite fallaba con "is not a function".
+      updateMany: jest.fn(),
       delete: jest.fn(),
     },
     payment: { aggregate: jest.fn() },
@@ -181,7 +185,7 @@ describe('ShiftsService', () => {
     it('should return a shift by id', async () => {
       const shift = { id: '1', openingCash: 1000 };
 
-      mockPrismaService.shift.findUnique.mockResolvedValue(shift);
+      mockPrismaService.shift.findFirst.mockResolvedValue(shift);
 
       const result = await service.findOne('1');
 
@@ -189,7 +193,7 @@ describe('ShiftsService', () => {
     });
 
     it('should throw NotFoundException if not found', async () => {
-      mockPrismaService.shift.findUnique.mockResolvedValue(null);
+      mockPrismaService.shift.findFirst.mockResolvedValue(null);
 
       await expect(service.findOne('999')).rejects.toThrow(NotFoundException);
     });
@@ -202,7 +206,7 @@ describe('ShiftsService', () => {
       const existing = { id, openingCash: 1000 };
       const updated = { ...existing, ...dto };
 
-      mockPrismaService.shift.findUnique.mockResolvedValue(existing);
+      mockPrismaService.shift.findFirst.mockResolvedValue(existing);
       mockPrismaService.shift.update.mockResolvedValue(updated);
 
       const result = await service.update(id, dto);
@@ -226,8 +230,11 @@ describe('ShiftsService', () => {
         openingCash: 1000,
       };
 
-      mockPrismaService.shift.findUnique.mockResolvedValue(shift);
-      mockPrismaService.shift.update.mockResolvedValue({
+      mockPrismaService.shift.findFirst.mockResolvedValue(shift);
+      // close() cierra con updateMany (guard de status) y relee con
+      // findUniqueOrThrow; `update` ya no participa en este camino.
+      mockPrismaService.shift.updateMany.mockResolvedValue({ count: 1 });
+      mockPrismaService.shift.findUniqueOrThrow.mockResolvedValue({
         ...shift,
         status: ShiftStatus.CLOSED,
         ...dto,
@@ -252,7 +259,7 @@ describe('ShiftsService', () => {
         openingCash: 1000,
       };
 
-      mockPrismaService.shift.findUnique.mockResolvedValue(shift);
+      mockPrismaService.shift.findFirst.mockResolvedValue(shift);
 
       await expect(service.close(id, dto)).rejects.toThrow(BadRequestException);
     });
@@ -275,7 +282,7 @@ describe('ShiftsService', () => {
       };
 
       mockPrismaService.shift.update.mockClear();
-      mockPrismaService.shift.findUnique.mockResolvedValue(shift);
+      mockPrismaService.shift.findFirst.mockResolvedValue(shift);
       mockPrismaService.payment.aggregate.mockRejectedValue(
         new Error('aggregation failed'),
       );
@@ -296,7 +303,7 @@ describe('ShiftsService', () => {
         status: ShiftStatus.CLOSED,
       };
 
-      mockPrismaService.shift.findUnique.mockResolvedValue(shift);
+      mockPrismaService.shift.findFirst.mockResolvedValue(shift);
       mockPrismaService.shift.delete.mockResolvedValue(shift);
 
       const result = await service.remove(id);
@@ -311,7 +318,7 @@ describe('ShiftsService', () => {
         status: ShiftStatus.OPEN,
       };
 
-      mockPrismaService.shift.findUnique.mockResolvedValue(shift);
+      mockPrismaService.shift.findFirst.mockResolvedValue(shift);
 
       await expect(service.remove(id)).rejects.toThrow(BadRequestException);
     });
@@ -330,7 +337,7 @@ describe('ShiftsService', () => {
         variance: 150,
       };
 
-      mockPrismaService.shift.findUnique.mockResolvedValue(shift);
+      mockPrismaService.shift.findFirst.mockResolvedValue(shift);
 
       const result = await service.calculateShiftSummary('1');
 

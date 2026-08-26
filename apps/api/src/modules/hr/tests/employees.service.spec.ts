@@ -22,9 +22,7 @@ describe('EmployeesService', () => {
       count: jest.fn(),
     },
     role: {
-      findUnique: jest
-        .fn()
-        .mockResolvedValue({ id: 'role-id-1', active: true }),
+      findFirst: jest.fn().mockResolvedValue({ id: 'role-id-1', active: true }),
     },
   };
 
@@ -82,7 +80,7 @@ describe('EmployeesService', () => {
     it('should call prisma.user.create with mapped fields', async () => {
       mockPrismaService.user.create.mockResolvedValue(mockPrismaUser);
 
-      const result = await service.create(createDto);
+      const result = await service.create(createDto, 'org_1');
 
       expect(mockPrismaService.user.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -110,20 +108,59 @@ describe('EmployeesService', () => {
       const dtoNoRole: any = { ...createDto };
       delete dtoNoRole.role_id;
 
-      await expect(service.create(dtoNoRole)).rejects.toThrow(
+      await expect(service.create(dtoNoRole, 'org_1')).rejects.toThrow(
         /role_id is required/,
       );
     });
 
     it('should throw BadRequestException when role does not exist', async () => {
-      mockPrismaService.role.findUnique.mockResolvedValueOnce(null);
-      await expect(service.create(createDto)).rejects.toThrow(/Role/);
+      mockPrismaService.role.findFirst.mockResolvedValueOnce(null);
+      await expect(service.create(createDto, 'org_1')).rejects.toThrow(/Role/);
+    });
+
+    it('should scope the role lookup to the caller org plus global roles', async () => {
+      mockPrismaService.user.create.mockResolvedValue(mockPrismaUser);
+
+      await service.create(createDto, 'org_1');
+
+      expect(mockPrismaService.role.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: 'role-id-1',
+            OR: [{ organizationId: 'org_1' }, { organizationId: null }],
+          },
+        }),
+      );
+    });
+
+    it('should reject a role owned by another organization', async () => {
+      // A role belonging to org_2 is invisible to org_1, so the scoped
+      // findFirst returns null and the bind is refused.
+      mockPrismaService.role.findFirst.mockResolvedValueOnce(null);
+
+      await expect(service.create(createDto, 'org_1')).rejects.toThrow(/Role/);
+      expect(mockPrismaService.user.create).not.toHaveBeenCalled();
+    });
+
+    it('should create the employee in the JWT org, ignoring the body org', async () => {
+      mockPrismaService.user.create.mockResolvedValue(mockPrismaUser);
+
+      await service.create(
+        { ...createDto, organization_id: 'org_attacker' },
+        'org_1',
+      );
+
+      expect(mockPrismaService.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ organizationId: 'org_1' }),
+        }),
+      );
     });
 
     it('should return mapped employee with correct fields', async () => {
       mockPrismaService.user.create.mockResolvedValue(mockPrismaUser);
 
-      const result = await service.create(createDto);
+      const result = await service.create(createDto, 'org_1');
 
       expect(result.first_name).toBe('Juan');
       expect(result.last_name).toBe('Pérez');
@@ -159,7 +196,7 @@ describe('EmployeesService', () => {
         lastName: 'García',
       });
 
-      const result = await service.create(dtoWithIds);
+      const result = await service.create(dtoWithIds, 'org_1');
 
       expect(result.rfc).toBe('GAMA900101ABC');
       expect(result.curp).toBe('GAMA900101MDFRRR01');

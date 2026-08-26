@@ -160,6 +160,9 @@ describe('POS Sale Integration (e2e)', () => {
     const role = await prisma.role.create({
       data: {
         name: `POS_ROLE_${suffix}`,
+        // `code` es obligatorio desde la migración de roles a Prisma; es único
+        // por organización, de ahí el sufijo.
+        code: `pos_role_${suffix}`,
         description: 'Role for POS integration tests',
         scopes: ['pos:*'],
       },

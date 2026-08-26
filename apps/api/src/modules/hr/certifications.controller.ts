@@ -17,6 +17,7 @@ import {
   QueryCertificationsDto,
 } from './dto';
 import { Certification } from './interfaces';
+import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 
 @Controller('hr/certifications')
 export class CertificationsController {
@@ -26,7 +27,7 @@ export class CertificationsController {
   @HttpCode(HttpStatus.CREATED)
   async create(
     @Body() createDto: CreateCertificationDto,
-    @Query('organization_id') organizationId: string,
+    @CurrentOrg() organizationId: string,
   ): Promise<Certification> {
     return this.certificationsService.create(createDto, organizationId);
   }
@@ -34,13 +35,17 @@ export class CertificationsController {
   @Get()
   async findAll(
     @Query() query: QueryCertificationsDto,
+    @CurrentOrg() organizationId: string,
   ): Promise<Certification[]> {
-    return this.certificationsService.findAll(query);
+    return this.certificationsService.findAll({
+      ...query,
+      organization_id: organizationId,
+    });
   }
 
   @Get('expiring')
   async getExpiring(
-    @Query('organization_id') organizationId: string,
+    @CurrentOrg() organizationId: string,
     @Query('days') days?: string,
   ): Promise<Certification[]> {
     return this.certificationsService.getExpiring(
@@ -50,9 +55,7 @@ export class CertificationsController {
   }
 
   @Get('stats')
-  async getStats(
-    @Query('organization_id') organizationId: string,
-  ): Promise<any> {
+  async getStats(@CurrentOrg() organizationId: string): Promise<any> {
     return this.certificationsService.getStats(organizationId);
   }
 

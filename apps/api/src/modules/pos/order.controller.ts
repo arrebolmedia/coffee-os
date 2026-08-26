@@ -2,12 +2,17 @@ import {
   Body,
   Controller,
   Get,
+  NotFoundException,
   Param,
   Patch,
   Post,
   Query,
 } from '@nestjs/common';
 import { PosService } from './pos.service';
+import {
+  CurrentUser,
+  CurrentUserType,
+} from '../auth/decorators/current-user.decorator';
 
 @Controller('pos/orders')
 export class OrderController {
@@ -40,8 +45,15 @@ export class OrderController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.posService.findOneOrder(id);
+  async findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
+    const order = await this.posService.findOneOrder(id, user.organizationId);
+    // Sin esto devolvía 200 con body vacío para una orden de otra organización:
+    // no es una fuga, pero un 200 vacío es indistinguible de "existe y no tiene
+    // datos" y complica al frontend.
+    if (!order) {
+      throw new NotFoundException(`Order with ID "${id}" not found`);
+    }
+    return order;
   }
 
   @Patch(':id/status')

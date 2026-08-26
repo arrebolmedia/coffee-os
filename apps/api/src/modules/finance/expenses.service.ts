@@ -93,13 +93,21 @@ export class ExpensesService {
     return expenses.map((e) => this.map(e));
   }
 
-  async findOne(id: string): Promise<Expense | null> {
-    const expense = await this.prisma.expense.findUnique({ where: { id } });
+  async findOne(id: string, organizationId: string): Promise<Expense | null> {
+    const expense = await this.prisma.expense.findFirst({
+      where: { id, organizationId },
+    });
     return expense ? this.map(expense) : null;
   }
 
-  async update(id: string, updateDto: UpdateExpenseDto): Promise<Expense> {
-    const existing = await this.prisma.expense.findUnique({ where: { id } });
+  async update(
+    id: string,
+    updateDto: UpdateExpenseDto,
+    organizationId: string,
+  ): Promise<Expense> {
+    const existing = await this.prisma.expense.findFirst({
+      where: { id, organizationId },
+    });
     if (!existing) throw new NotFoundException('Expense not found');
 
     const anyDto = updateDto as any;
@@ -147,9 +155,12 @@ export class ExpensesService {
     id: string,
     paidDate: Date,
     paymentMethod: string,
+    organizationId: string,
     reference?: string,
   ): Promise<Expense> {
-    const existing = await this.prisma.expense.findUnique({ where: { id } });
+    const existing = await this.prisma.expense.findFirst({
+      where: { id, organizationId },
+    });
     if (!existing) throw new NotFoundException('Expense not found');
 
     const expense = await this.prisma.expense.update({

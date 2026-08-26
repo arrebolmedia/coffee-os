@@ -54,6 +54,7 @@ import { DatabaseModule } from './modules/database/database.module';
 import { RedisModule } from './modules/redis/redis.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard.global';
+import { TenantGuard } from './common/guards/tenant.guard';
 
 @Module({
   imports: [
@@ -130,6 +131,14 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard.global';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    // Bloquea intentos cross-tenant: un organizationId en body/query que no
+    // coincida con el del JWT es 403. DEBE ir después de JwtAuthGuard —
+    // los APP_GUARD se ejecutan en el orden en que se declaran y este
+    // necesita `request.user` ya poblado.
+    {
+      provide: APP_GUARD,
+      useClass: TenantGuard,
     },
   ],
 })

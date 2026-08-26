@@ -40,6 +40,7 @@ describe('Tenancy & write paths (e2e)', () => {
   const supplierIds: string[] = [];
   const purchaseOrderIds: string[] = [];
   const createdEmployeeUserIds: string[] = [];
+  const campaignIds: string[] = [];
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -95,6 +96,139 @@ describe('Tenancy & write paths (e2e)', () => {
 
     it('rejects unauthenticated reads', async () => {
       await request(app.getHttpServer()).get('/api/v1/products').expect(401);
+    });
+
+    /**
+     * Fugas confirmadas por sondeo el 2026-08-12: `locations.findById` e
+     * `inventory.findById` hacían `findUnique({ where: { id } })` sin filtro de
+     * organización y devolvían el registro de otro tenant con un 200.
+     */
+    it('GET /locations/:id of another org is not readable (404)', async () => {
+      await request(app.getHttpServer())
+        .get(`/api/v1/locations/${tenants.b.locationId}`)
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .expect(404);
+    });
+
+    it('GET /inventory/:id of another org is not readable (404)', async () => {
+      await request(app.getHttpServer())
+        .get(`/api/v1/inventory/${tenants.b.inventoryItemId}`)
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .expect(404);
+    });
+
+    it('cada org sí lee sus propios recursos', async () => {
+      await request(app.getHttpServer())
+        .get(`/api/v1/locations/${tenants.a.locationId}`)
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .expect(200);
+      await request(app.getHttpServer())
+        .get(`/api/v1/inventory/${tenants.a.inventoryItemId}`)
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .expect(200);
+    });
+  });
+
+  /**
+   * Regresión de la fuga cross-tenant encontrada el 2026-08-12 (Fase 2.5).
+   *
+   * 19 controllers tomaban `organization_id` del cliente sin contrastarlo con
+   * el JWT. Contra la app corriendo se demostró que un usuario de la org A
+   * podía leer, enumerar, modificar y BORRAR registros de la org B.
+   *
+   * Se usa `crm/campaigns` como caso testigo porque ahí se reprodujo la cadena
+   * completa. Cada `it` cubre uno de los vectores confirmados.
+   */
+  describe('Cross-tenant en crm/campaigns (regresión Fase 2.5)', () => {
+    let campaignOfB: string;
+
+    beforeAll(async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/crm/campaigns')
+        .set('Authorization', `Bearer ${tenants.b.token}`)
+        .send({
+          name: 'Campaña privada de B',
+          type: 'PROMOTIONAL',
+          channels: ['EMAIL'],
+          is_automated: false,
+        })
+        .expect(201);
+      campaignOfB = res.body.id;
+      campaignIds.push(campaignOfB);
+    });
+
+    it('toma la organización del JWT, no del body', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/crm/campaigns')
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .send({
+          name: 'Campaña de A',
+          type: 'PROMOTIONAL',
+          channels: ['EMAIL'],
+          is_automated: false,
+        })
+        .expect(201);
+      campaignIds.push(res.body.id);
+      expect(res.body.organization_id).toBe(tenants.a.organizationId);
+    });
+
+    it('IDOR: GET /:id de otra org responde 404', async () => {
+      await request(app.getHttpServer())
+        .get(`/api/v1/crm/campaigns/${campaignOfB}`)
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .expect(404);
+    });
+
+    it('enumeración: listar sin organization_id sólo devuelve lo propio', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/crm/campaigns')
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .expect(200);
+
+      const list: Array<{ organization_id: string }> = Array.isArray(res.body)
+        ? res.body
+        : (res.body.data ?? []);
+
+      expect(list.length).toBeGreaterThan(0);
+      expect(
+        list.every((c) => c.organization_id === tenants.a.organizationId),
+      ).toBe(true);
+    });
+
+    it('cross-tenant explícito: ?organization_id=<org B> responde 403', async () => {
+      await request(app.getHttpServer())
+        .get(
+          `/api/v1/crm/campaigns?organization_id=${tenants.b.organizationId}`,
+        )
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .expect(403);
+    });
+
+    it('escritura cross-tenant: PATCH /:id/status de otra org responde 404', async () => {
+      await request(app.getHttpServer())
+        .patch(`/api/v1/crm/campaigns/${campaignOfB}/status`)
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .send({ status: 'PAUSED' })
+        .expect(404);
+    });
+
+    it('borrado cross-tenant: DELETE /:id de otra org responde 404 y no borra', async () => {
+      await request(app.getHttpServer())
+        .delete(`/api/v1/crm/campaigns/${campaignOfB}`)
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .expect(404);
+
+      const survivor = await prisma.campaign.findUnique({
+        where: { id: campaignOfB },
+      });
+      expect(survivor).not.toBeNull();
+    });
+
+    it('organización en el path: /waste/stats/<org B> responde 403', async () => {
+      await request(app.getHttpServer())
+        .get(`/api/v1/waste/stats/${tenants.b.organizationId}`)
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .expect(403);
     });
   });
 
@@ -212,6 +346,9 @@ describe('Tenancy & write paths (e2e)', () => {
     const role = await prisma.role.create({
       data: {
         name: `TENANCY_ROLE_${suffix}`,
+        // `code` es obligatorio desde la migración de roles a Prisma; es único
+        // por organización, de ahí el sufijo.
+        code: `tenancy_role_${suffix}`,
         description: 'Role for tenancy integration tests',
         scopes: ['pos:*'],
       },
@@ -296,6 +433,14 @@ describe('Tenancy & write paths (e2e)', () => {
   }
 
   async function cleanup() {
+    for (const id of campaignIds) {
+      await prisma.campaignRecipient
+        .deleteMany({ where: { campaignId: id } })
+        .catch(() => undefined);
+      await prisma.campaign
+        .deleteMany({ where: { id } })
+        .catch(() => undefined);
+    }
     for (const id of purchaseOrderIds) {
       await prisma.goodsReceipt
         .deleteMany({ where: { purchaseOrderId: id } })

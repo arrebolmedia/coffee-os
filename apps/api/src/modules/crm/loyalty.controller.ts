@@ -15,6 +15,7 @@ import {
   CreateLoyaltyTransactionDto,
   QueryLoyaltyTransactionsDto,
 } from './dto';
+import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 
 @Controller('crm/loyalty')
 export class LoyaltyController {
@@ -70,8 +71,14 @@ export class LoyaltyController {
   }
 
   @Get('transactions')
-  async findAll(@Query() query: QueryLoyaltyTransactionsDto) {
-    return this.loyaltyService.findAll(query);
+  async findAll(
+    @Query() query: QueryLoyaltyTransactionsDto,
+    @CurrentOrg() organizationId: string,
+  ) {
+    return this.loyaltyService.findAll({
+      ...query,
+      organization_id: organizationId,
+    });
   }
 
   @Get('transactions/:id')
@@ -89,7 +96,7 @@ export class LoyaltyController {
   }
 
   @Get('stats')
-  async getStats(@Query('organization_id') organizationId: string) {
+  async getStats(@CurrentOrg() organizationId: string) {
     return this.loyaltyService.getStats(organizationId || 'org_default');
   }
 
@@ -104,7 +111,7 @@ export class LoyaltyController {
   }
 
   @Get('rewards')
-  async findAllRewards(@Query('organization_id') organizationId: string) {
+  async findAllRewards(@CurrentOrg() organizationId: string) {
     return this.loyaltyService.findAllRewards(organizationId || 'org_default');
   }
 

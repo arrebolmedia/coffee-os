@@ -1,5 +1,6 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import { RFMService } from './rfm.service';
+import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 
 @Controller('crm/rfm')
 export class RFMController {
@@ -11,7 +12,9 @@ export class RFMController {
   }
 
   @Get('distribution')
-  async getSegmentDistribution(@Query('organization_id') organizationId: string) {
-    return this.rfmService.getSegmentDistribution(organizationId || 'org_default');
+  async getSegmentDistribution(@CurrentOrg() organizationId: string) {
+    return this.rfmService.getSegmentDistribution(
+      organizationId || 'org_default',
+    );
   }
 }

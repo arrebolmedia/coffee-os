@@ -12,6 +12,7 @@ import {
 import { EvaluationsService } from './evaluations.service';
 import { CreateEvaluationDto, QueryEvaluationsDto } from './dto';
 import { Evaluation } from './interfaces';
+import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 
 @Controller('hr/evaluations')
 export class EvaluationsController {
@@ -21,20 +22,24 @@ export class EvaluationsController {
   @HttpCode(HttpStatus.CREATED)
   async create(
     @Body() createDto: CreateEvaluationDto,
-    @Query('organization_id') organizationId: string,
+    @CurrentOrg() organizationId: string,
   ): Promise<Evaluation> {
     return this.evaluationsService.create(createDto, organizationId);
   }
 
   @Get()
-  async findAll(@Query() query: QueryEvaluationsDto): Promise<Evaluation[]> {
-    return this.evaluationsService.findAll(query);
+  async findAll(
+    @Query() query: QueryEvaluationsDto,
+    @CurrentOrg() organizationId: string,
+  ): Promise<Evaluation[]> {
+    return this.evaluationsService.findAll({
+      ...query,
+      organization_id: organizationId,
+    });
   }
 
   @Get('stats')
-  async getStats(
-    @Query('organization_id') organizationId: string,
-  ): Promise<any> {
+  async getStats(@CurrentOrg() organizationId: string): Promise<any> {
     return this.evaluationsService.getStats(organizationId);
   }
 

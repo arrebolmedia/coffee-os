@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   CampaignChannel,
   CampaignStatus,
@@ -98,8 +102,12 @@ export class CampaignsService {
   }
 
   async findAll(query: QueryCampaignsDto): Promise<Campaign[]> {
-    const where: any = {};
-    if (query.organization_id) where.organizationId = query.organization_id;
+    // organization_id es obligatorio: sin él la consulta no llevaría filtro de
+    // organización y devolvería las campañas de todos los tenants.
+    if (!query.organization_id) {
+      throw new BadRequestException('organization_id is required');
+    }
+    const where: any = { organizationId: query.organization_id };
     if (query.type) where.type = query.type;
     if (query.status) where.status = query.status;
     if (query.search) {
@@ -117,13 +125,24 @@ export class CampaignsService {
     return campaigns.map(this.mapCampaign.bind(this));
   }
 
-  async findOne(id: string): Promise<Campaign | null> {
-    const c = await this.prisma.campaign.findUnique({ where: { id } });
+  async findOne(id: string, organizationId: string): Promise<Campaign | null> {
+    // El filtro por organizationId va en el propio findFirst, no en un chequeo
+    // posterior: así una campaña ajena es indistinguible de una inexistente y
+    // no se filtra su existencia.
+    const c = await this.prisma.campaign.findFirst({
+      where: { id, organizationId },
+    });
     return c ? this.mapCampaign(c) : null;
   }
 
-  async updateStatus(id: string, status: CampaignStatus): Promise<Campaign> {
-    const existing = await this.prisma.campaign.findUnique({ where: { id } });
+  async updateStatus(
+    id: string,
+    status: CampaignStatus,
+    organizationId: string,
+  ): Promise<Campaign> {
+    const existing = await this.prisma.campaign.findFirst({
+      where: { id, organizationId },
+    });
     if (!existing) throw new NotFoundException(`Campaign ${id} not found`);
 
     const updated = await this.prisma.campaign.update({
@@ -133,8 +152,13 @@ export class CampaignsService {
     return this.mapCampaign(updated);
   }
 
-  async delete(id: string): Promise<void> {
-    await this.prisma.campaign.delete({ where: { id } });
+  async delete(id: string, organizationId: string): Promise<void> {
+    // deleteMany + filtro de organización: un id ajeno borra 0 filas en vez de
+    // borrar el registro de otro tenant.
+    const { count } = await this.prisma.campaign.deleteMany({
+      where: { id, organizationId },
+    });
+    if (count === 0) throw new NotFoundException(`Campaign ${id} not found`);
   }
 
   async addRecipient(

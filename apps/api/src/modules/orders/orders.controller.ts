@@ -79,8 +79,8 @@ export class OrdersController {
    * Get single order by ID
    */
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.ordersService.findOne(id);
+  async findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
+    return this.ordersService.findOne(id, this.requireOrg(user));
   }
 
   /**

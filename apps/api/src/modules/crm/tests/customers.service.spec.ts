@@ -13,6 +13,7 @@ describe('CustomersService', () => {
       create: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
       count: jest.fn(),
@@ -193,16 +194,16 @@ describe('CustomersService', () => {
 
   describe('findOne', () => {
     it('should return null when customer not found', async () => {
-      mockPrismaService.customer.findUnique.mockResolvedValue(null);
-      const result = await service.findOne('nonexistent-id');
+      mockPrismaService.customer.findFirst.mockResolvedValue(null);
+      const result = await service.findOne('nonexistent-id', 'org_1');
       expect(result).toBeNull();
     });
 
     it('should return mapped customer when found', async () => {
-      mockPrismaService.customer.findUnique.mockResolvedValue(
+      mockPrismaService.customer.findFirst.mockResolvedValue(
         mockPrismaCustomer,
       );
-      const result = await service.findOne('cust-id-123');
+      const result = await service.findOne('cust-id-123', 'org_1');
       expect(result).toBeDefined();
       expect(result!.id).toBe('cust-id-123');
       expect(result!.organization_id).toBe('org_1');
@@ -211,9 +212,9 @@ describe('CustomersService', () => {
 
   describe('update', () => {
     it('should throw NotFoundException when customer does not exist', async () => {
-      mockPrismaService.customer.findUnique.mockResolvedValue(null);
+      mockPrismaService.customer.findFirst.mockResolvedValue(null);
       await expect(
-        service.update('bad-id', { phone: '+52 55 1234' }),
+        service.update('bad-id', { phone: '+52 55 1234' }, 'org_1'),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -222,14 +223,16 @@ describe('CustomersService', () => {
         ...mockPrismaCustomer,
         phone: '+52 55 9999 8888',
       };
-      mockPrismaService.customer.findUnique.mockResolvedValue(
+      mockPrismaService.customer.findFirst.mockResolvedValue(
         mockPrismaCustomer,
       );
       mockPrismaService.customer.update.mockResolvedValue(updatedCustomer);
 
-      const result = await service.update('cust-id-123', {
-        phone: '+52 55 9999 8888',
-      });
+      const result = await service.update(
+        'cust-id-123',
+        { phone: '+52 55 9999 8888' },
+        'org_1',
+      );
 
       expect(result.phone).toBe('+52 55 9999 8888');
     });
@@ -240,15 +243,19 @@ describe('CustomersService', () => {
         status: 'BLOCKED',
         blockedReason: 'Fraudulent activity',
       };
-      mockPrismaService.customer.findUnique.mockResolvedValue(
+      mockPrismaService.customer.findFirst.mockResolvedValue(
         mockPrismaCustomer,
       );
       mockPrismaService.customer.update.mockResolvedValue(blockedCustomer);
 
-      const result = await service.update('cust-id-123', {
-        status: CustomerStatus.BLOCKED,
-        blocked_reason: 'Fraudulent activity',
-      });
+      const result = await service.update(
+        'cust-id-123',
+        {
+          status: CustomerStatus.BLOCKED,
+          blocked_reason: 'Fraudulent activity',
+        },
+        'org_1',
+      );
 
       expect(result.status).toBe(CustomerStatus.BLOCKED);
       expect(result.blocked_reason).toBe('Fraudulent activity');
@@ -257,8 +264,8 @@ describe('CustomersService', () => {
 
   describe('addVisit', () => {
     it('should throw NotFoundException when customer not found', async () => {
-      mockPrismaService.customer.findUnique.mockResolvedValue(null);
-      await expect(service.addVisit('bad-id', 100)).rejects.toThrow(
+      mockPrismaService.customer.findFirst.mockResolvedValue(null);
+      await expect(service.addVisit('bad-id', 100, 'org_1')).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -270,12 +277,13 @@ describe('CustomersService', () => {
         totalSpent: 150,
         lastVisitDate: new Date(),
       };
-      mockPrismaService.customer.findUnique
-        .mockResolvedValueOnce(mockPrismaCustomer) // exists check
-        .mockResolvedValue(visitedCustomer); // final fetch
+      mockPrismaService.customer.findFirst.mockResolvedValue(
+        mockPrismaCustomer,
+      ); // exists check (ahora filtrado por organización)
+      mockPrismaService.customer.findUnique.mockResolvedValue(visitedCustomer); // final fetch
       mockPrismaService.customer.update.mockResolvedValue(visitedCustomer);
 
-      const result = await service.addVisit('cust-id-123', 150);
+      const result = await service.addVisit('cust-id-123', 150, 'org_1');
 
       expect(result.total_visits).toBe(1);
       expect(result.total_spent).toBe(150);
@@ -283,12 +291,15 @@ describe('CustomersService', () => {
     });
 
     it('should call prisma.update with increment operators', async () => {
-      mockPrismaService.customer.findUnique
-        .mockResolvedValueOnce(mockPrismaCustomer)
-        .mockResolvedValue(mockPrismaCustomer);
+      mockPrismaService.customer.findFirst.mockResolvedValue(
+        mockPrismaCustomer,
+      );
+      mockPrismaService.customer.findUnique.mockResolvedValue(
+        mockPrismaCustomer,
+      );
       mockPrismaService.customer.update.mockResolvedValue(mockPrismaCustomer);
 
-      await service.addVisit('cust-id-123', 200);
+      await service.addVisit('cust-id-123', 200, 'org_1');
 
       expect(mockPrismaService.customer.update).toHaveBeenCalledWith(
         expect.objectContaining({

@@ -77,14 +77,14 @@ export class CustomersController {
     });
   }
 
+  // El filtro por organización vive ahora dentro del service (findFirst con
+  // organizationId), así que ya no hace falta releer y comparar aquí.
+
   @Get(':id')
   async findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
     const organizationId = this.requireOrg(user);
-    const customer = await this.customersService.findOne(id);
+    const customer = await this.customersService.findOne(id, organizationId);
     if (!customer) {
-      throw new NotFoundException('Customer not found');
-    }
-    if (customer.organization_id !== organizationId) {
       throw new NotFoundException('Customer not found');
     }
     return customer;
@@ -97,11 +97,7 @@ export class CustomersController {
     @CurrentUser() user: CurrentUserType,
   ) {
     const organizationId = this.requireOrg(user);
-    const existing = await this.customersService.findOne(id);
-    if (!existing || existing.organization_id !== organizationId) {
-      throw new NotFoundException('Customer not found');
-    }
-    return this.customersService.update(id, updateDto);
+    return this.customersService.update(id, updateDto, organizationId);
   }
 
   @Post(':id/visit')
@@ -112,19 +108,15 @@ export class CustomersController {
     @CurrentUser() user: CurrentUserType,
   ) {
     const organizationId = this.requireOrg(user);
-    const existing = await this.customersService.findOne(id);
-    if (!existing || existing.organization_id !== organizationId) {
-      throw new NotFoundException('Customer not found');
-    }
-    return this.customersService.addVisit(id, body.order_total);
+    return this.customersService.addVisit(id, body.order_total, organizationId);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
     const organizationId = this.requireOrg(user);
-    const existing = await this.customersService.findOne(id);
-    if (!existing || existing.organization_id !== organizationId) {
+    const existing = await this.customersService.findOne(id, organizationId);
+    if (!existing) {
       throw new NotFoundException('Customer not found');
     }
     await this.customersService.delete(id);

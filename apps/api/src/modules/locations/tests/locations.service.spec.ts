@@ -84,6 +84,18 @@ describe('LocationsService', () => {
         const found = store.find((r) => r.id === args?.where?.id);
         return Promise.resolve(found || null);
       }),
+      // findById/update pasaron a findFirst para poder filtrar por organización
+      // (regresión de fuga cross-tenant, Fase 2.5).
+      findFirst: jest.fn().mockImplementation((args: any) => {
+        const where = args?.where || {};
+        const found = store.find(
+          (r) =>
+            (where.id === undefined || r.id === where.id) &&
+            (where.organizationId === undefined ||
+              r.organizationId === where.organizationId),
+        );
+        return Promise.resolve(found || null);
+      }),
       update: jest.fn().mockImplementation((args: any) => {
         const idx = store.findIndex((r) => r.id === args?.where?.id);
         if (idx < 0) return Promise.reject(new Error('Not found'));

@@ -13,6 +13,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
+import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 import {
   CurrentUser,
   CurrentUserType,
@@ -54,13 +55,12 @@ export class EmployeesController {
   @HttpCode(HttpStatus.CREATED)
   async create(
     @Body() createDto: CreateEmployeeDto,
-    @CurrentUser() user: CurrentUserType,
+    @CurrentOrg() organizationId: string,
   ): Promise<Employee> {
-    // Always create within the caller's organization (ignore body org).
-    return this.employeesService.create({
-      ...createDto,
-      organization_id: this.requireOrg(user),
-    });
+    // Always create within the caller's organization: the service uses this
+    // org for both the role lookup and the new row, so any `organization_id`
+    // in the body is ignored.
+    return this.employeesService.create(createDto, organizationId);
   }
 
   @Get()

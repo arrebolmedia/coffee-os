@@ -9,6 +9,7 @@
  * tickets/quality_logs/task_runs.
  */
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -51,8 +52,12 @@ export class UsersService {
     return users.map((u) => this.sanitize(u));
   }
 
-  async findOne(id: string) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
+  async findOne(id: string, organizationId?: string) {
+    // Sin organización (llamadas internas y super admin) se busca por clave
+    // primaria; con organización se filtra para no exponer usuarios ajenos.
+    const user = organizationId
+      ? await this.prisma.user.findFirst({ where: { id, organizationId } })
+      : await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException(`User ${id} not found`);
     return this.sanitize(user);
   }
@@ -72,6 +77,20 @@ export class UsersService {
       throw new ConflictException(
         `User with email ${dto.email} already exists`,
       );
+    }
+
+    // Igual que en auth.register y hr/employees: el rol debe ser global o de
+    // la propia organización. Sin esta comprobación se podía crear un usuario
+    // enlazado a un rol de otro tenant.
+    const role = await this.prisma.role.findFirst({
+      where: {
+        id: dto.role_id,
+        OR: [{ organizationId: dto.organization_id }, { organizationId: null }],
+      },
+      select: { id: true },
+    });
+    if (!role) {
+      throw new BadRequestException(`Role ${dto.role_id} not found`);
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, SALT_ROUNDS);
@@ -96,8 +115,8 @@ export class UsersService {
    * Update a user. Any `password` field is IGNORED — password changes must
    * go through a dedicated change-password flow.
    */
-  async update(id: string, dto: UpdateUserDto) {
-    await this.findOne(id); // throws if not found
+  async update(id: string, dto: UpdateUserDto, organizationId?: string) {
+    await this.findOne(id, organizationId); // 404 si es de otra organización
 
     if (dto.email) {
       const conflict = await this.prisma.user.findFirst({
@@ -128,8 +147,8 @@ export class UsersService {
   }
 
   /** Soft delete: marca active=false. */
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, organizationId?: string) {
+    await this.findOne(id, organizationId);
     const updated = await this.prisma.user.update({
       where: { id },
       data: { active: false },

@@ -18,6 +18,7 @@ import {
   QueryWasteLogsDto,
   UpdateWasteLogDto,
 } from './dto';
+import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 
 /**
  * Controlador para gestión de desperdicios y sostenibilidad
@@ -54,8 +55,14 @@ export class WasteController {
 
   @Get('logs')
   @HttpCode(HttpStatus.OK)
-  async findAllWasteLogs(@Query() query: QueryWasteLogsDto) {
-    return this.wasteService.findAllWasteLogs(query);
+  async findAllWasteLogs(
+    @Query() query: QueryWasteLogsDto,
+    @CurrentOrg() organizationId: string,
+  ) {
+    return this.wasteService.findAllWasteLogs({
+      ...query,
+      organization_id: organizationId,
+    });
   }
 
   @Get('logs/:id')
@@ -81,7 +88,7 @@ export class WasteController {
 
   @Get('stats/:organization_id')
   @HttpCode(HttpStatus.OK)
-  async getWasteStats(@Param('organization_id') organization_id: string) {
+  async getWasteStats(@CurrentOrg() organization_id: string) {
     return this.wasteService.getWasteStats(organization_id);
   }
 
@@ -98,7 +105,7 @@ export class WasteController {
   @Get('metrics')
   @HttpCode(HttpStatus.OK)
   async findAllMetrics(
-    @Query('organization_id') organization_id?: string,
+    @CurrentOrg() organization_id: string,
     @Query('metric_type') metric_type?: string,
   ) {
     return this.wasteService.findAllMetrics(
@@ -126,7 +133,7 @@ export class WasteController {
   @Get('targets')
   @HttpCode(HttpStatus.OK)
   async findAllTargets(
-    @Query('organization_id') organization_id?: string,
+    @CurrentOrg() organization_id: string,
     @Query('is_active') is_active?: string,
   ) {
     const active =
@@ -156,7 +163,7 @@ export class WasteController {
   @Get('reports/:organization_id')
   @HttpCode(HttpStatus.OK)
   async generateSustainabilityReport(
-    @Param('organization_id') organization_id: string,
+    @CurrentOrg() organization_id: string,
     @Query('period_start') period_start: string,
     @Query('period_end') period_end: string,
   ) {

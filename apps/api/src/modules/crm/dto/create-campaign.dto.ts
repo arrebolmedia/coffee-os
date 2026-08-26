@@ -36,9 +36,14 @@ export enum CampaignChannel {
 }
 
 export class CreateCampaignDto {
-  @IsNotEmpty()
+  /**
+   * Opcional: el controller SIEMPRE lo sobrescribe con el `organizationId` del
+   * JWT. Se mantiene en el DTO por compatibilidad con clientes que aún lo
+   * envían — si mandan uno ajeno, `TenantGuard` responde 403.
+   */
+  @IsOptional()
   @IsString()
-  organization_id: string;
+  organization_id?: string;
 
   @IsNotEmpty()
   @IsString()

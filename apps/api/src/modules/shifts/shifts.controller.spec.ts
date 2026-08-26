@@ -104,8 +104,9 @@ describe('ShiftsController', () => {
 
       mockShiftsService.findOne.mockResolvedValue(result);
 
-      expect(await controller.findOne(id)).toEqual(result);
-      expect(service.findOne).toHaveBeenCalledWith(id);
+      const user = { organizationId: 'org-1' } as any;
+      expect(await controller.findOne(id, user)).toEqual(result);
+      expect(service.findOne).toHaveBeenCalledWith(id, 'org-1');
     });
   });
 

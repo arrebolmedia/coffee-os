@@ -56,13 +56,17 @@ export class LocationsController {
   }
 
   @Get(':id')
-  findById(@Param('id') id: string) {
-    return this.locationsService.findById(id);
+  findById(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
+    return this.locationsService.findById(id, this.requireOrg(user));
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateDto: UpdateLocationDto) {
-    return this.locationsService.update(id, updateDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateLocationDto,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    return this.locationsService.update(id, updateDto, this.requireOrg(user));
   }
 
   @Patch(':id/activate')

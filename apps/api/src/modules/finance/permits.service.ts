@@ -89,13 +89,21 @@ export class PermitsService {
     return permits.map((p) => this.map(p));
   }
 
-  async findOne(id: string): Promise<Permit | null> {
-    const permit = await this.prisma.permit.findUnique({ where: { id } });
+  async findOne(id: string, organizationId: string): Promise<Permit | null> {
+    const permit = await this.prisma.permit.findFirst({
+      where: { id, organizationId },
+    });
     return permit ? this.map(permit) : null;
   }
 
-  async update(id: string, updateDto: UpdatePermitDto): Promise<Permit> {
-    const existing = await this.prisma.permit.findUnique({ where: { id } });
+  async update(
+    id: string,
+    updateDto: UpdatePermitDto,
+    organizationId: string,
+  ): Promise<Permit> {
+    const existing = await this.prisma.permit.findFirst({
+      where: { id, organizationId },
+    });
     if (!existing) throw new NotFoundException('Permit not found');
 
     const permit = await this.prisma.permit.update({
@@ -126,9 +134,12 @@ export class PermitsService {
   async renewPermit(
     id: string,
     newExpiryDate: Date,
+    organizationId: string,
     renewalCost?: number,
   ): Promise<Permit> {
-    const existing = await this.prisma.permit.findUnique({ where: { id } });
+    const existing = await this.prisma.permit.findFirst({
+      where: { id, organizationId },
+    });
     if (!existing) throw new NotFoundException('Permit not found');
 
     const permit = await this.prisma.permit.update({

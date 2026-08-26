@@ -2,6 +2,7 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { FoodSafetyService } from './food-safety.service';
 import { QueryIncidentsDto } from './dto';
 import { FoodSafetyIncident } from './interfaces';
+import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 
 /**
  * Food-safety incidents are currently NOT persisted (no Prisma model). To
@@ -17,13 +18,17 @@ export class FoodSafetyController {
   @Get('incidents')
   async findAll(
     @Query() query: QueryIncidentsDto,
+    @CurrentOrg() organizationId: string,
   ): Promise<FoodSafetyIncident[]> {
-    return this.foodSafetyService.findAll(query);
+    return this.foodSafetyService.findAll({
+      ...query,
+      organization_id: organizationId,
+    });
   }
 
   @Get('incidents/critical')
   async getCritical(
-    @Query('organization_id') organizationId: string,
+    @CurrentOrg() organizationId: string,
     @Query('location_id') locationId?: string,
   ): Promise<FoodSafetyIncident[]> {
     return this.foodSafetyService.getCriticalIncidents(
@@ -34,7 +39,7 @@ export class FoodSafetyController {
 
   @Get('stats')
   async getStats(
-    @Query('organization_id') organizationId: string,
+    @CurrentOrg() organizationId: string,
     @Query('location_id') locationId?: string,
   ): Promise<any> {
     return this.foodSafetyService.getStats(organizationId, locationId);

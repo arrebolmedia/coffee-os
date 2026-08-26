@@ -34,6 +34,7 @@ const mockPrismaService = {
     create: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
     count: jest.fn(),
@@ -100,18 +101,18 @@ describe('PermitsService', () => {
 
   describe('findOne', () => {
     it('should return permit when found', async () => {
-      mockPrismaService.permit.findUnique.mockResolvedValueOnce(mockPermit);
+      mockPrismaService.permit.findFirst.mockResolvedValueOnce(mockPermit);
 
-      const result = await service.findOne('permit_1');
+      const result = await service.findOne('permit_1', 'org_1');
 
       expect(result).not.toBeNull();
       expect(result!.id).toBe('permit_1');
     });
 
     it('should return null when not found', async () => {
-      mockPrismaService.permit.findUnique.mockResolvedValueOnce(null);
+      mockPrismaService.permit.findFirst.mockResolvedValueOnce(null);
 
-      const result = await service.findOne('nope');
+      const result = await service.findOne('nope', 'org_1');
 
       expect(result).toBeNull();
     });
@@ -120,26 +121,30 @@ describe('PermitsService', () => {
   describe('update', () => {
     it('should update permit', async () => {
       const newExpiry = new Date('2028-04-21');
-      mockPrismaService.permit.findUnique.mockResolvedValueOnce(mockPermit);
+      mockPrismaService.permit.findFirst.mockResolvedValueOnce(mockPermit);
       mockPrismaService.permit.update.mockResolvedValueOnce({
         ...mockPermit,
         status: 'RENEWAL_DUE',
         expiryDate: newExpiry,
       });
 
-      const result = await service.update('permit_1', {
-        status: PermitStatus.RENEWAL_DUE,
-        expiry_date: newExpiry.toISOString(),
-      });
+      const result = await service.update(
+        'permit_1',
+        {
+          status: PermitStatus.RENEWAL_DUE,
+          expiry_date: newExpiry.toISOString(),
+        },
+        'org_1',
+      );
 
       expect(result.status).toBe(PermitStatus.RENEWAL_DUE);
     });
 
     it('should throw NotFoundException when not found', async () => {
-      mockPrismaService.permit.findUnique.mockResolvedValueOnce(null);
+      mockPrismaService.permit.findFirst.mockResolvedValueOnce(null);
 
       await expect(
-        service.update('bad_id', { status: PermitStatus.CANCELLED }),
+        service.update('bad_id', { status: PermitStatus.CANCELLED }, 'org_1'),
       ).rejects.toThrow('Permit not found');
     });
   });
@@ -147,7 +152,7 @@ describe('PermitsService', () => {
   describe('renewPermit', () => {
     it('should renew permit and set status to ACTIVE', async () => {
       const newExpiry = new Date('2028-04-21');
-      mockPrismaService.permit.findUnique.mockResolvedValueOnce(mockPermit);
+      mockPrismaService.permit.findFirst.mockResolvedValueOnce(mockPermit);
       mockPrismaService.permit.update.mockResolvedValueOnce({
         ...mockPermit,
         expiryDate: newExpiry,
@@ -156,16 +161,21 @@ describe('PermitsService', () => {
         renewalCost: 5500,
       });
 
-      const result = await service.renewPermit('permit_1', newExpiry, 5500);
+      const result = await service.renewPermit(
+        'permit_1',
+        newExpiry,
+        'org_1',
+        5500,
+      );
 
       expect(result.status).toBe(PermitStatus.ACTIVE);
     });
 
     it('should throw NotFoundException when permit not found', async () => {
-      mockPrismaService.permit.findUnique.mockResolvedValueOnce(null);
+      mockPrismaService.permit.findFirst.mockResolvedValueOnce(null);
 
       await expect(
-        service.renewPermit('bad_id', new Date(), 1000),
+        service.renewPermit('bad_id', new Date(), 'org_1', 1000),
       ).rejects.toThrow('Permit not found');
     });
   });

@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CampaignsService } from '../campaigns.service';
 import { PrismaService } from '../../database/prisma.service';
 import { CampaignChannel, CampaignStatus, CampaignType } from '../dto';
@@ -12,8 +12,10 @@ describe('CampaignsService', () => {
       create: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      deleteMany: jest.fn(),
       count: jest.fn(),
       aggregate: jest.fn(),
       groupBy: jest.fn(),
@@ -125,29 +127,71 @@ describe('CampaignsService', () => {
 
     it('should return empty array when no campaigns', async () => {
       mockPrismaService.campaign.findMany.mockResolvedValue([]);
-      const result = await service.findAll({});
+      const result = await service.findAll({ organization_id: 'org-1' });
       expect(result).toHaveLength(0);
+    });
+
+    // Regresión Fase 2.5: sin organization_id la consulta iba sin filtro de
+    // organización y devolvía las campañas de todos los tenants.
+    it('should reject a query without organization_id', async () => {
+      await expect(service.findAll({})).rejects.toThrow(BadRequestException);
+      expect(mockPrismaService.campaign.findMany).not.toHaveBeenCalled();
     });
   });
 
   describe('updateStatus', () => {
     it('should update campaign status', async () => {
       const activeCampaign = { ...mockCampaign, status: 'ACTIVE' };
-      mockPrismaService.campaign.findUnique.mockResolvedValue(mockCampaign);
+      mockPrismaService.campaign.findFirst.mockResolvedValue(mockCampaign);
       mockPrismaService.campaign.update.mockResolvedValue(activeCampaign);
 
       const result = await service.updateStatus(
         'camp-1',
         CampaignStatus.ACTIVE,
+        'org-1',
       );
       expect(result.status).toBe(CampaignStatus.ACTIVE);
     });
 
     it('should throw NotFoundException when campaign not found', async () => {
-      mockPrismaService.campaign.findUnique.mockResolvedValue(null);
+      mockPrismaService.campaign.findFirst.mockResolvedValue(null);
       await expect(
-        service.updateStatus('bad-id', CampaignStatus.ACTIVE),
+        service.updateStatus('bad-id', CampaignStatus.ACTIVE, 'org-1'),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    // Regresión Fase 2.5: la búsqueda previa era findUnique({id}) sin filtrar
+    // por organización, así que un usuario podía mutar campañas de otro tenant.
+    it('should scope the lookup by organizationId', async () => {
+      mockPrismaService.campaign.findFirst.mockResolvedValue(mockCampaign);
+      mockPrismaService.campaign.update.mockResolvedValue(mockCampaign);
+
+      await service.updateStatus('camp-1', CampaignStatus.ACTIVE, 'org-1');
+
+      expect(mockPrismaService.campaign.findFirst).toHaveBeenCalledWith({
+        where: { id: 'camp-1', organizationId: 'org-1' },
+      });
+    });
+  });
+
+  describe('delete', () => {
+    // Regresión Fase 2.5: antes era delete({ where: { id } }), que borraba el
+    // registro sin importar a qué organización perteneciera.
+    it('should only delete within the caller organization', async () => {
+      mockPrismaService.campaign.deleteMany.mockResolvedValue({ count: 1 });
+
+      await service.delete('camp-1', 'org-1');
+
+      expect(mockPrismaService.campaign.deleteMany).toHaveBeenCalledWith({
+        where: { id: 'camp-1', organizationId: 'org-1' },
+      });
+    });
+
+    it('should throw NotFoundException when nothing matched', async () => {
+      mockPrismaService.campaign.deleteMany.mockResolvedValue({ count: 0 });
+      await expect(service.delete('camp-1', 'other-org')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

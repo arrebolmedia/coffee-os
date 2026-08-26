@@ -63,9 +63,20 @@ export class AuthService {
       throw new ConflictException('Email already registered');
     }
 
-    // Validar que el rol exista y pertenezca a una organización válida
-    const role = await this.prisma.role.findUnique({
-      where: { id: registerDto.roleId },
+    // El rol debe ser visible para la organización del usuario que se crea:
+    // o es del catálogo global del sistema (organizationId null) o le
+    // pertenece. Con findUnique bastaba el id, así que se podía enlazar un
+    // usuario propio a un rol de OTRA organización — mismo predicado que
+    // `visibleRoles()` en roles.service y que hr/employees.service.
+    const role = await this.prisma.role.findFirst({
+      where: {
+        id: registerDto.roleId,
+        OR: [
+          { organizationId: registerDto.organizationId },
+          { organizationId: null },
+        ],
+      },
+      select: { id: true },
     });
     if (!role) {
       throw new BadRequestException('Invalid roleId');
@@ -125,9 +136,11 @@ export class AuthService {
       throw new ConflictException('Email already registered');
     }
 
-    // Buscar (o exigir) el rol "owner" que viene en seeds.
-    const ownerRole = await this.prisma.role.findUnique({
-      where: { name: 'owner' },
+    // Buscar (o exigir) el rol "owner" que viene en seeds. Vive en el catálogo
+    // global (`organizationId: null`), que es el que comparten todos los
+    // tenants; `name` dejó de ser único globalmente al hacerse por organización.
+    const ownerRole = await this.prisma.role.findFirst({
+      where: { name: 'owner', organizationId: null },
     });
     if (!ownerRole) {
       throw new BadRequestException(

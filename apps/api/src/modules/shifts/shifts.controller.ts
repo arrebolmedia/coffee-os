@@ -80,8 +80,8 @@ export class ShiftsController {
   @Get(':id')
   @ApiOperation({ summary: 'Get shift by ID' })
   @ApiResponse({ status: 200, description: 'Returns a single shift' })
-  findOne(@Param('id') id: string) {
-    return this.shiftsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
+    return this.shiftsService.findOne(id, this.requireOrg(user));
   }
 
   @Patch(':id')

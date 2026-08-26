@@ -20,10 +20,37 @@ import {
   ReportStatus,
   ReportType,
 } from './interfaces/report.interface';
+import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 
+// IMPORTANT: NestJS matches routes in declaration order. Every route whose first
+// segment is a literal ('templates', 'schedules', 'stats', ...) MUST be declared
+// BEFORE the parameterised routes (':id'), otherwise the literal is swallowed as
+// an :id value and the endpoint becomes unreachable.
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
+
+  // ==================== COLLECTION ROOT ====================
+
+  @Get()
+  findAllReports(
+    @CurrentOrg() organization_id: string,
+    @Query('category') category?: ReportCategory,
+    @Query('status') status?: ReportStatus,
+    @Query('requested_by') requested_by?: string,
+  ) {
+    return this.reportsService.findAllReports(
+      organization_id,
+      category,
+      status,
+      requested_by,
+    );
+  }
+
+  @Post('generate')
+  generateReport(@Body() dto: GenerateReportDto) {
+    return this.reportsService.generateReport(dto);
+  }
 
   // ==================== TEMPLATES ====================
 
@@ -34,7 +61,7 @@ export class ReportsController {
 
   @Get('templates')
   findAllReportTemplates(
-    @Query('organization_id') organization_id?: string,
+    @CurrentOrg() organization_id: string,
     @Query('category') category?: ReportCategory,
     @Query('type') type?: ReportType,
     @Query('is_active') is_active?: string,
@@ -67,43 +94,6 @@ export class ReportsController {
     return this.reportsService.deleteReportTemplate(id);
   }
 
-  // ==================== REPORTS ====================
-
-  @Post('generate')
-  generateReport(@Body() dto: GenerateReportDto) {
-    return this.reportsService.generateReport(dto);
-  }
-
-  @Get()
-  findAllReports(
-    @Query('organization_id') organization_id?: string,
-    @Query('category') category?: ReportCategory,
-    @Query('status') status?: ReportStatus,
-    @Query('requested_by') requested_by?: string,
-  ) {
-    return this.reportsService.findAllReports(
-      organization_id,
-      category,
-      status,
-      requested_by,
-    );
-  }
-
-  @Get(':id')
-  findReportById(@Param('id') id: string) {
-    return this.reportsService.findReportById(id);
-  }
-
-  @Get(':id/result')
-  getReportResult(@Param('id') id: string) {
-    return this.reportsService.getReportResult(id);
-  }
-
-  @Delete(':id')
-  deleteReport(@Param('id') id: string) {
-    return this.reportsService.deleteReport(id);
-  }
-
   // ==================== SCHEDULES ====================
 
   @Post('schedules')
@@ -113,7 +103,7 @@ export class ReportsController {
 
   @Get('schedules')
   findAllReportSchedules(
-    @Query('organization_id') organization_id?: string,
+    @CurrentOrg() organization_id: string,
     @Query('is_active') is_active?: string,
   ) {
     const activeFilter =
@@ -147,7 +137,24 @@ export class ReportsController {
   // ==================== STATS ====================
 
   @Get('stats/:organization_id')
-  getReportStats(@Param('organization_id') organization_id: string) {
+  getReportStats(@CurrentOrg() organization_id: string) {
     return this.reportsService.getReportStats(organization_id);
+  }
+
+  // ==================== REPORTS (parameterised) ====================
+
+  @Get(':id')
+  findReportById(@Param('id') id: string) {
+    return this.reportsService.findReportById(id);
+  }
+
+  @Get(':id/result')
+  getReportResult(@Param('id') id: string) {
+    return this.reportsService.getReportResult(id);
+  }
+
+  @Delete(':id')
+  deleteReport(@Param('id') id: string) {
+    return this.reportsService.deleteReport(id);
   }
 }

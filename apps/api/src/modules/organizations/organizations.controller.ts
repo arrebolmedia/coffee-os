@@ -12,6 +12,10 @@ import {
 import { OrganizationsService } from './organizations.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
+import {
+  CurrentUser,
+  CurrentUserType,
+} from '../auth/decorators/current-user.decorator';
 
 @Controller('organizations')
 export class OrganizationsController {
@@ -34,8 +38,11 @@ export class OrganizationsController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.organizationsService.findOne(id);
+  async findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
+    return this.organizationsService.findOne(
+      id,
+      user.isSuperAdmin ? undefined : user.organizationId,
+    );
   }
 
   @Patch(':id')

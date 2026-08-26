@@ -37,7 +37,16 @@ export class OrganizationsService {
     });
   }
 
-  async findOne(id: string) {
+  /**
+   * `callerOrganizationId` viene del JWT. Un usuario sólo puede leer SU propia
+   * organización; pedir otra devuelve 404 (no 403, para no confirmar que
+   * existe). Los super admin pasan sin restricción — el controller les pasa
+   * `undefined`.
+   */
+  async findOne(id: string, callerOrganizationId?: string) {
+    if (callerOrganizationId && id !== callerOrganizationId) {
+      throw new NotFoundException(`Organization ${id} not found`);
+    }
     const org = await this.prisma.organization.findUnique({ where: { id } });
     if (!org) throw new NotFoundException(`Organization ${id} not found`);
     return org;

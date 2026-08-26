@@ -21,9 +21,12 @@ export class ShiftsService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Multi-tenant guard: validates that a location belongs to the given
-   * organization. Shift has no organizationId column, so org scoping is
-   * derived via Location.organizationId. 404 on mismatch (don't leak).
+   * Multi-tenant guard for an incoming locationId that is not yet attached to a
+   * shift (i.e. on create). Shift has no organizationId column, so org scoping
+   * is derived via Location.organizationId. 404 on mismatch (don't leak).
+   *
+   * Reads of existing shifts don't need this: they filter through the
+   * `location` relation directly.
    */
   private async assertLocationInOrg(
     locationId: string,
@@ -36,15 +39,6 @@ export class ShiftsService {
     if (!location || location.organizationId !== organizationId) {
       throw new NotFoundException(`Location ${locationId} not found`);
     }
-  }
-
-  /** Location ids belonging to an organization (for list filtering). */
-  private async getOrgLocationIds(organizationId: string): Promise<string[]> {
-    const locations = await this.prisma.location.findMany({
-      where: { organizationId },
-      select: { id: true },
-    });
-    return locations.map((l) => l.id);
   }
 
   async create(createShiftDto: CreateShiftDto, organizationId?: string) {
@@ -109,17 +103,11 @@ export class ShiftsService {
     if (userId) where.userId = userId;
     if (locationId) where.locationId = locationId;
 
-    // Multi-tenant filter: restrict to locations of the caller's org.
+    // Multi-tenant filter: restrict to locations of the caller's org. Combined
+    // with the `locationId` filter above, a location outside the org simply
+    // matches nothing.
     if (organizationId) {
-      const orgLocationIds = await this.getOrgLocationIds(organizationId);
-      if (locationId) {
-        // Requested location must belong to the org; otherwise return nothing.
-        if (!orgLocationIds.includes(locationId)) {
-          return [];
-        }
-      } else {
-        where.locationId = { in: orgLocationIds };
-      }
+      where.location = { organizationId };
     }
 
     return this.prisma.shift.findMany({
@@ -144,9 +132,15 @@ export class ShiftsService {
     });
   }
 
-  async findOne(id: string) {
-    const shift = await this.prisma.shift.findUnique({
-      where: { id },
+  async findOne(id: string, organizationId?: string) {
+    // Shift no tiene organizationId propio: la pertenencia se resuelve a través
+    // de la relación `location`, en una sola consulta. Un turno de otra
+    // organización devuelve el mismo 404 que uno inexistente (no filtrar).
+    const shift = await this.prisma.shift.findFirst({
+      where: {
+        id,
+        ...(organizationId ? { location: { organizationId } } : {}),
+      },
     });
 
     if (!shift) {
@@ -170,12 +164,8 @@ export class ShiftsService {
     closeShiftDto: CloseShiftDto,
     organizationId?: string,
   ) {
-    const shift = await this.findOne(id);
-
-    // Ownership: the shift's location must belong to the caller's org.
-    if (organizationId) {
-      await this.assertLocationInOrg(shift.locationId, organizationId);
-    }
+    // Ownership is enforced by findOne through the `location` relation.
+    const shift = await this.findOne(id, organizationId);
 
     if (shift.status === ShiftStatus.CLOSED) {
       throw new BadRequestException('Shift is already closed');

@@ -418,9 +418,15 @@ export class PosService {
     });
   }
 
-  async findOneOrder(id: string) {
-    return this.prisma.order.findUnique({
-      where: { id },
+  async findOneOrder(id: string, organizationId?: string) {
+    // Order deriva su organización de la sucursal a través de la relación
+    // `location`: se filtra en la misma consulta, sin traer antes el conjunto
+    // de sucursales de la organización.
+    return this.prisma.order.findFirst({
+      where: {
+        id,
+        ...(organizationId ? { location: { organizationId } } : {}),
+      },
       include: {
         items: true,
         ticket: {

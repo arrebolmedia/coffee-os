@@ -33,6 +33,10 @@ describe('UsersService', () => {
       create: jest.fn(),
       update: jest.fn(),
     },
+    // create() comprueba que el rol sea visible para la organización.
+    role: {
+      findFirst: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -79,6 +83,9 @@ describe('UsersService', () => {
   describe('create', () => {
     it('should create a user and hash password', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
+      // create() valida que el rol sea global o de la propia organización
+      // (regresión cross-tenant de la migración de roles a Prisma).
+      mockPrismaService.role.findFirst.mockResolvedValue({ id: 'role-1' });
       mockPrismaService.user.create.mockImplementation((args: any) =>
         Promise.resolve({ ...mockUser, ...args.data, id: 'user-2' }),
       );

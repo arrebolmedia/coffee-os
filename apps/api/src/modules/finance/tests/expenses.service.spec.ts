@@ -32,6 +32,7 @@ const mockPrismaService = {
     create: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
     count: jest.fn(),
@@ -145,18 +146,18 @@ describe('ExpensesService', () => {
 
   describe('findOne', () => {
     it('should return expense when found', async () => {
-      mockPrismaService.expense.findUnique.mockResolvedValueOnce(mockExpense);
+      mockPrismaService.expense.findFirst.mockResolvedValueOnce(mockExpense);
 
-      const result = await service.findOne('exp_1');
+      const result = await service.findOne('exp_1', 'org_1');
 
       expect(result).not.toBeNull();
       expect(result!.id).toBe('exp_1');
     });
 
     it('should return null when not found', async () => {
-      mockPrismaService.expense.findUnique.mockResolvedValueOnce(null);
+      mockPrismaService.expense.findFirst.mockResolvedValueOnce(null);
 
-      const result = await service.findOne('nonexistent');
+      const result = await service.findOne('nonexistent', 'org_1');
 
       expect(result).toBeNull();
     });
@@ -164,27 +165,31 @@ describe('ExpensesService', () => {
 
   describe('update', () => {
     it('should update expense fields', async () => {
-      mockPrismaService.expense.findUnique.mockResolvedValueOnce(mockExpense);
+      mockPrismaService.expense.findFirst.mockResolvedValueOnce(mockExpense);
       mockPrismaService.expense.update.mockResolvedValueOnce({
         ...mockExpense,
         description: 'Renta actualizada',
         status: 'PAID',
       });
 
-      const result = await service.update('exp_1', {
-        description: 'Renta actualizada',
-        status: ExpenseStatus.PAID,
-      });
+      const result = await service.update(
+        'exp_1',
+        {
+          description: 'Renta actualizada',
+          status: ExpenseStatus.PAID,
+        },
+        'org_1',
+      );
 
       expect(result.description).toBe('Renta actualizada');
       expect(result.status).toBe(ExpenseStatus.PAID);
     });
 
     it('should throw NotFoundException when expense not found', async () => {
-      mockPrismaService.expense.findUnique.mockResolvedValueOnce(null);
+      mockPrismaService.expense.findFirst.mockResolvedValueOnce(null);
 
       await expect(
-        service.update('bad_id', { description: 'x' }),
+        service.update('bad_id', { description: 'x' }, 'org_1'),
       ).rejects.toThrow('Expense not found');
     });
   });
@@ -192,7 +197,7 @@ describe('ExpensesService', () => {
   describe('markAsPaid', () => {
     it('should mark expense as paid', async () => {
       const paidDate = new Date('2026-04-21');
-      mockPrismaService.expense.findUnique.mockResolvedValueOnce(mockExpense);
+      mockPrismaService.expense.findFirst.mockResolvedValueOnce(mockExpense);
       mockPrismaService.expense.update.mockResolvedValueOnce({
         ...mockExpense,
         status: 'PAID',
@@ -205,6 +210,7 @@ describe('ExpensesService', () => {
         'exp_1',
         paidDate,
         'TRANSFER',
+        'org_1',
         'REF123',
       );
 

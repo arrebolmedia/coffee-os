@@ -17,6 +17,7 @@ import {
   CreateMaintenanceRecordDto,
   UpdateAssetDto,
 } from './dto';
+import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 
 /**
  * Controlador para gestión de activos y mantenimiento
@@ -55,7 +56,7 @@ export class MaintenanceController {
   @Get('assets')
   @HttpCode(HttpStatus.OK)
   async findAllAssets(
-    @Query('organization_id') organization_id?: string,
+    @CurrentOrg() organization_id: string,
     @Query('location_id') location_id?: string,
     @Query('type') type?: string,
     @Query('status') status?: string,
@@ -99,7 +100,7 @@ export class MaintenanceController {
   @Get('records')
   @HttpCode(HttpStatus.OK)
   async findAllMaintenanceRecords(
-    @Query('organization_id') organization_id?: string,
+    @CurrentOrg() organization_id: string,
     @Query('asset_id') asset_id?: string,
     @Query('status') status?: string,
   ) {
@@ -147,7 +148,7 @@ export class MaintenanceController {
   @Get('upcoming/:organization_id')
   @HttpCode(HttpStatus.OK)
   async getUpcomingMaintenance(
-    @Param('organization_id') organization_id: string,
+    @CurrentOrg() organization_id: string,
     @Query('days') days?: string,
   ) {
     return this.maintenanceService.getUpcomingMaintenance(
@@ -158,22 +159,20 @@ export class MaintenanceController {
 
   @Get('overdue/:organization_id')
   @HttpCode(HttpStatus.OK)
-  async getOverdueMaintenance(
-    @Param('organization_id') organization_id: string,
-  ) {
+  async getOverdueMaintenance(@CurrentOrg() organization_id: string) {
     return this.maintenanceService.getOverdueMaintenance(organization_id);
   }
 
   @Get('stats/:organization_id')
   @HttpCode(HttpStatus.OK)
-  async getMaintenanceStats(@Param('organization_id') organization_id: string) {
+  async getMaintenanceStats(@CurrentOrg() organization_id: string) {
     return this.maintenanceService.getMaintenanceStats(organization_id);
   }
 
   @Get('depreciation/:organization_id')
   @HttpCode(HttpStatus.OK)
   async generateDepreciationReport(
-    @Param('organization_id') organization_id: string,
+    @CurrentOrg() organization_id: string,
     @Query('as_of_date') as_of_date?: string,
   ) {
     return this.maintenanceService.generateDepreciationReport(

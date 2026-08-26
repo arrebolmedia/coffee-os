@@ -117,16 +117,22 @@ export class LocationsService {
     }
   }
 
-  async findById(id: string): Promise<Location> {
-    const row = await this.prisma.location.findUnique({ where: { id } });
+  async findById(id: string, organizationId?: string): Promise<Location> {
+    const row = await this.prisma.location.findFirst({
+      where: { id, ...(organizationId ? { organizationId } : {}) },
+    });
     if (!row) {
       throw new NotFoundException(`Location with ID ${id} not found`);
     }
     return this.toLocation(row);
   }
 
-  async update(id: string, updateDto: UpdateLocationDto): Promise<Location> {
-    await this.findById(id); // throws if not found
+  async update(
+    id: string,
+    updateDto: UpdateLocationDto,
+    organizationId?: string,
+  ): Promise<Location> {
+    await this.findById(id, organizationId); // throws if not found
 
     const data: any = {};
     if (updateDto.name !== undefined) data.name = updateDto.name;

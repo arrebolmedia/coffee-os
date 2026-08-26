@@ -185,13 +185,21 @@ export class CustomersService {
     };
   }
 
-  async findOne(id: string): Promise<Customer | null> {
-    const customer = await this.prisma.customer.findUnique({ where: { id } });
+  async findOne(id: string, organizationId: string): Promise<Customer | null> {
+    const customer = await this.prisma.customer.findFirst({
+      where: { id, organizationId },
+    });
     return customer ? this.mapToInterface(customer) : null;
   }
 
-  async update(id: string, updateDto: UpdateCustomerDto): Promise<Customer> {
-    const existing = await this.prisma.customer.findUnique({ where: { id } });
+  async update(
+    id: string,
+    updateDto: UpdateCustomerDto,
+    organizationId: string,
+  ): Promise<Customer> {
+    const existing = await this.prisma.customer.findFirst({
+      where: { id, organizationId },
+    });
     if (!existing) throw new NotFoundException(`Customer ${id} not found`);
 
     const data: any = {};
@@ -235,9 +243,13 @@ export class CustomersService {
     await this.prisma.customer.delete({ where: { id } });
   }
 
-  async addVisit(customerId: string, orderTotal: number): Promise<Customer> {
-    const existing = await this.prisma.customer.findUnique({
-      where: { id: customerId },
+  async addVisit(
+    customerId: string,
+    orderTotal: number,
+    organizationId: string,
+  ): Promise<Customer> {
+    const existing = await this.prisma.customer.findFirst({
+      where: { id: customerId, organizationId },
     });
     if (!existing)
       throw new NotFoundException(`Customer ${customerId} not found`);

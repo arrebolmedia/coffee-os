@@ -32,19 +32,27 @@ interface PrismaUser {
 export class EmployeesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createDto: CreateEmployeeDto): Promise<Employee> {
+  async create(
+    createDto: CreateEmployeeDto,
+    organizationId: string,
+  ): Promise<Employee> {
     if (!createDto.role_id) {
       throw new BadRequestException(
         'role_id is required when creating an employee; obtain a valid role id from the roles service.',
       );
     }
 
-    // Validate that the role exists. We don't strictly enforce that
-    // the role belongs to the same organization because Role is not
-    // scoped to an organization in the current schema — but if a
-    // multi-tenant role model lands, add the org check here.
-    const role = await this.prisma.role.findUnique({
-      where: { id: createDto.role_id },
+    // Roles are multi-tenant: `organizationId === null` marks a row in the
+    // global system catalog (owner/manager/barista) shared by every tenant,
+    // and a non-null one is owned by a single organization. Scope the lookup
+    // so an employee can only be bound to a role its own organization can
+    // see — same predicate as `visibleRoles()` in the roles service. The org
+    // comes from the JWT, never from `createDto.organization_id`.
+    const role = await this.prisma.role.findFirst({
+      where: {
+        id: createDto.role_id,
+        OR: [{ organizationId }, { organizationId: null }],
+      },
       select: { id: true, active: true },
     });
     if (!role) {
@@ -59,7 +67,9 @@ export class EmployeesService {
 
     const user = await this.prisma.user.create({
       data: {
-        organizationId: createDto.organization_id,
+        // Same JWT-derived org the role was validated against, so the employee
+        // can never land in a different tenant than the role it binds to.
+        organizationId,
         roleId: createDto.role_id,
         email: createDto.email,
         password: hashedPassword,

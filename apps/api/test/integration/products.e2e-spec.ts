@@ -200,6 +200,9 @@ describe('Products Integration Tests (E2E)', () => {
     const role = await prisma.role.create({
       data: {
         name: `INTEGRATION_ROLE_${suffix}`,
+        // `code` es obligatorio desde la migración de roles a Prisma; es único
+        // por organización, de ahí el sufijo.
+        code: `integration_role_${suffix}`,
         description: 'Role for integration tests',
         scopes: ['products:read'],
       },

@@ -70,11 +70,14 @@ export class ExpensesController {
     return this.expensesService.getStats(this.requireOrg(user), locationId);
   }
 
+  // El filtro por organización vive ahora dentro del service (findFirst con
+  // organizationId), así que ya no hace falta releer y comparar aquí.
+
   @Get(':id')
   async findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
     const organizationId = this.requireOrg(user);
-    const expense = await this.expensesService.findOne(id);
-    if (!expense || expense.organization_id !== organizationId) {
+    const expense = await this.expensesService.findOne(id, organizationId);
+    if (!expense) {
       throw new NotFoundException('Expense not found');
     }
     return expense;
@@ -87,11 +90,7 @@ export class ExpensesController {
     @CurrentUser() user: CurrentUserType,
   ) {
     const organizationId = this.requireOrg(user);
-    const expense = await this.expensesService.findOne(id);
-    if (!expense || expense.organization_id !== organizationId) {
-      throw new NotFoundException('Expense not found');
-    }
-    return this.expensesService.update(id, updateDto);
+    return this.expensesService.update(id, updateDto, organizationId);
   }
 
   @Post(':id/pay')
@@ -102,14 +101,11 @@ export class ExpensesController {
     @CurrentUser() user: CurrentUserType,
   ) {
     const organizationId = this.requireOrg(user);
-    const expense = await this.expensesService.findOne(id);
-    if (!expense || expense.organization_id !== organizationId) {
-      throw new NotFoundException('Expense not found');
-    }
     return this.expensesService.markAsPaid(
       id,
       new Date(body.paid_date),
       body.payment_method,
+      organizationId,
       body.reference,
     );
   }
@@ -117,8 +113,8 @@ export class ExpensesController {
   @Delete(':id')
   async delete(@Param('id') id: string, @CurrentUser() user: CurrentUserType) {
     const organizationId = this.requireOrg(user);
-    const expense = await this.expensesService.findOne(id);
-    if (!expense || expense.organization_id !== organizationId) {
+    const expense = await this.expensesService.findOne(id, organizationId);
+    if (!expense) {
       throw new NotFoundException('Expense not found');
     }
     await this.expensesService.delete(id);

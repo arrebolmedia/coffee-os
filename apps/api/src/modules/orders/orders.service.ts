@@ -29,12 +29,12 @@ export class OrdersService {
 
     const where: Prisma.OrderWhereInput = {};
 
-    // Multi-tenant filter: Order has no organizationId column, so scope via
-    // the required ticket -> location -> organization relation chain.
+    // Multi-tenant filter: Order has no organizationId column, so scope via its
+    // own location -> organization relation. Scoping through `ticket.location`
+    // would answer a subtly different question than the locationId every other
+    // query in this codebase filters on.
     if (params.organizationId) {
-      where.ticket = {
-        location: { organizationId: params.organizationId },
-      };
+      where.location = { organizationId: params.organizationId };
     }
 
     if (params.status) {
@@ -103,9 +103,9 @@ export class OrdersService {
   ) {
     const where: Prisma.OrderWhereInput = {};
 
-    // Multi-tenant filter via ticket -> location (Order has no organizationId).
+    // Multi-tenant filter via location (Order has no organizationId).
     if (organizationId) {
-      where.ticket = { location: { organizationId } };
+      where.location = { organizationId };
     }
 
     if (startDate || endDate) {
@@ -147,9 +147,15 @@ export class OrdersService {
     };
   }
 
-  async findOne(id: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
+  async findOne(id: string, organizationId?: string) {
+    // Order no tiene organizationId propio: la pertenencia se resuelve a través
+    // de la relación `location`, en una sola consulta. Una orden de otra
+    // organización devuelve el mismo 404 que una inexistente (no filtrar).
+    const order = await this.prisma.order.findFirst({
+      where: {
+        id,
+        ...(organizationId ? { location: { organizationId } } : {}),
+      },
       include: { items: true, ticket: true },
     });
 

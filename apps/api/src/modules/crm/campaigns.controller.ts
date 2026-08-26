@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -17,6 +18,11 @@ import {
   CreateCampaignDto,
   QueryCampaignsDto,
 } from './dto';
+import { CurrentOrg } from '../../common/decorators/current-org.decorator';
+import {
+  CurrentUser,
+  CurrentUserType,
+} from '../auth/decorators/current-user.decorator';
 
 @Controller('crm/campaigns')
 export class CampaignsController {
@@ -24,26 +30,39 @@ export class CampaignsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createDto: CreateCampaignDto) {
-    // In production, createdByUserId would come from authenticated user
-    return this.campaignsService.create(createDto, 'user_default');
+  async create(
+    @Body() createDto: CreateCampaignDto,
+    @CurrentOrg() organizationId: string,
+    @CurrentUser() user: CurrentUserType,
+  ) {
+    // La organización y el autor salen del JWT, nunca del body.
+    return this.campaignsService.create(
+      { ...createDto, organization_id: organizationId },
+      user.userId,
+    );
   }
 
   @Get()
-  async findAll(@Query() query: QueryCampaignsDto) {
-    return this.campaignsService.findAll(query);
+  async findAll(
+    @Query() query: QueryCampaignsDto,
+    @CurrentOrg() organizationId: string,
+  ) {
+    return this.campaignsService.findAll({
+      ...query,
+      organization_id: organizationId,
+    });
   }
 
   @Get('stats')
-  async getStats(@Query('organization_id') organizationId: string) {
-    return this.campaignsService.getStats(organizationId || 'org_default');
+  async getStats(@CurrentOrg() organizationId: string) {
+    return this.campaignsService.getStats(organizationId);
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    const campaign = await this.campaignsService.findOne(id);
+  async findOne(@Param('id') id: string, @CurrentOrg() organizationId: string) {
+    const campaign = await this.campaignsService.findOne(id, organizationId);
     if (!campaign) {
-      throw new Error('Campaign not found');
+      throw new NotFoundException(`Campaign ${id} not found`);
     }
     return campaign;
   }
@@ -52,14 +71,15 @@ export class CampaignsController {
   async updateStatus(
     @Param('id') id: string,
     @Body() body: { status: CampaignStatus },
+    @CurrentOrg() organizationId: string,
   ) {
-    return this.campaignsService.updateStatus(id, body.status);
+    return this.campaignsService.updateStatus(id, body.status, organizationId);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async delete(@Param('id') id: string) {
-    await this.campaignsService.delete(id);
+  async delete(@Param('id') id: string, @CurrentOrg() organizationId: string) {
+    await this.campaignsService.delete(id, organizationId);
   }
 
   @Post(':id/recipients')
@@ -125,13 +145,13 @@ export class CampaignsController {
   // Automated campaigns
   @Post('birthday')
   @HttpCode(HttpStatus.CREATED)
-  async createBirthdayCampaign(@Body() body: { organization_id: string }) {
-    return this.campaignsService.createBirthdayCampaign(body.organization_id);
+  async createBirthdayCampaign(@CurrentOrg() organizationId: string) {
+    return this.campaignsService.createBirthdayCampaign(organizationId);
   }
 
   @Post('welcome')
   @HttpCode(HttpStatus.CREATED)
-  async createWelcomeCampaign(@Body() body: { organization_id: string }) {
-    return this.campaignsService.createWelcomeCampaign(body.organization_id);
+  async createWelcomeCampaign(@CurrentOrg() organizationId: string) {
+    return this.campaignsService.createWelcomeCampaign(organizationId);
   }
 }
