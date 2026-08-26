@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { InventoryAutomationService } from '../inventory-automation.service';
+import { AutoDeductConfigService } from '../auto-deduct-config.service';
 import { RecipeInventoryLinksService } from '../recipe-inventory-links.service';
 import { convertQuantity } from '../unit-conversion';
 
@@ -92,6 +93,10 @@ describe('InventoryAutomationService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InventoryAutomationService,
+        // El servicio de configuracion va REAL, no mockeado: los tests de
+        // getConfig de aqui abajo prueban justamente como se normaliza el JSON
+        // almacenado, y con un mock no probarian nada.
+        AutoDeductConfigService,
         RecipeInventoryLinksService,
         { provide: PrismaService, useValue: prisma },
       ],

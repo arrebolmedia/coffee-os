@@ -3,6 +3,7 @@ import { InventoryController } from './inventory.controller';
 import { InventoryAutomationController } from './inventory-automation.controller';
 import { InventoryService } from './inventory.service';
 import { InventoryAutomationService } from './inventory-automation.service';
+import { AutoDeductConfigService } from './auto-deduct-config.service';
 import { TheoreticalStockService } from './theoretical-stock.service';
 import { StockReconciliationService } from './stock-reconciliation.service';
 import { RecipeInventoryLinksService } from './recipe-inventory-links.service';
@@ -14,6 +15,7 @@ import { DatabaseModule } from '../database/database.module';
   providers: [
     InventoryService,
     InventoryAutomationService,
+    AutoDeductConfigService,
     TheoreticalStockService,
     StockReconciliationService,
     RecipeInventoryLinksService,
