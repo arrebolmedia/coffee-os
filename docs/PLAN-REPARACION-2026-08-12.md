@@ -776,3 +776,179 @@ de Prisma lo resolvería.
 (`owner@tenant-b.test`) en la BD de desarrollo. Es justo la segunda organización que el
 plan pedía para poder testear tenancy — conviene incorporarla al seed en vez de
 borrarla.
+
+---
+
+## 6. Continuación — 2026-08-26
+
+### Punto de partida
+
+Todo el trabajo del 12 de agosto estaba **sin commitear** hasta hoy: 110 archivos
+modificados, 3 migraciones y el árbol de `inventory-automation` vivían solo en el
+working tree, a un `git checkout` de perderse. El último commit era del 19 de junio.
+Ya está repartido en 9 commits temáticos, con `git status` limpio.
+
+Cosas que aparecieron al commitear y conviene dejar asentadas:
+
+- **`CLAUDE.md` había sido sobrescrito** por la plantilla genérica de RuFlo: se perdió
+  la guía del proyecto entera. Restaurada y puesta al día.
+- **`apps/pos-web/playwright/.auth/user.json` guarda cookies de sesión de NextAuth** y
+  estaba a punto de entrar al repo. Ignorado.
+- **El testigo del tenant B en `seed.ts` arrastraba tres conteos muertos** de su versión
+  anterior. La verificación real —la que lanza— sí estaba bien.
+- 118 archivos de 0 bytes de redirecciones de shell rotas, borrados.
+
+Verificación tras los commits: `tsc --noEmit` limpio en ambos workspaces,
+**55/55 suites y 1116 tests** en el API, **9/9 y 98** en pos-web.
+
+### Hallazgo nuevo que reordena la prioridad
+
+`apps/pos-web/src/middleware.ts` usa `withAuth` de next-auth como **única puerta de
+autenticación del frontend**, sobre `next@14.0.4`. Esa versión cae en
+**CVE-2025-29927**: una cabecera `x-middleware-subrequest` fabricada hace que Next salte
+el middleware por completo. Es decir, la puerta se abre desde fuera.
+
+Atenuante real: la API tiene su propio `JwtAuthGuard` global, así que saltarse el
+middleware da el cascarón de la UI, no los datos. No es una brecha de datos — es que la
+capa de autorización del frontend no es de fiar mientras siga en 14.0.4.
+
+En el mismo archivo, `NEXT_PUBLIC_E2E_BYPASS_AUTH === 'true'` **desactiva la
+autenticación entera**. Al ser `NEXT_PUBLIC_*` se inlinea en tiempo de build y queda
+visible en el bundle: si alguna vez se cuela en un build de producción, la app queda
+abierta y no hay nada en runtime que lo impida. Debe pasar a una variable de servidor y
+quedar imposible de activar fuera de `NODE_ENV !== 'production'`.
+
+### Orden propuesto y por qué
+
+El criterio no es solo la gravedad: es **qué trabajo invalida a qué**. El upgrade a Next
+15 vuelve asíncronas las Request APIs (`cookies()`, `headers()`, `params`,
+`searchParams`) y toca las 46 rutas del App Router. Cualquier cosa que construyamos
+antes sobre esas rutas —el cableado del hook de inventario, los E2E nuevos— habría que
+rehacerla después. Por eso va primero, aunque el bug de inventario sea el que más duele
+en el día a día.
+
+---
+
+### Sprint 1 · Next.js 15 + dependencias — ~1 día
+
+Cierra la CVE del middleware y una de las tres críticas de npm, y estabiliza los
+archivos que tocan los sprints siguientes.
+
+1. `npx @next/codemod@canary upgrade latest`, fijando el rango a `>=15.2.3 <16.0.0`.
+2. Request APIs asíncronas en las 46 rutas; revisar dónde se asumía caché implícita
+   (`fetch` y los Route Handlers `GET` ya no cachean por defecto).
+3. Compatibilidad con React 19 (hoy `react ^18.2.0`).
+4. Sacar el bypass de auth del bundle: `NEXT_PUBLIC_E2E_BYPASS_AUTH` → variable de
+   servidor, inerte bajo `NODE_ENV=production`.
+5. `npm audit fix` para lo no-breaking; los breaking uno por uno. **Prioridad a
+   `next-auth` y `jws`**, que tocan el flujo de autenticación.
+6. Simplificar el pin del parser en `apps/pos-web/.eslintrc.json`: con
+   `eslint-config-next@15` ya no hace falta.
+
+**Salida:** build y tests verdes · `npm audit` sin critical/high · el bypass no aparece
+en el bundle de producción · smoke manual login → POS → cobro.
+
+---
+
+### Sprint 2 · Que el sistema deje de mentir sobre el stock — ~1 día
+
+Hoy `getAutoDeductConfig` responde `enabled:true` y completar una orden no descuenta
+nada: `deductForOrder` no lo llama nadie fuera de su módulo y `useDeductStockForOrder`
+está huérfano en el frontend. La lógica ya existe y está bien —idempotente por índice
+único, respeta el flag, ignora `CANCELLED`—: falta enchufarla.
+
+1. Llamar a `deductForOrder` **dentro de la transacción** que lleva la orden a
+   `SERVED`/`COMPLETED`, no desde el frontend. Que el descuento dependa de un hook de
+   React es justamente lo que permitió que llevara meses sin ejecutarse.
+2. Borrar `useDeductStockForOrder` una vez el backend lo haga solo.
+3. Test de integración contra Postgres: vender un producto con receta y verificar el
+   movimiento de inventario; repetir la petición y comprobar que da 409 y no descuenta
+   dos veces.
+
+Restos de `roles`, del mismo tamaño y ya diagnosticados:
+
+4. `GET /roles/:id` devuelve 404 siempre — `findRoleById` sigue leyendo del `Map`.
+5. `is_system` / `system_role` son settables por el cliente en `CreateRoleDto`: permiten
+   crear un rol que después no se deja actualizar ni borrar por API.
+6. `assign-role.dto` combina `@IsDateString()` con `@Type(() => Date)`, así que las
+   asignaciones temporales son inalcanzables por HTTP: 400 con un ISO válido.
+7. `deleteRole` cuenta usuarios sin filtrar organización.
+8. Turno huérfano apuntando a `loc-1778276356035-d63ovahg8`, sucursal inexistente.
+
+**Salida:** una venta real descuenta insumos y el reporte de exactitud cuadra · ningún
+endpoint de roles miente · `GET /roles/:id` funciona.
+
+---
+
+### Sprint 3 · Cerrar la clase de fuga, no las instancias — ~2 días
+
+Quedan ~89 lookups sin filtro de organización. Arreglarlos a mano son ~89 firmas de
+service más sus controllers y sus tests, con alto riesgo de omitir alguno, y **nada
+impide el sitio 99 mañana**. La lección del triaje del 12 de agosto es que el análisis
+estático sobre-reporta y solo la sonda contra la app viva distingue fuga de ruido: de 7
+módulos marcados como expuestos, solo 2 fugaban.
+
+1. **Extensión de Prisma Client** que inyecte `organizationId` en todo query sobre
+   modelos multi-tenant, tomándolo de un `AsyncLocalStorage` poblado por request.
+   Cubre `findUnique`/`findFirst`/`findMany`/`update`/`delete` de forma uniforme.
+2. **Vía de escape explícita** para lo legítimamente global: auth por JWT, super admin,
+   unicidad de email y slug. Cada excepción queda declarada; el silencio deja de ser el
+   default.
+3. `Modifier` gana `organizationId` + migración con backfill. Hoy `GET /modifiers`
+   devuelve los 16 modificadores a cualquier tenant; era fuga teórica mientras la tabla
+   estaba vacía y el seed la volvió observable.
+4. Quitar el `if (query.organization_id) where.organizationId = ...` de los ~25 services
+   que lo conservan: hoy los controllers siempre lo mandan, pero un controller nuevo que
+   lo olvide reabre la enumeración.
+5. **Sondear, no leer**: re-ejecutar la sonda de dos tenants sobre todos los endpoints,
+   que es la única fuente fiable.
+
+**Salida:** la sonda da 0 fugas · un endpoint nuevo escrito sin pensar en tenancy queda
+acotado por defecto · las excepciones están enumeradas en un solo archivo.
+
+---
+
+### Sprint 4 · Tests donde está el dinero — ~1 día
+
+1. pos-web tiene 9 suites para 46 rutas. Priorizar `pos`, `orders`, `expenses`, `pnl`,
+   `cfdi`.
+2. Playwright contra el stack real levantado: login → abrir turno → tomar orden →
+   cobrar → **verificar que el inventario descontó** → cerrar turno → el corte cuadra.
+   Ese flujo cruza justo los módulos con deuda, así que sirve de red de seguridad para
+   todo lo anterior.
+3. `RecipeModal.tsx:117` — resolver el `exhaustive-deps` con un `ref` en vez de dejarlo
+   como deuda consciente.
+4. Incorporar `Tenant B Testing` al seed en vez de dejarla como artefacto de la BD de
+   desarrollo.
+
+---
+
+### Sprint 5 · Higiene restante — ~1 hora
+
+Lo grueso ya está hecho. Queda:
+
+- **96 archivos `.md` en la raíz** → `docs/` o `_archive/`.
+- **Workspaces vacíos** — `apps/mobile`, `packages/shared`, `packages/ui`,
+  `packages/integrations` están declarados en `workspaces` y son directorios sin un solo
+  archivo. Quitarlos del `package.json` o poblarlos.
+- `inventory-automation.service.ts` en 603 líneas contra la guía de <500 del CLAUDE.md.
+- Falta `public/images/placeholder.png` → 400 en `/_next/image`.
+- Polling excesivo de `/api/auth/session`.
+- Panadería: productos con `tax_rate = 0.16` conviviendo con una regla «IVA 0%
+  Panadería» para la misma categoría — el IVA sale distinto según qué fuente lea el POS.
+  Decidir cuál manda.
+
+---
+
+### Resumen
+
+| Sprint                  | Esfuerzo | Por qué en ese orden                                                                        |
+| ----------------------- | -------- | ------------------------------------------------------------------------------------------- |
+| 1 · Next 15 + deps      | ~1 día   | Toca las 46 rutas; hacerlo después obliga a rehacer lo demás. Cierra la CVE del middleware. |
+| 2 · Stock + roles       | ~1 día   | El sistema afirma que descuenta y no descuenta. Corrompe reportes cada venta.               |
+| 3 · Extensión de Prisma | ~2 días  | Cierra la clase de fuga, no las 89 instancias.                                              |
+| 4 · Tests del dinero    | ~1 día   | Red de seguridad sobre lo anterior; necesita 1–3 estables.                                  |
+| 5 · Higiene             | ~1 h     | No bloquea nada.                                                                            |
+
+**Total: ~5–6 días.** CFDI queda fuera a propósito: la decisión fue bloquear el mock, y
+desbloquearlo exige integrar un PAC real, que es un proyecto aparte.
