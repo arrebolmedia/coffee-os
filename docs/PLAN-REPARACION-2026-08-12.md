@@ -942,13 +942,145 @@ Lo grueso ya está hecho. Queda:
 
 ### Resumen
 
-| Sprint                  | Esfuerzo | Por qué en ese orden                                                                        |
-| ----------------------- | -------- | ------------------------------------------------------------------------------------------- |
-| 1 · Next 15 + deps      | ~1 día   | Toca las 46 rutas; hacerlo después obliga a rehacer lo demás. Cierra la CVE del middleware. |
-| 2 · Stock + roles       | ~1 día   | El sistema afirma que descuenta y no descuenta. Corrompe reportes cada venta.               |
-| 3 · Extensión de Prisma | ~2 días  | Cierra la clase de fuga, no las 89 instancias.                                              |
-| 4 · Tests del dinero    | ~1 día   | Red de seguridad sobre lo anterior; necesita 1–3 estables.                                  |
-| 5 · Higiene             | ~1 h     | No bloquea nada.                                                                            |
+| Sprint                  | Esfuerzo | Por qué en ese orden                                                                                                                                                                                     |
+| ----------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 · Next 15 + deps      | ~1 día   | ✅ **completado 2026-08-26.** En la práctica no tocó ninguna: ver el registro. Cierra la CVE del middleware. Toca las 46 rutas; hacerlo después obliga a rehacer lo demás. Cierra la CVE del middleware. |
+| 2 · Stock + roles       | ~1 día   | El sistema afirma que descuenta y no descuenta. Corrompe reportes cada venta.                                                                                                                            |
+| 3 · Extensión de Prisma | ~2 días  | Cierra la clase de fuga, no las 89 instancias.                                                                                                                                                           |
+| 4 · Tests del dinero    | ~1 día   | Red de seguridad sobre lo anterior; necesita 1–3 estables.                                                                                                                                               |
+| 5 · Higiene             | ~1 h     | No bloquea nada.                                                                                                                                                                                         |
 
 **Total: ~5–6 días.** CFDI queda fuera a propósito: la decisión fue bloquear el mock, y
 desbloquearlo exige integrar un PAC real, que es un proyecto aparte.
+
+---
+
+### Sprint 1 — ✅ completado 2026-08-26
+
+#### El upgrade costó una fracción de lo estimado
+
+El plan decía que Next 15 «afecta a las 46 rutas del App Router» por las Request APIs
+asíncronas. Medido antes de tocar nada: **cero código afectado**.
+
+| Superficie                                           | Realidad                                      |
+| ---------------------------------------------------- | --------------------------------------------- |
+| Usos de `next/headers`                               | ninguno                                       |
+| Route handlers                                       | uno, el de NextAuth, que recibe `req` directo |
+| Páginas que leen `params`/`searchParams` de servidor | ninguna — las 46 son client components        |
+| `searchParams` en `/login`                           | es `useSearchParams()`, hook de cliente       |
+
+React 18.2 sigue siendo peer válido de Next 15.5.24, así que tampoco hizo falta React 19
+—un eje menos de churn—. El **único** breaking change real: `useSearchParams()` ahora
+exige un límite de Suspense encima, y el build fallaba al prerenderizar `/login`.
+Envuelto, con un fallback que replica fondo y logo para que no haya salto al hidratar.
+
+De paso: `swcMinify` ya no existe como opción en 15 (es el default).
+
+#### Tres cosas que aparecieron al hacerlo
+
+**1. Había un `next@14.0.4` fósil en la raíz de `node_modules`.** Instalado como peer de
+next-auth y nunca podado. Importa porque `playwright.config.ts` arrancaba el servidor con
+`node ../../node_modules/next/dist/bin/next dev`: **los E2E corrían contra la versión
+vulnerable**, no contra la del workspace. El comando pasa a `npm run dev`, que usa el
+binario propio. Ese fósil, y no la versión instalada, era lo que `npm audit` reportaba
+como crítico: sobre `15.5.24` no aplica ni uno de los 32 avisos.
+
+**2. `next-pwa`, `workbox-webpack-plugin` y `workbox-window` estaban declarados y no se
+usan en ninguna parte** — el `sw.js` está escrito a mano. Eliminados; dos de ellos eran
+altas del audit.
+
+**3. El pin del parser en `.eslintrc.json` ya no hace falta.** `eslint-config-next@15`
+admite typescript-eslint v8 y el árbol deduplica en 8.67.0. Verificado que las reglas se
+siguen evaluando de verdad —0 errores y los mismos **313 warnings** de la línea base—,
+que era justo el síntoma que distinguía «lint limpio» de «lint que crashea en silencio».
+Hicieron falta dos ajustes más: `settings.next.rootDir` con las dos rutas desde las que
+se invoca ESLint (lint-staged desde la raíz, `next lint` desde el workspace; usar `"."`
+hacía que el plugin escaneara el monorepo entero hasta morir por memoria), y excluir
+`next-env.d.ts`, generado por Next y que en 15 gana una referencia triple-slash que la
+regla de la raíz marca como error.
+
+#### El bypass de autenticación
+
+`NEXT_PUBLIC_E2E_BYPASS_AUTH` desactivaba la autenticación entera y, al ser
+`NEXT_PUBLIC_*`, se inlinea en el bundle del cliente. Pasa a `E2E_BYPASS_AUTH` gateada
+por `NODE_ENV`.
+
+Verificado sobre el bundle, no por lectura del código: en un build de producción limpio,
+`.next/server/src/middleware.js` no contiene `DISABLE_AUTH` ni
+`process.env.E2E_BYPASS_AUTH` —el compilador evalúa el gate a `false` y elimina la
+rama—, mientras que `RefreshAccessTokenError` y `"/login"` siguen presentes: la
+protección real sobrevive. En `next dev` el mismo artefacto muestra
+`const DISABLE_AUTH = true && process.env.E2E_BYPASS_AUTH === 'true'`, así que Playwright
+sigue funcionando.
+
+> Nota de método: el primer intento de verificación dio un falso «limpio» porque el
+> servidor de desarrollo llevaba rato escribiendo encima de `.next`, y el segundo porque
+> busqué en `.next/server/middleware.js`, que en Next 15 ya no es la ruta —el archivo no
+> existía y `grep` devolvía vacío—. Un grep sin resultados no prueba nada si no se
+> confirma que el archivo existe.
+
+#### Dependencias
+
+**60 → 34 vulnerabilidades. Críticas: 3 → 0.** En el árbol de producción
+(`--omit=dev`): 21 → 15, con 0 críticas y 4 altas.
+
+**`sharp` y `multer` estaban en el camino de producción, no eran teóricas.**
+
+- `sharp` procesa las imágenes que suben los usuarios (`file-upload.service`), y las CVE
+  de libvips (CVE-2026-33327/33328/35590/35591) se disparan justo al parsear una imagen.
+  0.34.5 → 0.35.4, con libvips 8.18.6.
+- `multer` atiende esas subidas vía `FileInterceptor`. npm proponía saltar a
+  `@nestjs/platform-express@11`, o sea NestJS 11 entero; pero `platform-express@10.4.22`
+  ya acepta multer 2.x y ambos deduplican al mismo paquete, así que bastó un `override` a
+  `^2.2.0`. Confirmado con `require.resolve` que `FileInterceptor` cargaba la 2.0.2 y
+  ahora carga la 2.2.0.
+
+**Cinco dependencias de producción con cero uso, eliminadas.** `@nestjs/apollo`,
+`@nestjs/graphql`, `@nestjs/typeorm`, `@apollo/server` y `graphql` estaban en
+`dependencies` del API sin un solo import; en `app.module` solo queda `GraphQLModule`
+comentado. El proyecto usa Prisma, no TypeORM. Se van con ellas `@apollo/server` (alta
+directa), `glob` vía typeorm, y `ws` + `subscriptions-transport-ws` vía graphql.
+
+**Dependencia fantasma descubierta al quitarlas.** `@nestjs/mapped-types` se importa en
+20 DTOs pero nunca estuvo declarada: solo funcionaba porque `@nestjs/graphql` la
+arrastraba. Quitar graphql rompió el build con 379 errores. Declarada explícitamente.
+
+**`sharp@0.35` rompió el import, y el modo de fallo era silencioso.** Publica tipos
+duales, pero su campo `types` apunta al `.d.mts` (ESM) y este workspace compila a
+CommonJS sin `moduleResolution: node16`, así que TS lee los tipos ESM: el namespace no es
+invocable y el callable vive en `.default`. En runtime `require("sharp")` **sí** devuelve
+la función, sin `.default` — de modo que `import sharp from 'sharp'` habría compilado sin
+quejarse y sido `undefined` en producción. Se usa import-equals más un cast, y se
+verificó el JS emitido: `const sharp = require("sharp")`.
+
+También: `sharp` declarado explícitamente en pos-web, porque `next/image` lo necesita y
+el override lo había dejado colgando solo bajo `apps/api`.
+
+**Lo que queda y por qué no se tocó.** `js-yaml` y `lodash` entran por
+`@nestjs/swagger@7` y solo se resolverían con `@nestjs/swagger@11`, es decir NestJS 11;
+corren al generar la documentación, no en el camino de petición. `postcss` entra por la
+copia que Next empaqueta y pediría Next 16; corre en build sobre nuestro propio CSS. El
+aviso de `glob` es sobre su flag `-c/--cmd`, que no usamos.
+
+#### Verificación
+
+| Check                          | Resultado                                |
+| ------------------------------ | ---------------------------------------- |
+| `tsc --noEmit` (API + pos-web) | ✅ limpio                                |
+| `turbo run build`              | ✅ 2/2                                   |
+| Tests API                      | ✅ 55/55 suites · 1116 tests             |
+| Tests pos-web                  | ✅ 9/9 suites · 98 tests                 |
+| `next lint`                    | ✅ 0 errores · 313 warnings (línea base) |
+| **Venta real en navegador**    | ✅ ver abajo                             |
+
+Smoke completo contra el stack levantado, sobre Next 15: login → POS → carrito → cobro
+en efectivo. Ticket **`TKT-20260826-285064d0`**, subtotal 48 · IVA 7.68 · total 55.68,
+`CLOSED`, con `payments` = CASH 55.68 `COMPLETED`. Verificado en Postgres, no en la UI.
+
+#### Hallazgo nuevo para la lista de pendientes
+
+En el POS, la consola escupe errores repetidos: _«Failed to execute 'json' on 'Response':
+Unexpected end of JSON input»_ desde `use-costing`. Causa: `apps/pos-web/src/lib/api.ts`
+solo contempla el cuerpo vacío cuando el status es `204`, y algún endpoint de costeo
+responde **200 con cuerpo vacío**. No rompe la venta, pero ensucia la consola y deja la
+query en error. Candidato al Sprint 2 o 4.
