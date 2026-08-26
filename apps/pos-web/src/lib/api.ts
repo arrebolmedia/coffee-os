@@ -37,6 +37,33 @@ export interface FetchOptions extends RequestInit {
 /**
  * Wrapper de fetch con manejo automático de autenticación
  */
+/**
+ * Deduplica las llamadas concurrentes a `getSession()`.
+ *
+ * `getSession()` hace un fetch a /api/auth/session cada vez, y apiFetch la
+ * llama en TODA peticion autenticada. Al cargar el POS eso son decenas de
+ * peticiones a la sesion en paralelo por una sola pantalla.
+ *
+ * Se comparte la promesa en vuelo, no el resultado: no se cachea la sesion ni
+ * un milisegundo mas alla de lo que tarda la que ya se esta pidiendo. Asi se
+ * colapsa la rafaga sin arriesgarse a usar un token caducado, que es lo que
+ * pasaria con un cache por tiempo.
+ */
+let sesionEnVuelo: ReturnType<typeof getSession> | null = null;
+
+function getSessionDeduped() {
+  if (!sesionEnVuelo) {
+    const peticion = getSession();
+    sesionEnVuelo = peticion;
+    void peticion
+      .catch(() => undefined)
+      .then(() => {
+        if (sesionEnVuelo === peticion) sesionEnVuelo = null;
+      });
+  }
+  return sesionEnVuelo;
+}
+
 export async function apiFetch<T = any>(
   endpoint: string,
   options: FetchOptions = {},
@@ -47,7 +74,7 @@ export async function apiFetch<T = any>(
   let session = null;
   if (requiresAuth) {
     try {
-      session = await getSession();
+      session = await getSessionDeduped();
     } catch (error) {
       logger.error('Error getting session:', error);
     }

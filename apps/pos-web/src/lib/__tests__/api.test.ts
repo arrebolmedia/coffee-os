@@ -1,7 +1,9 @@
+import { getSession } from 'next-auth/react';
 import { apiFetch, buildQueryString } from '../api';
 
 jest.mock('next-auth/react', () => ({
   getSession: jest.fn().mockResolvedValue(null),
+  signOut: jest.fn(),
 }));
 
 jest.mock('../logger', () => ({
@@ -111,5 +113,51 @@ describe('buildQueryString', () => {
 
   it('devuelve cadena vacía cuando no queda ningún parámetro', () => {
     expect(buildQueryString({ a: null, b: undefined })).toBe('');
+  });
+});
+
+describe('apiFetch — sesión', () => {
+  const fetchMock = jest.fn();
+  const getSessionMock = getSession as jest.MockedFunction<typeof getSession>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    global.fetch = fetchMock as unknown as typeof fetch;
+    fetchMock.mockResolvedValue(respuesta({ body: '{}' }));
+  });
+
+  it('pide la sesión UNA vez para varias peticiones concurrentes', async () => {
+    // getSession() hace un fetch a /api/auth/session cada vez, y apiFetch la
+    // llama en toda petición autenticada: al cargar el POS eran decenas en
+    // paralelo. Se comparte la promesa en vuelo, no el resultado.
+    let resolver: (v: unknown) => void = () => undefined;
+    getSessionMock.mockImplementation(
+      () =>
+        new Promise((res) => {
+          resolver = res;
+        }),
+    );
+
+    const peticiones = Promise.all([
+      apiFetch('/a'),
+      apiFetch('/b'),
+      apiFetch('/c'),
+    ]);
+    resolver(null);
+    await peticiones;
+
+    expect(getSessionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('vuelve a pedirla en una petición posterior, sin cachear', async () => {
+    // Compartir la promesa en vuelo no es cachear: en cuanto se resuelve, la
+    // siguiente peticion pide sesion fresca. Cachear por tiempo arriesgaria
+    // mandar un token caducado.
+    getSessionMock.mockResolvedValue(null);
+
+    await apiFetch('/a');
+    await apiFetch('/b');
+
+    expect(getSessionMock).toHaveBeenCalledTimes(2);
   });
 });
