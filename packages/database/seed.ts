@@ -1033,9 +1033,61 @@ async function tenantBSnapshot() {
 async function main() {
   console.log('🌱 Seed de desarrollo — Coffee Demo (idempotente)\n');
 
-  // Testigo tomado ANTES de escribir nada: al final se compara y se falla si
-  // cambió algo del tenant B. Imprimir sus conteos sin compararlos no prueba
-  // aislamiento — mostraría "intacto" igual si lo hubiéramos pisado.
+  // ----------------------------------------------------------
+  // 0. Organización B — la que existe para probar el aislamiento
+  // ----------------------------------------------------------
+  // Se crea aquí, con id fijo, para que las pruebas de tenancy salgan de una
+  // base limpia. Antes vivía sólo en la base de desarrollo de quien la hubiera
+  // creado a mano, así que el testigo de abajo comparaba contra una
+  // organización que en otra máquina no existía.
+  //
+  // Se queda deliberadamente **vacía**: sin productos, sin categorías, sin
+  // clientes. Su valor es justamente ese — cualquier dato que aparezca en ella
+  // después de un seed es una fuga.
+  await prisma.organization.upsert({
+    where: { id: TENANT_B_ORG_ID },
+    update: {},
+    create: {
+      id: TENANT_B_ORG_ID,
+      name: 'Tenant B Testing',
+      slug: 'tenant-b-testing',
+      description:
+        'Organización vacía para probar aislamiento multi-tenant. No sembrar datos aquí.',
+      timezone: 'America/Mexico_City',
+    },
+  });
+
+  const tenantBRole = await prisma.role.upsert({
+    where: { id: 'role-tenant-b-owner' },
+    update: {},
+    create: {
+      id: 'role-tenant-b-owner',
+      organizationId: TENANT_B_ORG_ID,
+      name: 'Owner Tenant B',
+      code: 'OWNER_TENANT_B',
+      scopes: ['*'],
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { email: 'owner@tenant-b.test' },
+    update: {},
+    create: {
+      email: 'owner@tenant-b.test',
+      password: await bcrypt.hash('password123', 10),
+      firstName: 'Owner',
+      lastName: 'Tenant B',
+      organizationId: TENANT_B_ORG_ID,
+      roleId: tenantBRole.id,
+      active: true,
+    },
+  });
+  console.log('✅ Organización B de pruebas (vacía, con su usuario)');
+
+  // Testigo tomado ANTES de escribir nada de la organización A: al final se
+  // compara y se falla si cambió algo del tenant B. Imprimir sus conteos sin
+  // compararlos no prueba aislamiento — mostraría "intacto" igual si lo
+  // hubiéramos pisado.
   const tenantBBefore = await tenantBSnapshot();
 
   // ----------------------------------------------------------

@@ -3,7 +3,7 @@
  * Modal para crear/editar recetas
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import {
   InputField,
@@ -88,6 +88,14 @@ export function RecipeModal({
   const [ingredientErrors, setIngredientErrors] = useState<
     Record<number, string>
   >({});
+
+  // `categories` es un prop y el efecto de reinicio lo lee para elegir el
+  // valor por defecto. Meterlo en las dependencias haria que el formulario se
+  // vaciara cada vez que el padre re-renderice con un array nuevo, borrando lo
+  // que el usuario este escribiendo. El ref deja leer el valor actual sin
+  // depender de su identidad.
+  const categoriesRef = useRef(categories);
+  categoriesRef.current = categories;
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -102,7 +110,7 @@ export function RecipeModal({
         name: '',
         description: '',
         instructions: '',
-        category: categories.length > 0 ? categories[0] : '',
+        category: categoriesRef.current[0] ?? '',
         prepTime: 0,
         yield: 1,
         yieldUnit: 'unit',
@@ -115,6 +123,17 @@ export function RecipeModal({
     setErrors({});
     setIngredientErrors({});
   }, [recipe, isOpen]);
+
+  // Si las categorias llegan despues de abrir el modal —cargan async— el
+  // efecto de arriba ya corrio con la lista vacia y el desplegable se queda
+  // sin valor por defecto. Esto lo rellena cuando aparecen, y solo si el
+  // usuario no ha elegido nada: nunca pisa lo que haya escrito.
+  useEffect(() => {
+    if (!isOpen || categories.length === 0) return;
+    setFormData((prev) =>
+      prev.category ? prev : { ...prev, category: categories[0] },
+    );
+  }, [isOpen, categories]);
 
   const handleChange = (
     field: keyof RecipeFormData,

@@ -91,14 +91,24 @@ export async function apiFetch<T = any>(
       await handleErrorResponse(response);
     }
 
-    // Si es 204 No Content, retornar null
-    if (response.status === 204) {
+    // Cuerpo vacío -> null, sin intentar parsearlo.
+    //
+    // Antes sólo se contemplaba el 204, pero hay endpoints que responden 200
+    // con el cuerpo vacío. Ahí `response.json()` lanza
+    // "Unexpected end of JSON input", el error sube como fallo de red y la
+    // query se queda en estado de error: es lo que llenaba la consola del POS
+    // desde use-costing. Se mira el texto en vez del status porque el status
+    // no basta para saber si viene algo.
+    if (response.status === 204 || response.status === 205) {
       return null as T;
     }
 
-    // Parse JSON response
-    const data = await response.json();
-    return data;
+    const text = await response.text();
+    if (text.trim() === '') {
+      return null as T;
+    }
+
+    return JSON.parse(text) as T;
   } catch (error) {
     // Solo loguear en consola, no mostrar toast (ya lo hizo handleErrorResponse)
     logger.error('API Fetch error:', error);
@@ -179,12 +189,18 @@ export function buildQueryString(params: Record<string, any>): string {
   const searchParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
-      if (Array.isArray(value)) {
-        value.forEach((v) => searchParams.append(key, String(v)));
-      } else {
-        searchParams.append(key, String(value));
-      }
+    // La cadena vacía se descarta igual que null/undefined: un filtro que el
+    // usuario dejó en blanco significa "sin filtro", no "filtra por vacío".
+    // Enviarla producía `?startDate=`, que el API rechaza — y antes de que P&L
+    // validara sus fechas, construía `new Date('')` y devolvía 500 en sus
+    // cuatro endpoints. Los arrays se respetan tal cual: ahí cada elemento es
+    // una elección explícita.
+    if (value === undefined || value === null || value === '') return;
+
+    if (Array.isArray(value)) {
+      value.forEach((v) => searchParams.append(key, String(v)));
+    } else {
+      searchParams.append(key, String(value));
     }
   });
 
