@@ -157,13 +157,28 @@ export class CreateProductDto {
   @Type(() => Number)
   target_margin_percentage?: number;
 
+  /**
+   * La tasa como fracción: 0.16 es el 16 %, 0 es tasa cero.
+   *
+   * El tope era 100, que es el tope de un porcentaje — pero la columna guarda
+   * una fracción. Mandar `16` pensando en «16 %» pasaba la validación y se
+   * guardaba tal cual: un producto de $50 cobraba $800 de IVA y $850 de total.
+   * Comprobado con una venta real antes de arreglarlo.
+   *
+   * El tope real es 1. En México ninguna tasa de IVA pasa del 16 %, pero se
+   * deja margen por si cambia la ley o se usa en otro país.
+   */
   @IsOptional()
   @IsNumber()
-  @Min(0)
-  @Max(100)
+  @Min(0, { message: 'tax_rate no puede ser negativa' })
+  @Max(1, {
+    message:
+      'tax_rate es una fracción, no un porcentaje: 0.16 para el 16 %, 0 para tasa cero',
+  })
   @Type(() => Number)
   tax_rate?: number;
 
+  /** El precio de venta ya lleva el IVA dentro en vez de sumarse aparte. */
   @IsOptional()
   @IsBoolean()
   tax_included?: boolean;

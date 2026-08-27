@@ -9,6 +9,7 @@ import { useMemo, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useCategories, useProducts } from '@/hooks/use-products';
 import { useMarginBadge, useProductCOGS } from '@/hooks/use-costing';
+import { RegimenFiscalModal } from '@/components/products/RegimenFiscalModal';
 import {
   AlertCircle,
   BarChart3,
@@ -51,6 +52,10 @@ interface ProductDisplay {
   stockQuantity: number;
   type: string;
   tags: string[];
+  /** Tasa de IVA como fracción: 0.16 es el 16 %, 0 es tasa cero. */
+  taxRate: number;
+  /** El precio de venta ya lleva el IVA dentro. */
+  taxIncluded: boolean;
 }
 
 export default function ProductsPage() {
@@ -62,6 +67,11 @@ export default function ProductsPage() {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterStock, setFilterStock] = useState<string>('all');
+  // Producto cuyo régimen fiscal se está editando, o null si el diálogo está
+  // cerrado.
+  const [productoFiscal, setProductoFiscal] = useState<ProductDisplay | null>(
+    null,
+  );
 
   // ============================================================================
   // DATA FETCHING
@@ -98,6 +108,10 @@ export default function ProductsPage() {
       stockQuantity: product.stockQuantity ?? 0,
       type: product.type || 'SIMPLE',
       tags: product.tags || [],
+      // `??` y no `||`: la tasa 0 es legítima —el pan para llevar tributa a
+      // tasa 0 por el art. 2-A LIVA— y con `||` se enseñaría como 16 %.
+      taxRate: product.taxRate ?? 0.16,
+      taxIncluded: product.taxIncluded ?? false,
     }));
   }, [productsData]);
 
@@ -525,6 +539,9 @@ export default function ProductsPage() {
                     Stock
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    IVA
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Estado
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -596,6 +613,26 @@ export default function ProductsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col gap-0.5">
+                        <span
+                          className={`text-sm font-medium ${
+                            product.taxRate === 0
+                              ? 'text-emerald-700'
+                              : 'text-gray-900'
+                          }`}
+                        >
+                          {product.taxRate === 0
+                            ? 'Tasa 0'
+                            : `${(product.taxRate * 100).toFixed(0)}%`}
+                        </span>
+                        {product.taxIncluded && (
+                          <span className="text-xs text-gray-500">
+                            incluido en el precio
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusBadge(
                           product.status,
@@ -612,7 +649,13 @@ export default function ProductsPage() {
                         <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                        <button
+                          type="button"
+                          onClick={() => setProductoFiscal(product)}
+                          aria-label={`Editar el régimen fiscal de ${product.name}`}
+                          title="Régimen fiscal"
+                          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                        >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
@@ -646,6 +689,11 @@ export default function ProductsPage() {
             Mostrando {filteredProducts.length} de {products.length} productos
           </div>
         )}
+
+        <RegimenFiscalModal
+          producto={productoFiscal}
+          onClose={() => setProductoFiscal(null)}
+        />
       </div>
     </MainLayout>
   );

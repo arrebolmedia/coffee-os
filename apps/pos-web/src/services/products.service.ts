@@ -13,6 +13,25 @@ import {
   ProductFilters,
 } from '@/types';
 
+/**
+ * Los campos que acepta `PATCH /products/:id`, con los nombres del DTO.
+ *
+ * Sólo están los que la interfaz sabe editar hoy. Añadir uno aquí exige que
+ * exista en `UpdateProductDto` del backend: lo que no reconozca se rechaza
+ * entero con un 400, no se ignora.
+ */
+export interface ActualizarProductoDTO {
+  name?: string;
+  description?: string;
+  base_price?: number;
+  cost?: number;
+  /** Fracción, no porcentaje: 0.16 es el 16 %, 0 es tasa cero. */
+  tax_rate?: number;
+  /** El precio de venta ya lleva el IVA dentro. */
+  tax_included?: boolean;
+  is_available?: boolean;
+}
+
 class ProductsService {
   private readonly baseUrl = '/products';
 
@@ -99,7 +118,17 @@ class ProductsService {
     return this.unwrapSingle<Product>(response);
   }
 
-  async updateProduct(id: string, data: Partial<Product>): Promise<Product> {
+  /**
+   * El backend recibe los campos en snake_case y rechaza lo que no reconoce
+   * (`forbidNonWhitelisted`), así que el tipo tiene que ser el del DTO y no el
+   * del modelo. Estaba declarado como `Partial<Product>` —camelCase—, de modo
+   * que cualquiera que lo usara con `taxRate` se llevaba un 400; nadie lo había
+   * notado porque no lo llamaba nadie.
+   */
+  async updateProduct(
+    id: string,
+    data: ActualizarProductoDTO,
+  ): Promise<Product> {
     const response = await api.patch<any>(`${this.baseUrl}/${id}`, data);
     return this.unwrapSingle<Product>(response);
   }

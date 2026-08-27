@@ -44,8 +44,17 @@ export class ProductsService {
           image: createProductDto.image_url,
           price: createProductDto.base_price,
           basePrice: createProductDto.base_price,
-          cost: createProductDto.cost || 0,
-          taxRate: createProductDto.tax_rate || 0.16,
+          cost: createProductDto.cost ?? 0,
+          // `??` y no `||`: con `||`, pedir tasa 0 guardaba 0.16, porque 0 es
+          // falsy. Y la tasa 0 no es un caso raro — el pan para llevar tributa
+          // a tasa 0 por el artículo 2-A de la LIVA, igual que la leche o la
+          // fruta. Con `||` era imposible dar de alta esos productos con su
+          // tasa real: la panadería entera nacía al 16 %.
+          taxRate: createProductDto.tax_rate ?? 0.16,
+          // El precio ya lleva el IVA dentro. Se aceptaba en el DTO y se tiraba
+          // aquí en silencio, así que el producto nacía siempre como «más IVA»
+          // dijera lo que dijera quien lo creaba.
+          taxIncluded: createProductDto.tax_included ?? false,
           allowModifiers: createProductDto.allow_modifiers ?? true,
           trackInventory: createProductDto.track_inventory ?? false,
           active: createProductDto.is_available ?? true,
@@ -234,6 +243,9 @@ export class ProductsService {
         }),
         ...(updateProductDto.tax_rate !== undefined && {
           taxRate: updateProductDto.tax_rate,
+        }),
+        ...(updateProductDto.tax_included !== undefined && {
+          taxIncluded: updateProductDto.tax_included,
         }),
         ...(updateProductDto.allow_modifiers !== undefined && {
           allowModifiers: updateProductDto.allow_modifiers,

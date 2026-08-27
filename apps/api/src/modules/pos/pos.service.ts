@@ -162,15 +162,24 @@ export class PosService {
       }
     }
 
-    // Fetch taxRate per product to compute tax correctly
-    const productTaxRates = new Map<string, number>();
+    // Régimen fiscal de cada producto: la tasa y si el precio ya la lleva
+    // dentro. Antes sólo se leía la tasa, así que `taxIncluded` no llegaba
+    // nunca al cálculo y un producto con el IVA en el precio se lo volvía a
+    // sumar por fuera.
+    const productTaxRates = new Map<
+      string,
+      { rate: number; included: boolean }
+    >();
     for (const line of data.lines) {
       if (!productTaxRates.has(line.productId)) {
         const product = await this.prisma.product.findUnique({
           where: { id: line.productId },
-          select: { taxRate: true },
+          select: { taxRate: true, taxIncluded: true },
         });
-        productTaxRates.set(line.productId, product?.taxRate ?? 0.16);
+        productTaxRates.set(line.productId, {
+          rate: product?.taxRate ?? 0.16,
+          included: product?.taxIncluded ?? false,
+        });
       }
     }
 
@@ -186,13 +195,27 @@ export class PosService {
       const modifiersTotal =
         line.modifiers?.reduce((sum, m) => sum + m.priceDelta, 0) || 0;
       const lineTotal = round2(lineSubtotal + modifiersTotal * line.quantity);
-      subtotal += lineTotal;
-      const taxRate = productTaxRates.get(line.productId) ?? 0.16;
+      const { rate, included } = productTaxRates.get(line.productId) ?? {
+        rate: 0.16,
+        included: false,
+      };
+
       // IVA sobre (lineTotal + modificadores ya incluidos); los modificadores
       // heredan la tasa del producto. Se acumula SIN descuento todavía: la
       // base gravable definitiva no se conoce hasta que se cierra el descuento
       // dentro de la transacción, porque el canje de lealtad se calcula ahí.
-      tax += lineTotal * taxRate;
+      if (included) {
+        // El precio ya trae el IVA: en vez de sumarlo, se extrae. Lo que paga
+        // el cliente sigue siendo el precio de la carta, y `subtotal` guarda la
+        // base gravable, que es lo que el resto del cálculo espera encontrar.
+        const base = round2(lineTotal / (1 + rate));
+        subtotal += base;
+        tax += lineTotal - base;
+      } else {
+        subtotal += lineTotal;
+        tax += lineTotal * rate;
+      }
+
       return {
         ...line,
         total: lineTotal,

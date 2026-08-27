@@ -4,7 +4,10 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { productsService } from '@/services/products.service';
+import {
+  type ActualizarProductoDTO,
+  productsService,
+} from '@/services/products.service';
 import { useAuth } from '@/hooks/use-auth';
 import toast from 'react-hot-toast';
 import { Category, PaginationParams, Product, ProductFilters } from '@/types';
@@ -117,7 +120,7 @@ export function useUpdateProduct() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Product> }) =>
+    mutationFn: ({ id, data }: { id: string; data: ActualizarProductoDTO }) =>
       productsService.updateProduct(id, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: productKeys.lists() });

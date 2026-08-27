@@ -457,4 +457,75 @@ describe('Cart Store', () => {
       expect(result.current.cart.total).toBe(108);
     });
   });
+
+  describe('precio con el IVA dentro', () => {
+    // La columna existia, el DTO lo aceptaba y no lo miraba nadie: ni el
+    // backend al cobrar ni el carrito al enseniar el total. Un producto con el
+    // IVA en el precio se lo comia otra vez por encima.
+    const conIvaDentro: Product = {
+      ...mockProduct,
+      id: 'inc',
+      name: 'Cafe con IVA incluido',
+      price: 116,
+      taxRate: 0.16,
+      taxIncluded: true,
+    };
+
+    it('extrae el impuesto del precio en vez de sumarlo', () => {
+      const { result } = renderHook(() => useCartStore());
+
+      act(() => {
+        result.current.addItem(conIvaDentro, 1);
+      });
+
+      // Lo que paga el cliente es el precio de la carta.
+      expect(result.current.cart.subtotal).toBe(100);
+      expect(result.current.cart.tax).toBe(16);
+      expect(result.current.cart.total).toBe(116);
+    });
+
+    it('a tasa 0 el precio entero es base', () => {
+      const { result } = renderHook(() => useCartStore());
+
+      act(() => {
+        result.current.addItem({ ...conIvaDentro, price: 40, taxRate: 0 }, 1);
+      });
+
+      expect(result.current.cart.subtotal).toBe(40);
+      expect(result.current.cart.tax).toBe(0);
+      expect(result.current.cart.total).toBe(40);
+    });
+
+    it('convive con uno de IVA por fuera', () => {
+      const { result } = renderHook(() => useCartStore());
+
+      act(() => {
+        result.current.addItem(conIvaDentro, 1);
+        result.current.addItem(
+          { ...mockProduct, id: 'fuera', price: 100, taxRate: 0.16 },
+          1,
+        );
+      });
+
+      expect(result.current.cart.subtotal).toBe(200);
+      expect(result.current.cart.tax).toBe(32);
+      expect(result.current.cart.total).toBe(232);
+    });
+
+    it('coincide con lo que cobra el backend, que es de lo que se trata', () => {
+      // Mismos numeros que `pos.impuestos.spec.ts` en la API: si las dos
+      // cuentas se separan, el cajero ve un total y se cobra otro.
+      const { result } = renderHook(() => useCartStore());
+
+      act(() => {
+        result.current.addItem(conIvaDentro, 1);
+      });
+
+      expect({
+        subtotal: result.current.cart.subtotal,
+        tax: result.current.cart.tax,
+        total: result.current.cart.total,
+      }).toEqual({ subtotal: 100, tax: 16, total: 116 });
+    });
+  });
 });

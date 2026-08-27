@@ -54,6 +54,15 @@ export interface Product extends BaseEntity, OrganizationContext {
    * coincidían sólo mientras todos los productos estuvieran al 16 %.
    */
   taxRate?: number;
+  /**
+   * El precio de venta ya lleva el IVA dentro.
+   *
+   * Con `true`, el impuesto se extrae del precio en vez de sumarse encima: el
+   * cliente paga exactamente lo que dice la carta. El carrito tiene que hacer
+   * la misma cuenta que el backend o la pantalla enseñaría un total y se
+   * cobraría otro.
+   */
+  taxIncluded?: boolean;
   status: ProductStatus;
   image?: string;
   barcode?: string;

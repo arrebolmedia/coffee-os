@@ -236,9 +236,20 @@ export const useCartStore = create<CartState>()(
         const state = get();
         const round2 = (n: number) =>
           Math.round((n + Number.EPSILON) * 100) / 100;
-        const subtotal = round2(
-          state.cart.items.reduce((sum, item) => sum + item.subtotal, 0),
-        );
+        // Base gravable e IVA de cada línea, con el mismo criterio que el
+        // backend: si el precio ya lleva el IVA dentro se extrae, y si no, se
+        // suma encima. Sin esto, un producto con `taxIncluded` cobraría el
+        // impuesto dos veces en la pantalla.
+        const porLinea = state.cart.items.map((item) => {
+          const tasa = item.product.taxRate ?? DEFAULT_TAX_RATE;
+          if (item.product.taxIncluded) {
+            const base = round2(item.subtotal / (1 + tasa));
+            return { base, impuesto: item.subtotal - base };
+          }
+          return { base: item.subtotal, impuesto: item.subtotal * tasa };
+        });
+
+        const subtotal = round2(porLinea.reduce((sum, l) => sum + l.base, 0));
         const discount = state.cart.discount || 0;
 
         // El descuento reduce la base gravable y se reparte proporcionalmente
@@ -247,14 +258,7 @@ export const useCartStore = create<CartState>()(
         const baseRatio =
           subtotal > 0 ? Math.max(0, subtotal - discount) / subtotal : 0;
         const tax = round2(
-          state.cart.items.reduce(
-            (sum, item) =>
-              sum +
-              item.subtotal *
-                (item.product.taxRate ?? DEFAULT_TAX_RATE) *
-                baseRatio,
-            0,
-          ),
+          porLinea.reduce((sum, l) => sum + l.impuesto * baseRatio, 0),
         );
         const total = round2(Math.max(0, subtotal - discount + tax));
 

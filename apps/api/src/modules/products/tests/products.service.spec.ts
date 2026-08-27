@@ -39,7 +39,9 @@ describe('ProductsService', () => {
     image_url: 'https://example.com/espresso.jpg',
     base_price: 45,
     cost: 12,
-    tax_rate: 16,
+    // La tasa es una FRACCION, no un porcentaje: 0.16 es el 16 %. El fixture
+    // decia 16, que la columna habria guardado como 1600 %.
+    tax_rate: 0.16,
     allow_modifiers: true,
     track_inventory: true,
     is_available: true,
@@ -62,7 +64,7 @@ describe('ProductsService', () => {
     price: overrides.price ?? 45,
     basePrice: overrides.basePrice ?? 45,
     cost: overrides.cost ?? 12,
-    taxRate: overrides.taxRate ?? 16,
+    taxRate: overrides.taxRate ?? 0.16,
     allowModifiers: overrides.allowModifiers ?? true,
     trackInventory: overrides.trackInventory ?? true,
     active: overrides.active ?? true,
@@ -130,7 +132,7 @@ describe('ProductsService', () => {
             price: 45,
             basePrice: 45,
             cost: 12,
-            taxRate: 16,
+            taxRate: 0.16,
             allowModifiers: true,
             trackInventory: true,
             active: true,
@@ -218,6 +220,88 @@ describe('ProductsService', () => {
       expect(product.trackInventory).toBe(false);
       expect(product.active).toBe(true);
       expect(product.cost).toBe(0);
+    });
+  });
+
+  /**
+   * El régimen fiscal del producto es lo que decide cuánto IVA se cobra en cada
+   * venta, así que darlo de alta mal se paga en cada ticket.
+   *
+   * Comprobado contra la API antes de arreglarlo: pedir tasa 0 guardaba 0.16, y
+   * `tax_included: true` se guardaba como false.
+   */
+  describe('régimen fiscal del producto', () => {
+    beforeEach(() => {
+      mockPrismaService.product.findFirst.mockResolvedValue(null);
+      mockPrismaService.product.create.mockImplementation(
+        async ({ data }: any) => buildPrismaProduct(data),
+      );
+    });
+
+    const base = {
+      organization_id: '123e4567-e89b-12d3-a456-426614174000',
+      category_id: 'cat-pan',
+      sku: 'PAN-001',
+      name: 'Concha para llevar',
+      base_price: 25,
+    };
+
+    it('guarda la tasa 0 tal cual, no la reemplaza por el 16 %', async () => {
+      // El pan para llevar tributa a tasa 0 (art. 2-A LIVA). Con `||` en vez de
+      // `??`, el 0 era falsy y se guardaba 0.16: la panadería entera nacía al
+      // 16 % y no había forma de darla de alta bien.
+      const producto = await service.create({ ...base, tax_rate: 0 });
+
+      expect(producto.taxRate).toBe(0);
+      expect(
+        mockPrismaService.product.create.mock.calls[0][0].data.taxRate,
+      ).toBe(0);
+    });
+
+    it('sigue poniendo el 16 % cuando no se dice nada', async () => {
+      const producto = await service.create(base);
+
+      expect(producto.taxRate).toBe(0.16);
+    });
+
+    it('guarda que el precio ya lleva el IVA dentro', async () => {
+      // El DTO lo aceptaba y el servicio lo tiraba, así que el producto nacía
+      // siempre como «más IVA» dijera lo que dijera quien lo creaba.
+      const producto = await service.create({ ...base, tax_included: true });
+
+      expect(producto.taxIncluded).toBe(true);
+    });
+
+    it('por defecto el IVA va por fuera', async () => {
+      const producto = await service.create(base);
+
+      expect(producto.taxIncluded).toBe(false);
+    });
+
+    it('permite cambiar la tasa a 0 en una actualización', async () => {
+      mockPrismaService.product.findUnique.mockResolvedValue(
+        buildPrismaProduct({ id: 'p1' }),
+      );
+      mockPrismaService.product.update.mockImplementation(
+        async ({ data }: any) => buildPrismaProduct({ id: 'p1', ...data }),
+      );
+
+      const producto = await service.update('p1', { tax_rate: 0 });
+
+      expect(producto.taxRate).toBe(0);
+    });
+
+    it('permite cambiar el IVA incluido en una actualización', async () => {
+      mockPrismaService.product.findUnique.mockResolvedValue(
+        buildPrismaProduct({ id: 'p1' }),
+      );
+      mockPrismaService.product.update.mockImplementation(
+        async ({ data }: any) => buildPrismaProduct({ id: 'p1', ...data }),
+      );
+
+      const producto = await service.update('p1', { tax_included: true });
+
+      expect(producto.taxIncluded).toBe(true);
     });
   });
 
