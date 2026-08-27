@@ -101,6 +101,19 @@ export class SyncService {
     useOfflineStore.getState().setSyncing(true);
 
     try {
+      // 0. Rescatar lo que quedo colgado en SYNCING.
+      //
+      // `syncItem` marca SYNCING antes de enviar y `uploadPendingChanges` solo
+      // lee PENDING, asi que si la app se cerro, el navegador mato la pestania
+      // o el dispositivo se apago a mitad del envio, ese item no volvia a
+      // intentarse NUNCA: la venta offline se perdia en silencio, visible solo
+      // en getQueueStatus().syncing.
+      //
+      // Aqui es seguro reclamarlos: el guard `isSyncing` de arriba garantiza
+      // que no hay ninguna sincronizacion en curso, de modo que todo lo que
+      // este en SYNCING es de una sesion que murio.
+      await this.reclaimStuckItems();
+
       // 1. Download latest data from server
       await this.downloadData();
 
@@ -169,6 +182,25 @@ export class SyncService {
   // ============================================================================
   // UPLOAD PENDING CHANGES
   // ============================================================================
+
+  /**
+   * Devuelve a PENDING los items que quedaron en SYNCING de una sesion
+   * anterior. Ver la llamada en `syncAll` para el porque.
+   */
+  private async reclaimStuckItems(): Promise<void> {
+    const stuck = await getSyncQueue('SYNCING');
+    if (stuck.length === 0) return;
+
+    for (const item of stuck) {
+      await updateSyncQueueItem(item.id, { status: 'PENDING' });
+    }
+
+    // A nivel warn, no debug: que un envio se quedara a medias es un aviso de
+    // que algo corto la sesion, y esas ventas estuvieron sin subir.
+    logger.warn(
+      `Recuperados ${stuck.length} elemento(s) que quedaron a medio sincronizar`,
+    );
+  }
 
   private async uploadPendingChanges(): Promise<void> {
     const pendingItems = await getSyncQueue('PENDING');

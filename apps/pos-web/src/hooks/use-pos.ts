@@ -94,6 +94,11 @@ export function useCreateOrder() {
           notes: notes ?? cart.notes,
         };
 
+        // La clave de idempotencia se genera UNA vez, aqui, y viaja con el DTO
+        // encolado: cada reintento manda la misma y el backend devuelve el
+        // ticket que ya existe en vez de cobrar la venta otra vez.
+        dto.client_request_id = crypto.randomUUID();
+
         if (!isOnline) {
           const optimisticOrder: Order = {
             id: `offline-${Date.now()}`,

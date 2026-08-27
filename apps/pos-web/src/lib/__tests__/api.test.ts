@@ -130,7 +130,7 @@ describe('apiFetch — sesión', () => {
     // getSession() hace un fetch a /api/auth/session cada vez, y apiFetch la
     // llama en toda petición autenticada: al cargar el POS eran decenas en
     // paralelo. Se comparte la promesa en vuelo, no el resultado.
-    let resolver: (v: unknown) => void = () => undefined;
+    let resolver: (v: null) => void = () => undefined;
     getSessionMock.mockImplementation(
       () =>
         new Promise((res) => {

@@ -111,6 +111,7 @@ export class PosService {
   }
 
   async createTicket(data: {
+    clientRequestId?: string;
     locationId: string;
     userId: string;
     customerId?: string;
@@ -125,6 +126,23 @@ export class PosService {
     redeemLoyalty?: boolean;
     notes?: string;
   }) {
+    // Idempotencia del reenvio offline: si esta venta ya se creo con la misma
+    // clave, se devuelve la que hay en vez de cobrarla otra vez. La cola de
+    // sincronizacion reintenta lo que fallo y no distingue "no se creo" de "se
+    // creo y no me entere" cuando la red cae despues de la respuesta.
+    if (data.clientRequestId) {
+      const existente = await this.prisma.ticket.findUnique({
+        where: { clientRequestId: data.clientRequestId },
+        select: { id: true },
+      });
+      if (existente) {
+        this.logger.log(
+          `Reenvio idempotente: la venta ${data.clientRequestId} ya existe`,
+        );
+        return this.findOneTicket(existente.id);
+      }
+    }
+
     // Fetch taxRate per product to compute tax correctly
     const productTaxRates = new Map<string, number>();
     for (const line of data.lines) {
@@ -172,145 +190,173 @@ export class PosService {
     // Wrap ticket creation, loyalty redemption and kitchen-order creation in
     // ONE transaction so the discount, the points decrement and the audit
     // LoyaltyTransaction are all-or-nothing.
-    const createdTicket = await this.prisma.$transaction(async (tx) => {
-      // Loyalty 9+1 redemption is computed and the points decremented
-      // SERVER-SIDE here (never trusting a client-supplied amount), so a
-      // customer cannot redeem without enough points or redeem twice.
-      let discount = baseDiscount;
-      let loyalty: {
-        points: number;
-        balanceAfter: number;
-        organizationId: string;
-      } | null = null;
-      if (data.redeemLoyalty) {
-        if (!data.customerId) {
-          throw new BadRequestException(
-            'Se requiere un cliente para canjear puntos de lealtad',
-          );
+    // El chequeo de idempotencia de arriba es check-then-act: dos reenvios
+    // concurrentes lo pasan los dos. La garantia la da el indice unico sobre
+    // client_request_id; aqui solo se traduce su violacion en la respuesta que
+    // el cliente esperaba, en vez de un 500.
+    let createdTicket;
+    try {
+      createdTicket = await this.prisma.$transaction(async (tx) => {
+        // Loyalty 9+1 redemption is computed and the points decremented
+        // SERVER-SIDE here (never trusting a client-supplied amount), so a
+        // customer cannot redeem without enough points or redeem twice.
+        let discount = baseDiscount;
+        let loyalty: {
+          points: number;
+          balanceAfter: number;
+          organizationId: string;
+        } | null = null;
+        if (data.redeemLoyalty) {
+          if (!data.customerId) {
+            throw new BadRequestException(
+              'Se requiere un cliente para canjear puntos de lealtad',
+            );
+          }
+          const customer = await tx.customer.findUnique({
+            where: { id: data.customerId },
+            select: { loyaltyPoints: true, organizationId: true },
+          });
+          if (!customer) throw new NotFoundException('Cliente no encontrado');
+          if (
+            customer.loyaltyPoints <
+            PosService.LOYALTY_REDEMPTION_THRESHOLD_POINTS
+          ) {
+            throw new BadRequestException(
+              `El cliente no tiene suficientes puntos de lealtad (requiere ${PosService.LOYALTY_REDEMPTION_THRESHOLD_POINTS})`,
+            );
+          }
+          discount = round2(discount + PosService.LOYALTY_REDEMPTION_DISCOUNT);
+          loyalty = {
+            points: PosService.LOYALTY_REDEMPTION_THRESHOLD_POINTS,
+            balanceAfter:
+              customer.loyaltyPoints -
+              PosService.LOYALTY_REDEMPTION_THRESHOLD_POINTS,
+            organizationId: customer.organizationId,
+          };
         }
-        const customer = await tx.customer.findUnique({
-          where: { id: data.customerId },
-          select: { loyaltyPoints: true, organizationId: true },
-        });
-        if (!customer) throw new NotFoundException('Cliente no encontrado');
-        if (
-          customer.loyaltyPoints <
-          PosService.LOYALTY_REDEMPTION_THRESHOLD_POINTS
-        ) {
-          throw new BadRequestException(
-            `El cliente no tiene suficientes puntos de lealtad (requiere ${PosService.LOYALTY_REDEMPTION_THRESHOLD_POINTS})`,
-          );
-        }
-        discount = round2(discount + PosService.LOYALTY_REDEMPTION_DISCOUNT);
-        loyalty = {
-          points: PosService.LOYALTY_REDEMPTION_THRESHOLD_POINTS,
-          balanceAfter:
-            customer.loyaltyPoints -
-            PosService.LOYALTY_REDEMPTION_THRESHOLD_POINTS,
-          organizationId: customer.organizationId,
-        };
-      }
 
-      // El descuento reduce la BASE GRAVABLE: el IVA se calcula sobre el
-      // importe ya descontado.
-      //
-      // Antes no era así: el IVA se cerraba sobre el subtotal completo y el
-      // descuento se restaba después, de modo que una venta con el canje de
-      // lealtad de $50 cobraba $8 de IVA que no correspondían. Y el carrito del
-      // POS sí descontaba antes de calcular, así que al cajero le aparecía un
-      // total y se le cobraba otro al cliente.
-      //
-      // El descuento se reparte proporcionalmente entre las líneas, que es lo
-      // que hay que hacer cuando conviven varias tasas: con una sola tasa el
-      // resultado es exactamente `(subtotal - descuento) * tasa`.
-      const baseRatio =
-        subtotal > 0 ? Math.max(0, subtotal - discount) / subtotal : 0;
-      const taxAfterDiscount = round2(tax * baseRatio);
+        // El descuento reduce la BASE GRAVABLE: el IVA se calcula sobre el
+        // importe ya descontado.
+        //
+        // Antes no era así: el IVA se cerraba sobre el subtotal completo y el
+        // descuento se restaba después, de modo que una venta con el canje de
+        // lealtad de $50 cobraba $8 de IVA que no correspondían. Y el carrito del
+        // POS sí descontaba antes de calcular, así que al cajero le aparecía un
+        // total y se le cobraba otro al cliente.
+        //
+        // El descuento se reparte proporcionalmente entre las líneas, que es lo
+        // que hay que hacer cuando conviven varias tasas: con una sola tasa el
+        // resultado es exactamente `(subtotal - descuento) * tasa`.
+        const baseRatio =
+          subtotal > 0 ? Math.max(0, subtotal - discount) / subtotal : 0;
+        const taxAfterDiscount = round2(tax * baseRatio);
 
-      const total = round2(Math.max(0, subtotal - discount + taxAfterDiscount));
+        const total = round2(
+          Math.max(0, subtotal - discount + taxAfterDiscount),
+        );
 
-      const ticket = await tx.ticket.create({
-        data: {
-          ticketNumber,
-          locationId: data.locationId,
-          userId: data.userId,
-          customerId: data.customerId,
-          status: 'OPEN',
-          subtotal,
-          tax: taxAfterDiscount,
-          discount,
-          total,
-          notes: data.notes,
-          lines: {
-            create: lines.map((line) => ({
-              productId: line.productId,
-              quantity: line.quantity,
-              unitPrice: line.unitPrice,
-              total: line.total,
-              notes: line.notes,
-              modifiers: line.modifiers
-                ? {
-                    create: line.modifiers.map((mod) => ({
-                      modifierId: mod.modifierId,
-                      priceDelta: mod.priceDelta,
-                    })),
-                  }
-                : undefined,
-            })),
+        const ticket = await tx.ticket.create({
+          data: {
+            ticketNumber,
+            clientRequestId: data.clientRequestId ?? null,
+            locationId: data.locationId,
+            userId: data.userId,
+            customerId: data.customerId,
+            status: 'OPEN',
+            subtotal,
+            tax: taxAfterDiscount,
+            discount,
+            total,
+            notes: data.notes,
+            lines: {
+              create: lines.map((line) => ({
+                productId: line.productId,
+                quantity: line.quantity,
+                unitPrice: line.unitPrice,
+                total: line.total,
+                notes: line.notes,
+                modifiers: line.modifiers
+                  ? {
+                      create: line.modifiers.map((mod) => ({
+                        modifierId: mod.modifierId,
+                        priceDelta: mod.priceDelta,
+                      })),
+                    }
+                  : undefined,
+              })),
+            },
           },
-        },
-        include: {
-          lines: {
-            include: {
-              product: true,
-              modifiers: {
-                include: { modifier: true },
+          include: {
+            lines: {
+              include: {
+                product: true,
+                modifiers: {
+                  include: { modifier: true },
+                },
               },
             },
           },
-        },
-      });
-
-      if (loyalty && data.customerId) {
-        // Race-safe decrement: only deduct if the balance still covers it, so
-        // two concurrent redemptions for the same customer can't both succeed.
-        const decremented = await tx.customer.updateMany({
-          where: {
-            id: data.customerId,
-            loyaltyPoints: {
-              gte: PosService.LOYALTY_REDEMPTION_THRESHOLD_POINTS,
-            },
-          },
-          data: {
-            loyaltyPoints: {
-              decrement: PosService.LOYALTY_REDEMPTION_THRESHOLD_POINTS,
-            },
-          },
         });
-        if (decremented.count === 0) {
-          throw new BadRequestException(
-            'Los puntos de lealtad cambiaron; vuelve a intentar el canje',
-          );
+
+        if (loyalty && data.customerId) {
+          // Race-safe decrement: only deduct if the balance still covers it, so
+          // two concurrent redemptions for the same customer can't both succeed.
+          const decremented = await tx.customer.updateMany({
+            where: {
+              id: data.customerId,
+              loyaltyPoints: {
+                gte: PosService.LOYALTY_REDEMPTION_THRESHOLD_POINTS,
+              },
+            },
+            data: {
+              loyaltyPoints: {
+                decrement: PosService.LOYALTY_REDEMPTION_THRESHOLD_POINTS,
+              },
+            },
+          });
+          if (decremented.count === 0) {
+            throw new BadRequestException(
+              'Los puntos de lealtad cambiaron; vuelve a intentar el canje',
+            );
+          }
+          await tx.loyaltyTransaction.create({
+            data: {
+              customerId: data.customerId,
+              organizationId: loyalty.organizationId,
+              type: 'REDEEM',
+              points: loyalty.points,
+              orderId: ticket.id,
+              orderTotal: total,
+              description: 'Canje 9+1 en venta',
+              balanceAfter: loyalty.balanceAfter,
+            },
+          });
         }
-        await tx.loyaltyTransaction.create({
-          data: {
-            customerId: data.customerId,
-            organizationId: loyalty.organizationId,
-            type: 'REDEEM',
-            points: loyalty.points,
-            orderId: ticket.id,
-            orderTotal: total,
-            description: 'Canje 9+1 en venta',
-            balanceAfter: loyalty.balanceAfter,
-          },
+
+        // Auto-create kitchen Order inside the same transaction.
+        await this.createOrderFromTicketTx(tx, ticket);
+
+        return ticket;
+      });
+    } catch (err: any) {
+      if (
+        err?.code === 'P2002' &&
+        String(err?.meta?.target ?? '').includes('client_request_id') &&
+        data.clientRequestId
+      ) {
+        const ganador = await this.prisma.ticket.findUnique({
+          where: { clientRequestId: data.clientRequestId },
+          select: { id: true },
         });
+        if (ganador) {
+          this.logger.log(
+            `Reenvio idempotente: otra peticion creo ${data.clientRequestId} primero`,
+          );
+          return this.findOneTicket(ganador.id);
+        }
       }
-
-      // Auto-create kitchen Order inside the same transaction.
-      await this.createOrderFromTicketTx(tx, ticket);
-
-      return ticket;
-    });
+      throw err;
+    }
 
     return this.findOneTicket(createdTicket.id);
   }

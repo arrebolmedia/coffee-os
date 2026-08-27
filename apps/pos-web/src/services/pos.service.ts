@@ -39,12 +39,19 @@ export interface CreateOrderDTO {
   // the discount; the client never sends the discount amount itself.
   redeem_loyalty?: boolean;
   notes?: string;
+  /**
+   * Clave de idempotencia, generada una sola vez al encolar una venta offline
+   * y reenviada igual en cada reintento. Sin ella, un reintento tras perderse
+   * la respuesta cobraba la venta dos veces.
+   */
+  client_request_id?: string;
 }
 
 /**
  * Backend contract: POST /pos/tickets (CreateTicketDto, camelCase)
  */
 interface CreateTicketPayload {
+  clientRequestId?: string;
   locationId: string;
   userId: string;
   customerId?: string;
@@ -174,6 +181,7 @@ export class POSService {
    */
   static async createOrder(data: CreateOrderDTO): Promise<Order> {
     const ticketPayload: CreateTicketPayload = {
+      clientRequestId: data.client_request_id,
       locationId: data.location_id,
       userId: data.user_id,
       customerId: data.customer_id,

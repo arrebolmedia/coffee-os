@@ -42,6 +42,19 @@ export class CreateTicketLineDto {
 }
 
 export class CreateTicketDto {
+  /**
+   * Clave de idempotencia generada por el cliente.
+   *
+   * La cola de sincronizacion offline reintenta lo que fallo, y no puede
+   * distinguir "no se creo" de "se creo y no me entere" cuando la red cae
+   * despues de que el servidor respondiera. Mandando el mismo valor en cada
+   * reintento, el segundo devuelve el ticket que ya existe en vez de cobrar la
+   * venta otra vez.
+   */
+  @IsOptional()
+  @IsString()
+  clientRequestId?: string;
+
   @IsString()
   locationId!: string;
 
