@@ -112,6 +112,26 @@ npm run db:seed:simple   # DESTRUCTIVO: deleteMany sin filtro. No usar por defec
   desalineación real con el schema. Para eso están los e2e de `apps/api/test/integration`,
   que corren contra Postgres real y siembran dos organizaciones.
 
+### Decisiones fiscales (27 de agosto de 2026)
+
+Nota interna del negocio, no reglas de código. Escritas aquí porque el sistema
+no tiene todavía una pantalla de configuración fiscal donde vivirían.
+
+- **Todos los productos van al 16 % de IVA.** Se revisó si la panadería debía ir
+  a tasa 0 por el artículo 2-A de la LIVA y la respuesta del dueño es no: se
+  cobra el 16 % en todo el catálogo. No cambiar tasas de productos sin que él lo
+  pida.
+- **Lo que no se cobra son las bolsas y los desechables para llevar.** Se dan sin
+  cargo; no son un producto del catálogo ni una línea del ticket.
+- El mecanismo por producto (`taxRate`, `taxIncluded`) sí funciona y es
+  configurable desde Productos → botón de régimen fiscal, por si la decisión
+  cambia.
+- **El ISR no está decidido.** El estado de resultados usa el 30 % de persona
+  moral y lo marca como supuesto en pantalla. La tasa real depende del régimen
+  —RESICO son 1 % a 2.5 % sobre ingreso bruto, persona física va por tarifa
+  progresiva— y se configura en `settings` con `category: 'finance'`,
+  `key: 'isr_rate'`, como fracción.
+
 ## Estado del sistema (agosto 2026)
 
 El sistema vende de punta a punta: login → orden en POS → cobro → persistencia en

@@ -6,7 +6,21 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import { ProfitAndLoss } from './interfaces';
 
+/**
+ * ISR de persona moral, que es el régimen más común de una cafetería
+ * constituida como sociedad. NO vale para todos: una persona física con
+ * actividad empresarial tributa con tarifa progresiva, y en RESICO el impuesto
+ * se calcula sobre el ingreso bruto (1 % a 2.5 %), no sobre la utilidad.
+ *
+ * Por eso es sólo el punto de partida: la tasa se configura por organización, y
+ * la respuesta dice cuándo se está usando este valor por defecto para que el
+ * informe no presente un supuesto como si fuera un dato.
+ */
 const DEFAULT_TAX_RATE = 0.3;
+
+/** Dónde vive la tasa configurada, con el mismo esquema que el resto de ajustes. */
+const AJUSTE_ISR = { categoria: 'finance', clave: 'isr_rate' } as const;
+
 const YEAR_MIN = 2000;
 const YEAR_MAX = 2100;
 
@@ -254,6 +268,7 @@ export class PnLService {
       interest_expense: this.r2(interestExpense),
       ebt: this.r2(ebt),
       taxes: this.r2(taxesAmount),
+      tax_rate: taxRate,
       net_profit: this.r2(netProfit),
       net_margin_percent: this.r2(netMarginPercent),
       labor_percent: this.r2(laborPercent),
@@ -267,16 +282,66 @@ export class PnLService {
   }
 
   /**
-   * Resolve the corporate income-tax rate. The Organization model has no
-   * settings column in the current schema, so we always use DEFAULT_TAX_RATE
-   * (0.30) and flag the response so callers know the default was used.
+   * La tasa de ISR con la que se calcula el impuesto del periodo.
    *
-   * TODO(schema): agregar Organization.settings Json para tax rate configurable
+   * Antes devolvía siempre el 30 % con un TODO que decía que no había dónde
+   * guardarla. Sí lo había: la tabla `settings`, con la misma forma
+   * (organización + categoría + clave) que ya usa la configuración de descuento
+   * automático de inventario. El 30 % es la tasa de persona moral y no vale
+   * para quien tributa en RESICO o como persona física, así que dejarla fija
+   * era meter el régimen fiscal de otro en el estado de resultados.
+   *
+   * Un valor mal guardado no tumba el informe: se cae al de por defecto y se
+   * marca, igual que si no hubiera nada configurado.
    */
   private async resolveTaxRate(
-    _organizationId: string,
+    organizationId: string,
   ): Promise<{ taxRate: number; taxRateDefaultUsed: boolean }> {
+    try {
+      const ajuste = await this.prisma.setting.findUnique({
+        where: {
+          organizationId_category_key: {
+            organizationId,
+            category: AJUSTE_ISR.categoria,
+            key: AJUSTE_ISR.clave,
+          },
+        },
+        select: { value: true },
+      });
+
+      const tasa = this.leerTasa(ajuste?.value);
+      if (tasa !== null) {
+        return { taxRate: tasa, taxRateDefaultUsed: false };
+      }
+    } catch {
+      // Un fallo al leer la configuración no puede dejar sin estado de
+      // resultados: se sigue con el valor por defecto, ya marcado como tal.
+    }
+
     return { taxRate: DEFAULT_TAX_RATE, taxRateDefaultUsed: true };
+  }
+
+  /**
+   * Interpreta el valor guardado como tasa.
+   *
+   * El `value` de un ajuste es Json, así que puede llegar como número, como
+   * texto o envuelto en un objeto `{ value: ... }`. Sólo se acepta una fracción
+   * entre 0 y 1: un 30 escrito pensando en «30 %» daría un impuesto de treinta
+   * veces la utilidad, que es el mismo error que ya costó caro en el IVA de los
+   * productos.
+   */
+  private leerTasa(value: unknown): number | null {
+    const crudo =
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? (value as Record<string, unknown>).value
+        : value;
+
+    const numero = typeof crudo === 'string' ? Number(crudo) : crudo;
+
+    if (typeof numero !== 'number' || !Number.isFinite(numero)) return null;
+    if (numero < 0 || numero > 1) return null;
+
+    return numero;
   }
 
   async calculateMonthlyPnL(

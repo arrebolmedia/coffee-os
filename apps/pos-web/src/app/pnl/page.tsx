@@ -53,6 +53,17 @@ export default function PnLPage() {
     return `${value.toFixed(1)}%`;
   };
 
+  /**
+   * La tasa de ISR viene como fracción (0.30). Se enseña sin decimales cuando
+   * es redonda —«30%», no «30.0%»— porque así es como se habla de ella.
+   */
+  const formatIsrRate = (rate: number | undefined) => {
+    const porcentaje = (rate ?? 0.3) * 100;
+    return Number.isInteger(porcentaje)
+      ? `${porcentaje}%`
+      : `${porcentaje.toFixed(2).replace(/0$/, '')}%`;
+  };
+
   // Calculate expense breakdown
   const expenseBreakdown = useMemo(() => {
     if (!pnlData) return [];
@@ -544,7 +555,20 @@ export default function PnLPage() {
                     <div className="flex justify-between py-2">
                       <span className="text-gray-700">
                         <Minus className="w-4 h-4 inline mr-1" />
-                        Impuestos (30% ISR)
+                        {/* La tasa venía escrita a mano como «30% ISR». Ahora
+                            la dice el informe, y si nadie la ha configurado se
+                            avisa de que es un supuesto: el 30 % es la tasa de
+                            persona moral y no vale para quien tributa en
+                            RESICO o como persona física. */}
+                        Impuestos ({formatIsrRate(pnlData.tax_rate)} ISR)
+                        {pnlData.tax_rate_default_used && (
+                          <span
+                            className="ml-2 text-xs text-amber-700"
+                            title="No hay tasa de ISR configurada para esta organización. Se está usando la de persona moral (30 %); si tributas en RESICO o como persona física, la utilidad neta de abajo no es la tuya."
+                          >
+                            supuesto
+                          </span>
+                        )}
                       </span>
                       <span className="text-red-600">
                         ({formatCurrency(pnlData.taxes)})

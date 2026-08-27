@@ -48,9 +48,19 @@ export interface ProfitAndLoss {
   prime_cost_percent: number;
   break_even_point: number | null; // Revenue needed to break even (null if unreachable)
 
+  /**
+   * La tasa de ISR aplicada, como fracción (0.30 es el 30 %).
+   *
+   * Va en la respuesta porque la pantalla la escribía a mano en la etiqueta
+   * («Impuestos (30% ISR)»): en cuanto la tasa se configura por organización,
+   * ese texto miente. El informe tiene que decir con qué tasa está hecho.
+   */
+  tax_rate: number;
+
   // Diagnostic flags
   cogs_estimated?: boolean; // true if any product cost is missing
-  tax_rate_default_used?: boolean; // true if no org tax rate setting found
+  /** No hay tasa configurada: la cifra de impuestos es un supuesto, no un dato. */
+  tax_rate_default_used?: boolean;
   break_even_not_reachable?: boolean; // true when variableCostRatio >= 1
 }
 

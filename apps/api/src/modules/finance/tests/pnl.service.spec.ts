@@ -9,6 +9,8 @@ const mockPrismaService = {
   ticketLine: { findMany: jest.fn() },
   expense: { groupBy: jest.fn() },
   organization: { findUnique: jest.fn() },
+  // De aquí sale la tasa de ISR configurada por la organización.
+  setting: { findUnique: jest.fn() },
 };
 
 describe('PnLService', () => {
@@ -89,6 +91,123 @@ describe('PnLService', () => {
     it('should use default tax rate (0.30) when org has no setting and flag it', async () => {
       const pnl = await service.calculatePnL('org_1', start, end);
       expect(pnl.tax_rate_default_used).toBe(true);
+    });
+
+    /**
+     * La tasa de ISR salía fija al 30 % con un TODO que decía que no había
+     * dónde guardarla — y sí lo había, la tabla `settings`. El 30 % es la tasa
+     * de persona moral: quien tributa en RESICO o como persona física estaba
+     * leyendo la utilidad neta de otro.
+     */
+    describe('tasa de ISR configurable', () => {
+      /** Lo que devuelve la consulta del ajuste. */
+      function conAjuste(value: unknown) {
+        mockPrismaService.setting.findUnique.mockResolvedValue(
+          value === undefined ? null : { value },
+        );
+      }
+
+      it('usa la tasa configurada por la organización', async () => {
+        conAjuste(0.25);
+
+        const pnl = await service.calculatePnL('org_1', start, end);
+
+        expect(pnl.tax_rate).toBe(0.25);
+        expect(pnl.tax_rate_default_used).toBeUndefined();
+      });
+
+      it('la busca en la organización que se está consultando', async () => {
+        conAjuste(0.25);
+
+        await service.calculatePnL('org_1', start, end);
+
+        expect(mockPrismaService.setting.findUnique).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: {
+              organizationId_category_key: {
+                organizationId: 'org_1',
+                category: 'finance',
+                key: 'isr_rate',
+              },
+            },
+          }),
+        );
+      });
+
+      it('acepta el ajuste envuelto en un objeto, que es como los guarda el módulo de settings', async () => {
+        conAjuste({ value: 0.1 });
+
+        const pnl = await service.calculatePnL('org_1', start, end);
+
+        expect(pnl.tax_rate).toBe(0.1);
+      });
+
+      it('acepta la tasa escrita como texto', async () => {
+        // El `value` de un ajuste es Json y puede llegar como cadena.
+        conAjuste('0.025');
+
+        const pnl = await service.calculatePnL('org_1', start, end);
+
+        expect(pnl.tax_rate).toBe(0.025);
+      });
+
+      it('tasa 0 es una tasa, no «sin configurar»', async () => {
+        conAjuste(0);
+
+        const pnl = await service.calculatePnL('org_1', start, end);
+
+        expect(pnl.tax_rate).toBe(0);
+        expect(pnl.taxes).toBe(0);
+        expect(pnl.tax_rate_default_used).toBeUndefined();
+      });
+
+      it('rechaza un 30 escrito pensando en «30 %»', async () => {
+        // Cobraría treinta veces la utilidad. Es el mismo error que ya costó
+        // caro en el IVA de los productos.
+        conAjuste(30);
+
+        const pnl = await service.calculatePnL('org_1', start, end);
+
+        expect(pnl.tax_rate).toBe(0.3);
+        expect(pnl.tax_rate_default_used).toBe(true);
+      });
+
+      it('rechaza una tasa negativa', async () => {
+        conAjuste(-0.1);
+
+        const pnl = await service.calculatePnL('org_1', start, end);
+
+        expect(pnl.tax_rate_default_used).toBe(true);
+      });
+
+      it('un ajuste ilegible no tumba el informe', async () => {
+        conAjuste('no es un número');
+
+        const pnl = await service.calculatePnL('org_1', start, end);
+
+        expect(pnl.tax_rate).toBe(0.3);
+        expect(pnl.tax_rate_default_used).toBe(true);
+      });
+
+      it('si la consulta del ajuste falla, se sigue con el valor por defecto', async () => {
+        mockPrismaService.setting.findUnique.mockRejectedValue(
+          new Error('base caída'),
+        );
+
+        const pnl = await service.calculatePnL('org_1', start, end);
+
+        expect(pnl.tax_rate).toBe(0.3);
+        expect(pnl.tax_rate_default_used).toBe(true);
+      });
+
+      it('la tasa aplicada viaja en la respuesta, para que la pantalla no la invente', async () => {
+        conAjuste(0.25);
+
+        const pnl = await service.calculatePnL('org_1', start, end);
+
+        // El impuesto tiene que cuadrar con la tasa que se anuncia.
+        expect(pnl.taxes).toBeCloseTo(pnl.ebt * pnl.tax_rate, 2);
+      });
     });
 
     it('should handle zero revenue gracefully', async () => {

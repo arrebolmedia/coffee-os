@@ -702,6 +702,14 @@ export interface ProfitAndLoss {
   interest_expense: number;
   ebt: number;
   taxes: number;
+  /** Tasa de ISR aplicada, como fracción: 0.30 es el 30 %. */
+  tax_rate: number;
+  /**
+   * No hay tasa configurada para la organización y se ha usado la de persona
+   * moral. La cifra de impuestos —y con ella la utilidad neta— es un supuesto,
+   * y la pantalla tiene que decirlo.
+   */
+  tax_rate_default_used?: boolean;
   net_profit: number;
   net_margin_percent: number;
 
