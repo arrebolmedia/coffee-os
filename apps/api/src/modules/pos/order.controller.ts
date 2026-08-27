@@ -9,6 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { PosService } from './pos.service';
+import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 import {
   CurrentUser,
   CurrentUserType,
@@ -26,19 +27,23 @@ export class OrderController {
     return this.posService.findAllOrders(locationId, status);
   }
 
+  // La organización con la que se consulta sale del JWT, no del path. El
+  // parámetro se mantiene para no romper las URLs que ya usa el POS, y el
+  // TenantGuard exige que coincida con la del token; pero aunque el guard
+  // fallara, lo que se consulta aquí no lo decide el cliente.
   @Get('organization/:orgId/today')
-  async findTodayByOrg(@Param('orgId') orgId: string) {
-    return this.posService.findTodayOrdersByOrg(orgId);
+  async findTodayByOrg(@CurrentOrg() organizationId: string) {
+    return this.posService.findTodayOrdersByOrg(organizationId);
   }
 
   @Get('organization/:orgId')
   async findByOrgAndDateRange(
-    @Param('orgId') orgId: string,
+    @CurrentOrg() organizationId: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
     return this.posService.findOrdersByOrgAndDateRange(
-      orgId,
+      organizationId,
       startDate,
       endDate,
     );

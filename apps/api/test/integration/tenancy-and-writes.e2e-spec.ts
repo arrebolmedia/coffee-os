@@ -230,6 +230,46 @@ describe('Tenancy & write paths (e2e)', () => {
         .set('Authorization', `Bearer ${tenants.a.token}`)
         .expect(403);
     });
+
+    // El guard buscaba `organizationId` y `organization_id` por su nombre
+    // exacto, y estas cinco rutas del POS declaran el parámetro como `orgId`.
+    // Con la API en marcha y el token de una organización, el id de otra en el
+    // path devolvía 200 con su corte de caja y sus tickets completos; la misma
+    // petición contra `/waste/stats/:organization_id` daba 403. Lo único que
+    // separaba un caso del otro era cómo estaba escrito el parámetro.
+    describe('la organización en el path se llama `orgId`', () => {
+      it.each([
+        ['corte de caja', (org: string) => `/api/v1/pos/stats/daily/${org}`],
+        [
+          'tickets del día',
+          (org: string) => `/api/v1/pos/orders/organization/${org}/today`,
+        ],
+        [
+          'tickets por rango',
+          (org: string) => `/api/v1/pos/orders/organization/${org}`,
+        ],
+        [
+          'caja abierta',
+          (org: string) => `/api/v1/pos/cash-register/current/${org}`,
+        ],
+        [
+          'formas de pago',
+          (org: string) => `/api/v1/pos/payment-methods/${org}`,
+        ],
+      ])('%s de otra organización responde 403', async (_caso, ruta) => {
+        await request(app.getHttpServer())
+          .get(ruta(tenants.b.organizationId))
+          .set('Authorization', `Bearer ${tenants.a.token}`)
+          .expect(403);
+      });
+
+      it('y la propia sigue respondiendo', async () => {
+        await request(app.getHttpServer())
+          .get(`/api/v1/pos/stats/daily/${tenants.a.organizationId}`)
+          .set('Authorization', `Bearer ${tenants.a.token}`)
+          .expect(200);
+      });
+    });
   });
 
   describe('GET /orders (OrdersModule mounted)', () => {

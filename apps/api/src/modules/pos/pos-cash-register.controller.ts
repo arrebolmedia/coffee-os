@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { PosService } from './pos.service';
+import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 
 @Controller('pos/cash-register')
 export class PosCashRegisterController {
@@ -27,8 +28,10 @@ export class PosCashRegisterController {
     return this.posService.closeCashRegisterById(id, finalAmount, notes);
   }
 
+  // La caja que se consulta es la de la organización del JWT. Ver la nota en
+  // PosStatsController: el `:orgId` del path queda sólo por compatibilidad.
   @Get('current/:orgId')
-  async current(@Param('orgId') orgId: string) {
-    return this.posService.getCurrentCashRegister(orgId);
+  async current(@CurrentOrg() organizationId: string) {
+    return this.posService.getCurrentCashRegister(organizationId);
   }
 }
