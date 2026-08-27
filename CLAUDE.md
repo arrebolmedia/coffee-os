@@ -73,8 +73,16 @@ npm run db:seed:simple   # DESTRUCTIVO: deleteMany sin filtro. No usar por defec
 - Los lookups por id van con `findFirst({ where: { id, organizationId } })`, no
   `findUnique({ where: { id } })`, y los borrados con `deleteMany`. Así un registro
   ajeno da 404 en vez de filtrar que existe.
-- Quedan ~89 lookups sin filtro de organización. La solución de fondo es una extensión
-  de Prisma Client con `AsyncLocalStorage`, no arreglarlos uno por uno.
+- La extensión de Prisma Client con `AsyncLocalStorage` ya acota los 32 modelos que
+  declaran `organizationId`. Ver `common/tenancy/tenant-scope.ts`, que es el único
+  sitio que hay que auditar para saber qué queda acotado.
+- **Lo que la extensión NO puede filtrar** son los modelos sin esa columna, que derivan
+  la organización de la sucursal: `Ticket`, `Order`, `Shift`, `Payment`,
+  `InventoryMovement` y las filas hijas. Ahí el filtro lo pone el servicio, a mano, y es
+  donde han aparecido las fugas — las tres rutas de `/pos/tickets` estaban abiertas hasta
+  el 27 de agosto de 2026. Al tocar cualquiera de esos modelos, comprobar la pertenencia
+  explícitamente y **escribir el test con dos organizaciones**: correrlo contra el código
+  sin arreglar es la única forma de saber que prueba algo.
 
 ### Backend (NestJS)
 
@@ -135,22 +143,41 @@ no tiene todavía una pantalla de configuración fiscal donde vivirían.
 ## Estado del sistema (agosto 2026)
 
 El sistema vende de punta a punta: login → orden en POS → cobro → persistencia en
-Postgres, verificado en navegador. Tests: 55/55 suites unitarias del API y 4/4 e2e.
+Postgres, verificado en navegador. Tests: 62 suites unitarias del API (1253
+casos), 9 e2e contra Postgres real (80), 13 suites de pos-web (150) y 171 de
+navegador en cinco proyectos de Playwright.
 
-Plan de reparación vigente, con lo hecho y lo pendiente:
+Plan de reparación de agosto, ya cerrado:
 [docs/PLAN-REPARACION-2026-08-12.md](docs/PLAN-REPARACION-2026-08-12.md).
 
-Pendientes de mayor riesgo:
+Los cinco «pendientes de mayor riesgo» que listaba esta sección quedaron
+resueltos el 27 de agosto de 2026 salvo el último, y mantenerlos escritos como
+pendientes mandaba a arreglar cosas ya hechas:
 
-1. **Inventario no descuenta automáticamente.** Con `enabled:true`, llevar una orden a
-   `COMPLETED` no descuenta: `deductForOrder` no lo llama nadie fuera de su módulo y
-   `useDeductStockForOrder` está huérfano en el frontend.
-2. **`GET /modifiers` es visible desde cualquier tenant** — `Modifier` no tiene `organizationId`.
-3. **Next.js 14.0.4 está vetado** por tres CVEs, entre ellas un bypass de auth en
-   middleware. Upgrade autorizado a `>=15.2.3 <16.0.0`.
-4. **67 vulnerabilidades de npm**, 3 críticas.
-5. **CFDI está bloqueado a propósito**: el timbrado era un mock que fingía `stamped`
-   con `Math.random()`. No desbloquearlo sin integrar un PAC real.
+- El inventario **sí** descuenta al cobrar (`autoDeductOnSale` desde `closeTicket`).
+- `Modifier` **ya tiene** `organizationId`, con su migración.
+- Next.js está en 15.5.24, dentro del rango permitido.
+- Las vulnerabilidades de npm son 9 en total y 2 en producción, ninguna crítica.
+
+**CFDI sigue bloqueado a propósito**: el timbrado era un mock que fingía
+`stamped` con `Math.random()`. No desbloquearlo sin integrar un PAC real; hay
+dos tests saltados que lo documentan.
+
+Pendientes de verdad, hoy:
+
+1. **La tabla `taxes` no la consulta nadie.** Tiene CRUD y reglas de
+   aplicabilidad por producto y categoría, y el POS cobra con `product.taxRate`.
+   Se puede configurar un impuesto ahí y no pasa nada. Cablearla exige decidir
+   qué regla gana cuando varias aplican al mismo producto.
+2. **No hay editor de productos.** La pantalla lista y filtra; los botones de
+   ver y borrar de cada fila no tienen `onClick`. El de editar abre sólo el
+   diálogo de régimen fiscal.
+3. **No hay integración con terminal bancaria.** El POS registra cuánto entró
+   por tarjeta y nada más: sin código de autorización ni conciliación contra el
+   corte de la terminal. Las columnas `reference` y `processor_data` de
+   `payments` están preparadas y llegan siempre vacías.
+4. **El POS no es usable en pantallas pequeñas más allá del carrito.** El cajón
+   del carrito ya funciona; el resto de las vistas no se ha revisado a 393px.
 
 ## Convenciones de código
 
