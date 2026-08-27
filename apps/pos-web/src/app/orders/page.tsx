@@ -7,8 +7,8 @@
 
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { useOrders } from '@/hooks/use-orders';
-import { OrderFilters } from '@/types';
+import { useOrders, useUpdateOrderStatus } from '@/hooks/use-orders';
+import { OrderFilters, OrderStatus } from '@/types';
 import {
   AlertCircle,
   Calendar,
@@ -24,6 +24,34 @@ import {
   XCircle,
 } from 'lucide-react';
 
+/**
+ * Siguiente estado de cada uno, y como se llama la accion para el barista.
+ *
+ * Es un espejo de ORDER_TRANSITIONS en orders.service.ts del API, que es la
+ * fuente de verdad: alli el backend RECHAZA con 400 cualquier salto que no
+ * este permitido. Aqui solo se decide que boton ensenar; si los dos se
+ * desalinearan, manda el backend y el usuario ve el error.
+ *
+ * COMPLETED y CANCELLED son terminales y no ofrecen accion.
+ */
+const SIGUIENTE_ESTADO: Partial<
+  Record<OrderStatus, { estado: OrderStatus; etiqueta: string }>
+> = {
+  [OrderStatus.PENDING]: {
+    estado: OrderStatus.IN_PROGRESS,
+    etiqueta: 'Preparar',
+  },
+  [OrderStatus.IN_PROGRESS]: { estado: OrderStatus.READY, etiqueta: 'Listo' },
+  [OrderStatus.READY]: { estado: OrderStatus.SERVED, etiqueta: 'Entregar' },
+  [OrderStatus.SERVED]: { estado: OrderStatus.COMPLETED, etiqueta: 'Cerrar' },
+};
+
+/** Terminales: la orden ya no se mueve. */
+const ESTADOS_TERMINALES: string[] = [
+  OrderStatus.COMPLETED,
+  OrderStatus.CANCELLED,
+];
+
 function getStatusBadge(status: string) {
   switch (status) {
     case 'COMPLETED':
@@ -32,13 +60,34 @@ function getStatusBadge(status: string) {
         icon: CheckCircle,
         label: 'Completada',
       };
+    // Los cuatro estados intermedios se pintaban juntos como "Pendiente", y
+    // READY y SERVED ni siquiera entraban aqui: caian al default y salian en
+    // crudo, en ingles. Daba igual mientras la orden no se pudiera mover de
+    // estado desde ninguna pantalla; ahora el barista los recorre uno a uno y
+    // necesita distinguirlos de un vistazo.
     case 'PENDING':
-    case 'IN_PROGRESS':
-    case 'CONFIRMED':
       return {
         color: 'bg-yellow-100 text-yellow-800 border-yellow-300',
         icon: AlertCircle,
         label: 'Pendiente',
+      };
+    case 'IN_PROGRESS':
+      return {
+        color: 'bg-blue-100 text-blue-800 border-blue-300',
+        icon: Loader2,
+        label: 'En preparación',
+      };
+    case 'READY':
+      return {
+        color: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+        icon: Clock,
+        label: 'Lista',
+      };
+    case 'SERVED':
+      return {
+        color: 'bg-teal-100 text-teal-800 border-teal-300',
+        icon: CheckCircle,
+        label: 'Entregada',
       };
     case 'CANCELLED':
       return {
@@ -55,28 +104,42 @@ function getStatusBadge(status: string) {
   }
 }
 
+/**
+ * Fecha de calendario LOCAL en formato `YYYY-MM-DD`.
+ *
+ * `toISOString()` devuelve la fecha en UTC, asi que a partir de las 18:00 en
+ * Mexico ya reporta el dia siguiente: el filtro "hoy" pedia mannana y la
+ * pantalla se quedaba vacia el resto de la jornada. El backend interpreta esta
+ * cadena como dia de calendario, de modo que aqui hay que mandar el local.
+ */
+function fechaLocal(d: Date): string {
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mes}-${dia}`;
+}
+
 function getDateRange(filterDate: string): {
   start_date?: string;
   end_date?: string;
 } {
   const now = new Date();
-  const today = now.toISOString().split('T')[0];
+  const today = fechaLocal(now);
   if (filterDate === 'today') return { start_date: today, end_date: today };
   if (filterDate === 'yesterday') {
     const y = new Date(now);
     y.setDate(y.getDate() - 1);
-    const d = y.toISOString().split('T')[0];
+    const d = fechaLocal(y);
     return { start_date: d, end_date: d };
   }
   if (filterDate === 'week') {
     const w = new Date(now);
     w.setDate(w.getDate() - 7);
-    return { start_date: w.toISOString().split('T')[0], end_date: today };
+    return { start_date: fechaLocal(w), end_date: today };
   }
   if (filterDate === 'month') {
     const m = new Date(now);
     m.setDate(1);
-    return { start_date: m.toISOString().split('T')[0], end_date: today };
+    return { start_date: fechaLocal(m), end_date: today };
   }
   return {};
 }
@@ -94,13 +157,17 @@ export default function OrdersPage() {
 
   const { data: ordersResponse, isLoading, error } = useOrders(filters);
   const orders = ordersResponse?.data ?? [];
+  const avanzarEstado = useUpdateOrderStatus();
 
   const stats = {
     totalOrders: orders.length,
     completed: orders.filter((o) => o.status === 'COMPLETED').length,
-    pending: orders.filter((o) =>
-      ['PENDING', 'IN_PROGRESS', 'CONFIRMED'].includes(o.status),
-    ).length,
+    // "En curso" es todo lo que no ha terminado. Antes se enumeraban a mano
+    // PENDING, IN_PROGRESS y CONFIRMED — este ultimo no existe en el enum, y
+    // faltaban READY y SERVED, que no se contaban en NINGUNA de las tarjetas:
+    // las ordenes que estaban en la barra desaparecian de los totales.
+    pending: orders.filter((o) => !ESTADOS_TERMINALES.includes(o.status))
+      .length,
     cancelled: orders.filter((o) => o.status === 'CANCELLED').length,
     // Los montos viven en el Ticket asociado, no en Order
     totalRevenue: orders
@@ -289,6 +356,13 @@ export default function OrdersPage() {
                     const statusInfo = getStatusBadge(order.status);
                     const StatusIcon = statusInfo.icon;
                     const createdAt = new Date(order.createdAt);
+                    const siguiente =
+                      SIGUIENTE_ESTADO[order.status as OrderStatus];
+                    // Solo se deshabilita la fila que se esta enviando, no
+                    // todas: en hora punta se avanzan varias seguidas.
+                    const enCurso =
+                      avanzarEstado.isPending &&
+                      avanzarEstado.variables?.id === order.id;
 
                     return (
                       <tr key={order.id} className="hover:bg-gray-50">
@@ -360,9 +434,31 @@ export default function OrdersPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <button className="text-purple-600 hover:text-purple-900 text-sm font-medium">
-                            Ver Detalles
-                          </button>
+                          {/*
+                            La accion que faltaba: hasta ahora esta pantalla era
+                            solo lectura, asi que una orden no se podia mover de
+                            estado desde ninguna parte de la interfaz — el
+                            barista no tenia como marcar un cafe listo ni
+                            entregado. El endpoint y el hook ya existian.
+                          */}
+                          {siguiente && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                avanzarEstado.mutate({
+                                  id: order.id,
+                                  status: siguiente.estado,
+                                })
+                              }
+                              disabled={enCurso}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {enCurso && (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              )}
+                              {siguiente.etiqueta}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );

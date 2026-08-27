@@ -64,12 +64,21 @@ export class OrdersService {
     }
 
     if (params.date) {
-      const parsed = new Date(params.date);
-      if (!isNaN(parsed.valueOf())) {
-        const start = new Date(parsed);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(parsed);
-        end.setHours(23, 59, 59, 999);
+      // `new Date('2026-08-27')` se parsea como medianoche UTC, pero `setHours`
+      // opera en hora LOCAL. Mezclarlos desplazaba el rango un dia entero en
+      // cualquier zona detras de UTC: pedir "hoy" desde Mexico devolvia las
+      // ordenes de ayer, que es lo que la pantalla de ordenes llevaba
+      // enseniando. Aqui la fecha se interpreta como un dia de calendario y el
+      // rango se construye sobre el, sin round-trip por UTC.
+      //
+      // Limitacion conocida: "local" es la zona del servidor, no la de la
+      // cafeteria. Con sucursales en husos distintos habria que usar el
+      // `timezone` de la organizacion; hoy no hay ninguna en esa situacion.
+      const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(params.date.trim());
+      if (partes) {
+        const [, anio, mes, dia] = partes;
+        const start = new Date(+anio, +mes - 1, +dia, 0, 0, 0, 0);
+        const end = new Date(+anio, +mes - 1, +dia, 23, 59, 59, 999);
         where.orderedAt = { gte: start, lte: end };
       }
     }

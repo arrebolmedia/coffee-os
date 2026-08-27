@@ -11,8 +11,9 @@ import { type APIRequestContext, expect, test } from '@playwright/test';
  * módulos con deuda —POS, órdenes, recetas, inventario— y por eso sirve de red
  * de seguridad para todo lo demás.
  *
- * El paso de cocina (PENDING → SERVED) va por API a propósito: la pantalla de
- * órdenes no expone acciones de estado, así que no hay UI que conducir.
+ * El paso de cocina va por interfaz, en /orders: PENDING → IN_PROGRESS →
+ * READY → SERVED, que es lo que hace el barista. Durante un tiempo tuvo que ir
+ * por API porque esa pantalla era de solo lectura y no habia nada que conducir.
  */
 
 const API = 'http://localhost:4000/api/v1';
@@ -182,27 +183,41 @@ test.describe('Venta completa punta a punta', () => {
       ).toBeCloseTo(esperado, 4);
     }
 
-    // --- Servir después NO vuelve a descontar -------------------------------
-    // Esta es la parte que importa: hubo un momento en que el cobro descontaba
-    // por su cuenta Y servir descontaba otra vez, así que cada venta se comía
-    // el doble de insumos. Lo destapó justamente este test.
-    const servidaRes = await request.post(
-      `${API}/pos/orders/${orden.id}/served`,
+    // --- Cocina, por interfaz -----------------------------------------------
+    // El barista avanza la orden en /orders. El backend impone la maquina de
+    // estados, asi que este recorrido tambien comprueba que el orden de los
+    // saltos es el que el API acepta.
+    await page.goto('/orders');
+
+    const fila = page.getByRole('row').filter({ hasText: orden.orderNumber });
+    await expect(fila).toBeVisible({ timeout: 20_000 });
+
+    for (const etiqueta of ['Preparar', 'Listo', 'Entregar']) {
+      const boton = fila.getByRole('button', { name: etiqueta });
+      await expect(boton).toBeVisible({ timeout: 15_000 });
+      await boton.click();
+    }
+
+    // Tras entregar, la orden esta SERVED y el unico boton que queda es Cerrar.
+    await expect(fila.getByRole('button', { name: 'Cerrar' })).toBeVisible({
+      timeout: 15_000,
+    });
+
+    const trasServir = await request.get(
+      `${API}/pos/orders/${orden.id}`,
       auth(token),
     );
-    expect(servidaRes.ok()).toBeTruthy();
-    const servida = await servidaRes.json();
-    expect(servida.status).toBe('SERVED');
-    expect(
-      servida.inventory_deduction?.status,
-      'servir una orden ya descontada no debe volver a descontar',
-    ).toBe('skipped');
+    expect((await trasServir.json()).status).toBe('SERVED');
 
+    // --- Servir NO vuelve a descontar ---------------------------------------
+    // Esta es la parte que importa: hubo un momento en que el cobro descontaba
+    // por su cuenta Y servir descontaba otra vez, asi que cada venta se comia
+    // el doble de insumos. Lo destapo justamente este test.
     for (const ing of ingredientes) {
       const despues = await stockDe(request, token, ing.inventory_item_id);
       expect(
         despues,
-        `${ing.inventory_item_name} no debe moverse al servir`,
+        `${ing.inventory_item_name} no debe moverse al pasar por cocina`,
       ).toBeCloseTo(despuesDeCobrar.get(ing.inventory_item_id) ?? 0, 4);
     }
   });
