@@ -135,7 +135,11 @@ export function useCreateOrder() {
       queryClient.invalidateQueries({
         queryKey: posKeys.stats(organizationId),
       });
-      toast.success(`Orden #${order.order_number} creada exitosamente`);
+      // «Venta» y no «Orden»: lo que acaba de ocurrir es un cobro, y el número
+      // que se enseña es el del ticket (`TKT-…`). En este proyecto la Orden es
+      // la comanda de cocina, con su propio número `ORD-…`, así que anunciar
+      // «Orden #TKT-20260827-…» mezclaba las dos cosas en la cara del cajero.
+      toast.success(`Venta ${order.order_number} cobrada`);
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.message || 'Error al crear la orden');

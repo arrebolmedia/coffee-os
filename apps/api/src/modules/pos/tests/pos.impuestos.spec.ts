@@ -30,14 +30,14 @@ describe('PosService — IVA por producto', () => {
 
   const prisma = {
     product: { findUnique: jest.fn() },
-    ticket: { findUnique: jest.fn() },
+    ticket: { findFirst: jest.fn() },
     $transaction: jest.fn((cb: any) => cb(tx)),
   };
 
   beforeEach(async () => {
     jest.clearAllMocks();
     prisma.$transaction.mockImplementation((cb: any) => cb(tx));
-    prisma.ticket.findUnique.mockResolvedValue({ id: 'tk1' });
+    prisma.ticket.findFirst.mockResolvedValue({ id: 'tk1' });
     // `lines` va DESPUES del spread: en `data` es un `create` anidado de
     // Prisma, y la orden de cocina que se crea a continuacion espera recorrer
     // una lista de lineas ya materializadas.

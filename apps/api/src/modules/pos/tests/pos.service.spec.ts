@@ -26,8 +26,9 @@ describe('PosService.createTicket loyalty redemption', () => {
   const mockPrisma = {
     // taxRate lookup happens on the root client, before the transaction.
     product: { findUnique: jest.fn() },
-    // findOneTicket() at the end of createTicket.
-    ticket: { findUnique: jest.fn() },
+    // findOneTicket() at the end of createTicket: consulta acotada por
+    // organizacion, asi que va por findFirst.
+    ticket: { findFirst: jest.fn() },
     $transaction: jest.fn((cb: any) => cb(tx)),
   };
 
@@ -49,7 +50,7 @@ describe('PosService.createTicket loyalty redemption', () => {
     });
 
     mockPrisma.product.findUnique.mockResolvedValue({ taxRate: 0.16 });
-    mockPrisma.ticket.findUnique.mockResolvedValue({ id: 'tk1' });
+    mockPrisma.ticket.findFirst.mockResolvedValue({ id: 'tk1' });
     mockPrisma.$transaction.mockImplementation((cb: any) => cb(tx));
 
     tx.ticket.create.mockResolvedValue({

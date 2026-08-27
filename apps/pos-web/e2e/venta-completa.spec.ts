@@ -139,13 +139,13 @@ test.describe('Venta completa punta a punta', () => {
     //
     // Ojo con el texto: dice «Orden #TKT-…», pero ese identificador es el
     // número de TICKET, no el de la orden de cocina (que tiene forma ORD-…).
-    // El POS devuelve el ticket y use-pos.ts lo rotula como orden. No es un
-    // fallo funcional —el cobro es correcto— pero al cajero le enseña un número
-    // con la etiqueta de otra cosa. Queda anotado como pendiente de redacción.
-    const exito = page.getByText(/Orden #\S+ creada exitosamente/i).first();
+    // El aviso rotulaba el número del ticket como «Orden #TKT-…», mezclando la
+    // venta con la comanda de cocina, que en este proyecto es otra cosa y lleva
+    // su propio número `ORD-…`. Ahora dice lo que es: una venta cobrada.
+    const exito = page.getByText(/Venta TKT-\S+ cobrada/i).first();
     await expect(exito).toBeVisible({ timeout: 20_000 });
     const textoExito = await exito.innerText();
-    const numeroTicket = textoExito.match(/Orden #(\S+)/)?.[1];
+    const numeroTicket = textoExito.match(/Venta (\S+) cobrada/)?.[1];
     expect(numeroTicket, 'el toast debe traer el identificador').toBeTruthy();
 
     // La venta se consumó: el carrito queda vacío.

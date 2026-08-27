@@ -270,6 +270,83 @@ describe('Tenancy & write paths (e2e)', () => {
           .expect(200);
       });
     });
+
+    /**
+     * Los tickets son la venta: llevan lo que se compró, cuánto se pagó y con
+     * qué método, además del cliente. `Ticket` no tiene columna
+     * `organizationId` —la deriva de la sucursal—, así que la extensión de
+     * tenancy no puede filtrarlo y el filtro lo tenía que poner el servicio.
+     * No lo ponía en ninguna de las tres rutas.
+     */
+    describe('tickets del POS', () => {
+      let ticketDeB: string;
+
+      beforeAll(async () => {
+        const res = await request(app.getHttpServer())
+          .post('/api/v1/pos/tickets')
+          .set('Authorization', `Bearer ${tenants.b.token}`)
+          .send({
+            locationId: tenants.b.locationId,
+            userId: tenants.b.userId,
+            lines: [
+              { productId: tenants.b.productId, quantity: 1, unitPrice: 40 },
+            ],
+          })
+          .expect(201);
+        ticketDeB = res.body.id;
+      });
+
+      it('el detalle de un ticket ajeno responde 404', async () => {
+        // Devolvía el ticket entero —líneas, pagos, cliente— con sólo tener su
+        // id, sin comprobar de quién era.
+        await request(app.getHttpServer())
+          .get(`/api/v1/pos/tickets/${ticketDeB}`)
+          .set('Authorization', `Bearer ${tenants.a.token}`)
+          .expect(404);
+      });
+
+      it('el propio sí se lee', async () => {
+        await request(app.getHttpServer())
+          .get(`/api/v1/pos/tickets/${ticketDeB}`)
+          .set('Authorization', `Bearer ${tenants.b.token}`)
+          .expect(200);
+      });
+
+      it('listar por la sucursal de otro no devuelve nada', async () => {
+        // El `locationId` viaja por query: bastaba poner la sucursal ajena.
+        const res = await request(app.getHttpServer())
+          .get(`/api/v1/pos/tickets?locationId=${tenants.b.locationId}`)
+          .set('Authorization', `Bearer ${tenants.a.token}`)
+          .expect(200);
+
+        expect(res.body).toEqual([]);
+      });
+
+      it('y por la propia sí', async () => {
+        const res = await request(app.getHttpServer())
+          .get(`/api/v1/pos/tickets?locationId=${tenants.b.locationId}`)
+          .set('Authorization', `Bearer ${tenants.b.token}`)
+          .expect(200);
+
+        expect(res.body.map((t: any) => t.id)).toContain(ticketDeB);
+      });
+
+      it('no se puede cobrar una venta en la sucursal de otro', async () => {
+        // Esta no era una fuga de lectura sino de escritura: un usuario
+        // autenticado podía registrar ventas en la cafetería de al lado.
+        await request(app.getHttpServer())
+          .post('/api/v1/pos/tickets')
+          .set('Authorization', `Bearer ${tenants.a.token}`)
+          .send({
+            locationId: tenants.b.locationId,
+            userId: tenants.a.userId,
+            lines: [
+              { productId: tenants.a.productId, quantity: 1, unitPrice: 10 },
+            ],
+          })
+          .expect(404);
+      });
+    });
   });
 
   describe('GET /orders (OrdersModule mounted)', () => {

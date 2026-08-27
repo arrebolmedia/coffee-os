@@ -149,7 +149,10 @@ test.describe('POS Sale Flow', () => {
     await expect(confirm).toBeEnabled();
     await confirm.click();
 
-    await expect(page.getByText(/creada exitosamente/i).first()).toBeVisible({
+    // El aviso dice «Venta TKT-… cobrada»: lo que ocurrió es un cobro, y el
+    // número es el del ticket. Antes ponía «Orden #TKT-…», que en este proyecto
+    // nombra la comanda de cocina.
+    await expect(page.getByText(/Venta \S+ cobrada/i).first()).toBeVisible({
       timeout: 20_000,
     });
 

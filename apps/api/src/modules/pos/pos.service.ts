@@ -37,9 +37,18 @@ export class PosService {
   // TICKETS (POS)
   // ========================================
 
-  async findAllTickets(locationId: string) {
+  /**
+   * Los tickets de una sucursal, acotados a la organización que pregunta.
+   *
+   * El `locationId` llega por query, así que sin este filtro bastaba con poner
+   * la sucursal de otra cafetería para leer sus ventas.
+   */
+  async findAllTickets(locationId: string, organizationId?: string) {
     return this.prisma.ticket.findMany({
-      where: { locationId },
+      where: {
+        locationId,
+        ...(organizationId ? { location: { organizationId } } : {}),
+      },
       include: {
         lines: {
           include: {
@@ -63,9 +72,25 @@ export class PosService {
     });
   }
 
-  async findOneTicket(id: string) {
-    return this.prisma.ticket.findUnique({
-      where: { id },
+  /**
+   * Un ticket por id, acotado a su organización.
+   *
+   * `Ticket` no tiene columna `organizationId` —la deriva de la sucursal—, así
+   * que la extensión de tenancy no puede filtrarlo y el filtro lo tiene que
+   * poner quien consulta. Sin `organizationId` esto devolvía cualquier ticket
+   * del sistema con sus líneas, sus pagos y su cliente: bastaba con tener un
+   * id. Se deja opcional porque hay llamadas internas que ya vienen de un flujo
+   * con la pertenencia resuelta.
+   */
+  async findOneTicket(id: string, organizationId?: string) {
+    return this.prisma.ticket.findFirst({
+      // La pertenencia se resuelve por la sucursal, en la misma consulta. Un
+      // ticket de otra organización sale como inexistente en vez de filtrar
+      // que existe.
+      where: {
+        id,
+        ...(organizationId ? { location: { organizationId } } : {}),
+      },
       include: {
         lines: {
           include: {
@@ -129,22 +154,38 @@ export class PosService {
     return String(value ?? '').replace(/[&<>"']/g, (c) => map[c]);
   }
 
-  async createTicket(data: {
-    clientRequestId?: string;
-    locationId: string;
-    userId: string;
-    customerId?: string;
-    lines: Array<{
-      productId: string;
-      quantity: number;
-      unitPrice: number;
-      modifiers?: Array<{ modifierId: string; priceDelta: number }>;
+  async createTicket(
+    data: {
+      clientRequestId?: string;
+      locationId: string;
+      userId: string;
+      customerId?: string;
+      lines: Array<{
+        productId: string;
+        quantity: number;
+        unitPrice: number;
+        modifiers?: Array<{ modifierId: string; priceDelta: number }>;
+        notes?: string;
+      }>;
+      discount?: number;
+      redeemLoyalty?: boolean;
       notes?: string;
-    }>;
-    discount?: number;
-    redeemLoyalty?: boolean;
-    notes?: string;
-  }) {
+    },
+    callerOrganizationId?: string,
+  ) {
+    // La sucursal llega en el cuerpo. Sin comprobar que es de quien cobra, un
+    // usuario autenticado podía crear ventas en la cafetería de otro: no era
+    // una fuga de lectura sino de escritura, y con dinero dentro.
+    if (callerOrganizationId) {
+      const sucursal = await this.prisma.location.findFirst({
+        where: { id: data.locationId, organizationId: callerOrganizationId },
+        select: { id: true },
+      });
+      if (!sucursal) {
+        throw new NotFoundException(`Location ${data.locationId} not found`);
+      }
+    }
+
     // Idempotencia del reenvio offline: si esta venta ya se creo con la misma
     // clave, se devuelve la que hay en vez de cobrarla otra vez. La cola de
     // sincronizacion reintenta lo que fallo y no distingue "no se creo" de "se
