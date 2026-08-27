@@ -1,16 +1,22 @@
 import { openDB } from 'idb';
 import {
+  addToSyncQueue,
   clearAllData,
+  getCategories,
   getDatabaseStats,
   getLastSyncTime,
   getProductBySku,
   getProducts,
+  getSyncQueue,
   initDB,
+  removeSyncQueueItem,
+  saveCategories,
   saveMetadata,
   saveProducts,
   searchProducts,
+  updateSyncQueueItem,
 } from '../db';
-import type { Product } from '@/types';
+import type { Category, Product, SyncQueueItem } from '@/types';
 import { ProductStatus } from '@/types';
 
 // Mock idb
@@ -153,16 +159,20 @@ describe('IndexedDB Manager', () => {
       expect(results[0].name).toBe('Espresso');
     });
 
-    it.skip('should filter products by category', async () => {
-      // TODO: Fix searchProducts signature - currently expects 1 arg, not 2
-      /* COMMENTED OUT - searchProducts only takes query param
-      mockIndex.getAll.mockResolvedValue([mockProducts[0]]);
+    it('filtra por categoria usando el indice', async () => {
+      // Estaba apagado apuntando a searchProducts, que solo recibe la query.
+      // Quien filtra por categoria es getProducts, y lo hace por indice: en un
+      // catalogo offline de cientos de productos, hacerlo en memoria se nota.
+      mockDB.getAllFromIndex.mockResolvedValue([mockProducts[0]]);
 
-      const results = await searchProducts('', 'cat1');
+      const results = await getProducts('cat1');
 
-      expect(mockStore.index).toHaveBeenCalledWith('by-category');
-      expect(mockIndex.getAll).toHaveBeenCalledWith('cat1');
-      */
+      expect(mockDB.getAllFromIndex).toHaveBeenCalledWith(
+        'products',
+        'by-category',
+        'cat1',
+      );
+      expect(results).toEqual([mockProducts[0]]);
     });
 
     it('should get product by SKU', async () => {
@@ -187,176 +197,141 @@ describe('IndexedDB Manager', () => {
     });
   });
 
-  describe.skip('Categories', () => {
-    // TODO: Fix Category mock - missing required fields: organization_id, location_id
-    /* COMMENTED OUT - Category interface changed
+  describe('Categories', () => {
+    // Apagado porque el fixture no tenia organization_id ni location_id, que
+    // el tipo Category exige desde la unificacion de tipos de abril.
     const mockCategories: Category[] = [
       {
         id: 'cat1',
+        organization_id: 'org1',
+        location_id: 'loc1',
         name: 'Bebidas Calientes',
-        description: 'Café y té',
-        sort_order: 1,
-        is_active: true,
-        created_at: new Date(),
-        updated_at: new Date(),
-      },
-      {
-        id: 'cat2',
-        name: 'Alimentos',
-        description: 'Pasteles y snacks',
-        sort_order: 2,
-        is_active: true,
-        created_at: new Date(),
-        updated_at: new Date(),
-      },
+        description: 'Cafe y te',
+        sortOrder: 1,
+        active: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as unknown as Category,
     ];
 
-    it('should save categories', async () => {
-      mockStore.put.mockResolvedValue(undefined);
+    it('guarda el catalogo de categorias', async () => {
+      mockTransaction.store.put.mockResolvedValue(undefined);
 
       await saveCategories(mockCategories);
 
-      expect(mockStore.put).toHaveBeenCalledTimes(2);
+      expect(mockDB.transaction).toHaveBeenCalledWith(
+        'categories',
+        'readwrite',
+      );
+      expect(mockTransaction.store.put).toHaveBeenCalledWith(mockCategories[0]);
     });
 
-    it('should retrieve all categories', async () => {
-      mockStore.getAll.mockResolvedValue(mockCategories);
+    it('las devuelve ordenadas por el indice de orden', async () => {
+      // El POS las pinta en ese orden; leerlas sin indice las devolveria por
+      // clave y el menu saldria desordenado.
+      mockDB.getAllFromIndex.mockResolvedValue(mockCategories);
 
-      const categories = await getCategories();
+      const result = await getCategories();
 
-      expect(categories).toEqual(mockCategories);
+      expect(mockDB.getAllFromIndex).toHaveBeenCalledWith(
+        'categories',
+        'by-sort-order',
+      );
+      expect(result).toEqual(mockCategories);
     });
-    */
   });
 
-  describe.skip('Orders', () => {
-    // TODO: Fix Order mock structure - OrderItem interface has different properties
-    // Should use: product_name, product_sku, unit_price, modifiers (not name, unitPrice)
-    /* COMMENTED OUT - OrderItem interface changed
-    const mockOrder: Order = {
-      id: 'order1',
-      orderNumber: 'ORD-001',
-      items: [
-        {
-          product_id: '1',
-          name: 'Espresso',
-          quantity: 2,
-          unitPrice: 45,
-          total: 90,
-          modifiers: [],
-        },
-      ],
-      subtotal: 90,
-      tax: 14.4,
-      total: 104.4,
-      status: OrderStatus.PENDING,
-      paymentMethod: 'cash',
-      customerId: 'cust1',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      synced: false,
-    };
-
-    it('should save order', async () => {
-      mockStore.put.mockResolvedValue(undefined);
-
-      await saveOrder(mockOrder);
-
-      expect(mockDB.transaction).toHaveBeenCalledWith('orders', 'readwrite');
-      expect(mockStore.put).toHaveBeenCalledWith(mockOrder);
-    });
-
-    it.skip('should retrieve orders with filters', async () => {
-      // TODO: Fix getOrders signature - currently expects 0 args, not 1
-      const mockOrders = [mockOrder];
-      mockStore.getAll.mockResolvedValue(mockOrders);
-
-      const orders = await getOrders('pending');
-
-      expect(orders).toEqual(mockOrders);
-    });
-    */
-  });
-
-  describe.skip('Sync Queue', () => {
-    // TODO: Fix SyncQueueItem interface - mockQueueItem has wrong structure
-    // Missing: created_at, attempts
-    // Wrong: status type should be enum
-    /* COMMENTED OUT - SyncQueueItem interface changed
-    const mockQueueItem = {
+  describe('Sync Queue', () => {
+    // La cola es el corazon del modo offline: aqui viven las ventas cobradas
+    // sin red hasta que vuelve. Estos tests estuvieron apagados porque el
+    // fixture se quedo con la forma vieja de SyncQueueItem (`retries`,
+    // `createdAt`, estados en minuscula). La forma real es la de @/types.
+    const enCola: SyncQueueItem = {
       id: 'sync1',
-      type: 'order' as const,
-      action: 'create' as const,
-      data: { id: 'order1', total: 100 },
-      status: 'pending' as const,
-      retries: 0,
-      createdAt: new Date(),
+      type: 'ORDER',
+      action: 'CREATE',
+      data: { location_id: 'loc1', client_request_id: 'req-1' },
+      created_at: new Date(),
+      attempts: 0,
+      status: 'PENDING',
     };
 
-    it('should add item to sync queue', async () => {
-      mockStore.add.mockResolvedValue('sync1');
+    it('encola un elemento', async () => {
+      mockDB.put.mockResolvedValue(undefined);
 
-      const id = await addToSyncQueue(mockQueueItem);
+      await addToSyncQueue(enCola);
 
-      expect(id).toBe('sync1');
-      expect(mockStore.add).toHaveBeenCalledWith(mockQueueItem);
+      expect(mockDB.put).toHaveBeenCalledWith('syncQueue', enCola);
     });
 
-    it('should get sync queue', async () => {
-      mockStore.getAll.mockResolvedValue([mockQueueItem]);
+    it('lee la cola completa cuando no se filtra por estado', async () => {
+      mockDB.getAll.mockResolvedValue([enCola]);
 
-      const queue = await getSyncQueue();
-
-      expect(queue).toEqual([mockQueueItem]);
+      await expect(getSyncQueue()).resolves.toEqual([enCola]);
+      expect(mockDB.getAll).toHaveBeenCalledWith('syncQueue');
     });
 
-    it('should update sync queue item', async () => {
-      mockStore.put.mockResolvedValue(undefined);
+    it('filtra por estado usando el indice, no en memoria', async () => {
+      // Importa: `syncAll` reclama los SYNCING y sube los PENDING, y ambas
+      // cosas dependen de que este filtro consulte el indice correcto.
+      mockDB.getAllFromIndex.mockResolvedValue([]);
 
-      await updateSyncQueueItem('sync1', { status: 'SYNCING' });
+      await getSyncQueue('SYNCING');
 
-      expect(mockStore.put).toHaveBeenCalled();
+      expect(mockDB.getAllFromIndex).toHaveBeenCalledWith(
+        'syncQueue',
+        'by-status',
+        'SYNCING',
+      );
     });
 
-    it('should remove sync queue item', async () => {
-      mockStore.delete.mockResolvedValue(undefined);
+    it('actualiza fusionando sobre lo que ya habia', async () => {
+      mockDB.get.mockResolvedValue(enCola);
+      mockDB.put.mockResolvedValue(undefined);
+
+      await updateSyncQueueItem('sync1', { status: 'ERROR', attempts: 3 });
+
+      expect(mockDB.put).toHaveBeenCalledWith('syncQueue', {
+        ...enCola,
+        status: 'ERROR',
+        attempts: 3,
+      });
+    });
+
+    it('no crea nada al actualizar un id que no existe', async () => {
+      // Un `put` a ciegas resucitaria como PENDING una venta ya sincronizada y
+      // borrada de la cola, y se cobraria otra vez.
+      mockDB.get.mockResolvedValue(undefined);
+
+      await updateSyncQueueItem('fantasma', { status: 'PENDING' });
+
+      expect(mockDB.put).not.toHaveBeenCalled();
+    });
+
+    it('saca un elemento de la cola', async () => {
+      mockDB.delete.mockResolvedValue(undefined);
 
       await removeSyncQueueItem('sync1');
 
-      expect(mockStore.delete).toHaveBeenCalledWith('sync1');
+      expect(mockDB.delete).toHaveBeenCalledWith('syncQueue', 'sync1');
     });
-    */
   });
 
-  describe.skip('Metadata', () => {
-    // TODO: Fix getLastSyncTime signature - currently expects 1 arg, not 0
-    it('should save metadata', async () => {
-      mockStore.put.mockResolvedValue(undefined);
+  describe('Metadata', () => {
+    it('guarda y recupera un valor', async () => {
+      mockDB.put.mockResolvedValue(undefined);
+      await saveMetadata('lastSync:products', '2026-08-26T00:00:00.000Z');
 
-      await saveMetadata('lastSync', Date.now());
-
-      expect(mockStore.put).toHaveBeenCalled();
+      expect(mockDB.put).toHaveBeenCalledWith(
+        'metadata',
+        expect.objectContaining({ key: 'lastSync:products' }),
+      );
     });
 
-    it('should return last sync time', async () => {
-      const timestamp = new Date();
-      mockDB.get.mockResolvedValue({
-        key: 'products-last-sync',
-        value: timestamp,
-      });
-
-      const result = await getLastSyncTime('products');
-
-      expect(result).toBeDefined();
-      expect(mockDB.get).toHaveBeenCalledWith('metadata', 'products-last-sync');
-    });
-
-    it('should return null if no sync time exists', async () => {
+    it('devuelve null si nunca se sincronizo esa entidad', async () => {
       mockDB.get.mockResolvedValue(undefined);
 
-      const result = await getLastSyncTime('products');
-
-      expect(result).toBeNull();
+      await expect(getLastSyncTime('products')).resolves.toBeNull();
     });
   });
 
