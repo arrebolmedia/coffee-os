@@ -5,6 +5,14 @@ import {
 } from '@nestjs/common';
 import { OrderPriority, OrderStatus, OrderType, Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
+import {
+  fechaEnZona,
+  finDelDia,
+  inicioDelDia,
+  rangoDelDia,
+  ZONA_POR_DEFECTO,
+} from '../../common/time/day-range';
+import { zonaDelNegocio } from '../../common/time/zona-negocio';
 import { PrismaService } from '../database/prisma.service';
 import { InventoryAutomationService } from '../inventory/inventory-automation.service';
 import { CreateOrderDto, UpdateOrderStatusDto } from './dto';
@@ -64,23 +72,19 @@ export class OrdersService {
     }
 
     if (params.date) {
-      // `new Date('2026-08-27')` se parsea como medianoche UTC, pero `setHours`
-      // opera en hora LOCAL. Mezclarlos desplazaba el rango un dia entero en
-      // cualquier zona detras de UTC: pedir "hoy" desde Mexico devolvia las
-      // ordenes de ayer, que es lo que la pantalla de ordenes llevaba
-      // enseniando. Aqui la fecha se interpreta como un dia de calendario y el
-      // rango se construye sobre el, sin round-trip por UTC.
-      //
-      // Limitacion conocida: "local" es la zona del servidor, no la de la
-      // cafeteria. Con sucursales en husos distintos habria que usar el
-      // `timezone` de la organizacion; hoy no hay ninguna en esa situacion.
-      const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(params.date.trim());
-      if (partes) {
-        const [, anio, mes, dia] = partes;
-        const start = new Date(+anio, +mes - 1, +dia, 0, 0, 0, 0);
-        const end = new Date(+anio, +mes - 1, +dia, 23, 59, 59, 999);
-        where.orderedAt = { gte: start, lte: end };
-      }
+      // El dia se recorta en la zona de la cafeteria, no en la del proceso.
+      // `setHours` usaba la del servidor: en el portatil de desarrollo
+      // (America/Mexico_City) salia bien y dentro de un contenedor —que arranca
+      // en UTC— el "dia" iba de las 18:00 de ayer a las 18:00 de hoy.
+      // Una fecha que no exista deja `orderedAt` sin poner: mejor no filtrar
+      // que filtrar por basura.
+      const rango = rangoDelDia(
+        params.date,
+        await zonaDelNegocio(this.prisma, {
+          organizationId: params.organizationId,
+        }),
+      );
+      if (rango) where.orderedAt = rango;
     }
 
     const allowedSortFields: Array<keyof Prisma.OrderOrderByWithRelationInput> =
@@ -128,8 +132,21 @@ export class OrdersService {
     }
 
     if (startDate || endDate) {
-      const gte = startDate ? new Date(startDate) : undefined;
-      const lte = endDate ? new Date(endDate) : undefined;
+      // `new Date('2026-08-31')` es medianoche: usarlo como `lte` recortaba el
+      // ultimo dia entero del informe. Cada extremo se lleva al principio o al
+      // final de su dia, en la zona de la cafeteria.
+      const zona = await zonaDelNegocio(this.prisma, { organizationId });
+
+      const gte = startDate ? inicioDelDia(startDate, zona) : undefined;
+      if (startDate && !gte) {
+        throw new BadRequestException('Invalid startDate');
+      }
+
+      const lte = endDate ? finDelDia(endDate, zona) : undefined;
+      if (endDate && !lte) {
+        throw new BadRequestException('Invalid endDate');
+      }
+
       where.orderedAt = {
         ...(gte ? { gte } : {}),
         ...(lte ? { lte } : {}),
@@ -347,8 +364,21 @@ export class OrdersService {
     return order;
   }
 
+  /**
+   * El numero lleva la fecha que vive la cafeteria, no la de UTC.
+   *
+   * Con `toISOString()` una orden tomada a las 19:25 de un martes salia
+   * numerada como del miercoles: es lo que se ve en la base de desarrollo, seis
+   * tickets de la tarde del 26 de agosto sellados `TKT-20260827`. El numero se
+   * imprime en el ticket del cliente, asi que la fecha equivocada se va con el.
+   *
+   * Se usa la zona por defecto y no la de la organizacion a proposito: esto
+   * corre en el camino de cada venta y no merece una consulta mas. El dia con
+   * el que se cuadran los informes sale de `orderedAt`, que si se recorta con
+   * la zona configurada.
+   */
   private generateOrderNumber(): string {
-    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const date = fechaEnZona(new Date(), ZONA_POR_DEFECTO).replace(/-/g, '');
     return `ORD-${date}-${randomUUID().replace(/-/g, '').slice(0, 8)}`;
   }
 

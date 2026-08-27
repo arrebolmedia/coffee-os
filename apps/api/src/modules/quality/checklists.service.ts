@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { finDelDia, inicioDelDia } from '../../common/time/day-range';
+import { zonaDelNegocio } from '../../common/time/zona-negocio';
 import {
   ChecklistType,
   CompleteChecklistDto,
@@ -70,12 +76,26 @@ export class ChecklistsService {
       where.scope = TYPE_TO_SCOPE[query.type];
     }
 
-    if (query.start_date) {
-      where.createdAt = { ...where.createdAt, gte: new Date(query.start_date) };
-    }
+    if (query.start_date || query.end_date) {
+      // Cada extremo, al principio o al final de su dia en la zona de la
+      // cafeteria: con `new Date('2026-08-31')` como `lte` el ultimo dia del
+      // rango se quedaba fuera salvo su medianoche.
+      const zona = await zonaDelNegocio(this.prisma, {
+        organizationId: query.organization_id,
+        locationId: query.location_id,
+      });
 
-    if (query.end_date) {
-      where.createdAt = { ...where.createdAt, lte: new Date(query.end_date) };
+      if (query.start_date) {
+        const gte = inicioDelDia(query.start_date, zona);
+        if (!gte) throw new BadRequestException('Invalid start_date');
+        where.createdAt = { ...where.createdAt, gte };
+      }
+
+      if (query.end_date) {
+        const lte = finDelDia(query.end_date, zona);
+        if (!lte) throw new BadRequestException('Invalid end_date');
+        where.createdAt = { ...where.createdAt, lte };
+      }
     }
 
     // location_id and completed both filter via the taskRuns relation.

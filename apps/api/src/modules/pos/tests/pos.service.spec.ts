@@ -148,4 +148,32 @@ describe('PosService.createTicket loyalty redemption', () => {
     expect(ticketArg.discount).toBe(0);
     expect(ticketArg.total).toBe(116);
   });
+
+  describe('numero de ticket', () => {
+    // El numero se imprime en el ticket del cliente. Salia de
+    // `toISOString()`, o sea en UTC: una venta de las 19:25 se numeraba con la
+    // fecha del dia siguiente. En la base de desarrollo hay seis asi, cobrados
+    // la tarde del 26 de agosto y sellados TKT-20260827.
+    afterEach(() => jest.useRealTimers());
+
+    it('lleva la fecha de la cafeteria, no la de UTC', async () => {
+      jest.useFakeTimers({ now: new Date('2026-08-27T01:25:00.000Z') });
+
+      await service.createTicket({ ...baseData });
+
+      expect(tx.ticket.create.mock.calls[0][0].data.ticketNumber).toMatch(
+        /^TKT-20260826-/,
+      );
+    });
+
+    it('a mediodia coincide con la fecha UTC, que es lo esperable', async () => {
+      jest.useFakeTimers({ now: new Date('2026-08-27T18:00:00.000Z') });
+
+      await service.createTicket({ ...baseData });
+
+      expect(tx.ticket.create.mock.calls[0][0].data.ticketNumber).toMatch(
+        /^TKT-20260827-/,
+      );
+    });
+  });
 });

@@ -4,6 +4,13 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import {
+  fechaEnZona,
+  rangoDelDia,
+  rangoEntreDias,
+  ZONA_POR_DEFECTO,
+} from '../../common/time/day-range';
+import { zonaDelNegocio } from '../../common/time/zona-negocio';
 import { PrismaService } from '../database/prisma.service';
 import { InventoryAutomationService } from '../inventory/inventory-automation.service';
 import { MovementType, PaymentMethod, PaymentStatus } from '@prisma/client';
@@ -87,14 +94,26 @@ export class PosService {
     });
   }
 
+  /**
+   * El numero que se imprime en el ticket del cliente.
+   *
+   * Con `toISOString()` llevaba la fecha UTC: una venta de las 19:25 salia
+   * numerada como del dia siguiente, y asi estan seis tickets de la tarde del
+   * 26 de agosto en la base de desarrollo, sellados `TKT-20260827`.
+   *
+   * Se usa la zona por defecto y no la de la organizacion a proposito: esto
+   * corre en el camino de cada venta y no merece una consulta mas. El dia con
+   * el que se cuadran los informes sale de `openedAt`/`closedAt`, que si se
+   * recortan con la zona configurada.
+   */
   private generateTicketNumber(): string {
-    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const date = fechaEnZona(new Date(), ZONA_POR_DEFECTO).replace(/-/g, '');
     const suffix = randomUUID().replace(/-/g, '').slice(-8);
     return `TKT-${date}-${suffix}`;
   }
 
   private generateOrderNumber(): string {
-    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const date = fechaEnZona(new Date(), ZONA_POR_DEFECTO).replace(/-/g, '');
     const suffix = randomUUID().replace(/-/g, '').slice(-8);
     return `ORD-${date}-${suffix}`;
   }
@@ -669,15 +688,15 @@ export class PosService {
   // ========================================
 
   async findTodayOrdersByOrg(organizationId: string) {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    // «Hoy» es el dia de la cafeteria. `setHours` usaba el del servidor, que en
+    // un contenedor es UTC: la jornada empezaba a las 18:00 del dia anterior.
+    const zona = await zonaDelNegocio(this.prisma, { organizationId });
+    const hoy = rangoDelDia(undefined, zona)!;
 
     return this.prisma.ticket.findMany({
       where: {
         location: { organizationId },
-        openedAt: { gte: startOfDay, lte: endOfDay },
+        openedAt: hoy,
       },
       include: { lines: true, payments: true },
       orderBy: { openedAt: 'desc' },
@@ -689,31 +708,17 @@ export class PosService {
     startDate?: string,
     endDate?: string,
   ) {
-    const dateOnly = /^\d{4}-\d{2}-\d{2}$/;
+    // Antes el final del dia se estiraba con `setUTCHours` y el principio se
+    // quedaba en medianoche UTC: el rango era un dia UTC, que en Mexico va de
+    // las 18:00 a las 18:00. Las ventas de la tarde entraban en el informe del
+    // dia siguiente.
+    const zona = await zonaDelNegocio(this.prisma, { organizationId });
+    const rango = rangoEntreDias(startDate, endDate, zona);
 
-    let start: Date;
-    if (startDate) {
-      start = new Date(startDate);
-    } else {
-      start = new Date();
-      start.setHours(0, 0, 0, 0);
-    }
-
-    let end: Date;
-    if (endDate) {
-      end = new Date(endDate);
-      // Date-only strings parse to midnight UTC — extend to end of that day.
-      if (dateOnly.test(endDate)) {
-        end.setUTCHours(23, 59, 59, 999);
-      }
-    } else {
-      end = new Date();
-      end.setHours(23, 59, 59, 999);
-    }
-
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    if (!rango) {
       throw new BadRequestException('Invalid startDate or endDate');
     }
+    const { gte: start, lte: end } = rango;
 
     return this.prisma.ticket.findMany({
       where: {
@@ -892,17 +897,21 @@ export class PosService {
   // ========================================
 
   async getDailyStats(organizationId: string, date?: string) {
-    const targetDate = date ? new Date(date) : new Date();
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    // El corte de caja. Mezclaba `new Date('2026-08-27')` —medianoche UTC— con
+    // `setHours` —hora del proceso—, asi que el dia salia corrido en cuanto las
+    // dos zonas no coincidian. Ahora se recorta en la de la cafeteria.
+    const zona = await zonaDelNegocio(this.prisma, { organizationId });
+    const dia = rangoDelDia(date, zona);
+
+    if (!dia) {
+      throw new BadRequestException('Invalid date');
+    }
 
     const tickets = await this.prisma.ticket.findMany({
       where: {
         location: { organizationId },
         status: 'CLOSED',
-        closedAt: { gte: startOfDay, lte: endOfDay },
+        closedAt: dia,
       },
       include: { payments: true },
     });
@@ -930,7 +939,10 @@ export class PosService {
     }
 
     return {
-      date: targetDate.toISOString().split('T')[0],
+      // El dia que se devuelve es el que se acaba de sumar, dicho en la zona de
+      // la cafeteria. Con `toISOString()` el corte de la tarde se anunciaba con
+      // la fecha del dia siguiente.
+      date: fechaEnZona(dia.gte, zona),
       total_sales,
       total_orders,
       average_ticket,

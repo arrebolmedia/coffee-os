@@ -8,6 +8,8 @@ import {
 } from './dto';
 import { Customer } from './interfaces';
 import { RFMService } from './rfm.service';
+import { rangoDelDia } from '../../common/time/day-range';
+import { zonaDelNegocio } from '../../common/time/zona-negocio';
 import { PrismaService } from '../database/prisma.service';
 
 @Injectable()
@@ -302,10 +304,12 @@ export class CustomersService {
       ],
     );
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // «Altas de hoy» se cuenta desde la medianoche de la cafeteria, no la del
+    // servidor: en UTC el contador se reiniciaba a las 18:00.
+    const zona = await zonaDelNegocio(this.prisma, { organizationId });
+    const hoy = rangoDelDia(undefined, zona)!;
     const newToday = await this.prisma.customer.count({
-      where: { ...where, createdAt: { gte: today } },
+      where: { ...where, createdAt: { gte: hoy.gte } },
     });
 
     const aggregates = await this.prisma.customer.aggregate({

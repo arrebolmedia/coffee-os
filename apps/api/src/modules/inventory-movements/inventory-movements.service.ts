@@ -3,6 +3,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { rangoEntreDias } from '../../common/time/day-range';
+import { zonaDelNegocio } from '../../common/time/zona-negocio';
 import { PrismaService } from '../database/prisma.service';
 import { CreateInventoryMovementDto } from './dto/create-inventory-movement.dto';
 import { UpdateInventoryMovementDto } from './dto/update-inventory-movement.dto';
@@ -217,12 +219,18 @@ export class InventoryMovementsService {
       throw new BadRequestException('Start date and end date are required');
     }
 
+    // El final del rango tiene que ser el final de su dia: con
+    // `new Date('2026-08-31')` el informe se quedaba en la medianoche y perdia
+    // los movimientos de ese dia entero.
+    const zona = await zonaDelNegocio(this.prisma, { organizationId });
+    const rango = rangoEntreDias(startDate, endDate, zona);
+    if (!rango) {
+      throw new BadRequestException('Invalid start date or end date');
+    }
+
     return this.prisma.inventoryMovement.findMany({
       where: {
-        createdAt: {
-          gte: new Date(startDate),
-          lte: new Date(endDate),
-        },
+        createdAt: rango,
         ...(organizationId ? { inventoryItem: { organizationId } } : {}),
       },
       include: {

@@ -33,6 +33,8 @@ import {
   CreateTemplateDto,
   UpdateTemplateDto,
 } from './dto';
+import { rangoDelDia } from '../../common/time/day-range';
+import { zonaDelNegocio } from '../../common/time/zona-negocio';
 import { PrismaService } from '../database/prisma.service';
 
 /**
@@ -728,8 +730,12 @@ export class NotificationsService {
     const by_channel: Partial<Record<Channel, number>> = {};
     const by_priority: Partial<Record<NotificationPriority, number>> = {};
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // «Hoy» en la zona de la organizacion: con la del proceso, en UTC, los
+    // contadores del dia se reiniciaban a las 18:00 hora de la cafeteria.
+    const zona = await zonaDelNegocio(this.prisma, {
+      organizationId: organization_id,
+    });
+    const today = rangoDelDia(undefined, zona)!.gte;
 
     let failed_today = 0;
     let sent_today = 0;

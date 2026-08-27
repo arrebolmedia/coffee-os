@@ -7,9 +7,13 @@ import { InventoryAutomationService } from '../../inventory/inventory-automation
 /**
  * `OrdersService` no tenia ningun test propio, y por ahi se colo el filtro de
  * fecha: `new Date('2026-08-27')` se parsea como medianoche UTC pero
- * `setHours` opera en hora local, asi que en cualquier zona detras de UTC el
- * rango salia desplazado un dia entero. La pantalla de ordenes llevaba
- * enseniando las de ayer.
+ * `setHours` opera en la zona del proceso, asi que el rango salia desplazado un
+ * dia entero. La pantalla de ordenes llevaba enseniando las de ayer.
+ *
+ * El arreglo de aquel dia dejo el recorte en la zona del proceso, que en el
+ * portatil de desarrollo coincide con la de la cafeteria y en un contenedor no:
+ * alli el dia iba de las 18:00 a las 18:00. Ahora se recorta en la zona
+ * configurada en la organizacion.
  */
 describe('OrdersService', () => {
   let service: OrdersService;
@@ -21,6 +25,9 @@ describe('OrdersService', () => {
       findFirst: jest.fn(),
       update: jest.fn(),
     },
+    // De aqui sale la zona con la que se recorta el dia.
+    organization: { findUnique: jest.fn() },
+    location: { findUnique: jest.fn() },
     $transaction: jest.fn(),
   };
 
@@ -29,6 +36,9 @@ describe('OrdersService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     prisma.$transaction.mockResolvedValue([[], 0]);
+    prisma.organization.findUnique.mockResolvedValue({
+      timezone: 'America/Mexico_City',
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -50,42 +60,53 @@ describe('OrdersService', () => {
   }
 
   describe('filtro por fecha', () => {
-    it('cubre el dia de calendario completo, de 00:00 a 23:59', async () => {
-      await service.findAll({ date: '2026-08-27' });
+    // Todo se comprueba sobre instantes absolutos. La primera version de estos
+    // tests miraba componentes locales (`gte.getHours() === 0`) y pasaba en el
+    // portatil de desarrollo por pura coincidencia: alli la zona del proceso
+    // era America/Mexico_City, la misma de la cafeteria. Bajo `TZ=UTC` fallaban
+    // aunque el codigo fuese correcto — median la zona del proceso, no el
+    // recorte del dia.
+    it('cubre el dia completo de la cafeteria', async () => {
+      await service.findAll({ date: '2026-08-27', organizationId: 'org1' });
 
       const { gte, lte } = whereUsado().orderedAt;
 
-      // Se comparan los componentes locales, no el instante: el test tiene que
-      // pasar en la zona que sea, que es justamente lo que el bug ignoraba.
-      expect(gte.getFullYear()).toBe(2026);
-      expect(gte.getMonth()).toBe(7); // agosto
-      expect(gte.getDate()).toBe(27);
-      expect(gte.getHours()).toBe(0);
-      expect(gte.getMinutes()).toBe(0);
-
-      expect(lte.getDate()).toBe(27);
-      expect(lte.getHours()).toBe(23);
-      expect(lte.getMinutes()).toBe(59);
+      expect(gte.toISOString()).toBe('2026-08-27T06:00:00.000Z');
+      expect(lte.toISOString()).toBe('2026-08-28T05:59:59.999Z');
     });
 
-    it('incluye una orden de media tarde, no solo la madrugada', async () => {
-      // El sintoma concreto: con el rango desplazado, una venta de las 09:25 de
-      // la maniana caia fuera y solo aparecian las de la madrugada.
-      await service.findAll({ date: '2026-08-27' });
+    it('usa la zona configurada en la organizacion', async () => {
+      prisma.organization.findUnique.mockResolvedValue({
+        timezone: 'America/Tijuana',
+      });
+
+      await service.findAll({ date: '2026-08-27', organizationId: 'org1' });
+
+      // Tijuana en agosto va una hora por detras de Ciudad de Mexico.
+      expect(whereUsado().orderedAt.gte.toISOString()).toBe(
+        '2026-08-27T07:00:00.000Z',
+      );
+    });
+
+    it('incluye la venta de la tarde, que es la que se perdia', async () => {
+      // Seis tickets cobrados entre las 18:11 y las 19:25 del 26 de agosto
+      // estan guardados como 27 de agosto en UTC. Con el dia recortado en UTC
+      // desaparecian de su propia jornada.
+      await service.findAll({ date: '2026-08-26', organizationId: 'org1' });
 
       const { gte, lte } = whereUsado().orderedAt;
-      const mediaTarde = new Date(2026, 7, 27, 15, 30, 0);
+      const ventaDeLaTarde = new Date('2026-08-27T01:25:00.000Z');
 
-      expect(mediaTarde >= gte && mediaTarde <= lte).toBe(true);
+      expect(ventaDeLaTarde >= gte && ventaDeLaTarde <= lte).toBe(true);
     });
 
-    it('no mete el dia anterior en el rango', async () => {
-      await service.findAll({ date: '2026-08-27' });
+    it('no arrastra la madrugada del dia siguiente', async () => {
+      await service.findAll({ date: '2026-08-26', organizationId: 'org1' });
 
-      const { gte } = whereUsado().orderedAt;
-      const ayerPorLaNoche = new Date(2026, 7, 26, 23, 30, 0);
+      const { lte } = whereUsado().orderedAt;
+      const yaEsDia27 = new Date('2026-08-27T12:00:00.000Z'); // 06:00 CDMX
 
-      expect(ayerPorLaNoche >= gte).toBe(false);
+      expect(yaEsDia27 <= lte).toBe(false);
     });
 
     it('ignora una fecha con formato invalido en vez de filtrar por basura', async () => {
@@ -98,6 +119,14 @@ describe('OrdersService', () => {
       await service.findAll({});
 
       expect(whereUsado().orderedAt).toBeUndefined();
+    });
+
+    it('no consulta la zona si no hay filtro de fecha', async () => {
+      // La busqueda de la zona es una consulta mas: solo se paga cuando hace
+      // falta recortar un dia.
+      await service.findAll({ organizationId: 'org1' });
+
+      expect(prisma.organization.findUnique).not.toHaveBeenCalled();
     });
   });
 

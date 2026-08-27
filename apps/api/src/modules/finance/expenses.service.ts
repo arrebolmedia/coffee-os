@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { rangoEntreDias } from '../../common/time/day-range';
+import { zonaDelNegocio } from '../../common/time/zona-negocio';
 import { PrismaService } from '../database/prisma.service';
 import {
   CreateExpenseDto,
@@ -72,10 +78,18 @@ export class ExpensesService {
     if (query.location_id) where.locationId = query.location_id;
 
     if (query.start_date && query.end_date) {
-      where.createdAt = {
-        gte: new Date(query.start_date),
-        lte: new Date(query.end_date),
-      };
+      // `new Date('2026-08-31')` es la medianoche del 31: usarlo como `lte`
+      // dejaba fuera el ultimo dia entero del informe. Cada extremo se lleva al
+      // principio o al final de su dia, en la zona de la cafeteria.
+      const zona = await zonaDelNegocio(this.prisma, {
+        organizationId: query.organization_id,
+        locationId: query.location_id,
+      });
+      const rango = rangoEntreDias(query.start_date, query.end_date, zona);
+      if (!rango) {
+        throw new BadRequestException('Invalid start_date or end_date');
+      }
+      where.createdAt = rango;
     }
 
     if (query.search) {

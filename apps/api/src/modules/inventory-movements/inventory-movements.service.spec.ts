@@ -416,9 +416,13 @@ describe('InventoryMovementsService', () => {
 
       expect(prisma.inventoryMovement.findMany).toHaveBeenCalledWith({
         where: {
+          // El rango cubre los dos dias completos, en la zona de la cafeteria.
+          // Antes `lte` era `new Date('2024-01-31')` —medianoche UTC— y el
+          // informe perdia el ultimo dia entero; esta prueba daba por buena esa
+          // resta porque comprobaba justo el valor que producia el fallo.
           createdAt: {
-            gte: new Date(startDate),
-            lte: new Date(endDate),
+            gte: new Date('2024-01-01T06:00:00.000Z'),
+            lte: new Date('2024-02-01T05:59:59.999Z'),
           },
         },
         include: {
@@ -433,6 +437,22 @@ describe('InventoryMovementsService', () => {
         orderBy: { createdAt: 'desc' },
       });
       expect(result).toEqual(movements);
+    });
+
+    it('incluye un movimiento de la tarde del ultimo dia del rango', async () => {
+      mockPrismaService.inventoryMovement.findMany.mockResolvedValue([]);
+
+      await service.findByDateRange('2024-01-01', '2024-01-31');
+
+      const { gte, lte } =
+        mockPrismaService.inventoryMovement.findMany.mock.calls[0][0].where
+          .createdAt;
+      // 31 de enero a las 20:00 en la cafeteria.
+      const laTardeDelUltimoDia = new Date('2024-02-01T02:00:00.000Z');
+
+      expect(laTardeDelUltimoDia >= gte && laTardeDelUltimoDia <= lte).toBe(
+        true,
+      );
     });
 
     it('should throw BadRequestException if dates are missing', async () => {
