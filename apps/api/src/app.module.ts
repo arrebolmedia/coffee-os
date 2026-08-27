@@ -148,6 +148,10 @@ export class AppModule implements NestModule {
     // Abre el contexto de organización para TODA la superficie de la API,
     // incluidas las rutas @Public(): el scope se abre vacío y sólo se rellena
     // cuando hay usuario autenticado.
-    consumer.apply(TenantContextMiddleware).forRoutes('*');
+    //
+    // `'{*path}'` y no `'*'`: Express 5 usa path-to-regexp 8, que ya no admite
+    // el comodin desnudo. Nest lo auto-convierte y avisa de que lanzara en el
+    // proximo major, asi que se escribe directamente en la sintaxis nueva.
+    consumer.apply(TenantContextMiddleware).forRoutes('{*path}');
   }
 }

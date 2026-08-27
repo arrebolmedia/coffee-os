@@ -18,6 +18,7 @@ import {
   RegisterDto,
   RegisterOrganizationDto,
 } from './dto/auth.dto';
+import { parseJwtTtl } from './jwt-ttl';
 
 const ACCESS_TOKEN_TTL = '15m';
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
@@ -445,8 +446,11 @@ export class AuthService {
     const accessToken = this.jwtService.sign(
       { ...basePayload, type: 'access' },
       {
-        expiresIn:
-          this.configService.get<string>('JWT_EXPIRES_IN') || ACCESS_TOKEN_TTL,
+        expiresIn: parseJwtTtl(
+          this.configService.get<string>('JWT_EXPIRES_IN'),
+          ACCESS_TOKEN_TTL,
+          'JWT_EXPIRES_IN',
+        ),
       },
     );
 
@@ -454,9 +458,11 @@ export class AuthService {
       { ...basePayload, type: 'refresh', jti: randomUUID() },
       {
         secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-        expiresIn:
-          this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ||
+        expiresIn: parseJwtTtl(
+          this.configService.get<string>('JWT_REFRESH_EXPIRES_IN'),
           REFRESH_TOKEN_TTL,
+          'JWT_REFRESH_EXPIRES_IN',
+        ),
       },
     );
 

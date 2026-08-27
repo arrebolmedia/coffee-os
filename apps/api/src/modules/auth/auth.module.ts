@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { DatabaseModule } from '../database/database.module';
+import { parseJwtTtl } from './jwt-ttl';
 
 @Module({
   imports: [
@@ -16,7 +17,11 @@ import { DatabaseModule } from '../database/database.module';
       useFactory: async (configService: ConfigService) => ({
         secret: configService.getOrThrow<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '7d',
+          expiresIn: parseJwtTtl(
+            configService.get<string>('JWT_EXPIRES_IN'),
+            '7d',
+            'JWT_EXPIRES_IN',
+          ),
         },
       }),
       inject: [ConfigService],
