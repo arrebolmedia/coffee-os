@@ -704,6 +704,14 @@ export interface ProfitAndLoss {
   taxes: number;
   /** Tasa de ISR aplicada, como fracción: 0.30 es el 30 %. */
   tax_rate: number;
+  /** Régimen con el que se calculó el ISR. */
+  tax_regime?: 'resico_pf' | 'persona_moral' | 'tasa_fija';
+  /**
+   * Sobre qué se aplicó la tasa. RESICO grava los ingresos cobrados y persona
+   * moral la utilidad, así que sin esto la misma cifra de impuestos no se
+   * puede interpretar.
+   */
+  tax_basis?: 'ingresos' | 'utilidad';
   /**
    * No hay tasa configurada para la organización y se ha usado la de persona
    * moral. La cifra de impuestos —y con ella la utilidad neta— es un supuesto,

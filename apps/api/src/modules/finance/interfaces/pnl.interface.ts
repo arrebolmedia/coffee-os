@@ -1,3 +1,5 @@
+import type { BaseImpuesto, RegimenFiscal } from '../isr';
+
 // Profit & Loss Statement
 export interface ProfitAndLoss {
   organization_id: string;
@@ -57,9 +59,22 @@ export interface ProfitAndLoss {
    */
   tax_rate: number;
 
+  /** Régimen con el que se calculó: `resico_pf`, `persona_moral` o `tasa_fija`. */
+  tax_regime: RegimenFiscal;
+
+  /**
+   * Sobre qué se aplicó la tasa. No es un detalle: RESICO grava los ingresos
+   * cobrados y persona moral la utilidad, así que la misma tasa sobre bases
+   * distintas da impuestos que no se parecen.
+   */
+  tax_basis: BaseImpuesto;
+
   // Diagnostic flags
   cogs_estimated?: boolean; // true if any product cost is missing
-  /** No hay tasa configurada: la cifra de impuestos es un supuesto, no un dato. */
+  /**
+   * No hay régimen ni tasa configurados: la cifra de impuestos es un supuesto,
+   * no un dato, y la pantalla tiene que decirlo.
+   */
   tax_rate_default_used?: boolean;
   break_even_not_reachable?: boolean; // true when variableCostRatio >= 1
 }

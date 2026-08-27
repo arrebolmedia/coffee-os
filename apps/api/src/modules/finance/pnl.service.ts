@@ -5,21 +5,28 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { ProfitAndLoss } from './interfaces';
+import { calcularIsr, esRegimen, RegimenFiscal } from './isr';
+
+// Las tasas y la tabla de RESICO viven en `isr.ts`, que es lógica pura y el
+// único sitio que hay que auditar —o enseñarle al contador— para saber con qué
+// se está calculando el impuesto.
+
+/** Dónde viven los ajustes fiscales, con el mismo esquema que el resto. */
+const AJUSTE_ISR = { categoria: 'finance', clave: 'isr_rate' } as const;
+const AJUSTE_REGIMEN = {
+  categoria: 'finance',
+  clave: 'regimen_fiscal',
+} as const;
 
 /**
- * ISR de persona moral, que es el régimen más común de una cafetería
- * constituida como sociedad. NO vale para todos: una persona física con
- * actividad empresarial tributa con tarifa progresiva, y en RESICO el impuesto
- * se calcula sobre el ingreso bruto (1 % a 2.5 %), no sobre la utilidad.
+ * Régimen que se supone cuando no hay ninguno configurado.
  *
- * Por eso es sólo el punto de partida: la tasa se configura por organización, y
- * la respuesta dice cuándo se está usando este valor por defecto para que el
- * informe no presente un supuesto como si fuera un dato.
+ * Persona moral no porque sea lo más probable en una cafetería —no lo es— sino
+ * porque es lo que el sistema venía calculando: cambiar el valor por defecto
+ * movería en silencio todos los informes históricos. La respuesta marca que es
+ * un supuesto para que nadie lo lea como un dato.
  */
-const DEFAULT_TAX_RATE = 0.3;
-
-/** Dónde vive la tasa configurada, con el mismo esquema que el resto de ajustes. */
-const AJUSTE_ISR = { categoria: 'finance', clave: 'isr_rate' } as const;
+const REGIMEN_POR_DEFECTO: RegimenFiscal = 'persona_moral';
 
 const YEAR_MIN = 2000;
 const YEAR_MAX = 2100;
@@ -207,11 +214,26 @@ export class PnLService {
     const interestExpense = 0;
     const ebt = ebit - interestExpense;
 
-    // Tax rate: try org settings, fall back to DEFAULT_TAX_RATE.
-    const { taxRate, taxRateDefaultUsed } =
-      await this.resolveTaxRate(organizationId);
+    // El impuesto depende del régimen: RESICO grava los ingresos cobrados y
+    // persona moral la utilidad. Antes había una sola fórmula —30 % sobre la
+    // utilidad— aplicada a todos por igual.
+    const { regimen, tasaFija, ajustesPorDefecto } =
+      await this.resolveRegimenFiscal(organizationId);
 
-    const taxesAmount = ebt > 0 ? ebt * taxRate : 0;
+    const dias = Math.max(
+      1,
+      Math.round((endDate.getTime() - startDate.getTime()) / 86_400_000) + 1,
+    );
+
+    const isr = calcularIsr({
+      regimen,
+      ingresos: netRevenue,
+      utilidad: ebt,
+      dias,
+      tasaFija,
+    });
+
+    const taxesAmount = isr.impuesto;
     const netProfit = ebt - taxesAmount;
     const netMarginPercent =
       netRevenue > 0 ? (netProfit / netRevenue) * 100 : 0;
@@ -268,7 +290,9 @@ export class PnLService {
       interest_expense: this.r2(interestExpense),
       ebt: this.r2(ebt),
       taxes: this.r2(taxesAmount),
-      tax_rate: taxRate,
+      tax_rate: isr.tasa,
+      tax_regime: regimen,
+      tax_basis: isr.base,
       net_profit: this.r2(netProfit),
       net_margin_percent: this.r2(netMarginPercent),
       labor_percent: this.r2(laborPercent),
@@ -276,49 +300,70 @@ export class PnLService {
       prime_cost_percent: this.r2(primeCostPercent),
       break_even_point: breakEvenPoint,
       cogs_estimated: cogsEstimated || undefined,
-      tax_rate_default_used: taxRateDefaultUsed || undefined,
+      tax_rate_default_used: ajustesPorDefecto || undefined,
       break_even_not_reachable: breakEvenNotReachable || undefined,
     };
   }
 
   /**
-   * La tasa de ISR con la que se calcula el impuesto del periodo.
+   * El régimen fiscal del negocio y, si aplica, su tasa.
    *
-   * Antes devolvía siempre el 30 % con un TODO que decía que no había dónde
-   * guardarla. Sí lo había: la tabla `settings`, con la misma forma
+   * Antes esto devolvía siempre el 30 % con un TODO que decía que no había
+   * dónde guardarlo. Sí lo había: la tabla `settings`, con la misma forma
    * (organización + categoría + clave) que ya usa la configuración de descuento
-   * automático de inventario. El 30 % es la tasa de persona moral y no vale
-   * para quien tributa en RESICO o como persona física, así que dejarla fija
-   * era meter el régimen fiscal de otro en el estado de resultados.
+   * automático de inventario.
    *
-   * Un valor mal guardado no tumba el informe: se cae al de por defecto y se
-   * marca, igual que si no hubiera nada configurado.
+   * Y el problema era más de fondo que la tasa: el 30 % sobre la utilidad es la
+   * fórmula de persona moral. En RESICO el impuesto sale de los ingresos
+   * cobrados y con otra tabla, así que no bastaba con hacer configurable el
+   * número — hacía falta poder decir en qué régimen se tributa.
+   *
+   * Nada de lo que se lea aquí puede tumbar el informe: un régimen que no se
+   * reconozca o una consulta que falle caen en el valor por defecto, marcado
+   * como supuesto.
    */
-  private async resolveTaxRate(
-    organizationId: string,
-  ): Promise<{ taxRate: number; taxRateDefaultUsed: boolean }> {
+  private async resolveRegimenFiscal(organizationId: string): Promise<{
+    regimen: RegimenFiscal;
+    tasaFija?: number;
+    ajustesPorDefecto: boolean;
+  }> {
     try {
-      const ajuste = await this.prisma.setting.findUnique({
+      const ajustes = await this.prisma.setting.findMany({
         where: {
-          organizationId_category_key: {
-            organizationId,
-            category: AJUSTE_ISR.categoria,
-            key: AJUSTE_ISR.clave,
-          },
+          organizationId,
+          category: AJUSTE_ISR.categoria,
+          key: { in: [AJUSTE_ISR.clave, AJUSTE_REGIMEN.clave] },
         },
-        select: { value: true },
+        select: { key: true, value: true },
       });
 
-      const tasa = this.leerTasa(ajuste?.value);
-      if (tasa !== null) {
-        return { taxRate: tasa, taxRateDefaultUsed: false };
+      const porClave = new Map(ajustes.map((a) => [a.key, a.value]));
+      const crudoRegimen = this.desenvolver(porClave.get(AJUSTE_REGIMEN.clave));
+      const tasaFija =
+        this.leerTasa(porClave.get(AJUSTE_ISR.clave)) ?? undefined;
+
+      if (esRegimen(crudoRegimen)) {
+        return { regimen: crudoRegimen, tasaFija, ajustesPorDefecto: false };
+      }
+
+      // Compatibilidad: quien ya tenía una tasa configurada y ningún régimen
+      // estaba pidiendo justo eso, una tasa fija sobre la utilidad.
+      if (tasaFija !== undefined) {
+        return { regimen: 'tasa_fija', tasaFija, ajustesPorDefecto: false };
       }
     } catch {
       // Un fallo al leer la configuración no puede dejar sin estado de
-      // resultados: se sigue con el valor por defecto, ya marcado como tal.
+      // resultados: se sigue con el supuesto, ya marcado como tal.
     }
 
-    return { taxRate: DEFAULT_TAX_RATE, taxRateDefaultUsed: true };
+    return { regimen: REGIMEN_POR_DEFECTO, ajustesPorDefecto: true };
+  }
+
+  /** El valor de un ajuste, venga suelto o envuelto en `{ value: ... }`. */
+  private desenvolver(value: unknown): unknown {
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>).value
+      : value;
   }
 
   /**
@@ -331,12 +376,9 @@ export class PnLService {
    * productos.
    */
   private leerTasa(value: unknown): number | null {
-    const crudo =
-      value && typeof value === 'object' && !Array.isArray(value)
-        ? (value as Record<string, unknown>).value
-        : value;
-
-    const numero = typeof crudo === 'string' ? Number(crudo) : crudo;
+    const crudo = this.desenvolver(value);
+    const numero =
+      typeof crudo === 'string' && crudo.trim() !== '' ? Number(crudo) : crudo;
 
     if (typeof numero !== 'number' || !Number.isFinite(numero)) return null;
     if (numero < 0 || numero > 1) return null;

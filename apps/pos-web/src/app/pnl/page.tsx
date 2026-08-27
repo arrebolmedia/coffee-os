@@ -64,6 +64,19 @@ export default function PnLPage() {
       : `${porcentaje.toFixed(2).replace(/0$/, '')}%`;
   };
 
+  /**
+   * Cómo se llama el régimen y sobre qué grava.
+   *
+   * La base importa tanto como la tasa: un 2 % sobre ingresos y un 30 % sobre
+   * utilidad no se comparan, y el renglón tiene que dejarlo claro para que
+   * nadie lea «2%» y piense que paga poquísimo sin saber sobre qué.
+   */
+  const REGIMENES: Record<string, { nombre: string; sobre: string }> = {
+    resico_pf: { nombre: 'RESICO', sobre: 'sobre ingresos' },
+    persona_moral: { nombre: 'ISR', sobre: 'sobre utilidad' },
+    tasa_fija: { nombre: 'ISR', sobre: 'sobre utilidad' },
+  };
+
   // Calculate expense breakdown
   const expenseBreakdown = useMemo(() => {
     if (!pnlData) return [];
@@ -556,15 +569,28 @@ export default function PnLPage() {
                       <span className="text-gray-700">
                         <Minus className="w-4 h-4 inline mr-1" />
                         {/* La tasa venía escrita a mano como «30% ISR». Ahora
-                            la dice el informe, y si nadie la ha configurado se
-                            avisa de que es un supuesto: el 30 % es la tasa de
-                            persona moral y no vale para quien tributa en
-                            RESICO o como persona física. */}
-                        Impuestos ({formatIsrRate(pnlData.tax_rate)} ISR)
+                            la dicen el informe y su régimen: el 30 % sobre
+                            utilidad es de persona moral, y en RESICO el
+                            impuesto sale de los ingresos con otra tabla. */}
+                        Impuestos (
+                        {
+                          (
+                            REGIMENES[pnlData.tax_regime ?? 'persona_moral'] ??
+                            REGIMENES.persona_moral
+                          ).nombre
+                        }{' '}
+                        {formatIsrRate(pnlData.tax_rate)}{' '}
+                        {
+                          (
+                            REGIMENES[pnlData.tax_regime ?? 'persona_moral'] ??
+                            REGIMENES.persona_moral
+                          ).sobre
+                        }
+                        )
                         {pnlData.tax_rate_default_used && (
                           <span
                             className="ml-2 text-xs text-amber-700"
-                            title="No hay tasa de ISR configurada para esta organización. Se está usando la de persona moral (30 %); si tributas en RESICO o como persona física, la utilidad neta de abajo no es la tuya."
+                            title="No hay régimen fiscal configurado para esta organización. Se está suponiendo persona moral (30 % sobre la utilidad); si tributas en RESICO, el impuesto se calcula sobre los ingresos cobrados y la utilidad neta de abajo no es la tuya."
                           >
                             supuesto
                           </span>

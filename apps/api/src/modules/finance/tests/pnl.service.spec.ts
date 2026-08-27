@@ -9,8 +9,8 @@ const mockPrismaService = {
   ticketLine: { findMany: jest.fn() },
   expense: { groupBy: jest.fn() },
   organization: { findUnique: jest.fn() },
-  // De aquí sale la tasa de ISR configurada por la organización.
-  setting: { findUnique: jest.fn() },
+  // De aquí salen el régimen fiscal y la tasa configurados por la organización.
+  setting: { findMany: jest.fn() },
 };
 
 describe('PnLService', () => {
@@ -100,11 +100,16 @@ describe('PnLService', () => {
      * leyendo la utilidad neta de otro.
      */
     describe('tasa de ISR configurable', () => {
-      /** Lo que devuelve la consulta del ajuste. */
-      function conAjuste(value: unknown) {
-        mockPrismaService.setting.findUnique.mockResolvedValue(
-          value === undefined ? null : { value },
+      /** Los ajustes fiscales que hay guardados para la organización. */
+      function conAjustes(ajustes: Record<string, unknown>) {
+        mockPrismaService.setting.findMany.mockResolvedValue(
+          Object.entries(ajustes).map(([key, value]) => ({ key, value })),
         );
+      }
+
+      /** Sólo la tasa, sin régimen: es la configuración que ya existía. */
+      function conAjuste(value: unknown) {
+        conAjustes(value === undefined ? {} : { isr_rate: value });
       }
 
       it('usa la tasa configurada por la organización', async () => {
@@ -121,15 +126,12 @@ describe('PnLService', () => {
 
         await service.calculatePnL('org_1', start, end);
 
-        expect(mockPrismaService.setting.findUnique).toHaveBeenCalledWith(
+        expect(mockPrismaService.setting.findMany).toHaveBeenCalledWith(
           expect.objectContaining({
-            where: {
-              organizationId_category_key: {
-                organizationId: 'org_1',
-                category: 'finance',
-                key: 'isr_rate',
-              },
-            },
+            where: expect.objectContaining({
+              organizationId: 'org_1',
+              category: 'finance',
+            }),
           }),
         );
       });
@@ -190,7 +192,7 @@ describe('PnLService', () => {
       });
 
       it('si la consulta del ajuste falla, se sigue con el valor por defecto', async () => {
-        mockPrismaService.setting.findUnique.mockRejectedValue(
+        mockPrismaService.setting.findMany.mockRejectedValue(
           new Error('base caída'),
         );
 
@@ -207,6 +209,79 @@ describe('PnLService', () => {
 
         // El impuesto tiene que cuadrar con la tasa que se anuncia.
         expect(pnl.taxes).toBeCloseTo(pnl.ebt * pnl.tax_rate, 2);
+      });
+
+      /**
+       * El régimen decide sobre QUÉ se aplica la tasa, y eso pesa más que la
+       * tasa misma: RESICO grava los ingresos cobrados; persona moral, la
+       * utilidad.
+       */
+      describe('régimen fiscal', () => {
+        it('en RESICO el impuesto sale de los ingresos, no de la utilidad', async () => {
+          conAjustes({ regimen_fiscal: 'resico_pf' });
+
+          const pnl = await service.calculatePnL('org_1', start, end);
+
+          expect(pnl.tax_regime).toBe('resico_pf');
+          expect(pnl.tax_basis).toBe('ingresos');
+          expect(pnl.taxes).toBeCloseTo(pnl.net_revenue * pnl.tax_rate, 2);
+          expect(pnl.tax_rate_default_used).toBeUndefined();
+        });
+
+        it('y sale muy distinto de lo que pagaría una persona moral', async () => {
+          conAjustes({ regimen_fiscal: 'resico_pf' });
+          const resico = await service.calculatePnL('org_1', start, end);
+
+          conAjustes({ regimen_fiscal: 'persona_moral' });
+          const moral = await service.calculatePnL('org_1', start, end);
+
+          expect(moral.tax_basis).toBe('utilidad');
+          expect(moral.taxes).not.toBeCloseTo(resico.taxes, 0);
+        });
+
+        it('sin nada configurado supone persona moral y lo marca', async () => {
+          // No porque sea lo más probable en una cafetería, sino porque es lo
+          // que el sistema venía calculando: cambiar el valor por defecto
+          // movería en silencio todos los informes anteriores.
+          conAjustes({});
+
+          const pnl = await service.calculatePnL('org_1', start, end);
+
+          expect(pnl.tax_regime).toBe('persona_moral');
+          expect(pnl.tax_rate).toBe(0.3);
+          expect(pnl.tax_rate_default_used).toBe(true);
+        });
+
+        it('un régimen que no se reconoce no tumba el informe', async () => {
+          conAjustes({ regimen_fiscal: 'inventado' });
+
+          const pnl = await service.calculatePnL('org_1', start, end);
+
+          expect(pnl.tax_regime).toBe('persona_moral');
+          expect(pnl.tax_rate_default_used).toBe(true);
+        });
+
+        it('el régimen manda sobre la tasa suelta', async () => {
+          // Con los dos configurados, RESICO calcula con su tabla y la tasa
+          // fija se queda para cuando el régimen es `tasa_fija`.
+          conAjustes({ regimen_fiscal: 'resico_pf', isr_rate: 0.25 });
+
+          const pnl = await service.calculatePnL('org_1', start, end);
+
+          expect(pnl.tax_regime).toBe('resico_pf');
+          expect(pnl.tax_rate).not.toBe(0.25);
+        });
+
+        it('una tasa sin régimen se sigue entendiendo como tasa fija', async () => {
+          // Compatibilidad: quien ya la tenía configurada pedía justo eso.
+          conAjustes({ isr_rate: 0.25 });
+
+          const pnl = await service.calculatePnL('org_1', start, end);
+
+          expect(pnl.tax_regime).toBe('tasa_fija');
+          expect(pnl.tax_rate).toBe(0.25);
+          expect(pnl.tax_basis).toBe('utilidad');
+        });
       });
     });
 
