@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
+import { abrirCarrito } from './pos-drawer';
 
 const POS_ROUTE = '/pos';
 
@@ -19,6 +20,9 @@ async function addFirstProduct(page: Page): Promise<void> {
   await expect(card).toBeVisible({ timeout: 15_000 });
   await card.click();
   await expect(page.locator('[data-testid="cart-empty"]')).not.toBeVisible();
+  // En móvil el carrito arranca cerrado y sus controles quedan fuera de la
+  // pantalla. En escritorio no hace nada.
+  await abrirCarrito(page);
 }
 
 async function readTotal(page: Page): Promise<number> {

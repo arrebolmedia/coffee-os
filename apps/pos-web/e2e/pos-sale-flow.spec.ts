@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
+import { abrirCarrito } from './pos-drawer';
 
 const POS_ROUTE = '/pos';
 const TAX_RATE = 0.16; // matches TAX_RATE in src/store/cart.store.ts
@@ -38,6 +39,10 @@ async function addFirstProduct(page: Page): Promise<number> {
   const price = parseMoney(label);
   await card.click();
   await expect(page.locator('[data-testid="cart-empty"]')).not.toBeVisible();
+  // En móvil el carrito es un panel que arranca cerrado: los tests que siguen
+  // pulsan «+», «Cobrar» o «Limpiar», que viven dentro. En escritorio no hace
+  // nada, que es donde el carrito ya está siempre a la vista.
+  await abrirCarrito(page);
   return price;
 }
 

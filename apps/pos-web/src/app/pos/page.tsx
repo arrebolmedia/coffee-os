@@ -11,7 +11,7 @@ import { ProductCatalog } from '@/components/pos/ProductCatalog';
 import { Cart } from '@/components/pos/Cart';
 import { PaymentModal } from '@/components/pos/PaymentModal';
 import CustomerSearch from '@/components/pos/CustomerSearch';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, X } from 'lucide-react';
 import { OfflineIndicator } from '@/components/pos/OfflineIndicator';
 import { MainLayout } from '@/components/layout/MainLayout';
 import type { Customer } from '@/types';
@@ -19,7 +19,12 @@ import { logger } from '@/lib/logger';
 
 export default function POSPage() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Cart sidebar visible por defecto
+  // El carrito arranca cerrado. A partir de `lg` da igual: ahí es una columna
+  // fija al lado del catálogo y este estado no lo mueve. Por debajo, en cambio,
+  // es un panel `fixed` a pantalla completa, y arrancar abierto dejaba el POS
+  // tapado por un carrito vacío nada más entrar, sin nada visible que lo
+  // cerrara. Lo primero que necesita un barista es ver los productos.
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null,
   );
@@ -56,7 +61,10 @@ export default function POSPage() {
     <MainLayout>
       <div className="h-full flex flex-col bg-gray-50">
         {/* POS Header - Status Bar */}
-        <div className="bg-white border-b border-gray-200 px-4 py-3">
+        {/* `relative z-40` para quedar por encima del velo del carrito (z-20) y
+            del propio panel (z-30): si no, en móvil el botón del carrito queda
+            debajo del velo y no hay forma de volver a abrirlo. */}
+        <div className="relative z-40 bg-white border-b border-gray-200 px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
@@ -74,7 +82,22 @@ export default function POSPage() {
 
             <div className="flex items-center gap-4">
               <OfflineIndicator />
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg">
+              {/* Por debajo de `lg` el carrito es un panel que se abre y se
+                  cierra, así que el contador tiene que ser el botón que lo
+                  gobierna: antes era un `div` sin `onClick` y no existía ningún
+                  control que tocara `isSidebarOpen`. A partir de `lg` el
+                  carrito está siempre a la vista y el contador sólo informa. */}
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen((abierto) => !abierto)}
+                aria-expanded={isSidebarOpen}
+                aria-label={`${isSidebarOpen ? 'Ocultar' : 'Ver'} carrito (${itemCount} ${itemCount === 1 ? 'artículo' : 'artículos'})`}
+                className="lg:hidden flex items-center gap-2 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                <span className="text-sm font-bold">{itemCount}</span>
+              </button>
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg">
                 <ShoppingCart className="w-4 h-4" />
                 <span className="text-sm font-bold">{itemCount}</span>
               </div>
@@ -104,6 +127,20 @@ export default function POSPage() {
             flex flex-col
           `}
           >
+            {/* Volver al catálogo. El panel ocupa todo el ancho del teléfono,
+                así que no queda «fuera» donde tocar para cerrarlo. */}
+            <div className="lg:hidden flex items-center justify-between px-4 pt-4">
+              <h2 className="text-sm font-semibold text-gray-700">Carrito</h2>
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen(false)}
+                aria-label="Cerrar carrito y volver al catálogo"
+                className="p-2 -mr-2 text-gray-500 hover:text-gray-900 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
             {/* Customer Search */}
             <div className="p-4 bg-gray-50">
               <CustomerSearch

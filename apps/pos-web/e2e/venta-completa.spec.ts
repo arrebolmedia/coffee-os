@@ -1,4 +1,5 @@
 import { type APIRequestContext, expect, test } from '@playwright/test';
+import { abrirCarrito } from './pos-drawer';
 
 /**
  * La venta completa, contra el stack real: cobrar en el POS por interfaz y
@@ -115,6 +116,10 @@ test.describe('Venta completa punta a punta', () => {
     await expect(tarjeta).toBeVisible({ timeout: 15_000 });
     await tarjeta.click();
     await expect(page.locator('[data-testid="cart-empty"]')).not.toBeVisible();
+
+    // En móvil el carrito arranca cerrado y «Cobrar» vive dentro. En
+    // escritorio no hace nada.
+    await abrirCarrito(page);
 
     await page.getByRole('button', { name: /Cobrar/i }).click();
     await expect(
