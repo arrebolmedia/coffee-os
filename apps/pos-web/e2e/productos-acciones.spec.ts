@@ -15,6 +15,23 @@ import { type APIRequestContext, expect, test } from '@playwright/test';
 
 const API = 'http://localhost:4000/api/v1';
 
+/**
+ * Deja en la tabla sólo el producto que interesa.
+ *
+ * Sin esto los tests eran inestables: varios navegadores corren a la vez contra
+ * la misma organización, cada uno creando y borrando productos, así que la fila
+ * buscada podía quedar entre decenas de filas ajenas o fuera de la vista. Al
+ * filtrar por su SKU la tabla queda con una sola fila y el test deja de
+ * depender de lo que hagan los demás.
+ */
+async function filtrarPor(
+  page: import('@playwright/test').Page,
+  texto: string,
+) {
+  await page.getByPlaceholder('Buscar producto, SKU...').fill(texto);
+  await page.waitForTimeout(400);
+}
+
 async function login(request: APIRequestContext) {
   const res = await request.post(`${API}/auth/login`, {
     data: { email: 'owner@coffeedemo.mx', password: 'password123' },
@@ -107,6 +124,7 @@ test.describe('Acciones de la tabla de productos', () => {
     request,
   }) => {
     await page.goto('/products');
+    await filtrarPor(page, sku);
     const fila = page.locator('tr', { hasText: nombre }).first();
     await expect(fila).toBeVisible({ timeout: 20_000 });
     await fila.getByRole('button', { name: /^Editar/ }).click();
@@ -132,6 +150,7 @@ test.describe('Acciones de la tabla de productos', () => {
 
   test('el ojo abre la ficha con lo que la fila recorta', async ({ page }) => {
     await page.goto('/products');
+    await filtrarPor(page, sku);
 
     const fila = page.locator('tr', { hasText: nombre }).first();
     await expect(fila).toBeVisible({ timeout: 20_000 });
@@ -151,6 +170,7 @@ test.describe('Acciones de la tabla de productos', () => {
     request,
   }) => {
     await page.goto('/products');
+    await filtrarPor(page, sku);
 
     const fila = page.locator('tr', { hasText: nombre }).first();
     await expect(fila).toBeVisible({ timeout: 20_000 });
@@ -172,6 +192,7 @@ test.describe('Acciones de la tabla de productos', () => {
 
   test('confirmar borra el producto de verdad', async ({ page, request }) => {
     await page.goto('/products');
+    await filtrarPor(page, sku);
 
     const fila = page.locator('tr', { hasText: nombre }).first();
     await expect(fila).toBeVisible({ timeout: 20_000 });

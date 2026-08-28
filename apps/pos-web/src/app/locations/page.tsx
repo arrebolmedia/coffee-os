@@ -13,6 +13,7 @@
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { type Location, useLocations } from '@/hooks/use-locations';
+import { SucursalModal } from '@/components/locations/SucursalModal';
 import {
   CheckCircle,
   Clock,
@@ -30,6 +31,9 @@ import {
 } from 'lucide-react';
 
 export default function LocationsPage() {
+  // La pantalla listaba las sucursales y el botón «Nueva Sucursal» no tenía
+  // `onClick`: no había forma de dar de alta un segundo local.
+  const [creandoSucursal, setCreandoSucursal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
@@ -89,7 +93,11 @@ export default function LocationsPage() {
               Gestión de ubicaciones y configuración multi-tenancy
             </p>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <button
+            type="button"
+            onClick={() => setCreandoSucursal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
             <Plus className="w-5 h-5" />
             Nueva Sucursal
           </button>
@@ -290,6 +298,11 @@ export default function LocationsPage() {
           </div>
         )}
       </div>
+
+      <SucursalModal
+        abierto={creandoSucursal}
+        onClose={() => setCreandoSucursal(false)}
+      />
     </MainLayout>
   );
 }

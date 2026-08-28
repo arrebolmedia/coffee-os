@@ -66,6 +66,45 @@ export function useLocationStats() {
   });
 }
 
+/**
+ * Los campos que acepta `POST /locations`, con los nombres del DTO.
+ *
+ * `organization_id` lo pone el hook desde la sesión: la organización nunca sale
+ * del formulario.
+ */
+export interface CrearSucursalDTO {
+  name: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  phone?: string;
+  email?: string;
+  timezone?: string;
+}
+
+export function useCreateLocation() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const organizationId = user?.organizationId || '';
+
+  return useMutation({
+    mutationFn: (data: CrearSucursalDTO) =>
+      api.post('/locations', { ...data, organization_id: organizationId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: locationKeys.list(organizationId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: locationKeys.stats(organizationId),
+      });
+      toast.success('Sucursal creada exitosamente');
+    },
+    onError: (error: any) =>
+      toast.error(error?.message || 'Error al crear sucursal'),
+  });
+}
+
 export function useUpdateLocation() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
