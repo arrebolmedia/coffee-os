@@ -11,6 +11,7 @@
 import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { TemperaturaModal } from '@/components/quality/TemperaturaModal';
+import { ChecklistModal } from '@/components/quality/ChecklistModal';
 import {
   useChecklists,
   useTemperatureAlerts,
@@ -38,6 +39,7 @@ const TEMPERATURE_TYPE_LABELS: Record<string, string> = {
 
 export default function QualityPage() {
   const [registrandoTemperatura, setRegistrandoTemperatura] = useState(false);
+  const [creandoChecklist, setCreandoChecklist] = useState(false);
   const { data: checklists, isLoading: checklistsLoading } = useChecklists();
   const { data: temperatureLogs, isLoading: tempLoading } =
     useTemperatureLogs();
@@ -90,6 +92,15 @@ export default function QualityPage() {
                 </p>
               </div>
             </div>
+            {/* La pantalla listaba los checklists y no habia forma de crear
+                uno: el hook existia y no lo llamaba nadie. */}
+            <button
+              type="button"
+              onClick={() => setCreandoChecklist(true)}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+            >
+              Nuevo checklist
+            </button>
           </div>
         </div>
 
@@ -275,6 +286,11 @@ export default function QualityPage() {
           </div>
         </div>
       </div>
+
+      <ChecklistModal
+        abierto={creandoChecklist}
+        onClose={() => setCreandoChecklist(false)}
+      />
 
       <TemperaturaModal
         abierto={registrandoTemperatura}
