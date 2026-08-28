@@ -98,9 +98,11 @@ test.describe('Acciones de la tabla de productos', () => {
     await dialogo.getByLabel('Costo').fill('12');
     await dialogo.getByRole('button', { name: /Crear producto/ }).click();
 
-    await expect(page.getByText(/creado exitosamente/i)).toBeVisible({
-      timeout: 15_000,
-    });
+    // Se espera a que el diálogo se cierre, no al aviso de éxito: el aviso se
+    // auto-descarta y la espera dependía de ganarle la carrera. El diálogo sólo
+    // se cierra cuando el alta terminó bien; si falla se queda abierto con el
+    // error a la vista, y entonces esto falla enseñando exactamente qué pasó.
+    await expect(dialogo).toBeHidden({ timeout: 15_000 });
 
     // Y existe de verdad, con su tasa: la pantalla no se limita a pintarlo.
     const res = await request.get(`${API}/products`, {
@@ -137,9 +139,7 @@ test.describe('Acciones de la tabla de productos', () => {
     await dialogo.getByLabel('Precio al público').fill('41');
     await dialogo.getByRole('button', { name: /^Guardar$/ }).click();
 
-    await expect(page.getByText(/actualizado exitosamente/i)).toBeVisible({
-      timeout: 15_000,
-    });
+    await expect(dialogo).toBeHidden({ timeout: 15_000 });
 
     const res = await request.get(`${API}/products`, {
       headers: { Authorization: `Bearer ${token}` },

@@ -51,7 +51,13 @@ export default function QualityPage() {
   const logs = temperatureLogs || [];
   const alerts = temperatureAlerts || [];
 
-  if (isLoading) {
+  // La compuerta de carga no puede tragarse un diálogo abierto: el `return`
+  // temprano sustituye la página entera —modales incluidos—, así que una
+  // consulta de fondo que vuelve a cargar mientras el usuario escribe desmonta
+  // el formulario y borra lo tecleado. Con un diálogo abierto se sigue de largo.
+  const hayDialogoAbierto = creandoChecklist || registrandoTemperatura;
+
+  if (isLoading && !hayDialogoAbierto) {
     return (
       <MainLayout>
         <div className="flex items-center justify-center min-h-screen">
