@@ -238,16 +238,14 @@ export function PaymentModal({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Left: Summary */}
               <div>
+                {/* Mismo orden que el carrito: precios de carta, descuento,
+                    total, y el IVA al final porque ya viene dentro. */}
                 <div className="bg-gray-50 rounded-lg p-4 space-y-3 mb-6">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Subtotal:</span>
                     <span className="font-medium">
-                      {formatPrice(cart.subtotal)}
+                      {formatPrice(cart.total + cart.discount)}
                     </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">IVA:</span>
-                    <span className="font-medium">{formatPrice(cart.tax)}</span>
                   </div>
                   {cart.discount > 0 && (
                     <div className="flex justify-between text-sm text-red-600">
@@ -262,6 +260,10 @@ export function PaymentModal({
                     <span className="text-amber-600">
                       {formatPrice(cart.total)}
                     </span>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>IVA incluido:</span>
+                    <span>{formatPrice(cart.tax)}</span>
                   </div>
                 </div>
 

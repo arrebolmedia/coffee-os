@@ -6,11 +6,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { TAX_RATE, useCartStore } from '@/store/cart.store';
+import { useCartStore } from '@/store/cart.store';
 import { Minus, Plus, ShoppingCart, Trash2, X } from 'lucide-react';
 import { CartItem } from '@/types';
-
-const TAX_PERCENT_LABEL = `${Math.round(TAX_RATE * 100)}%`;
 
 export function Cart() {
   const cart = useCartStore((state) => state.cart);
@@ -80,10 +78,18 @@ export function Cart() {
       </div>
 
       {/* Totals */}
+      {/*
+        El orden importa y tiene que reconciliar a la vista del cajero.
+        `cart.subtotal` es la base gravable YA descontada, asi que enseniarla
+        arriba del descuento daba una resta que no cuadraba: 36.21 - 20 + 5.79
+        para un total de 42. Lo que se enseña arriba es la suma de los precios
+        de carta —el total mas lo descontado— y el IVA baja al final como lo
+        que es: informativo, porque ya viene dentro del precio.
+      */}
       <div className="border-t border-gray-200 p-4 space-y-2">
         <div className="flex justify-between text-sm text-gray-600">
           <span>Subtotal:</span>
-          <span>{formatPrice(cart.subtotal)}</span>
+          <span>{formatPrice(cart.total + cart.discount)}</span>
         </div>
 
         {cart.discount > 0 && (
@@ -93,14 +99,14 @@ export function Cart() {
           </div>
         )}
 
-        <div className="flex justify-between text-sm text-gray-600">
-          <span>IVA ({TAX_PERCENT_LABEL}):</span>
-          <span>{formatPrice(cart.tax)}</span>
-        </div>
-
         <div className="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t border-gray-200">
           <span>Total:</span>
           <span className="text-amber-600">{formatPrice(cart.total)}</span>
+        </div>
+
+        <div className="flex justify-between text-xs text-gray-500">
+          <span>IVA incluido:</span>
+          <span>{formatPrice(cart.tax)}</span>
         </div>
       </div>
 
