@@ -4,6 +4,24 @@ import { CreateTaxDto, TaxCategory } from './dto/create-tax.dto';
 import { UpdateTaxDto } from './dto/update-tax.dto';
 import { QueryTaxesDto } from './dto/query-taxes.dto';
 
+/**
+ * Catálogo de impuestos. NO es lo que cobra el punto de venta.
+ *
+ * Lo que se cobra en cada venta sale de `product.taxRate` y `product.taxIncluded`
+ * —ver `PosService.createTicket`—, producto a producto. Esta tabla guarda
+ * definiciones con su ámbito (`applicableTo`, `productIds`, `categoryIds`) y no
+ * la consulta nadie: ni el POS, ni el carrito, ni el frontend, que jamás llama a
+ * `/taxes`.
+ *
+ * Se deja escrito aquí porque el módulo parece funcional: tiene CRUD completo y
+ * un `calculateMultipleTaxes`. Alguien puede dar de alta un IVA del 8 % con
+ `applicableTo: 'category'` y quedarse esperando a que aplique. No aplica.
+ *
+ * Cablearlo exige decidir qué regla gana cuando varias alcanzan al mismo
+ * producto, y si manda esta tabla o el campo del producto. Es una decisión de
+ * negocio y de fiscalidad, no de código: hasta que se tome, la única fuente de
+ * verdad es `product.taxRate`, editable en Productos → régimen fiscal.
+ */
 @Injectable()
 export class TaxesService {
   constructor(private prisma: PrismaService) {}

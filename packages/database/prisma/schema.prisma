@@ -1323,6 +1323,12 @@ model Discount {
 // TAX CONFIGURATION
 // ========================================
 
+/// Catalogo de impuestos. NO es lo que cobra el punto de venta.
+///
+/// Lo que se cobra sale de `Product.taxRate` y `Product.taxIncluded`, producto a
+/// producto. Esta tabla no la consulta nadie: ni el POS, ni el carrito, ni el
+/// frontend. Ver la nota de `TaxesService` antes de dar de alta nada aqui
+/// esperando que aplique.
 model Tax {
   id             String @id @default(cuid())
   organizationId String @map("organization_id")

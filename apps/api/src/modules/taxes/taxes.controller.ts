@@ -24,6 +24,10 @@ import { CreateTaxDto } from './dto/create-tax.dto';
 import { UpdateTaxDto } from './dto/update-tax.dto';
 import { QueryTaxesDto } from './dto/query-taxes.dto';
 
+/**
+ * Catálogo de impuestos. Ver la nota de `TaxesService`: estas definiciones NO
+ * son las que cobra el punto de venta.
+ */
 @ApiTags('taxes')
 @ApiBearerAuth()
 @Controller('taxes')
