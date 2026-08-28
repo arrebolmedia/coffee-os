@@ -13,7 +13,10 @@ import {
   useProducts,
 } from '@/hooks/use-products';
 import { useMarginBadge, useProductCOGS } from '@/hooks/use-costing';
-import { RegimenFiscalModal } from '@/components/products/RegimenFiscalModal';
+import {
+  type ProductoEditable,
+  ProductoModal,
+} from '@/components/products/ProductoModal';
 import { ProductoDetalleModal } from '@/components/products/ProductoDetalleModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import {
@@ -64,6 +67,23 @@ interface ProductDisplay {
   taxIncluded: boolean;
 }
 
+/** Pasa una fila de la tabla a lo que el editor necesita. */
+function aEditable(p: ProductDisplay): ProductoEditable {
+  return {
+    id: p.id,
+    name: p.name,
+    sku: p.sku,
+    description: p.description,
+    categoryId: p.categoryId,
+    price: p.price,
+    cost: p.cost,
+    barcode: p.barcode,
+    trackInventory: p.trackInventory,
+    taxRate: p.taxRate,
+    taxIncluded: p.taxIncluded,
+  };
+}
+
 export default function ProductsPage() {
   // ============================================================================
   // STATE
@@ -73,9 +93,10 @@ export default function ProductsPage() {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterStock, setFilterStock] = useState<string>('all');
-  // Producto cuyo régimen fiscal se está editando, o null si el diálogo está
-  // cerrado.
-  const [productoFiscal, setProductoFiscal] = useState<ProductDisplay | null>(
+  // Producto que se está editando, 'nuevo' para un alta, o null si el diálogo
+  // está cerrado. El editor cubre el régimen fiscal además del resto: tener dos
+  // sitios donde cambiar la tasa se prestaba a confusión.
+  const [editando, setEditando] = useState<ProductoEditable | 'nuevo' | null>(
     null,
   );
   /** Producto cuya ficha se está mirando. */
@@ -374,7 +395,11 @@ export default function ProductsPage() {
                 <Download className="w-4 h-4" />
                 Exportar
               </button>
-              <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 font-medium">
+              <button
+                type="button"
+                onClick={() => setEditando('nuevo')}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 font-medium"
+              >
                 <Plus className="w-5 h-5" />
                 Nuevo Producto
               </button>
@@ -674,9 +699,9 @@ export default function ProductsPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setProductoFiscal(product)}
-                          aria-label={`Editar el régimen fiscal de ${product.name}`}
-                          title="Régimen fiscal"
+                          onClick={() => setEditando(aEditable(product))}
+                          aria-label={`Editar ${product.name}`}
+                          title="Editar"
                           className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                         >
                           <Edit className="w-4 h-4" />
@@ -719,10 +744,7 @@ export default function ProductsPage() {
           </div>
         )}
 
-        <RegimenFiscalModal
-          producto={productoFiscal}
-          onClose={() => setProductoFiscal(null)}
-        />
+        <ProductoModal producto={editando} onClose={() => setEditando(null)} />
 
         <ProductoDetalleModal
           producto={productoDetalle}

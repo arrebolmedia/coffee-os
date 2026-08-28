@@ -6,11 +6,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   type ActualizarProductoDTO,
+  type CrearProductoDTO,
   productsService,
 } from '@/services/products.service';
 import { useAuth } from '@/hooks/use-auth';
 import toast from 'react-hot-toast';
-import { Category, PaginationParams, Product, ProductFilters } from '@/types';
+import { Category, PaginationParams, ProductFilters } from '@/types';
 
 // ============================================================================
 // QUERY KEYS
@@ -103,9 +104,16 @@ export function useProductByBarcode(barcode: string) {
 
 export function useCreateProduct() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
-    mutationFn: (data: Partial<Product>) => productsService.createProduct(data),
+    // La organización sale de la sesión, no del formulario: es la regla del
+    // proyecto y el DTO del backend la exige.
+    mutationFn: (data: CrearProductoDTO) =>
+      productsService.createProduct({
+        ...data,
+        organization_id: user?.organizationId ?? '',
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: productKeys.lists() });
       toast.success('Producto creado exitosamente');

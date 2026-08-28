@@ -1,13 +1,16 @@
 import { type APIRequestContext, expect, test } from '@playwright/test';
 
 /**
- * Los tres botones de cada fila de la tabla de productos.
+ * Dar de alta, editar, ver y borrar productos desde la interfaz.
  *
- * Estaban pintados sin `onClick`: se veían accionables y no hacían nada. El del
- * lápiz se conectó al diálogo de régimen fiscal; aquí se cubren los otros dos.
+ * Nada de esto existía: la pantalla listaba y filtraba, «Nuevo Producto» no
+ * tenía `onClick` y los tres botones de cada fila tampoco. Sin alta de
+ * productos la carta de la cafetería sólo entraba llamando a la API a mano, y
+ * eso impedía abrir el negocio con el sistema.
  *
- * El producto de prueba se crea y se borra por la interfaz, que es justamente
- * lo que hay que comprobar del botón de la papelera.
+ * Cada caso comprueba contra la API que la pantalla no se limitó a pintar el
+ * cambio: que el producto existe, que el precio quedó guardado, que el borrado
+ * borró.
  */
 
 const API = 'http://localhost:4000/api/v1';
@@ -39,7 +42,9 @@ test.describe('Acciones de la tabla de productos', () => {
     const lista = await cats.json();
     const categoria = (Array.isArray(lista) ? lista : (lista.data ?? []))[0];
 
-    sku = `E2E-ACC-${Date.now()}`;
+    // Con varios workers en paralelo, `Date.now()` a secas colisiona y el alta
+    // responde 409 por SKU repetido.
+    sku = `E2E-ACC-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
     nombre = `Producto de prueba ${sku}`;
     const creado = await request.post(`${API}/products`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -55,6 +60,74 @@ test.describe('Acciones de la tabla de productos', () => {
       },
     });
     expect(creado.status(), 'el producto de prueba debe crearse').toBe(201);
+  });
+
+  test('se puede dar de alta un producto desde la interfaz y venderlo', async ({
+    page,
+    request,
+  }) => {
+    // Hasta ahora no se podia: la carta solo entraba llamando a la API a mano,
+    // y eso impedia abrir el negocio con el sistema.
+    const nuevoSku = `E2E-ALTA-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+    await page.goto('/products');
+    await page.getByRole('button', { name: /Nuevo Producto/i }).click();
+
+    const dialogo = page.getByRole('dialog');
+    await expect(dialogo).toBeVisible();
+    await dialogo.getByLabel('Nombre').fill(`Cold Brew ${nuevoSku}`);
+    await dialogo.getByLabel('SKU').fill(nuevoSku);
+    await dialogo.getByLabel('Categoría').selectOption({ index: 1 });
+    await dialogo.getByLabel('Precio de venta').fill('55');
+    await dialogo.getByLabel('Costo').fill('12');
+    await dialogo.getByRole('button', { name: /Crear producto/ }).click();
+
+    await expect(page.getByText(/creado exitosamente/i)).toBeVisible({
+      timeout: 15_000,
+    });
+
+    // Y existe de verdad, con su tasa: la pantalla no se limita a pintarlo.
+    const res = await request.get(`${API}/products`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const lista = await res.json();
+    const creado = (Array.isArray(lista) ? lista : (lista.data ?? [])).find(
+      (p: any) => p.sku === nuevoSku,
+    );
+    expect(creado, 'el producto debe existir en la base').toBeTruthy();
+    expect(creado.price).toBe(55);
+    expect(creado.taxRate).toBe(0.16);
+
+    await request.delete(`${API}/products/${creado.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  });
+
+  test('el lápiz edita el producto, incluida su tasa de IVA', async ({
+    page,
+    request,
+  }) => {
+    await page.goto('/products');
+    const fila = page.locator('tr', { hasText: nombre }).first();
+    await expect(fila).toBeVisible({ timeout: 20_000 });
+    await fila.getByRole('button', { name: /^Editar/ }).click();
+
+    const dialogo = page.getByRole('dialog');
+    await expect(dialogo).toBeVisible();
+    await dialogo.getByLabel('Precio de venta').fill('41');
+    await dialogo.getByRole('button', { name: /^Guardar$/ }).click();
+
+    await expect(page.getByText(/actualizado exitosamente/i)).toBeVisible({
+      timeout: 15_000,
+    });
+
+    const res = await request.get(`${API}/products`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const lista = await res.json();
+    const actualizado = (
+      Array.isArray(lista) ? lista : (lista.data ?? [])
+    ).find((p: any) => p.sku === sku);
+    expect(actualizado.price).toBe(41);
   });
 
   test('el ojo abre la ficha con lo que la fila recorta', async ({ page }) => {

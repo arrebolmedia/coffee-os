@@ -20,6 +20,28 @@ import {
  * exista en `UpdateProductDto` del backend: lo que no reconozca se rechaza
  * entero con un 400, no se ignora.
  */
+/**
+ * Los campos que acepta `POST /products`, con los nombres del DTO.
+ *
+ * `organization_id` no va aquí: lo pone el hook a partir de la sesión. Enviarlo
+ * desde el formulario sería aceptar la organización del cliente, que es justo
+ * lo que la regla del proyecto prohíbe.
+ */
+export interface CrearProductoDTO {
+  category_id: string;
+  name: string;
+  base_price: number;
+  sku?: string;
+  description?: string;
+  barcode?: string;
+  cost?: number;
+  /** Fracción, no porcentaje: 0.16 es el 16 %, 0 es tasa cero. */
+  tax_rate?: number;
+  tax_included?: boolean;
+  track_inventory?: boolean;
+  is_available?: boolean;
+}
+
 export interface ActualizarProductoDTO {
   name?: string;
   description?: string;
@@ -113,7 +135,15 @@ class ProductsService {
     );
   }
 
-  async createProduct(data: Partial<Product>): Promise<Product> {
+  /**
+   * El backend recibe snake_case y rechaza lo que no reconoce, así que el tipo
+   * es el del DTO y no el del modelo. Estaba declarado como `Partial<Product>`
+   * —camelCase—, de modo que cualquiera que lo usara con `basePrice` se llevaba
+   * un 400; nadie lo había notado porque no había formulario que lo llamara.
+   */
+  async createProduct(
+    data: CrearProductoDTO & { organization_id: string },
+  ): Promise<Product> {
     const response = await api.post<any>(this.baseUrl, data);
     return this.unwrapSingle<Product>(response);
   }
