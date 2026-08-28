@@ -7,9 +7,15 @@
 
 import { useMemo, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { useCategories, useProducts } from '@/hooks/use-products';
+import {
+  useCategories,
+  useDeleteProduct,
+  useProducts,
+} from '@/hooks/use-products';
 import { useMarginBadge, useProductCOGS } from '@/hooks/use-costing';
 import { RegimenFiscalModal } from '@/components/products/RegimenFiscalModal';
+import { ProductoDetalleModal } from '@/components/products/ProductoDetalleModal';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import {
   AlertCircle,
   BarChart3,
@@ -72,6 +78,15 @@ export default function ProductsPage() {
   const [productoFiscal, setProductoFiscal] = useState<ProductDisplay | null>(
     null,
   );
+  /** Producto cuya ficha se está mirando. */
+  const [productoDetalle, setProductoDetalle] = useState<ProductDisplay | null>(
+    null,
+  );
+  /** Producto pendiente de confirmar el borrado. */
+  const [productoABorrar, setProductoABorrar] = useState<ProductDisplay | null>(
+    null,
+  );
+  const borrarProducto = useDeleteProduct();
 
   // ============================================================================
   // DATA FETCHING
@@ -645,8 +660,16 @@ export default function ProductsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
+                      {/* Los tres botones estaban pintados sin `onClick`: se
+                          veían accionables y no hacían nada. */}
                       <div className="flex items-center justify-end gap-2">
-                        <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                        <button
+                          type="button"
+                          onClick={() => setProductoDetalle(product)}
+                          aria-label={`Ver la ficha de ${product.name}`}
+                          title="Ver ficha"
+                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
@@ -658,7 +681,13 @@ export default function ProductsPage() {
                         >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                        <button
+                          type="button"
+                          onClick={() => setProductoABorrar(product)}
+                          aria-label={`Eliminar ${product.name}`}
+                          title="Eliminar"
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -693,6 +722,26 @@ export default function ProductsPage() {
         <RegimenFiscalModal
           producto={productoFiscal}
           onClose={() => setProductoFiscal(null)}
+        />
+
+        <ProductoDetalleModal
+          producto={productoDetalle}
+          onClose={() => setProductoDetalle(null)}
+        />
+
+        <ConfirmDialog
+          isOpen={productoABorrar !== null}
+          onClose={() => setProductoABorrar(null)}
+          onConfirm={async () => {
+            if (!productoABorrar) return;
+            await borrarProducto.mutateAsync(productoABorrar.id);
+            setProductoABorrar(null);
+          }}
+          title="Eliminar producto"
+          message={`¿Eliminar «${productoABorrar?.name}»? Los tickets ya cobrados lo conservan, pero dejará de poder venderse.`}
+          confirmText="Eliminar"
+          variant="danger"
+          isLoading={borrarProducto.isPending}
         />
       </div>
     </MainLayout>
