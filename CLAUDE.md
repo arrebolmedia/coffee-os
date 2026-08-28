@@ -125,10 +125,18 @@ npm run db:seed:simple   # DESTRUCTIVO: deleteMany sin filtro. No usar por defec
 Nota interna del negocio, no reglas de código. Escritas aquí porque el sistema
 no tiene todavía una pantalla de configuración fiscal donde vivirían.
 
+- **El precio que se exhibe ya lleva el IVA dentro.** Lo obliga el artículo 7 bis
+  de la LFPC: al público se le exhibe el precio total. Es el default del sistema
+  (`taxIncluded: true`), y el precio que se teclea al dar de alta un producto es
+  el que va a pagar el cliente, no una base a la que se le suma el impuesto.
+  El precio de $78 del Affogato son $78: $67.24 de base y $10.76 de IVA.
 - **Todos los productos van al 16 % de IVA.** Se revisó si la panadería debía ir
   a tasa 0 por el artículo 2-A de la LIVA y la respuesta del dueño es no: se
   cobra el 16 % en todo el catálogo. No cambiar tasas de productos sin que él lo
   pida.
+- **El descuento se teclea en pesos de lo que paga el cliente.** «$50 de
+  descuento» son $50 menos en el total, no $50 menos de base gravable. Es la
+  única lectura que el cajero puede defender delante del cliente.
 - **Lo que no se cobra son las bolsas y los desechables para llevar.** Se dan sin
   cargo; no son un producto del catálogo ni una línea del ticket.
 - El mecanismo por producto (`taxRate`, `taxIncluded`) sí funciona y es
@@ -203,3 +211,12 @@ Pendientes de verdad, hoy:
 - El Ticket es la transacción de venta. Order es la orden de cocina (KDS).
 - Dinero redondeado a 2 decimales al escribir, no `decrement` crudo: acumula ruido de
   coma flotante (`6.964000000000001`).
+- **En un ticket, `subtotal + tax === total`.** Los dos primeros van ya
+  descontados: son la base y el IVA que la venta devengó de verdad, que es lo
+  que se declara. `discount` queda como registro en pesos de lo que se le rebajó
+  al cliente, y NO se vuelve a restar. El total se cierra primero y la base se
+  deriva restándole el IVA, porque redondear las dos por separado deja centavos
+  colgando (86.21 y 13.79 a la mitad suman 50.01).
+- El carrito de pos-web tiene que hacer **exactamente la misma cuenta, en el
+  mismo orden**, que `pos.service.ts`. Si se separan, el cajero ve un total en
+  pantalla y se le cobra otro al cliente.
