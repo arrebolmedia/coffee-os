@@ -151,32 +151,88 @@ describe('PosService — IVA por producto', () => {
     });
   });
 
-  describe('con descuento', () => {
-    it('el descuento reduce la base gravable, no sólo el total', async () => {
+  /**
+   * El descuento se teclea en pesos: «$50 de descuento» tiene que dejar al
+   * cliente pagando $50 menos, no una cantidad que dependa de si el precio
+   * llevaba el IVA dentro o por fuera.
+   *
+   * Con los precios de carta (IVA dentro, que es el default nacional) el
+   * prorrateo contra la base neta descontaba de mas: el canje de lealtad de $50
+   * sobre un cafe de $100 dejaba pagando $42, ocho pesos regalados por canje.
+   *
+   * Sigue en pie lo que ya protegian los casos anteriores: el IVA se calcula
+   * sobre el importe YA descontado. Cerrarlo sobre el subtotal completo hacia
+   * que el canje de lealtad cobrara IVA que no correspondia, y el carrito del
+   * POS si descontaba antes, asi que al cajero le aparecia un total y se le
+   * cobraba otro al cliente.
+   */
+  describe('el descuento vale lo que dice, en pesos', () => {
+    it('con el IVA dentro: $100 de carta menos $50 son $50', async () => {
+      conProductos({ cafe: [0.16, true] });
+
+      await venta([{ productId: 'cafe', quantity: 1, unitPrice: 100 }], 50);
+
+      expect(totales()).toEqual({ subtotal: 43.1, tax: 6.9, total: 50 });
+    });
+
+    it('con el IVA por fuera: $116 a pagar menos $20 son $96', async () => {
       conProductos({ cafe: [0.16, false] });
 
       await venta([{ productId: 'cafe', quantity: 1, unitPrice: 100 }], 20);
 
-      // Base 80 → IVA 12.80 → total 92.80.
-      expect(totales()).toEqual({ subtotal: 100, tax: 12.8, total: 92.8 });
+      expect(totales()).toEqual({ subtotal: 82.76, tax: 13.24, total: 96 });
     });
 
-    it('no cobra IVA sobre un producto a tasa 0 aunque lleve descuento', async () => {
-      conProductos({ pan: [0, false] });
+    it('a tasa 0 el descuento es peso por peso y no aparece IVA', async () => {
+      conProductos({ pan: [0, true] });
 
       await venta([{ productId: 'pan', quantity: 1, unitPrice: 100 }], 20);
 
-      expect(totales()).toEqual({ subtotal: 100, tax: 0, total: 80 });
+      expect(totales()).toEqual({ subtotal: 80, tax: 0, total: 80 });
+    });
+
+    it('reparte el descuento entre tasas distintas sin inventar IVA', async () => {
+      conProductos({ cafe: [0.16, true], pan: [0, true] });
+
+      await venta(
+        [
+          { productId: 'cafe', quantity: 1, unitPrice: 100 },
+          { productId: 'pan', quantity: 1, unitPrice: 100 },
+        ],
+        100,
+      );
+
+      // La mitad de cada linea: $50 de cafe (43.10 + 6.90) y $50 de pan.
+      expect(totales()).toEqual({ subtotal: 93.1, tax: 6.9, total: 100 });
+    });
+
+    it('el subtotal y el IVA suman el total, siempre', async () => {
+      conProductos({ cafe: [0.16, true], pan: [0, true] });
+
+      await venta(
+        [
+          { productId: 'cafe', quantity: 2, unitPrice: 78 },
+          { productId: 'pan', quantity: 3, unitPrice: 35 },
+        ],
+        37,
+      );
+
+      const { subtotal, tax, total } = totales();
+      expect(Math.round((subtotal + tax) * 100) / 100).toBe(total);
+      // De carta: 2*78 + 3*35 = 261. Menos 37 de descuento: 224.
+      expect(total).toBe(224);
     });
   });
 
   describe('producto que ya no existe', () => {
-    it('cae al 16 % por fuera, que es el régimen por defecto', async () => {
+    it('cae al 16 % con el IVA dentro, que es el régimen por defecto', async () => {
       prisma.product.findUnique.mockResolvedValue(null);
 
       await venta([{ productId: 'fantasma', quantity: 1, unitPrice: 100 }]);
 
-      expect(totales()).toEqual({ subtotal: 100, tax: 16, total: 116 });
+      // $100 de carta: 86.21 de base + 13.79 de IVA. Si el producto ya no
+      // existe se cobra lo que dice la linea, no un 16 % encima.
+      expect(totales()).toEqual({ subtotal: 86.21, tax: 13.79, total: 100 });
     });
   });
 });

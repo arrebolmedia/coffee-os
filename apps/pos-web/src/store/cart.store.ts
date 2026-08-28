@@ -242,25 +242,38 @@ export const useCartStore = create<CartState>()(
         // impuesto dos veces en la pantalla.
         const porLinea = state.cart.items.map((item) => {
           const tasa = item.product.taxRate ?? DEFAULT_TAX_RATE;
-          if (item.product.taxIncluded) {
+          // `?? true`: en México el precio exhibido ya lleva el IVA (art. 7 bis
+          // LFPC), así que un producto sin la marca se interpreta como precio
+          // de carta y no como base gravable.
+          if (item.product.taxIncluded ?? true) {
             const base = round2(item.subtotal / (1 + tasa));
             return { base, impuesto: item.subtotal - base };
           }
           return { base: item.subtotal, impuesto: item.subtotal * tasa };
         });
 
-        const subtotal = round2(porLinea.reduce((sum, l) => sum + l.base, 0));
+        const baseBruta = round2(porLinea.reduce((sum, l) => sum + l.base, 0));
+        const impuestoBruto = round2(
+          porLinea.reduce((sum, l) => sum + l.impuesto, 0),
+        );
         const discount = state.cart.discount || 0;
 
-        // El descuento reduce la base gravable y se reparte proporcionalmente
-        // entre las líneas, que es lo que hay que hacer cuando conviven varias
-        // tasas. El backend calcula exactamente igual.
-        const baseRatio =
-          subtotal > 0 ? Math.max(0, subtotal - discount) / subtotal : 0;
-        const tax = round2(
-          porLinea.reduce((sum, l) => sum + l.impuesto * baseRatio, 0),
-        );
-        const total = round2(Math.max(0, subtotal - discount + tax));
+        // El descuento está en pesos de lo que paga el cliente, así que se
+        // prorratea contra el importe CON IVA. Prorratearlo contra la base sólo
+        // era correcto mientras todos los precios llevaran el IVA por fuera:
+        // con precios de carta, un canje de $50 sobre un café de $100 dejaba
+        // pagando $42.
+        //
+        // El total se cierra primero y la base se deriva restándole el IVA, para
+        // que `subtotal + tax === total` sin que se cuele un centavo de
+        // redondeo. El backend hace exactamente la misma cuenta, en el mismo
+        // orden: si las dos se separan, el cajero ve un total y se cobra otro.
+        const bruto = round2(baseBruta + impuestoBruto);
+        const ratio = bruto > 0 ? Math.max(0, bruto - discount) / bruto : 0;
+
+        const total = round2(Math.max(0, bruto - discount));
+        const tax = round2(impuestoBruto * ratio);
+        const subtotal = round2(total - tax);
 
         set({
           cart: {

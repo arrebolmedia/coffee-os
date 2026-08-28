@@ -71,7 +71,9 @@ const VACIO = {
   barcode: '',
   trackInventory: false,
   taxRate: 0.16,
-  taxIncluded: false,
+  // Marcado por defecto: en México el precio exhibido al público ya lleva el
+  // IVA (art. 7 bis LFPC). Lo raro es lo contrario.
+  taxIncluded: true,
 };
 
 export function ProductoModal({ producto, onClose }: Props) {
@@ -241,7 +243,7 @@ export function ProductoModal({ producto, onClose }: Props) {
 
             <div>
               <label className={etiqueta} htmlFor="p-precio">
-                Precio de venta
+                Precio al público
               </label>
               <input
                 id="p-precio"
@@ -348,8 +350,9 @@ export function ProductoModal({ producto, onClose }: Props) {
                   El precio ya lleva el IVA dentro
                 </span>
                 <span className="block text-xs text-gray-500">
-                  El cliente paga exactamente el precio de la carta; el impuesto
-                  se desglosa a partir de él en vez de sumarse encima.
+                  Lo normal en México: el precio que se exhibe al público es el
+                  total que paga el cliente. Desmárcalo sólo si vas a sumar el
+                  IVA aparte al cobrar.
                 </span>
               </span>
             </label>

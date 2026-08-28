@@ -51,10 +51,12 @@ export class ProductsService {
           // fruta. Con `||` era imposible dar de alta esos productos con su
           // tasa real: la panadería entera nacía al 16 %.
           taxRate: createProductDto.tax_rate ?? 0.16,
-          // El precio ya lleva el IVA dentro. Se aceptaba en el DTO y se tiraba
-          // aquí en silencio, así que el producto nacía siempre como «más IVA»
-          // dijera lo que dijera quien lo creaba.
-          taxIncluded: createProductDto.tax_included ?? false,
+          // El precio ya lleva el IVA dentro, que en México es lo normal: el
+          // artículo 7 bis de la LFPC obliga a exhibir el precio total, así que
+          // el precio de la carta ES lo que paga el cliente. El valor por
+          // defecto era false y el sistema sumaba el 16 % encima del precio
+          // rotulado: un Affogato de $78 se cobraba en $90.48.
+          taxIncluded: createProductDto.tax_included ?? true,
           allowModifiers: createProductDto.allow_modifiers ?? true,
           trackInventory: createProductDto.track_inventory ?? false,
           active: createProductDto.is_available ?? true,

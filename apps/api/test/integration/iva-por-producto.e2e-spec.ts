@@ -18,6 +18,11 @@ import { PrismaService } from '../../src/modules/database/prisma.service';
  *                                $800 de IVA y $850 de total
  *   - pedir `tax_included`     → se guardaba false, siempre
  *
+ * Y el default estaba invertido: el precio se guardaba como base gravable, de
+ * modo que un Affogato de $78 en la carta se cobraba a $90.48. El artículo 7
+ * bis de la LFPC obliga a exhibir el precio total, así que el precio de la
+ * carta es lo que paga el cliente y el IVA sale de dentro.
+ *
  * El `ValidationPipe` se monta igual que en `main.ts` porque uno de los casos
  * es justamente que la validación rechace el 16.
  */
@@ -145,10 +150,62 @@ describe('IVA por producto (e2e)', () => {
       expect(res.body.taxRate).toBe(0.16);
     });
 
-    it('y cobra $58 por un café de $50, no $850', async () => {
+    it('y cobra $50 por un café de $50, no $850', async () => {
       const totales = await vender(ctx.productIds[1], 50);
 
-      expect(totales).toEqual({ subtotal: 50, tax: 8, total: 58 });
+      // $50 de carta: 43.10 de base + 6.90 de IVA. Con la tasa guardada como 16
+      // en vez de 0.16 esto salía a $850.
+      expect(totales).toEqual({ subtotal: 43.1, tax: 6.9, total: 50 });
+    });
+  });
+
+  describe('el precio de la carta es el que se paga', () => {
+    it('sin decir nada, el producto nace con el IVA dentro', async () => {
+      const res = await crearProducto({
+        name: 'Affogato',
+        sku: `AFF-${Date.now()}`,
+        base_price: 78,
+        tax_rate: 0.16,
+      }).expect(201);
+
+      ctx.productIds.push(res.body.id);
+      expect(res.body.taxIncluded).toBe(true);
+    });
+
+    it('y se cobra exactamente lo que dice la carta', async () => {
+      // El caso que lo destapó: $78 en la carta, $90.48 en el cobro.
+      const totales = await vender(
+        ctx.productIds[ctx.productIds.length - 1],
+        78,
+      );
+
+      expect(totales).toEqual({ subtotal: 67.24, tax: 10.76, total: 78 });
+    });
+
+    it('un descuento de $20 deja pagando $58, ni un peso más', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/pos/tickets')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          locationId: ctx.locationId,
+          userId: ctx.userId,
+          lines: [
+            {
+              productId: ctx.productIds[ctx.productIds.length - 1],
+              quantity: 1,
+              unitPrice: 78,
+            },
+          ],
+          discount: 20,
+        })
+        .expect(201);
+
+      ctx.ticketIds.push(res.body.id);
+      expect({
+        subtotal: res.body.subtotal,
+        tax: res.body.tax,
+        total: res.body.total,
+      }).toEqual({ subtotal: 50, tax: 8, total: 58 });
     });
   });
 
@@ -195,7 +252,8 @@ describe('IVA por producto (e2e)', () => {
         subtotal: res.body.subtotal,
         tax: res.body.tax,
         total: res.body.total,
-      }).toEqual({ subtotal: 75, tax: 8, total: 83 });
+        // La concha aporta sus $25 enteros a la base; del café salen 43.10 + 6.90.
+      }).toEqual({ subtotal: 68.1, tax: 6.9, total: 75 });
     });
   });
 

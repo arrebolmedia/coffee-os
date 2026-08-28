@@ -272,50 +272,67 @@ describe('Cart Store', () => {
     });
   });
 
+  // El precio de la carta ya lleva el IVA dentro (art. 7 bis LFPC), que es el
+  // default del sistema. Por eso el `subtotal` de estos casos es la base
+  // gravable —lo que queda al sacar el impuesto— y no la suma de los precios.
   describe('totals calculation', () => {
-    it('should calculate subtotal correctly', () => {
+    it('el subtotal es la base gravable, no la suma de los precios de carta', () => {
       const { result } = renderHook(() => useCartStore());
 
       act(() => {
-        result.current.addItem(mockProduct, 2); // 45 * 2 = 90
-        result.current.addItem({ ...mockProduct, id: '2', price: 55 }, 3); // 55 * 3 = 165
+        result.current.addItem(mockProduct, 2); // 45 * 2 = 90 de carta
+        result.current.addItem({ ...mockProduct, id: '2', price: 55 }, 3); // 165 de carta
       });
 
-      expect(result.current.cart.subtotal).toBe(255);
+      // 255 de carta = 219.83 de base + 35.17 de IVA
+      expect(result.current.cart.subtotal).toBeCloseTo(219.83, 2);
+      expect(result.current.cart.tax).toBeCloseTo(35.17, 2);
+    });
+
+    it('lo que paga el cliente es el precio de la carta, ni un peso más', () => {
+      const { result } = renderHook(() => useCartStore());
+
+      act(() => {
+        result.current.addItem(mockProduct, 2);
+        result.current.addItem({ ...mockProduct, id: '2', price: 55 }, 3);
+      });
+
+      // Ésta es la razón de ser del modelo: la carta dice 255, se cobran 255.
+      expect(result.current.cart.total).toBeCloseTo(255, 2);
     });
 
     it('should calculate tax correctly', () => {
       const { result } = renderHook(() => useCartStore());
 
       act(() => {
-        result.current.addItem(mockProduct, 1); // 45 * 0.16 = 7.2
+        result.current.addItem(mockProduct, 1); // 45 de carta: 38.79 + 6.21
       });
 
-      expect(result.current.cart.tax).toBeCloseTo(7.2, 2);
+      expect(result.current.cart.tax).toBeCloseTo(6.21, 2);
     });
 
     it('should apply discount to total calculation', () => {
       const { result } = renderHook(() => useCartStore());
 
       act(() => {
-        result.current.addItem(mockProduct, 1); // subtotal: 45
+        result.current.addItem(mockProduct, 1); // 45 de carta
         result.current.setDiscount(10); // discount: 10
       });
 
-      // total = (45 - 10) * 1.16 = 40.6
-      expect(result.current.cart.total).toBeCloseTo(40.6, 2);
+      // El descuento se aplica sobre el precio de carta: 45 - 10 = 35.
+      expect(result.current.cart.total).toBeCloseTo(35, 2);
+      expect(result.current.cart.tax).toBeCloseTo(4.83, 2);
     });
 
     it('should calculate total correctly', () => {
       const { result } = renderHook(() => useCartStore());
 
       act(() => {
-        result.current.addItem(mockProduct, 1); // subtotal: 45
+        result.current.addItem(mockProduct, 1); // 45 de carta
         result.current.setDiscount(5); // discount: 5
       });
 
-      // total = (subtotal - discount) * 1.16
-      expect(result.current.cart.total).toBeCloseTo(46.4, 2);
+      expect(result.current.cart.total).toBeCloseTo(40, 2);
     });
 
     it('should return 0 for empty cart', () => {
@@ -402,10 +419,12 @@ describe('Cart Store', () => {
         result.current.addItem(panLlevar, 1);
       });
 
-      // 100 al 16 % = 16; 100 al 0 % = 0.
-      expect(result.current.cart.subtotal).toBe(200);
-      expect(result.current.cart.tax).toBe(16);
-      expect(result.current.cart.total).toBe(216);
+      // Con el IVA dentro: de los $100 gravados salen 86.21 + 13.79; el pan a
+      // tasa 0 aporta sus $100 enteros a la base. El cliente paga 200 en
+      // cualquier caso, que es lo que dice la carta.
+      expect(result.current.cart.subtotal).toBeCloseTo(186.21, 2);
+      expect(result.current.cart.tax).toBeCloseTo(13.79, 2);
+      expect(result.current.cart.total).toBeCloseTo(200, 2);
     });
 
     it('usa 16 % por defecto si el producto no trae tasa', () => {
@@ -417,7 +436,8 @@ describe('Cart Store', () => {
         result.current.addItem(sinTasa, 1);
       });
 
-      expect(result.current.cart.tax).toBe(16);
+      // $100 de carta al 16 % dentro = 86.21 + 13.79.
+      expect(result.current.cart.tax).toBeCloseTo(13.79, 2);
     });
 
     it('el descuento reduce la base gravable', () => {
@@ -434,9 +454,10 @@ describe('Cart Store', () => {
         result.current.setDiscount(50);
       });
 
-      expect(result.current.cart.subtotal).toBe(100);
-      expect(result.current.cart.tax).toBe(8);
-      expect(result.current.cart.total).toBe(58);
+      // Quedan $50 de carta: 43.10 de base + 6.90 de IVA.
+      expect(result.current.cart.subtotal).toBeCloseTo(43.1, 2);
+      expect(result.current.cart.tax).toBeCloseTo(6.9, 2);
+      expect(result.current.cart.total).toBeCloseTo(50, 2);
     });
 
     it('reparte el descuento proporcionalmente entre tasas distintas', () => {
@@ -451,17 +472,19 @@ describe('Cart Store', () => {
         result.current.setDiscount(100); // la mitad del subtotal
       });
 
-      // Base gravada al 16 %: 100 * 0.5 = 50 -> IVA 8. El pan sigue a 0.
-      expect(result.current.cart.subtotal).toBe(200);
-      expect(result.current.cart.tax).toBe(8);
-      expect(result.current.cart.total).toBe(108);
+      // Cada linea se queda a la mitad: $50 gravados (43.10 + 6.90) y $50 de
+      // pan a tasa 0. El cliente paga los $100 que quedan de carta.
+      expect(result.current.cart.subtotal).toBeCloseTo(93.1, 2);
+      expect(result.current.cart.tax).toBeCloseTo(6.9, 2);
+      expect(result.current.cart.total).toBeCloseTo(100, 2);
     });
   });
 
   describe('precio con el IVA dentro', () => {
-    // La columna existia, el DTO lo aceptaba y no lo miraba nadie: ni el
-    // backend al cobrar ni el carrito al enseniar el total. Un producto con el
-    // IVA en el precio se lo comia otra vez por encima.
+    // Es el caso normal en Mexico y hoy el default del sistema, pero durante
+    // mucho tiempo la columna existia, el DTO la aceptaba y no la miraba nadie:
+    // ni el backend al cobrar ni el carrito al enseniar el total. Un producto
+    // con el IVA en el precio se lo comia otra vez por encima.
     const conIvaDentro: Product = {
       ...mockProduct,
       id: 'inc',
@@ -502,7 +525,15 @@ describe('Cart Store', () => {
       act(() => {
         result.current.addItem(conIvaDentro, 1);
         result.current.addItem(
-          { ...mockProduct, id: 'fuera', price: 100, taxRate: 0.16 },
+          {
+            ...mockProduct,
+            id: 'fuera',
+            price: 100,
+            taxRate: 0.16,
+            // Explicito: sin la marca el producto se lee como precio de carta,
+            // que es el default nacional.
+            taxIncluded: false,
+          },
           1,
         );
       });

@@ -61,7 +61,7 @@ describe('ProductoModal', () => {
       fireEvent.change(screen.getByLabelText('Categoría'), {
         target: { value: 'cat-cafe' },
       });
-      fireEvent.change(screen.getByLabelText('Precio de venta'), {
+      fireEvent.change(screen.getByLabelText('Precio al público'), {
         target: { value: '55' },
       });
       fireEvent.click(screen.getByRole('button', { name: /Crear producto/ }));
@@ -73,7 +73,7 @@ describe('ProductoModal', () => {
             category_id: 'cat-cafe',
             base_price: 55,
             tax_rate: 0.16,
-            tax_included: false,
+            tax_included: true,
           }),
         ),
       );
@@ -90,7 +90,7 @@ describe('ProductoModal', () => {
       fireEvent.change(screen.getByLabelText('Categoría'), {
         target: { value: 'cat-pan' },
       });
-      fireEvent.change(screen.getByLabelText('Precio de venta'), {
+      fireEvent.change(screen.getByLabelText('Precio al público'), {
         target: { value: '25' },
       });
       fireEvent.click(screen.getByRole('radio', { name: /Tasa 0/ }));
@@ -138,7 +138,7 @@ describe('ProductoModal', () => {
       fireEvent.change(screen.getByLabelText('Categoría'), {
         target: { value: 'cat-cafe' },
       });
-      fireEvent.change(screen.getByLabelText('Precio de venta'), {
+      fireEvent.change(screen.getByLabelText('Precio al público'), {
         target: { value: '10' },
       });
       fireEvent.click(screen.getByRole('button', { name: /Crear producto/ }));
@@ -152,14 +152,14 @@ describe('ProductoModal', () => {
       render(<ProductoModal producto={existente} onClose={jest.fn()} />);
 
       expect(screen.getByLabelText('Nombre')).toHaveValue('Latte');
-      expect(screen.getByLabelText('Precio de venta')).toHaveValue(62);
+      expect(screen.getByLabelText('Precio al público')).toHaveValue(62);
       expect(screen.getByRole('radio', { name: /16 %/ })).toBeChecked();
     });
 
     it('manda sólo lo editable, con los nombres de la API', async () => {
       render(<ProductoModal producto={existente} onClose={jest.fn()} />);
 
-      fireEvent.change(screen.getByLabelText('Precio de venta'), {
+      fireEvent.change(screen.getByLabelText('Precio al público'), {
         target: { value: '68' },
       });
       fireEvent.click(screen.getByRole('button', { name: /^Guardar$/ }));
@@ -182,29 +182,30 @@ describe('ProductoModal', () => {
   });
 
   describe('previsualización del IVA', () => {
-    it('con el IVA por fuera, $100 se cobran como $116', () => {
+    it('de entrada el IVA va dentro: $100 de carta son $100 a pagar', () => {
       render(<ProductoModal producto="nuevo" onClose={jest.fn()} />);
 
-      fireEvent.change(screen.getByLabelText('Precio de venta'), {
+      fireEvent.change(screen.getByLabelText('Precio al público'), {
         target: { value: '100' },
       });
 
-      expect(screen.getByText('$116.00')).toBeInTheDocument();
-      expect(screen.getByText('$16.00')).toBeInTheDocument();
+      // Sin tocar nada: el precio que se teclea es el que paga el cliente.
+      expect(screen.getByText('$86.21')).toBeInTheDocument();
+      expect(screen.getByText('$13.79')).toBeInTheDocument();
     });
 
-    it('con el IVA dentro, el total no sube: se desglosa del precio', () => {
+    it('al desmarcarlo el IVA se suma encima y $100 se cobran como $116', () => {
       render(<ProductoModal producto="nuevo" onClose={jest.fn()} />);
 
-      fireEvent.change(screen.getByLabelText('Precio de venta'), {
+      fireEvent.change(screen.getByLabelText('Precio al público'), {
         target: { value: '100' },
       });
       fireEvent.click(
         screen.getByRole('checkbox', { name: /ya lleva el IVA dentro/i }),
       );
 
-      expect(screen.getByText('$86.21')).toBeInTheDocument();
-      expect(screen.getByText('$13.79')).toBeInTheDocument();
+      expect(screen.getByText('$116.00')).toBeInTheDocument();
+      expect(screen.getByText('$16.00')).toBeInTheDocument();
     });
   });
 

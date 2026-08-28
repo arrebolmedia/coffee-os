@@ -270,7 +270,11 @@ model Product {
   basePrice       Float?          @map("base_price") // Original price before modifiers
   pricingStrategy PricingStrategy @default(FIXED) @map("pricing_strategy")
   taxRate         Float           @default(0.16) @map("tax_rate")
-  taxIncluded     Boolean         @default(false) @map("tax_included")
+  /// En Mexico el precio exhibido YA incluye el IVA (art. 7 bis LFPC), asi que
+  /// el valor por defecto es true: el impuesto se EXTRAE del precio en vez de
+  /// sumarse encima. Ponerlo en false es el caso raro —una venta entre
+  /// empresas donde se cotiza mas IVA—, no el normal.
+  taxIncluded     Boolean         @default(true) @map("tax_included")
 
   // Inventory
   stockQuantity  Int?     @map("stock_quantity")

@@ -224,7 +224,9 @@ export class PosService {
         });
         productTaxRates.set(line.productId, {
           rate: product?.taxRate ?? 0.16,
-          included: product?.taxIncluded ?? false,
+          // Con IVA incluido por defecto: en México el precio exhibido ya lo
+          // lleva (art. 7 bis LFPC).
+          included: product?.taxIncluded ?? true,
         });
       }
     }
@@ -243,7 +245,7 @@ export class PosService {
       const lineTotal = round2(lineSubtotal + modifiersTotal * line.quantity);
       const { rate, included } = productTaxRates.get(line.productId) ?? {
         rate: 0.16,
-        included: false,
+        included: true,
       };
 
       // IVA sobre (lineTotal + modificadores ya incluidos); los modificadores
@@ -323,25 +325,39 @@ export class PosService {
           };
         }
 
-        // El descuento reduce la BASE GRAVABLE: el IVA se calcula sobre el
-        // importe ya descontado.
+        // El descuento está en PESOS DE LO QUE PAGA EL CLIENTE, así que se
+        // prorratea contra el importe con IVA, no contra la base gravable.
         //
-        // Antes no era así: el IVA se cerraba sobre el subtotal completo y el
-        // descuento se restaba después, de modo que una venta con el canje de
-        // lealtad de $50 cobraba $8 de IVA que no correspondían. Y el carrito del
-        // POS sí descontaba antes de calcular, así que al cajero le aparecía un
-        // total y se le cobraba otro al cliente.
+        // Prorratearlo contra la base era correcto sólo mientras todos los
+        // precios llevaran el IVA por fuera. Con los precios de carta —hoy el
+        // default, porque el artículo 7 bis de la LFPC obliga a exhibir el
+        // precio total— un canje de lealtad de $50 sobre un café de $100 dejaba
+        // pagando $42: ocho pesos regalados en cada canje. Y con el IVA por
+        // fuera fallaba al revés, cobrando $23.20 menos por un descuento de $20.
         //
-        // El descuento se reparte proporcionalmente entre las líneas, que es lo
-        // que hay que hacer cuando conviven varias tasas: con una sola tasa el
-        // resultado es exactamente `(subtotal - descuento) * tasa`.
-        const baseRatio =
-          subtotal > 0 ? Math.max(0, subtotal - discount) / subtotal : 0;
-        const taxAfterDiscount = round2(tax * baseRatio);
+        // Prorratear sobre el bruto deja la única aritmética que el cajero puede
+        // defender frente al cliente: «$50 de descuento» son $50 menos a pagar,
+        // lleve el precio el IVA dentro o por fuera.
+        //
+        // El reparto es proporcional entre líneas, que es lo que hay que hacer
+        // cuando conviven varias tasas: el pan a tasa 0 absorbe su parte del
+        // descuento sin generar IVA que devolver.
+        const bruto = round2(subtotal + tax);
+        const ratio = bruto > 0 ? Math.max(0, bruto - discount) / bruto : 0;
 
-        const total = round2(
-          Math.max(0, subtotal - discount + taxAfterDiscount),
-        );
+        // `subtotal` y `tax` quedan YA DESCONTADOS: son la base y el IVA que la
+        // venta realmente devengó, que es lo que se declara. Por eso el ticket
+        // cumple `subtotal + tax === total`, y `discount` queda como el registro
+        // en pesos de lo que se le rebajó al cliente.
+        //
+        // El total se cierra primero y la base se DERIVA restándole el IVA, en
+        // vez de redondear las dos por separado y sumarlas: 86.21 y 13.79 a la
+        // mitad son 43.105 y 6.895, que redondeados cada uno por su lado dan
+        // 50.01 y dejan un centavo colgando entre lo que suma el ticket y lo
+        // que se cobra.
+        const total = round2(Math.max(0, bruto - discount));
+        const taxAfterDiscount = round2(tax * ratio);
+        const subtotalAfterDiscount = round2(total - taxAfterDiscount);
 
         const ticket = await tx.ticket.create({
           data: {
@@ -351,7 +367,7 @@ export class PosService {
             userId: data.userId,
             customerId: data.customerId,
             status: 'OPEN',
-            subtotal,
+            subtotal: subtotalAfterDiscount,
             tax: taxAfterDiscount,
             discount,
             total,

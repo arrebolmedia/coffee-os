@@ -272,8 +272,18 @@ describe('ProductsService', () => {
       expect(producto.taxIncluded).toBe(true);
     });
 
-    it('por defecto el IVA va por fuera', async () => {
+    it('por defecto el IVA va dentro del precio', async () => {
+      // Es lo normal en Mexico: el articulo 7 bis de la LFPC obliga a exhibir
+      // el precio total, asi que quien da de alta un producto esta tecleando lo
+      // que va a pagar el cliente. El default contrario cobraba un 16 % encima
+      // del precio de la carta.
       const producto = await service.create(base);
+
+      expect(producto.taxIncluded).toBe(true);
+    });
+
+    it('deja marcar explicitamente que el IVA va por fuera', async () => {
+      const producto = await service.create({ ...base, tax_included: false });
 
       expect(producto.taxIncluded).toBe(false);
     });

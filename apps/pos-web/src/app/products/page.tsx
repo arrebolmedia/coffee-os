@@ -147,7 +147,8 @@ export default function ProductsPage() {
       // `??` y no `||`: la tasa 0 es legítima —el pan para llevar tributa a
       // tasa 0 por el art. 2-A LIVA— y con `||` se enseñaría como 16 %.
       taxRate: product.taxRate ?? 0.16,
-      taxIncluded: product.taxIncluded ?? false,
+      // Con IVA incluido por defecto: en México el precio exhibido ya lo lleva.
+      taxIncluded: product.taxIncluded ?? true,
     }));
   }, [productsData]);
 

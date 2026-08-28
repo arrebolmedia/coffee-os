@@ -55,12 +55,13 @@ export interface Product extends BaseEntity, OrganizationContext {
    */
   taxRate?: number;
   /**
-   * El precio de venta ya lleva el IVA dentro.
+   * El precio de venta ya lleva el IVA dentro. **Por defecto sí**, que es lo
+   * normal en México: el artículo 7 bis de la LFPC obliga a exhibir el precio
+   * total, así que el precio de la carta es lo que paga el cliente.
    *
-   * Con `true`, el impuesto se extrae del precio en vez de sumarse encima: el
-   * cliente paga exactamente lo que dice la carta. El carrito tiene que hacer
-   * la misma cuenta que el backend o la pantalla enseñaría un total y se
-   * cobraría otro.
+   * El impuesto se extrae del precio en vez de sumarse encima. El carrito tiene
+   * que hacer la misma cuenta que el backend o la pantalla enseñaría un total y
+   * se cobraría otro.
    */
   taxIncluded?: boolean;
   status: ProductStatus;
