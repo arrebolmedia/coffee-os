@@ -36,8 +36,11 @@ export class PnLController {
   ) {
     return this.pnlService.calculatePnL(
       this.requireOrg(user),
-      new Date(query.start_date),
-      new Date(query.end_date),
+      // Se pasan como texto: el servicio recorta el periodo en la zona de la
+      // cafeteria. Con `new Date(...)` en los dos extremos, pedir un solo dia
+      // daba un rango de ancho cero y el informe salia todo en cero.
+      query.start_date,
+      query.end_date,
       query.location_id,
     );
   }
@@ -84,10 +87,10 @@ export class PnLController {
   ) {
     return this.pnlService.comparePeriods(
       this.requireOrg(user),
-      new Date(query.period1_start),
-      new Date(query.period1_end),
-      new Date(query.period2_start),
-      new Date(query.period2_end),
+      query.period1_start,
+      query.period1_end,
+      query.period2_start,
+      query.period2_end,
       query.location_id,
     );
   }

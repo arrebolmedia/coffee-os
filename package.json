@@ -38,7 +38,9 @@
     "deploy:staging": "./scripts/deploy-staging.sh",
     "deploy:prod": "./scripts/deploy-prod.sh",
     "setup": "npm install && npm run db:migrate && npm run db:seed",
-    "db:seed:simple": "cd packages/database && npx tsx seed-simple.ts"
+    "db:seed:simple": "cd packages/database && npx tsx seed-simple.ts",
+    "sandbox:seed": "cd packages/database && npx tsx sandbox/cafeteria.ts",
+    "sandbox:dia": "cd packages/database && npx tsx sandbox/dia.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.1.0",

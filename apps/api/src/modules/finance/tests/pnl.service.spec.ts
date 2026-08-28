@@ -272,6 +272,35 @@ describe('PnLService', () => {
           expect(pnl.tax_rate).not.toBe(0.25);
         });
 
+        it('el informe de UN SOLO día no sale vacío', async () => {
+          // El controlador pasaba `new Date('2026-08-27')` para los dos extremos,
+          // así que el rango medía cero y el informe de un día —que es como lo
+          // mira un dueño cada noche— devolvía todo en cero. Lo encontró el día
+          // de prueba del sandbox: el ISR salía en $0 con ventas del día.
+          conAjustes({});
+
+          await service.calculatePnL('org_1', '2026-08-27', '2026-08-27');
+
+          const rango =
+            mockPrismaService.ticket.aggregate.mock.calls[0][0].where.closedAt;
+          const horas = (rango.lte.getTime() - rango.gte.getTime()) / 3600000;
+
+          expect(horas).toBeCloseTo(24, 1);
+        });
+
+        it('el mes se recorta en la zona de la cafetería, no en la del servidor', async () => {
+          // Con `new Date(año, mes, 1)`, dentro de un contenedor en UTC, agosto
+          // empezaba a las 18:00 del 31 de julio.
+          conAjustes({});
+
+          await service.calculateMonthlyPnL('org_1', 2026, 8);
+
+          const rango =
+            mockPrismaService.ticket.aggregate.mock.calls[0][0].where.closedAt;
+          expect(rango.gte.toISOString()).toBe('2026-08-01T06:00:00.000Z');
+          expect(rango.lte.toISOString()).toBe('2026-09-01T05:59:59.999Z');
+        });
+
         it('una tasa sin régimen se sigue entendiendo como tasa fija', async () => {
           // Compatibilidad: quien ya la tenía configurada pedía justo eso.
           conAjustes({ isr_rate: 0.25 });

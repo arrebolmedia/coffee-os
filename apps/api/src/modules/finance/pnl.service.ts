@@ -6,6 +6,8 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import { ProfitAndLoss } from './interfaces';
 import { calcularIsr, esRegimen, RegimenFiscal } from './isr';
+import { finDelDia, inicioDelDia } from '../../common/time/day-range';
+import { zonaDelNegocio } from '../../common/time/zona-negocio';
 
 // Las tasas y la tabla de RESICO viven en `isr.ts`, que es lógica pura y el
 // único sitio que hay que auditar —o enseñarle al contador— para saber con qué
@@ -55,12 +57,20 @@ export class PnLService {
     }
   }
 
+  /**
+   * Comprueba que el rango tenga sentido. Acepta texto además de `Date`, porque
+   * los extremos llegan como `YYYY-MM-DD` desde el controlador y el recorte por
+   * zona horaria se hace después, ya dentro de `calculatePnL`. Aquí sólo
+   * interesa el orden y que sean fechas de verdad.
+   */
   private assertValidRange(
-    startDate: Date,
-    endDate: Date,
+    inicio: Date | string,
+    fin: Date | string,
     startParam: string,
     endParam: string,
   ): void {
+    const startDate = inicio instanceof Date ? inicio : new Date(inicio);
+    const endDate = fin instanceof Date ? fin : new Date(fin);
     this.assertValidDate(startDate, startParam);
     this.assertValidDate(endDate, endParam);
     if (startDate.getTime() > endDate.getTime()) {
@@ -78,12 +88,52 @@ export class PnLService {
     }
   }
 
+  /**
+   * El estado de resultados de un periodo.
+   *
+   * `startDate` y `endDate` aceptan `YYYY-MM-DD` además de un `Date`. Con la
+   * fecha suelta, el periodo se recorta en la zona de la cafetería: del primer
+   * instante del primer día al último del último.
+   *
+   * Hacía falta porque el controlador pasaba `new Date('2026-08-27')` para los
+   * dos extremos y salía un rango de ancho cero — el P&L de un solo día, que es
+   * como lo mira un dueño cada noche, devolvía todo en cero. Y los informes
+   * mensual y anual construían su rango con `new Date(año, mes, 1)`, en hora del
+   * servidor: dentro de un contenedor, «agosto» empezaba a las 18:00 del 31 de
+   * julio.
+   *
+   * Un `Date` se sigue respetando tal cual: quien pide un instante concreto
+   * está pidiendo ese instante.
+   */
   async calculatePnL(
     organizationId: string,
-    startDate: Date,
-    endDate: Date,
+    desde: Date | string,
+    hasta: Date | string,
     locationId?: string,
   ): Promise<ProfitAndLoss> {
+    const zonaDelPeriodo = await zonaDelNegocio(this.prisma, {
+      organizationId,
+      locationId,
+    });
+
+    const inicio =
+      typeof desde === 'string' ? inicioDelDia(desde, zonaDelPeriodo) : desde;
+    const fin =
+      typeof hasta === 'string' ? finDelDia(hasta, zonaDelPeriodo) : hasta;
+
+    if (!inicio) {
+      throw new BadRequestException(
+        'start_date is required and must be a valid ISO date (format: YYYY-MM-DD)',
+      );
+    }
+    if (!fin) {
+      throw new BadRequestException(
+        'end_date is required and must be a valid ISO date (format: YYYY-MM-DD)',
+      );
+    }
+
+    const startDate: Date = inicio;
+    const endDate: Date = fin;
     this.assertValidRange(startDate, endDate, 'start_date', 'end_date');
 
     // Multi-tenant guard: if a locationId is provided, it must belong to the
@@ -401,9 +451,18 @@ export class PnLService {
       );
     }
 
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0, 23, 59, 59);
-    return this.calculatePnL(organizationId, startDate, endDate, locationId);
+    // Las fechas van como texto para que el periodo se recorte en la zona de
+    // la cafeteria y no en la del servidor: con `new Date(anio, mes, 1)`,
+    // dentro de un contenedor en UTC, «agosto» empezaba a las 18:00 del 31 de
+    // julio.
+    const mm = String(month).padStart(2, '0');
+    const ultimoDia = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    return this.calculatePnL(
+      organizationId,
+      `${year}-${mm}-01`,
+      `${year}-${mm}-${String(ultimoDia).padStart(2, '0')}`,
+      locationId,
+    );
   }
 
   async calculateYearlyPnL(
@@ -413,17 +472,21 @@ export class PnLService {
   ): Promise<ProfitAndLoss> {
     this.assertValidYear(year);
 
-    const startDate = new Date(year, 0, 1);
-    const endDate = new Date(year, 11, 31, 23, 59, 59);
-    return this.calculatePnL(organizationId, startDate, endDate, locationId);
+    // Igual que el mensual: el anio es el de la cafeteria.
+    return this.calculatePnL(
+      organizationId,
+      `${year}-01-01`,
+      `${year}-12-31`,
+      locationId,
+    );
   }
 
   async comparePeriods(
     organizationId: string,
-    period1Start: Date,
-    period1End: Date,
-    period2Start: Date,
-    period2End: Date,
+    period1Start: Date | string,
+    period1End: Date | string,
+    period2Start: Date | string,
+    period2End: Date | string,
     locationId?: string,
   ): Promise<any> {
     this.assertValidRange(
