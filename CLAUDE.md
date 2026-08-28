@@ -134,6 +134,18 @@ no tiene todavía una pantalla de configuración fiscal donde vivirían.
 - El mecanismo por producto (`taxRate`, `taxIncluded`) sí funciona y es
   configurable desde Productos → botón de régimen fiscal, por si la decisión
   cambia.
+- **El cobro con tarjeta se queda simulado.** Decisión del dueño el 27 de agosto
+  de 2026: no se integrará terminal bancaria por ahora. El POS registra el
+  método y el importe que teclea el cajero, y eso es todo lo que hay. En
+  consecuencia **no existe conciliación contra el corte de la terminal**: una
+  venta con tarjeta apuntada en el POS que el banco nunca autorizó no se puede
+  detectar. Las columnas `reference` y `processor_data` de `payments` están
+  preparadas para cuando se integre y hoy llegan siempre vacías.
+  El arqueo de caja sí es real: sólo cuenta el efectivo, así que las tarjetas no
+  lo distorsionan.
+- **Todo lo demás sí tiene que funcionar de punta a punta**, desde crear una
+  receta hasta el inventario y las compras. Ver el sandbox: `npm run
+sandbox:seed && npm run sandbox:dia`.
 - **El negocio tributa en RESICO de persona física.** Confirmado por el dueño el
   27 de agosto de 2026. El ISR sale de los **ingresos cobrados**, no de la
   utilidad, con la tabla por tramos del artículo 113-E de la LISR (1 % a 2.5 %),
