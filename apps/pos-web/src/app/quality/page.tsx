@@ -8,7 +8,9 @@
  * muestran un empty-state claro porque su backend aún no existe.
  */
 
+import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { TemperaturaModal } from '@/components/quality/TemperaturaModal';
 import {
   useChecklists,
   useTemperatureAlerts,
@@ -35,6 +37,7 @@ const TEMPERATURE_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function QualityPage() {
+  const [registrandoTemperatura, setRegistrandoTemperatura] = useState(false);
   const { data: checklists, isLoading: checklistsLoading } = useChecklists();
   const { data: temperatureLogs, isLoading: tempLoading } =
     useTemperatureLogs();
@@ -158,11 +161,24 @@ export default function QualityPage() {
 
           {/* Registros de temperatura recientes (backend real) */}
           <div className="bg-white rounded-lg shadow overflow-hidden mb-8">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-2">
-              <Thermometer className="w-5 h-5 text-indigo-600" />
-              <h2 className="text-lg font-semibold text-gray-800">
-                Registros de Temperatura Recientes
-              </h2>
+            {/* La pantalla leía los registros pero no había forma de crear
+                uno: el hook existía y no lo llamaba nadie. La NOM-251 exige
+                llevar el control, así que sin este botón simplemente no se
+                llevaba. */}
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Thermometer className="w-5 h-5 text-indigo-600" />
+                <h2 className="text-lg font-semibold text-gray-800">
+                  Registros de Temperatura Recientes
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRegistrandoTemperatura(true)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+              >
+                Registrar temperatura
+              </button>
             </div>
             {recentLogs.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
@@ -259,6 +275,11 @@ export default function QualityPage() {
           </div>
         </div>
       </div>
+
+      <TemperaturaModal
+        abierto={registrandoTemperatura}
+        onClose={() => setRegistrandoTemperatura(false)}
+      />
     </MainLayout>
   );
 }
