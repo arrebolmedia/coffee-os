@@ -373,11 +373,15 @@ async function main() {
   // lista siguió diciendo que faltaban. Quien cierre una de éstas, que la borre
   // de aquí; lo que sí se mide de verdad son los e2e de Playwright.
   console.log('\nLO QUE NO SE PUEDE HACER DESDE LA INTERFAZ (lista a mano)');
-  anota('Facturar (CFDI)', 'ausente', 'bloqueado a propósito: falta un PAC');
+  anota(
+    'Facturar (CFDI)',
+    'ausente',
+    'aplazado por el dueño: falta integrar un PAC real',
+  );
   anota(
     'Cobrar con terminal bancaria',
     'ausente',
-    'no hay integración: el cobro con tarjeta se registra, no se procesa',
+    'aplazado por el dueño: el cobro con tarjeta se registra, no se procesa',
   );
 
   resumen();

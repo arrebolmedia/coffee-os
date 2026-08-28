@@ -420,6 +420,10 @@ describe('CFDIService', () => {
   // Contrato pendiente: qué debe pasar cuando exista un PAC real
   // ---------------------------------------------------------------------
   describe('PENDIENTE: comportamiento con PAC real (stampWithPac/cancelWithPac)', () => {
+    // No es trabajo proximo: el dueno lo aplazo el 28 de agosto de 2026 para
+    // «mucho mas adelante». Esto queda escrito como contrato, para que el dia
+    // que se integre el PAC no haya que deducir que se esperaba.
+    //
     // Habilitar cuando `stampWithPac` llame de verdad al PAC. El PAC es quien
     // devuelve UUID, SelloCFD, SelloSAT, NoCertificadoSAT, cadena original y
     // el XML timbrado; este servicio solo debe persistir esa respuesta.

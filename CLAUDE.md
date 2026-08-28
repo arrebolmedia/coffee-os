@@ -143,14 +143,9 @@ no tiene todavía una pantalla de configuración fiscal donde vivirían.
   configurable desde Productos → botón de régimen fiscal, por si la decisión
   cambia.
 - **El cobro con tarjeta se queda simulado.** Decisión del dueño el 27 de agosto
-  de 2026: no se integrará terminal bancaria por ahora. El POS registra el
-  método y el importe que teclea el cajero, y eso es todo lo que hay. En
-  consecuencia **no existe conciliación contra el corte de la terminal**: una
-  venta con tarjeta apuntada en el POS que el banco nunca autorizó no se puede
-  detectar. Las columnas `reference` y `processor_data` de `payments` están
-  preparadas para cuando se integre y hoy llegan siempre vacías.
-  El arqueo de caja sí es real: sólo cuenta el efectivo, así que las tarjetas no
-  lo distorsionan.
+  de 2026, confirmada el 28 como algo para «mucho más adelante». El POS registra
+  el método y el importe que teclea el cajero, y eso es todo lo que hay. Lo que
+  eso implica está en «Aplazado por decisión del dueño», más abajo.
 - **Todo lo demás sí tiene que funcionar de punta a punta**, desde crear una
   receta hasta el inventario y las compras. Ver el sandbox: `npm run
 sandbox:seed && npm run sandbox:dia`.
@@ -184,9 +179,21 @@ pendientes mandaba a arreglar cosas ya hechas:
 - Next.js está en 15.5.24, dentro del rango permitido.
 - Las vulnerabilidades de npm son 9 en total y 2 en producción, ninguna crítica.
 
-**CFDI sigue bloqueado a propósito**: el timbrado era un mock que fingía
-`stamped` con `Math.random()`. No desbloquearlo sin integrar un PAC real; hay
-dos tests saltados que lo documentan.
+### Aplazado por decisión del dueño, no por falta de tiempo
+
+El 28 de agosto de 2026 dijo que las dos van «para mucho más adelante». No son
+trabajo próximo: no empezarlas, no estimarlas y no listarlas como pendientes.
+
+- **CFDI.** El timbrado era un mock que fingía `stamped` con `Math.random()`, y
+  está bloqueado a propósito. No desbloquearlo sin integrar un PAC real; hay dos
+  tests saltados que lo documentan. Mientras tanto el negocio no factura desde
+  el sistema.
+- **Terminal bancaria.** El POS registra el método y el importe que teclea el
+  cajero, y nada más: sin código de autorización y **sin conciliación contra el
+  corte de la terminal**, así que una venta con tarjeta apuntada que el banco
+  nunca autorizó no se puede detectar. Las columnas `reference` y
+  `processor_data` de `payments` están preparadas y llegan siempre vacías. El
+  arqueo de caja no se distorsiona: sólo cuenta efectivo.
 
 Pendientes de verdad, hoy:
 
@@ -194,15 +201,12 @@ Pendientes de verdad, hoy:
    aplicabilidad por producto y categoría, y el POS cobra con `product.taxRate`.
    Se puede configurar un impuesto ahí y no pasa nada. Cablearla exige decidir
    qué regla gana cuando varias aplican al mismo producto.
-2. **No hay editor de productos.** La pantalla lista y filtra; los botones de
-   ver y borrar de cada fila no tienen `onClick`. El de editar abre sólo el
-   diálogo de régimen fiscal.
-3. **No hay integración con terminal bancaria.** El POS registra cuánto entró
-   por tarjeta y nada más: sin código de autorización ni conciliación contra el
-   corte de la terminal. Las columnas `reference` y `processor_data` de
-   `payments` están preparadas y llegan siempre vacías.
-4. **El POS no es usable en pantallas pequeñas más allá del carrito.** El cajón
-   del carrito ya funciona; el resto de las vistas no se ha revisado a 393px.
+2. **Las tablas no son cómodas en un teléfono.** Ninguna pantalla desborda ya el
+   viewport —medido a 375px en productos, inventario, recetas, empleados,
+   gastos, compras, P&L y órdenes—, pero las tablas resuelven el ancho
+   desplazándose dentro de su contenedor: la de productos mide 1427px en una
+   columna de 325, o sea cuatro pantallas de arrastre para leer una fila. Lo que
+   falta es una vista de tarjetas por debajo de `md`, no más `overflow-x`.
 
 ## Convenciones de código
 
