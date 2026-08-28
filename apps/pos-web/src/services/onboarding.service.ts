@@ -1,4 +1,4 @@
-import { api } from '@/lib/api';
+import { api, buildQueryString } from '@/lib/api';
 import {
   OnboardingPeriod,
   OnboardingPlan,
@@ -54,11 +54,22 @@ class OnboardingService {
   /**
    * Get all onboarding plans
    */
+  /**
+   * `new URLSearchParams(params)` convierte `undefined` en el TEXTO
+   * «undefined». La pantalla entra sin empleado ni periodo elegidos, así que la
+   * petición salía como
+   * `?employee_id=undefined&period=undefined` y el API respondía 400: el plan de
+   * onboarding no cargaba nunca, sólo el cartel de error.
+   *
+   * Es el mismo fallo que tenía el estado de resultados. `buildQueryString`
+   * descarta null, undefined y cadena vacía.
+   */
   async getPlans(
     params: QueryOnboardingPlansParams,
   ): Promise<OnboardingPlan[]> {
-    const queryString = new URLSearchParams(params as any).toString();
-    return api.get<OnboardingPlan[]>(`${this.baseUrl}?${queryString}`);
+    return api.get<OnboardingPlan[]>(
+      `${this.baseUrl}${buildQueryString({ ...params })}`,
+    );
   }
 
   /**
