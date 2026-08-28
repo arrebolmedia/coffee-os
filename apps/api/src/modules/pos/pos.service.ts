@@ -143,6 +143,11 @@ export class PosService {
     return `ORD-${date}-${suffix}`;
   }
 
+  /** Redondeo a centavos, para que el arqueo no arrastre ruido de coma flotante. */
+  private r2(n: number): number {
+    return Math.round((n + Number.EPSILON) * 100) / 100;
+  }
+
   private escapeHtml(value: unknown): string {
     const map: Record<string, string> = {
       '&': '&amp;',
@@ -1088,9 +1093,41 @@ export class PosService {
 
       const closedAt = new Date();
 
+      // Lo que DEBERÍA haber en el cajón: el fondo de apertura más el efectivo
+      // cobrado durante el turno.
+      //
+      // `expectedCash` se fijaba al abrir la caja con el fondo inicial y no se
+      // movía nunca, así que el arqueo comparaba el conteo final contra el
+      // fondo. Un día honesto —abrir con $1,000, vender $348 en efectivo,
+      // contar $1,348— se reportaba como una diferencia de +$348. Y al revés:
+      // si el cajero se guardaba $200, el sistema seguía diciendo «sobran
+      // $148» y nadie tenía forma de notarlo.
+      //
+      // Se calcula sumando en vez de acumulando: así no hay deriva si una venta
+      // se cancela o se devuelve —esas dejan de estar CLOSED y salen solas de
+      // la cuenta— y el número es reconstruible a partir de los tickets.
+      const efectivo = await tx.payment.aggregate({
+        where: {
+          method: 'CASH',
+          ticket: {
+            locationId: existing.locationId,
+            status: 'CLOSED',
+            closedAt: {
+              gte: existing.shift?.openedAt ?? existing.createdAt,
+              lte: closedAt,
+            },
+          },
+        },
+        _sum: { amount: true },
+      });
+
+      const esperado =
+        (existing.shift?.openingFloat ?? 0) + (efectivo._sum.amount ?? 0);
+
       const register = await tx.cashRegister.update({
         where: { id: registerId },
         data: {
+          expectedCash: esperado,
           countedCash: finalAmount,
           notes,
         },
@@ -1105,8 +1142,19 @@ export class PosService {
         },
       });
 
-      const difference = finalAmount - (register.expectedCash || 0);
-      return { id: register.id, closed_at: closedAt, difference };
+      // El desglose va en la respuesta: sin él, una diferencia es un número sin
+      // forma de comprobarlo. Con el fondo y el efectivo cobrado a la vista, el
+      // cajero puede rehacer la cuenta.
+      const difference = this.r2(finalAmount - esperado);
+      return {
+        id: register.id,
+        closed_at: closedAt,
+        opening_float: this.r2(existing.shift?.openingFloat ?? 0),
+        cash_sales: this.r2(efectivo._sum.amount ?? 0),
+        expected_cash: this.r2(esperado),
+        counted_cash: this.r2(finalAmount),
+        difference,
+      };
     });
   }
 
@@ -1116,7 +1164,7 @@ export class PosService {
     });
     if (!location) return null;
 
-    return this.prisma.cashRegister.findFirst({
+    const register = await this.prisma.cashRegister.findFirst({
       where: {
         locationId: location.id,
         shift: { closedAt: null },
@@ -1124,5 +1172,30 @@ export class PosService {
       orderBy: { createdAt: 'desc' },
       include: { shift: true },
     });
+    if (!register) return null;
+
+    // Lo que debería haber en el cajón ahora mismo. Sin esto, el cajero cuenta
+    // a ciegas: sólo sabía el fondo con el que abrió.
+    const efectivo = await this.prisma.payment.aggregate({
+      where: {
+        method: 'CASH',
+        ticket: {
+          locationId: register.locationId,
+          status: 'CLOSED',
+          closedAt: { gte: register.shift?.openedAt ?? register.createdAt },
+        },
+      },
+      _sum: { amount: true },
+    });
+
+    const ventasEnEfectivo = this.r2(efectivo._sum.amount ?? 0);
+    const fondo = this.r2(register.shift?.openingFloat ?? 0);
+
+    return {
+      ...register,
+      opening_float: fondo,
+      cash_sales: ventasEnEfectivo,
+      expected_cash: this.r2(fondo + ventasEnEfectivo),
+    };
   }
 }
