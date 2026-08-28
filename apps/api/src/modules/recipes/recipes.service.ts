@@ -43,7 +43,6 @@ import {
 } from './interfaces';
 import { PrismaService } from '../database/prisma.service';
 import { CategoriesService } from '../categories/categories.service';
-import { CategoryType } from '../categories/dto/create-category.dto';
 
 /** Default labor/overhead rates used when org settings are unavailable. */
 const DEFAULT_LABOR_RATE = 0.2;
@@ -217,16 +216,25 @@ export class RecipesService {
     return recipes.map((r) => this.toRecipe(r));
   }
 
+  /**
+   * Las categorías que se pueden poner a una receta.
+   *
+   * Salían de la tabla de categorías de la organización —«Bebidas», «Lácteos»,
+   * «Café Caliente»—, que son las del CATÁLOGO DE PRODUCTOS y no las que valida
+   * `CreateRecipeDto`. El formulario ofrecía opciones que el API rechazaba
+   * siempre con un 400: elegir cualquiera de la lista hacía imposible crear la
+   * receta.
+   *
+   * Ahora se ofrece exactamente lo que se acepta. Las categorías heredadas
+   * (`espresso`, `filtrado`, …) siguen siendo válidas para las recetas que ya
+   * las tienen, pero no se ofrecen para las nuevas.
+   */
   async getCategories(): Promise<string[]> {
-    try {
-      const categories = await this.categoriesService.findAll({
-        type: CategoryType.RECIPE,
-      });
-      return categories.map((cat: any) => cat.name);
-    } catch (error) {
-      this.logger.warn('Error fetching recipe categories', error);
-      return [];
-    }
+    return [
+      RecipeCategory.BEBIDAS_CALIENTES,
+      RecipeCategory.BEBIDAS_FRIAS,
+      RecipeCategory.BEBIDAS_SIN_CAFE,
+    ];
   }
 
   async findById(id: string, organizationId?: string): Promise<Recipe> {

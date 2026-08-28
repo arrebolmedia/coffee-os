@@ -158,7 +158,9 @@ export default function RecipesPage() {
       const apiData: any = {
         product_id: recipeData.productId,
         name: recipeData.name,
-        description: recipeData.description,
+        // Vacío se omite: el DTO exige al menos un carácter y rechazaba el
+        // formulario entero por una descripción en blanco.
+        description: recipeData.description?.trim() || undefined,
         instructions: recipeData.instructions,
         category: recipeData.category || 'espresso',
         servings: recipeData.yield,
@@ -200,6 +202,10 @@ export default function RecipesPage() {
       setSelectedRecipe(null);
     } catch (error) {
       logger.error('Error saving recipe:', error);
+      // Se relanza: si se traga aquí, el diálogo se cierra como si hubiera
+      // guardado y la receta no existe. El usuario se entera al día siguiente,
+      // cuando la busca.
+      throw error;
     }
   };
 

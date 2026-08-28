@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { IngredientsList, RecipeIngredientInput } from './IngredientsList';
 import { logger } from '@/lib/logger';
+import { useProducts } from '@/hooks/use-products';
 
 interface RecipeModalProps {
   isOpen: boolean;
@@ -69,6 +70,13 @@ export function RecipeModal({
   inventoryItems,
   categories,
 }: RecipeModalProps) {
+  // La lista de productos para elegir cuál prepara esta receta.
+  const { data: productosData, isLoading: cargandoProductos } = useProducts();
+  const productos = productosData?.data ?? [];
+
+  /** Motivo por el que el backend rechazó el guardado, si lo rechazó. */
+  const [errorAlGuardar, setErrorAlGuardar] = useState<string | null>(null);
+
   const [formData, setFormData] = useState<RecipeFormData>({
     productId: '',
     name: '',
@@ -208,13 +216,22 @@ export function RecipeModal({
     }
 
     setIsSubmitting(true);
+    setErrorAlGuardar(null);
 
     try {
       // No conversion needed - prepTime is already in minutes
       await onSave(formData);
       onClose();
     } catch (error) {
+      // El diálogo se queda abierto con lo que el usuario escribió y con el
+      // motivo a la vista. Antes se cerraba igual: la receta no se creaba y
+      // nadie se enteraba hasta ir a buscarla.
       logger.error('Error saving recipe:', error);
+      setErrorAlGuardar(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo guardar la receta.',
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -235,15 +252,35 @@ export function RecipeModal({
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
-          {/* Product ID - TODO: Convert to dropdown when products hook is available */}
-          <InputField
-            label="ID del Producto"
+          {/*
+            El producto se elige de una lista. Antes era un campo de texto libre
+            con un TODO que decía «convertir a dropdown cuando exista el hook de
+            productos» — el hook existía, y mientras tanto había que teclear a
+            mano el id del producto, que es un cuid como
+            `cmtc1gey70001250swqeavqvy`. El marcador de posición decía `PRD-001`,
+            un formato que el sistema no usa. En la práctica no se podía crear
+            una receta desde la interfaz.
+          */}
+          <SelectField
+            label="Producto"
             value={formData.productId}
             onChange={(e) => handleChange('productId', e.target.value)}
             error={errors.productId}
             required
-            placeholder="PRD-001"
-            helperText="Ingrese el ID del producto asociado"
+            disabled={cargandoProductos}
+            options={[
+              {
+                value: '',
+                label: cargandoProductos
+                  ? 'Cargando productos…'
+                  : 'Seleccione el producto',
+              },
+              ...productos.map((p) => ({
+                value: p.id,
+                label: p.sku ? `${p.name} (${p.sku})` : p.name,
+              })),
+            ]}
+            helperText="La receta describe cómo se prepara este producto"
           />
 
           {/* Name */}
@@ -387,6 +424,15 @@ export function RecipeModal({
             Receta activa
           </label>
         </div>
+
+        {errorAlGuardar && (
+          <p
+            role="alert"
+            className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          >
+            {errorAlGuardar}
+          </p>
+        )}
 
         {/* Form Actions */}
         <div className="flex justify-end gap-3 pt-6 border-t">
