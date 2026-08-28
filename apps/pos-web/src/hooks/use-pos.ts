@@ -135,6 +135,14 @@ export function useCreateOrder() {
       queryClient.invalidateQueries({
         queryKey: posKeys.stats(organizationId),
       });
+      // Una venta en efectivo cambia lo que debería haber en el cajón. Sin
+      // esto, el panel de caja seguía enseñando el efectivo cobrado de hace un
+      // minuto: recién hecha una venta de $90.48 decía «ventas en efectivo
+      // $0.00» y sugería que sobraban $90.48. El cajero cuenta con ese número
+      // delante.
+      queryClient.invalidateQueries({
+        queryKey: posKeys.cashRegister(organizationId),
+      });
       // «Venta» y no «Orden»: lo que acaba de ocurrir es un cobro, y el número
       // que se enseña es el del ticket (`TKT-…`). En este proyecto la Orden es
       // la comanda de cocina, con su propio número `ORD-…`, así que anunciar
@@ -385,6 +393,10 @@ export function useCurrentCashRegister() {
     queryKey: posKeys.cashRegister(organizationId),
     queryFn: () => POSService.getCurrentCashRegister(organizationId),
     enabled: !!organizationId,
-    staleTime: 60000, // 1 minute
+    // Sin `staleTime`: lo que debería haber en el cajón cambia con cada venta
+    // en efectivo, y este número se mira justo antes de contar el dinero.
+    // Cachearlo un minuto era enseñar el de antes de las últimas ventas.
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 }

@@ -11,8 +11,9 @@ import { ProductCatalog } from '@/components/pos/ProductCatalog';
 import { Cart } from '@/components/pos/Cart';
 import { PaymentModal } from '@/components/pos/PaymentModal';
 import CustomerSearch from '@/components/pos/CustomerSearch';
-import { ShoppingCart, X } from 'lucide-react';
+import { Banknote, ShoppingCart, X } from 'lucide-react';
 import { OfflineIndicator } from '@/components/pos/OfflineIndicator';
+import { CajaModal } from '@/components/pos/CajaModal';
 import { MainLayout } from '@/components/layout/MainLayout';
 import type { Customer } from '@/types';
 import { logger } from '@/lib/logger';
@@ -25,6 +26,9 @@ export default function POSPage() {
   // tapado por un carrito vacío nada más entrar, sin nada visible que lo
   // cerrara. Lo primero que necesita un barista es ver los productos.
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // Abrir y cerrar la caja del turno. No habia forma de hacerlo desde la
+  // interfaz, y es lo primero y lo ultimo que se hace cada dia.
+  const [cajaAbierta, setCajaAbierta] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null,
   );
@@ -81,6 +85,18 @@ export default function POSPage() {
             </div>
 
             <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setCajaAbierta(true)}
+                aria-label="Abrir o cerrar la caja"
+                title="Caja"
+                className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <Banknote className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm font-medium">
+                  Caja
+                </span>
+              </button>
               <OfflineIndicator />
               {/* Por debajo de `lg` el carrito es un panel que se abre y se
                   cierra, así que el contador tiene que ser el botón que lo
@@ -195,6 +211,11 @@ export default function POSPage() {
           onClose={() => setIsPaymentModalOpen(false)}
           onSuccess={handlePaymentSuccess}
           customer={selectedCustomer}
+        />
+
+        <CajaModal
+          abierto={cajaAbierta}
+          onClose={() => setCajaAbierta(false)}
         />
 
         {/* Overlay for mobile cart sidebar */}

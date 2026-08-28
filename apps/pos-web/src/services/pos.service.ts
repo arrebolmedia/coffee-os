@@ -114,12 +114,37 @@ export interface Ticket {
  * Backend contract: GET /pos/cash-register/current/:orgId devuelve el
  * CashRegister Prisma crudo (con `expectedCash` y `shift.openedAt`) o null.
  */
+/**
+ * El resultado de cerrar la caja, con el desglose a la vista.
+ *
+ * Una diferencia sin desglose es un número que nadie puede comprobar: con el
+ * fondo y las ventas en efectivo delante, el cajero puede rehacer la cuenta.
+ */
+export interface CierreDeCaja {
+  id: string;
+  closed_at: string;
+  opening_float: number;
+  cash_sales: number;
+  expected_cash: number;
+  counted_cash: number;
+  difference: number;
+}
+
 export interface CashRegisterSession {
   id: string;
   shiftId: string;
   locationId: string;
   organizationId: string;
   expectedCash: number;
+  /**
+   * El desglose de lo que debería haber en el cajón, que ahora calcula el
+   * backend al vuelo: el fondo de apertura más el efectivo cobrado en el turno.
+   * `expectedCash` a secas era sólo el fondo, y por eso el arqueo comparaba el
+   * conteo contra el dinero con el que se abrió.
+   */
+  opening_float?: number;
+  cash_sales?: number;
+  expected_cash?: number;
   countedCash?: number | null;
   totalExpenses: number;
   notes?: string | null;
@@ -409,15 +434,14 @@ export class POSService {
     registerId: string,
     finalAmount: number,
     notes?: string,
-  ): Promise<{ id: string; closed_at: string; difference: number }> {
-    return await api.post<{
-      id: string;
-      closed_at: string;
-      difference: number;
-    }>(`/pos/cash-register/${registerId}/close`, {
-      final_amount: finalAmount,
-      notes,
-    });
+  ): Promise<CierreDeCaja> {
+    return await api.post<CierreDeCaja>(
+      `/pos/cash-register/${registerId}/close`,
+      {
+        final_amount: finalAmount,
+        notes,
+      },
+    );
   }
 
   /**
