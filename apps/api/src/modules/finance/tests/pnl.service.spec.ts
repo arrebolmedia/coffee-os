@@ -5,7 +5,7 @@ import { PrismaService } from '../../database/prisma.service';
 
 const mockPrismaService = {
   location: { findMany: jest.fn() },
-  ticket: { aggregate: jest.fn() },
+  ticket: { findMany: jest.fn() },
   ticketLine: { findMany: jest.fn() },
   expense: { groupBy: jest.fn() },
   organization: { findUnique: jest.fn() },
@@ -39,9 +39,11 @@ describe('PnLService', () => {
 
     beforeEach(() => {
       mockPrismaService.location.findMany.mockResolvedValue([{ id: 'loc_1' }]);
-      mockPrismaService.ticket.aggregate.mockResolvedValue({
-        _sum: { total: 150000, discount: 5000, subtotal: 145000 },
-      });
+      // Un ticket coherente al 16 %: base ya descontada 145,000, descuento de
+      // 5,000 en pesos con IVA, y el total que de ahi sale.
+      mockPrismaService.ticket.findMany.mockResolvedValue([
+        { subtotal: 145000, discount: 5000, total: 168200 },
+      ]);
       mockPrismaService.ticketLine.findMany.mockResolvedValue([
         { quantity: 1000, product: { cost: 45 } }, // 45,000 COGS
       ]);
@@ -57,11 +59,21 @@ describe('PnLService', () => {
       const pnl = await service.calculatePnL('org_1', start, end);
 
       expect(pnl.organization_id).toBe('org_1');
-      // Revenue is net of tax: P&L uses _sum.subtotal (145000), not _sum.total
-      // (150000, IVA-inclusive), so margins align with net COGS.
-      expect(pnl.gross_revenue).toBe(145000);
-      expect(pnl.discounts).toBe(5000);
+      // Los ingresos van sin IVA: la base del ticket, no el total cobrado, para
+      // que el margen se compare contra un COGS que tampoco lleva IVA.
+      //
+      // Y el renglon tiene que reconciliar: brutos menos descuentos menos
+      // devoluciones da netos. Antes se enseñaba la resta y no se restaba nada
+      // — brutos 145,000, descuentos 5,000 y netos otra vez 145,000.
+      expect(pnl.gross_revenue).toBe(149310.34);
+      // Los 5,000 de descuento son 4,310.34 sin IVA, que es la moneda en la que
+      // esta escrito el resto del estado de resultados.
+      expect(pnl.discounts).toBe(4310.34);
       expect(pnl.net_revenue).toBe(145000);
+      expect(
+        Math.round((pnl.gross_revenue - pnl.discounts - pnl.returns) * 100) /
+          100,
+      ).toBe(pnl.net_revenue);
       expect(pnl.rent).toBe(20000);
       expect(pnl.utilities).toBe(3000);
       expect(pnl.marketing).toBe(2000);
@@ -282,7 +294,7 @@ describe('PnLService', () => {
           await service.calculatePnL('org_1', '2026-08-27', '2026-08-27');
 
           const rango =
-            mockPrismaService.ticket.aggregate.mock.calls[0][0].where.closedAt;
+            mockPrismaService.ticket.findMany.mock.calls[0][0].where.closedAt;
           const horas = (rango.lte.getTime() - rango.gte.getTime()) / 3600000;
 
           expect(horas).toBeCloseTo(24, 1);
@@ -296,7 +308,7 @@ describe('PnLService', () => {
           await service.calculateMonthlyPnL('org_1', 2026, 8);
 
           const rango =
-            mockPrismaService.ticket.aggregate.mock.calls[0][0].where.closedAt;
+            mockPrismaService.ticket.findMany.mock.calls[0][0].where.closedAt;
           expect(rango.gte.toISOString()).toBe('2026-08-01T06:00:00.000Z');
           expect(rango.lte.toISOString()).toBe('2026-09-01T05:59:59.999Z');
         });
@@ -315,9 +327,7 @@ describe('PnLService', () => {
     });
 
     it('should handle zero revenue gracefully', async () => {
-      mockPrismaService.ticket.aggregate.mockResolvedValueOnce({
-        _sum: { total: 0, discount: 0, subtotal: 0 },
-      });
+      mockPrismaService.ticket.findMany.mockResolvedValueOnce([]);
       mockPrismaService.ticketLine.findMany.mockResolvedValueOnce([]);
 
       const pnl = await service.calculatePnL('org_1', start, end);
@@ -335,7 +345,7 @@ describe('PnLService', () => {
     });
   });
 
-  // Regresión: `new Date(undefined)` llegaba a prisma.ticket.aggregate() y
+  // Regresión: `new Date(undefined)` llegaba a prisma.ticket.findMany() y
   // reventaba con PrismaClientValidationError -> 500. Debe ser 400.
   describe('date validation', () => {
     const valid = new Date('2026-01-01');
@@ -345,7 +355,7 @@ describe('PnLService', () => {
         service.calculatePnL('org_1', new Date(undefined as any), valid),
       ).rejects.toThrow(BadRequestException);
 
-      expect(mockPrismaService.ticket.aggregate).not.toHaveBeenCalled();
+      expect(mockPrismaService.ticket.findMany).not.toHaveBeenCalled();
     });
 
     it('should name the offending parameter in the message', async () => {
@@ -367,7 +377,7 @@ describe('PnLService', () => {
       await expect(
         service.calculateMonthlyPnL('org_1', 2026, 0),
       ).rejects.toThrow(/month/);
-      expect(mockPrismaService.ticket.aggregate).not.toHaveBeenCalled();
+      expect(mockPrismaService.ticket.findMany).not.toHaveBeenCalled();
     });
 
     it('should reject NaN / out-of-range year on monthly and yearly', async () => {
@@ -380,7 +390,7 @@ describe('PnLService', () => {
       await expect(service.calculateYearlyPnL('org_1', 1800)).rejects.toThrow(
         /year/,
       );
-      expect(mockPrismaService.ticket.aggregate).not.toHaveBeenCalled();
+      expect(mockPrismaService.ticket.findMany).not.toHaveBeenCalled();
     });
 
     it('should name which of the two compare periods is invalid', async () => {
@@ -399,9 +409,9 @@ describe('PnLService', () => {
   describe('calculateMonthlyPnL', () => {
     it('should calculate for correct month range', async () => {
       mockPrismaService.location.findMany.mockResolvedValue([{ id: 'loc_1' }]);
-      mockPrismaService.ticket.aggregate.mockResolvedValue({
-        _sum: { total: 100000, discount: 0, subtotal: 100000 },
-      });
+      mockPrismaService.ticket.findMany.mockResolvedValue([
+        { subtotal: 100000, discount: 0, total: 116000 },
+      ]);
       mockPrismaService.ticketLine.findMany.mockResolvedValue([]);
       mockPrismaService.organization.findUnique.mockResolvedValue(null);
       mockPrismaService.expense.groupBy.mockResolvedValue([]);
@@ -416,13 +426,13 @@ describe('PnLService', () => {
   describe('comparePeriods', () => {
     it('should return change calculations between two periods', async () => {
       mockPrismaService.location.findMany.mockResolvedValue([{ id: 'loc_1' }]);
-      mockPrismaService.ticket.aggregate
-        .mockResolvedValueOnce({
-          _sum: { total: 100000, discount: 0, subtotal: 100000 },
-        })
-        .mockResolvedValueOnce({
-          _sum: { total: 120000, discount: 0, subtotal: 120000 },
-        });
+      mockPrismaService.ticket.findMany
+        .mockResolvedValueOnce([
+          { subtotal: 100000, discount: 0, total: 116000 },
+        ])
+        .mockResolvedValueOnce([
+          { subtotal: 120000, discount: 0, total: 139200 },
+        ]);
       mockPrismaService.ticketLine.findMany.mockResolvedValue([]);
       mockPrismaService.organization.findUnique.mockResolvedValue(null);
       mockPrismaService.expense.groupBy.mockResolvedValue([]);

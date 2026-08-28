@@ -157,20 +157,45 @@ export class PnLService {
     });
     const locationIds = locations.map((l) => l.id);
 
-    // Revenue from closed tickets
-    const revenueAgg = await this.prisma.ticket.aggregate({
+    // Ingresos de los tickets cerrados.
+    //
+    // Todo el estado de resultados va SIN IVA: el impuesto trasladado no es
+    // ingreso, se cobra por cuenta del SAT. Por eso la base es `subtotal` y no
+    // `total`.
+    //
+    // `ticket.subtotal` es la base YA descontada, asi que hay que reconstruir
+    // la de antes del descuento o la pantalla miente: enseña «Ingresos brutos
+    // menos descuentos igual a ingresos netos» y los descuentos no se restaban
+    // en ninguna parte — la resta se veia, pero el resultado salia igual que el
+    // punto de partida.
+    //
+    // Por ticket: el descuento redujo el bruto de `total + discount` a `total`,
+    // o sea en la proporcion `total / (total + discount)`. La base de antes es
+    // la de despues dividida por esa proporcion. Es exacto, no una estimacion.
+    const ticketsCerrados = await this.prisma.ticket.findMany({
       where: {
         locationId: { in: locationIds },
         status: 'CLOSED' as any,
         closedAt: { gte: startDate, lte: endDate },
       },
-      _sum: { total: true, discount: true, subtotal: true },
+      select: { subtotal: true, discount: true, total: true },
     });
 
-    const grossRevenue = revenueAgg._sum.subtotal ?? 0;
-    const discounts = revenueAgg._sum.discount ?? 0;
+    let grossRevenue = 0;
+    let baseDespuesDeDescuento = 0;
+    for (const t of ticketsCerrados) {
+      const base = t.subtotal ?? 0;
+      const desc = t.discount ?? 0;
+      const total = t.total ?? 0;
+      baseDespuesDeDescuento += base;
+      grossRevenue += total > 0 ? (base * (total + desc)) / total : base;
+    }
+
+    // El descuento se teclea en pesos con IVA; aqui hay que expresarlo sin IVA
+    // para que la resta cuadre con el resto del renglon, que va todo sin IVA.
+    const discounts = grossRevenue - baseDespuesDeDescuento;
     const returns = 0;
-    const netRevenue = grossRevenue - returns;
+    const netRevenue = grossRevenue - discounts - returns;
 
     // COGS: real cost from closed ticket lines in period (quantity * product.cost)
     let cogs = 0;
