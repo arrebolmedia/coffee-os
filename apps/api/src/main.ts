@@ -1,4 +1,8 @@
 import { NestFactory } from '@nestjs/core';
+import {
+  ExpressAdapter,
+  NestExpressApplication,
+} from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -7,7 +11,19 @@ import helmet from 'helmet';
 import * as compression from 'compression';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // El adaptador va explícito. Sin él, Nest lo carga por su cuenta con un
+  // `require('@nestjs/platform-express')` resuelto desde donde vive
+  // `@nestjs/core`, que en un monorepo depende de dónde acabe hoisteado el
+  // paquete. Al rehacerse el árbol de dependencias dejó de estar en la raíz y
+  // la API no volvió a arrancar: «No driver (HTTP) has been selected».
+  //
+  // Lo llamativo es que las 62 suites unitarias y los 80 e2e siguieron pasando,
+  // porque montan la aplicación con `Test.createTestingModule()` y no por aquí.
+  // Nada del arranque real estaba cubierto: se descubrió abriendo el navegador.
+  const app = await NestFactory.create<NestExpressApplication>(
+    AppModule,
+    new ExpressAdapter(),
+  );
   const configService = app.get(ConfigService);
 
   // Security
