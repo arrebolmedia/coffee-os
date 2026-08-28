@@ -94,7 +94,7 @@ test.describe('Acciones de la tabla de productos', () => {
     await dialogo.getByLabel('Nombre').fill(`Cold Brew ${nuevoSku}`);
     await dialogo.getByLabel('SKU').fill(nuevoSku);
     await dialogo.getByLabel('Categoría').selectOption({ index: 1 });
-    await dialogo.getByLabel('Precio de venta').fill('55');
+    await dialogo.getByLabel('Precio al público').fill('55');
     await dialogo.getByLabel('Costo').fill('12');
     await dialogo.getByRole('button', { name: /Crear producto/ }).click();
 
@@ -113,6 +113,9 @@ test.describe('Acciones de la tabla de productos', () => {
     expect(creado, 'el producto debe existir en la base').toBeTruthy();
     expect(creado.price).toBe(55);
     expect(creado.taxRate).toBe(0.16);
+    // Nace con el IVA dentro, que es como se vende en Mexico: los $55 que se
+    // teclearon son los $55 que va a pagar el cliente.
+    expect(creado.taxIncluded).toBe(true);
 
     await request.delete(`${API}/products/${creado.id}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -131,7 +134,7 @@ test.describe('Acciones de la tabla de productos', () => {
 
     const dialogo = page.getByRole('dialog');
     await expect(dialogo).toBeVisible();
-    await dialogo.getByLabel('Precio de venta').fill('41');
+    await dialogo.getByLabel('Precio al público').fill('41');
     await dialogo.getByRole('button', { name: /^Guardar$/ }).click();
 
     await expect(page.getByText(/actualizado exitosamente/i)).toBeVisible({

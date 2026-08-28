@@ -345,7 +345,21 @@ export default function ProductsPage() {
   // LOADING & ERROR STATES
   // ============================================================================
 
-  if (isLoading || loadingCategories) {
+  // La compuerta de carga no puede tragarse un diálogo abierto.
+  //
+  // Estaba antes del render entero, modales incluidos: si una consulta de fondo
+  // volvía a estado de carga mientras el usuario escribía, la página se
+  // sustituía por el spinner, el modal se desmontaba y se llevaba lo tecleado.
+  // Se veía en los e2e como un alta que fallaba con «El nombre es obligatorio»
+  // teniendo el precio y la categoría bien puestos: los dos primeros campos se
+  // habían perdido y los siguientes cayeron en el formulario ya reiniciado.
+  //
+  // Con un diálogo abierto se sigue de largo: `products` cae a lista vacía sin
+  // datos, así que el árbol principal se pinta igual y el modal no se mueve.
+  const hayDialogoAbierto =
+    editando !== null || productoDetalle !== null || productoABorrar !== null;
+
+  if ((isLoading || loadingCategories) && !hayDialogoAbierto) {
     return (
       <MainLayout>
         <div className="flex items-center justify-center h-screen">

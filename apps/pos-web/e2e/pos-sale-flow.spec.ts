@@ -71,7 +71,7 @@ test.describe('POS Sale Flow', () => {
     ).toBeVisible();
   });
 
-  test('cart total equals price x quantity x 1.16 (IVA applied once)', async ({
+  test('el precio de la carta es el total: el IVA sale de dentro', async ({
     page,
   }) => {
     const price = await addFirstProduct(page);
@@ -80,11 +80,12 @@ test.describe('POS Sale Flow', () => {
     const tax = await readRowAmount(page, /^IVA/);
     const total = await readRowAmount(page, /^Total:/);
 
-    // IVA is applied once over the subtotal — never compounded per item.
+    // Articulo 7 bis de la LFPC: al publico se le exhibe el precio total, asi
+    // que lo que se cobra es lo que dice la carta y el IVA se extrae de ahi.
+    // Antes se sumaba un 16 % encima y un producto de $78 se cobraba a $90.48.
     expect(subtotal).toBeCloseTo(price, 1);
-    expect(tax).toBeCloseTo(subtotal * TAX_RATE, 1);
-    expect(total).toBeCloseTo(subtotal * (1 + TAX_RATE), 1);
-    expect(Math.abs(total - (subtotal + tax))).toBeLessThanOrEqual(0.01);
+    expect(total).toBeCloseTo(price, 1);
+    expect(tax).toBeCloseTo(price - price / (1 + TAX_RATE), 1);
   });
 
   test('increasing quantity with + updates the total proportionally', async ({
