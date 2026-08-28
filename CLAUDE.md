@@ -134,11 +134,16 @@ no tiene todavía una pantalla de configuración fiscal donde vivirían.
 - El mecanismo por producto (`taxRate`, `taxIncluded`) sí funciona y es
   configurable desde Productos → botón de régimen fiscal, por si la decisión
   cambia.
-- **El ISR no está decidido.** El estado de resultados usa el 30 % de persona
-  moral y lo marca como supuesto en pantalla. La tasa real depende del régimen
-  —RESICO son 1 % a 2.5 % sobre ingreso bruto, persona física va por tarifa
-  progresiva— y se configura en `settings` con `category: 'finance'`,
-  `key: 'isr_rate'`, como fracción.
+- **El negocio tributa en RESICO de persona física.** Confirmado por el dueño el
+  27 de agosto de 2026. El ISR sale de los **ingresos cobrados**, no de la
+  utilidad, con la tabla por tramos del artículo 113-E de la LISR (1 % a 2.5 %),
+  y la tasa del tramo se aplica a la totalidad del ingreso, no por escalones.
+  Está configurado en `settings` con `category: 'finance'`,
+  `key: 'regimen_fiscal'`, valor `resico_pf`. La lógica vive en
+  `apps/api/src/modules/finance/isr.ts`, que es el único archivo que hay que
+  auditar —o enseñarle al contador— para saber con qué se calcula.
+- La tabla del 113-E es una **estimación para el estado de resultados**, no
+  sustituye a la declaración. Conviene que el contador la confirme.
 
 ## Estado del sistema (agosto 2026)
 
