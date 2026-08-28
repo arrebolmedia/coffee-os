@@ -103,6 +103,27 @@ async function main() {
   const americano = productos.find((p) => p.sku === 'SBX-AMERICANO')!;
   const concha = productos.find((p) => p.sku === 'SBX-CONCHA')!;
 
+  // El dia asume un sandbox recien sembrado: compara el corte contra SUS
+  // ventas y el inventario contra un stock inicial conocido. Corrido dos veces
+  // seguidas, o despues de `sandbox:trastienda`, esas cuentas fallan por estado
+  // acumulado y no por un defecto — el instrumento grita en falso y deja de
+  // servir para lo unico que sirve. Mejor parar y decirlo.
+  const ventasPrevias = await prisma.ticket.count({
+    where: { location: { organizationId: org.id } },
+  });
+  if (ventasPrevias > 0) {
+    console.log('');
+    console.log(
+      `  El sandbox ya tiene ${ventasPrevias} ticket(s) de una corrida anterior.`,
+    );
+    console.log('  Vuelve a sembrarlo antes de medir:  npm run sandbox:seed');
+    console.log('');
+    // `exitCode` en vez de `process.exit`: el `finally` de abajo cierra Prisma
+    // y matar el proceso a medias deja un assert de libuv en Windows.
+    process.exitCode = 1;
+    return;
+  }
+
   const caja = await api('POST', '/pos/cash-register/open', {
     organization_id: org.id,
     initial_amount: 1000,
@@ -156,17 +177,24 @@ async function main() {
     return cerrado.body;
   }
 
-  // Un latte en efectivo. 62 + 16 % = 71.92
+  // Un latte en efectivo. La pizarra dice 62 y se cobran 62: el IVA (8.55) va
+  // dentro del precio, como manda el articulo 7 bis de la LFPC.
   const t1 = await vender(
     'Cobrar un latte en efectivo',
     [{ productId: latte.id, quantity: 1, unitPrice: latte.price }],
-    [{ method: 'CASH', amount: 71.92 }],
+    [{ method: 'CASH', amount: 62 }],
   );
-  if (t1 && c2(t1.total) !== 71.92) {
+  if (t1 && c2(t1.total) !== 62) {
     anota(
-      '  el total del latte cuadra',
+      '  el latte se cobra al precio de la pizarra',
       'falla',
-      `esperado 71.92, dio ${t1.total}`,
+      `esperado 62, dio ${t1.total}`,
+    );
+  } else if (t1) {
+    anota(
+      '  el latte se cobra al precio de la pizarra',
+      'ok',
+      `62 en la pizarra, ${dinero(t1.total)} cobrados, IVA ${dinero(t1.tax)} dentro`,
     );
   }
 
@@ -177,14 +205,15 @@ async function main() {
       { productId: concha.id, quantity: 1, unitPrice: concha.price },
       { productId: americano.id, quantity: 1, unitPrice: americano.price },
     ],
-    [{ method: 'CARD', amount: 80.68 }],
+    [{ method: 'CARD', amount: 73 }],
   );
-  // 25 (sin IVA) + 48 + 7.68 = 80.68
-  if (t2 && c2(t2.total) !== 80.68) {
+  // 25 de concha (tasa 0) + 48 de americano: 73 de pizarra, con 6.62 de IVA
+  // dentro que sale solo del americano.
+  if (t2 && c2(t2.total) !== 73) {
     anota(
       '  la mezcla de tasas cuadra',
       'falla',
-      `esperado 80.68, dio ${t2.total}`,
+      `esperado 73, dio ${t2.total}`,
     );
   } else if (t2) {
     anota('  la mezcla de tasas cuadra', 'ok', 'IVA sólo sobre el americano');
@@ -196,7 +225,7 @@ async function main() {
     [{ productId: americano.id, quantity: 2, unitPrice: americano.price }],
     [
       { method: 'CASH', amount: 50 },
-      { method: 'CARD', amount: 61.36 },
+      { method: 'CARD', amount: 46 },
     ],
   );
 
@@ -216,14 +245,15 @@ async function main() {
         ],
       },
     ],
-    [{ method: 'CASH', amount: 85.84 }],
+    [{ method: 'CASH', amount: 74 }],
   );
 
   // Con descuento.
   await vender(
     'Cobrar con un descuento de ' + dinero(20),
     [{ productId: latte.id, quantity: 1, unitPrice: latte.price }],
-    [{ method: 'CASH', amount: 48.72 }],
+    // 62 de pizarra menos 20 de descuento: 42. El descuento vale lo que dice.
+    [{ method: 'CASH', amount: 42 }],
     { discount: 20 },
   );
 
@@ -336,15 +366,19 @@ async function main() {
   );
 
   // ------------------------------------------------- lo que no existe aún
-  console.log('\nLO QUE NO SE PUEDE HACER DESDE LA INTERFAZ');
-  anota(
-    'Dar de alta un producto o cambiarle el precio',
-    'ausente',
-    'no hay formulario',
-  );
-  anota('Abrir o cerrar la caja', 'ausente', 'sólo por API');
+  //
+  // OJO: esta lista se mantiene A MANO. Este script habla con la API, no con
+  // el navegador, así que no puede comprobar por sí mismo si una pantalla
+  // existe — de las cuatro que había aquí, dos se construyeron después y la
+  // lista siguió diciendo que faltaban. Quien cierre una de éstas, que la borre
+  // de aquí; lo que sí se mide de verdad son los e2e de Playwright.
+  console.log('\nLO QUE NO SE PUEDE HACER DESDE LA INTERFAZ (lista a mano)');
   anota('Facturar (CFDI)', 'ausente', 'bloqueado a propósito: falta un PAC');
-  anota('Cobrar con terminal bancaria', 'ausente', 'no hay integración');
+  anota(
+    'Cobrar con terminal bancaria',
+    'ausente',
+    'no hay integración: el cobro con tarjeta se registra, no se procesa',
+  );
 
   resumen();
 }

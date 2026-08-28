@@ -36,6 +36,9 @@ const INSUMOS = [
 /**
  * El menú. `tasaIva` va como fracción y `recetaPor` describe cuánto insumo
  * consume UNA unidad del producto.
+ *
+ * `ivaIncluido` va en true en todo el menú, que es como se vende en México: el
+ * precio de la pizarra es el que paga el cliente y el IVA sale de dentro.
  */
 const MENU = [
   {
@@ -44,7 +47,7 @@ const MENU = [
     categoria: 'Café Caliente',
     precio: 62,
     tasaIva: 0.16,
-    ivaIncluido: false,
+    ivaIncluido: true,
     receta: { CAFE: 18, LECHE: 200, VASO: 1 },
   },
   {
@@ -53,7 +56,7 @@ const MENU = [
     categoria: 'Café Caliente',
     precio: 48,
     tasaIva: 0.16,
-    ivaIncluido: false,
+    ivaIncluido: true,
     receta: { CAFE: 18, VASO: 1 },
   },
   {
@@ -65,7 +68,7 @@ const MENU = [
     // 0 para que el día de prueba ejercite las dos tasas conviviendo, que es
     // donde el cálculo se equivocaba.
     tasaIva: 0,
-    ivaIncluido: false,
+    ivaIncluido: true,
     receta: { HARINA: 80 },
   },
 ];
@@ -101,6 +104,19 @@ async function limpiar() {
   await prisma.inventoryMovement.deleteMany({
     where: { inventoryItem: { organizationId: org.id } },
   });
+
+  // Las ordenes de compra que deja `sandbox:trastienda` apuntan a los insumos.
+  // Sin borrarlas antes, la segunda siembra se estrella contra la foranea y el
+  // sandbox se vuelve de un solo uso, que es justo lo contrario de lo que hace
+  // falta para poder medir dos veces.
+  await prisma.goodsReceipt.deleteMany({
+    where: { purchaseOrder: { organizationId: org.id } },
+  });
+  await prisma.purchaseOrderItem.deleteMany({
+    where: { purchaseOrder: { organizationId: org.id } },
+  });
+  await prisma.purchaseOrder.deleteMany({ where: { organizationId: org.id } });
+  await prisma.supplier.deleteMany({ where: { organizationId: org.id } });
   await prisma.cashRegister.deleteMany({ where: { organizationId: org.id } });
   await prisma.shift.deleteMany({
     where: { location: { organizationId: org.id } },
