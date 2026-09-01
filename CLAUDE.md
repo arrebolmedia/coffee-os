@@ -204,6 +204,10 @@ trabajo próximo: no empezarlas, no estimarlas y no listarlas como pendientes.
 
 Pendientes de verdad, hoy:
 
+0. **El primer acceso de un empleado no obliga a cambiar la contraseña.** El
+   alta entrega una temporal que el dueño le dicta, y ahí se queda hasta que el
+   empleado la cambie por su cuenta desde `change-password`. Forzarlo necesita
+   una columna en `users` y comprobarla en cada ruta.
 1. **La tabla `taxes` no la consulta nadie.** Tiene CRUD y reglas de
    aplicabilidad por producto y categoría, y el POS cobra con `product.taxRate`.
    Se puede configurar un impuesto ahí y no pasa nada. Cablearla exige decidir
