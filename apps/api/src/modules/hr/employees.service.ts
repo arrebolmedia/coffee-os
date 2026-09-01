@@ -3,8 +3,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
+import { contrasenaTemporal } from './contrasena';
 import { PrismaService } from '../database/prisma.service';
 import {
   CreateEmployeeDto,
@@ -59,11 +59,31 @@ export class EmployeesService {
       throw new BadRequestException(`Role ${createDto.role_id} not found`);
     }
 
-    // Generate a temporary password so the User.password column is never
-    // empty (which would silently disable authentication). The employee
-    // must reset it through the auth password-reset flow before login.
-    const tempPassword = randomBytes(16).toString('hex');
-    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    // La sucursal, acotada por la organizacion del JWT igual que el rol: nadie
+    // puede dar de alta a un empleado en el local de otro.
+    const location = await this.prisma.location.findFirst({
+      where: { id: createDto.location_id, organizationId },
+      select: { id: true },
+    });
+    if (!location) {
+      throw new BadRequestException(
+        `Location ${createDto.location_id} not found`,
+      );
+    }
+
+    // La contrasena con la que el empleado va a entrar. Si el dueno no elige
+    // una, se genera una temporal y se devuelve UNA vez para que se la entregue.
+    //
+    // Antes se generaba siempre `randomBytes(16).toString('hex')` y no se le
+    // ensenaba a nadie. El comentario mandaba al empleado a recuperarla "through
+    // the auth password-reset flow", un flujo que no existe: `change-password`
+    // exige sesion iniciada Y la contrasena actual. El resultado era que un
+    // empleado dado de alta desde la interfaz no podia entrar nunca.
+    const temporal = createDto.password ? null : contrasenaTemporal();
+    const hashedPassword = await bcrypt.hash(
+      createDto.password ?? (temporal as string),
+      10,
+    );
 
     const user = await this.prisma.user.create({
       data: {
@@ -77,10 +97,13 @@ export class EmployeesService {
         lastName: createDto.last_name,
         phone: createDto.phone ?? null,
         active: true,
+        // Sin esto el empleado entraba a una sesion sin sucursal, y el POS no
+        // tiene donde vender: poder iniciar sesion no es poder trabajar.
+        locations: { create: { locationId: location.id } },
       },
     });
 
-    return this.mapToEmployee(user as unknown as PrismaUser, {
+    const empleado = this.mapToEmployee(user as unknown as PrismaUser, {
       location_id: createDto.location_id,
       role: createDto.role,
       employment_type: createDto.employment_type,
@@ -97,6 +120,45 @@ export class EmployeesService {
       curp: createDto.curp,
       nss: createDto.nss,
     });
+
+    // La temporal viaja UNA vez, en la respuesta del alta, para que el dueno se
+    // la entregue. No se guarda en claro ni se registra en ningun log.
+    return temporal
+      ? ({ ...empleado, temporary_password: temporal } as Employee)
+      : empleado;
+  }
+
+  /**
+   * Repone la contrasena de un empleado y devuelve la nueva, una sola vez.
+   *
+   * Es lo que falta cuando alguien la olvida: no hay correo de recuperacion, y
+   * `change-password` exige la contrasena actual, o sea que sin esto un empleado
+   * que la pierde queda fuera para siempre.
+   *
+   * El `organizationId` explicito es defensa en profundidad, no la unica: `User`
+   * esta declarado `strict` en la extension de tenencia, asi que la consulta ya
+   * sale acotada aunque a alguien se le olvide ponerlo. Comprobado quitandolo:
+   * el empleado de otro inquilino sigue saliendo como inexistente.
+   */
+  async resetPassword(
+    id: string,
+    organizationId: string,
+  ): Promise<{ temporary_password: string }> {
+    const user = await this.prisma.user.findFirst({
+      where: { id, organizationId },
+      select: { id: true },
+    });
+    if (!user) {
+      throw new NotFoundException(`Empleado ${id} no encontrado`);
+    }
+
+    const temporal = contrasenaTemporal();
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { password: await bcrypt.hash(temporal, 10) },
+    });
+
+    return { temporary_password: temporal };
   }
 
   async findAll(query: QueryEmployeesDto): Promise<Employee[]> {

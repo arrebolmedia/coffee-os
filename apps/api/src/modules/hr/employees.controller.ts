@@ -63,6 +63,20 @@ export class EmployeesController {
     return this.employeesService.create(createDto, organizationId);
   }
 
+  /**
+   * Repone la contrasena de un empleado y devuelve la nueva, una sola vez.
+   *
+   * Sin esto, un empleado que olvida su contrasena queda fuera para siempre: no
+   * hay correo de recuperacion y `change-password` exige la contrasena actual.
+   */
+  @Post(':id/reset-password')
+  async resetPassword(
+    @Param('id') id: string,
+    @CurrentOrg() organizationId: string,
+  ) {
+    return this.employeesService.resetPassword(id, organizationId);
+  }
+
   @Get()
   async findAll(
     @Query() query: QueryEmployeesDto,

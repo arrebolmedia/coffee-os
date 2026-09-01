@@ -172,6 +172,22 @@ export function useEmployee(employeeId: string, enabled = true) {
 /**
  * Hook to create employee
  */
+/**
+ * Repone la contraseña de un empleado y devuelve la nueva, una sola vez.
+ *
+ * Es la única salida cuando alguien la olvida: no hay correo de recuperación y
+ * `change-password` exige la contraseña actual.
+ */
+export function useResetEmployeePassword() {
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post<{ temporary_password: string }>(
+        `/hr/employees/${id}/reset-password`,
+        {},
+      ),
+  });
+}
+
 export function useCreateEmployee() {
   const queryClient = useQueryClient();
   const { user } = useAuth();

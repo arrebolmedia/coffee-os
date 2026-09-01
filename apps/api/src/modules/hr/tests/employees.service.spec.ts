@@ -17,12 +17,19 @@ describe('EmployeesService', () => {
     user: {
       create: jest.fn(),
       findMany: jest.fn(),
+      findFirst: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
       count: jest.fn(),
     },
     role: {
       findFirst: jest.fn().mockResolvedValue({ id: 'role-id-1', active: true }),
+    },
+    // La sucursal se valida contra la organizacion del JWT, igual que el rol:
+    // el alta tambien crea la fila de `user_locations`, sin la cual el empleado
+    // entraria a una sesion sin sucursal y el POS no tendria donde vender.
+    location: {
+      findFirst: jest.fn().mockResolvedValue({ id: 'location-id-1' }),
     },
   };
 

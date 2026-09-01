@@ -12,6 +12,7 @@ import {
   useCreateEmployee,
   useDeleteEmployee,
   useEmployees,
+  useResetEmployeePassword,
   useUpdateEmployee,
 } from '@/hooks/use-employees';
 import { EmployeeFormData, EmployeeModal } from '@/components/hr/EmployeeModal';
@@ -24,6 +25,7 @@ import {
   Calendar,
   Clock,
   Edit,
+  KeyRound,
   Loader2,
   Mail,
   Phone,
@@ -71,6 +73,11 @@ function toDisplay(e: HookEmployee): DisplayEmployee {
 export default function EmployeesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [credencialNueva, setCredencialNueva] = useState<{
+    nombre: string;
+    email: string;
+    password: string;
+  } | null>(null);
   const [selectedEmployee, setSelectedEmployee] =
     useState<EmployeeFormData | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -84,6 +91,7 @@ export default function EmployeesPage() {
   const createMutation = useCreateEmployee();
   const updateMutation = useUpdateEmployee();
   const deleteMutation = useDeleteEmployee();
+  const resetPassword = useResetEmployeePassword();
 
   // Roles reales del backend (CreateEmployeeDto exige un role_id válido)
   const { data: rolesData } = useQuery({
@@ -104,6 +112,21 @@ export default function EmployeesPage() {
   const employees: DisplayEmployee[] = (employeesData ?? []).map(toDisplay);
 
   // Handlers
+  // Reponer la contraseña es lo único que rescata a un empleado que la olvidó:
+  // no hay correo de recuperación y `change-password` pide la actual.
+  const handleResetPassword = async (employee: DisplayEmployee) => {
+    try {
+      const res: any = await resetPassword.mutateAsync(employee.id);
+      setCredencialNueva({
+        nombre: employee.name,
+        email: employee.email,
+        password: res.temporary_password,
+      });
+    } catch {
+      // El error lo reporta la capa de api.
+    }
+  };
+
   const handleSave = async (data: EmployeeFormData) => {
     try {
       if (data.id) {
@@ -130,7 +153,7 @@ export default function EmployeesPage() {
         });
       } else {
         // Mapear al CreateEmployeeDto real (organization_id lo agrega el hook)
-        await createMutation.mutateAsync({
+        const creado: any = await createMutation.mutateAsync({
           first_name: data.firstName,
           last_name: data.lastName,
           email: data.email,
@@ -151,6 +174,17 @@ export default function EmployeesPage() {
           curp: data.curp || undefined,
           nss: data.nss || undefined,
         });
+
+        // La contraseña temporal viaja UNA vez, en la respuesta del alta. Si no
+        // se enseña aquí, el empleado no puede entrar: no hay correo de
+        // recuperación y `change-password` exige la contraseña actual.
+        if (creado?.temporary_password) {
+          setCredencialNueva({
+            nombre: `${data.firstName} ${data.lastName}`.trim(),
+            email: data.email,
+            password: creado.temporary_password,
+          });
+        }
       }
       setIsModalOpen(false);
       setSelectedEmployee(null);
@@ -495,8 +529,19 @@ export default function EmployeesPage() {
                         <button
                           onClick={() => handleEdit(employee)}
                           className="text-blue-600 hover:text-blue-900"
+                          title="Editar"
+                          aria-label={`Editar a ${employee.name}`}
                         >
                           <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleResetPassword(employee)}
+                          disabled={resetPassword.isPending}
+                          className="text-amber-600 hover:text-amber-900 disabled:opacity-50"
+                          title="Reponer contraseña"
+                          aria-label={`Reponer la contraseña de ${employee.name}`}
+                        >
+                          <KeyRound className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteClick(employee)}
@@ -515,6 +560,48 @@ export default function EmployeesPage() {
       </div>
 
       {/* Employee Modal */}
+      {/*
+        La contraseña temporal, para entregársela al empleado. Se enseña una
+        sola vez porque solo se guarda hasheada: no hay forma de recuperarla
+        después, únicamente de reponerla con otra.
+      */}
+      {credencialNueva && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Datos de acceso de {credencialNueva.nombre}
+            </h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Entrégaselos ahora. La contraseña no se vuelve a mostrar: si se
+              pierde, hay que reponerla desde la lista de empleados.
+            </p>
+
+            <dl className="mt-4 space-y-2 rounded-lg bg-gray-50 p-4 font-mono text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-gray-500">Usuario</dt>
+                <dd className="break-all text-gray-900">
+                  {credencialNueva.email}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-gray-500">Contraseña</dt>
+                <dd className="text-lg font-semibold tracking-wider text-gray-900">
+                  {credencialNueva.password}
+                </dd>
+              </div>
+            </dl>
+
+            <button
+              type="button"
+              onClick={() => setCredencialNueva(null)}
+              className="mt-5 w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+            >
+              Ya la anoté
+            </button>
+          </div>
+        </div>
+      )}
+
       <EmployeeModal
         isOpen={isModalOpen}
         onClose={() => {

@@ -6,6 +6,8 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  MaxLength,
+  MinLength,
 } from 'class-validator';
 
 export enum EmployeeStatus {
@@ -67,6 +69,24 @@ export class CreateEmployeeDto {
   @IsNotEmpty()
   @IsString()
   role_id: string;
+
+  /**
+   * La contraseña con la que el empleado va a entrar.
+   *
+   * Opcional: si no viene, el alta genera una temporal y la devuelve UNA vez
+   * para que el dueño se la entregue. Antes se generaba siempre una aleatoria
+   * de 32 caracteres que no se le enseñaba a nadie, y no existía ningún flujo
+   * de recuperación, así que el empleado no podía entrar nunca.
+   */
+  @IsOptional()
+  @IsString()
+  @MinLength(8, {
+    message: 'La contraseña debe tener al menos 8 caracteres',
+  })
+  @MaxLength(72, {
+    message: 'La contraseña no puede pasar de 72 caracteres',
+  })
+  password?: string;
 
   @IsEnum(EmployeeRole)
   role: EmployeeRole;

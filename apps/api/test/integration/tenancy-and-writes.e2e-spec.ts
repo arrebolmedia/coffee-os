@@ -450,6 +450,141 @@ describe('Tenancy & write paths (e2e)', () => {
       expect(empId).toBeDefined();
       if (empId) createdEmployeeUserIds.push(empId);
     });
+
+    /**
+     * Un empleado dado de alta tiene que poder trabajar.
+     *
+     * Hasta aqui no podia: el alta generaba una contrasena aleatoria de 32
+     * caracteres que no se le ensenaba a nadie, y el comentario mandaba al
+     * empleado a recuperarla "through the auth password-reset flow" — un flujo
+     * que no existe. `change-password` exige sesion iniciada Y la contrasena
+     * actual, asi que no habia manera de entrar. El dueno contrataba a un
+     * cajero, lo daba de alta, y el cajero se quedaba fuera para siempre.
+     *
+     * Y aunque hubiera entrado, tampoco habria podido cobrar: no se creaba la
+     * fila de `user_locations`, asi que el login devolvia una sesion sin
+     * sucursal y el POS no tiene donde vender.
+     */
+    it('el empleado dado de alta puede entrar con la contrasena que se le asigna', async () => {
+      const email = `cajera.${Date.now()}@coffeeos.test`;
+      const contrasena = 'Cajera2026!';
+
+      const alta = await request(app.getHttpServer())
+        .post('/api/v1/hr/employees')
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .send({
+          organization_id: tenants.a.organizationId,
+          first_name: 'Lucia',
+          last_name: 'Ramos',
+          email,
+          phone: '5551112222',
+          location_id: tenants.a.locationId,
+          role_id: tenants.a.roleId,
+          role: 'CASHIER',
+          employment_type: 'FULL_TIME',
+          hire_date: '2026-09-01',
+          password: contrasena,
+        })
+        .expect(201);
+
+      const empId = alta.body.id ?? alta.body.data?.id;
+      if (empId) createdEmployeeUserIds.push(empId);
+
+      // La contrasena elegida por el dueno NO se devuelve: ya la conoce.
+      expect(alta.body.temporary_password).toBeUndefined();
+
+      const login = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password: contrasena })
+        .expect(200);
+
+      expect(login.body.accessToken).toBeTruthy();
+      // Y entra con su sucursal, o no tendria donde cobrar.
+      expect(login.body.user.locationId).toBe(tenants.a.locationId);
+      expect(login.body.user.organizationId).toBe(tenants.a.organizationId);
+    });
+
+    it('sin contrasena, el alta devuelve una temporal que el dueno puede entregar', async () => {
+      const email = `barista.${Date.now()}@coffeeos.test`;
+
+      const alta = await request(app.getHttpServer())
+        .post('/api/v1/hr/employees')
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .send({
+          organization_id: tenants.a.organizationId,
+          first_name: 'Mario',
+          last_name: 'Cruz',
+          email,
+          phone: '5553334455',
+          location_id: tenants.a.locationId,
+          role_id: tenants.a.roleId,
+          role: 'BARISTA',
+          employment_type: 'PART_TIME',
+          hire_date: '2026-09-01',
+        })
+        .expect(201);
+
+      const empId = alta.body.id ?? alta.body.data?.id;
+      if (empId) createdEmployeeUserIds.push(empId);
+
+      const temporal = alta.body.temporary_password;
+      expect(typeof temporal).toBe('string');
+      expect(temporal.length).toBeGreaterThanOrEqual(8);
+
+      // Y sirve de verdad: no es un adorno.
+      const login = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password: temporal })
+        .expect(200);
+
+      expect(login.body.accessToken).toBeTruthy();
+    });
+
+    it('el dueno puede reponer la contrasena de un empleado que la olvido', async () => {
+      const email = `olvidadiza.${Date.now()}@coffeeos.test`;
+
+      const alta = await request(app.getHttpServer())
+        .post('/api/v1/hr/employees')
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .send({
+          organization_id: tenants.a.organizationId,
+          first_name: 'Rosa',
+          last_name: 'Diaz',
+          email,
+          phone: '5556667777',
+          location_id: tenants.a.locationId,
+          role_id: tenants.a.roleId,
+          role: 'CASHIER',
+          employment_type: 'FULL_TIME',
+          hire_date: '2026-09-01',
+        })
+        .expect(201);
+
+      const empId = alta.body.id ?? alta.body.data?.id;
+      if (empId) createdEmployeeUserIds.push(empId);
+
+      const reset = await request(app.getHttpServer())
+        .post(`/api/v1/hr/employees/${empId}/reset-password`)
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .expect(201);
+
+      const nueva = reset.body.temporary_password;
+      expect(typeof nueva).toBe('string');
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password: nueva })
+        .expect(200);
+    });
+
+    it('no se puede reponer la contrasena de un empleado de otra organizacion', async () => {
+      // El id existe, pero es del otro inquilino: tiene que salir 404, no un
+      // 403 que confirme que existe, y desde luego no una contrasena nueva.
+      await request(app.getHttpServer())
+        .post(`/api/v1/hr/employees/${tenants.b.userId}/reset-password`)
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .expect(404);
+    });
   });
 
   // --- helpers -------------------------------------------------------------
