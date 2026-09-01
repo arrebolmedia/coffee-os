@@ -11,9 +11,10 @@ import { ProductCatalog } from '@/components/pos/ProductCatalog';
 import { Cart } from '@/components/pos/Cart';
 import { PaymentModal } from '@/components/pos/PaymentModal';
 import CustomerSearch from '@/components/pos/CustomerSearch';
-import { Banknote, ShoppingCart, X } from 'lucide-react';
+import { Banknote, Printer, ShoppingCart, X } from 'lucide-react';
 import { OfflineIndicator } from '@/components/pos/OfflineIndicator';
 import { CajaModal } from '@/components/pos/CajaModal';
+import { usePrintReceipt } from '@/hooks/use-pos';
 import { MainLayout } from '@/components/layout/MainLayout';
 import type { Customer } from '@/types';
 import { logger } from '@/lib/logger';
@@ -26,6 +27,12 @@ export default function POSPage() {
   // tapado por un carrito vacío nada más entrar, sin nada visible que lo
   // cerrara. Lo primero que necesita un barista es ver los productos.
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [ultimaVenta, setUltimaVenta] = useState<{
+    ticketId: string;
+    ticketNumber: string;
+    total: number;
+  } | null>(null);
+  const imprimirTicket = usePrintReceipt();
   // Abrir y cerrar la caja del turno. No habia forma de hacerlo desde la
   // interfaz, y es lo primero y lo ultimo que se hace cada dia.
   const [cajaAbierta, setCajaAbierta] = useState(false);
@@ -56,9 +63,16 @@ export default function POSPage() {
     setIsPaymentModalOpen(true);
   };
 
-  const handlePaymentSuccess = (orderId: string) => {
-    logger.debug('Order created:', orderId);
-    // Could navigate to receipt page or show success message
+  // Tras cobrar se queda a la vista la ultima venta con su ticket. Sin esto el
+  // cliente no tenia forma de llevarse un comprobante: el endpoint existia y no
+  // habia un solo boton que lo pidiera.
+  const handlePaymentSuccess = (venta: {
+    ticketId: string;
+    ticketNumber: string;
+    total: number;
+  }) => {
+    logger.debug('Venta cobrada:', venta.ticketNumber);
+    setUltimaVenta(venta);
   };
 
   return (
@@ -204,6 +218,46 @@ export default function POSPage() {
             </div>
           </aside>
         </div>
+
+        {/*
+          La venta recien cobrada, con su ticket. Se queda hasta que el cajero
+          la cierra o empieza otra: el cliente puede pedir el comprobante
+          despues de guardar la cartera, y muchos no lo quieren, asi que se
+          ofrece en vez de imprimirse solo.
+        */}
+        {ultimaVenta && (
+          <div className="fixed bottom-4 left-1/2 z-50 w-[min(92vw,26rem)] -translate-x-1/2 rounded-xl border border-green-200 bg-white p-4 shadow-lg">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-green-700">
+                  Venta cobrada · {formatPrice(ultimaVenta.total)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {ultimaVenta.ticketNumber}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUltimaVenta(null)}
+                aria-label="Cerrar aviso de venta"
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => imprimirTicket.mutate(ultimaVenta.ticketId)}
+              disabled={imprimirTicket.isPending}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
+            >
+              <Printer className="h-4 w-4" />
+              {imprimirTicket.isPending
+                ? 'Preparando ticket…'
+                : 'Imprimir ticket'}
+            </button>
+          </div>
+        )}
 
         {/* Payment Modal */}
         <PaymentModal

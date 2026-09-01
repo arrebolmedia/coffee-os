@@ -103,7 +103,7 @@ export class OrderController {
   }
 
   @Get(':id/receipt')
-  async receipt(@Param('id') id: string) {
-    return this.posService.getReceipt(id);
+  async receipt(@Param('id') id: string, @CurrentOrg() organizationId: string) {
+    return this.posService.getReceipt(id, organizationId);
   }
 }

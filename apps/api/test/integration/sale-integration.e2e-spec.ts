@@ -155,6 +155,46 @@ describe('POS Sale Integration (e2e)', () => {
     });
   });
 
+  describe('El comprobante del cliente', () => {
+    it('sale con el numero de ticket, las lineas y el total', async () => {
+      // Pedido por el id del TICKET, que es lo que tiene el POS recien cobrado.
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/pos/orders/${testContext.ticketId}/receipt`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      const recibo: string = res.body.receipt;
+      const precioDeCarta = 2 * (testContext.productPrice ?? 0);
+
+      expect(recibo).toContain('Integration Cappuccino');
+      expect(recibo).toContain('$96.00');
+      expect(recibo).toContain('TOTAL');
+      expect(precioDeCarta).toBe(96);
+      // Y no el recibo en blanco de antes.
+      expect(recibo).not.toContain('Ticket: </');
+    });
+
+    it('tambien se puede pedir por el id de la orden de cocina', async () => {
+      // La pantalla de comandas tiene la orden, no el ticket. Con este id el
+      // endpoint buscaba un ticket, no encontraba nada, y devolvia HTTP 200 con
+      // un recibo vacio: ni numero, ni lineas, ni total.
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/pos/orders/${testContext.orderId}/receipt`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(res.body.receipt).toContain('Integration Cappuccino');
+      expect(res.body.receipt).toContain('$96.00');
+    });
+
+    it('un id que no existe da 404, no un recibo vacio', async () => {
+      await request(app.getHttpServer())
+        .get('/api/v1/pos/orders/ckinexistente000000000000/receipt')
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(404);
+    });
+  });
+
   async function setupTestData() {
     const suffix = Date.now().toString();
 

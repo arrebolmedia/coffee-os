@@ -286,23 +286,54 @@ export function useRefundOrder() {
 }
 
 /**
- * Hook to print receipt
+ * Abre el comprobante del cliente en una ventana y manda a imprimir.
+ *
+ * Va contra el sistema operativo, no contra un driver: sirve cualquier
+ * impresora que Windows vea, incluida una termica de 80 mm de mostrador, y sin
+ * impresora se queda la ventana con el ticket en pantalla.
+ *
+ * Antes decia "Imprimiendo recibo..." pasara lo que pasara. Si el navegador
+ * bloqueaba la ventana emergente —que es lo normal la primera vez— el `if`
+ * fallaba en silencio y el cajero se quedaba esperando un papel que nunca
+ * salio. Y llamaba a `print()` en la misma linea que `document.write`, sin
+ * esperar a que el contenido se maquetara, asi que podia imprimirse en blanco.
  */
 export function usePrintReceipt() {
   return useMutation({
-    mutationFn: (orderId: string) => POSService.printReceipt(orderId),
+    mutationFn: (ticketOrOrderId: string) =>
+      POSService.printReceipt(ticketOrOrderId),
     onSuccess: (data) => {
-      // Open receipt in new window for printing
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(data.receipt);
-        printWindow.document.close();
-        printWindow.print();
+      const ventana = window.open('', '_blank', 'width=380,height=700');
+
+      if (!ventana) {
+        toast.error(
+          'El navegador bloqueó la ventana del ticket. Permite las ventanas emergentes de este sitio para poder imprimir.',
+        );
+        return;
       }
-      toast.success('Imprimiendo recibo...');
+
+      ventana.document.write(data.receipt);
+      ventana.document.close();
+
+      // `print()` cuando el documento ya se maqueto. `onload` no siempre llega
+      // en un documento escrito a mano, asi que tambien hay un plazo corto de
+      // respaldo; imprimir dos veces no pasa, no imprimir si.
+      let impreso = false;
+      const imprimir = () => {
+        if (impreso || ventana.closed) return;
+        impreso = true;
+        ventana.focus();
+        ventana.print();
+      };
+      ventana.onload = imprimir;
+      ventana.setTimeout(imprimir, 400);
     },
     onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Error al imprimir recibo');
+      toast.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          'No se pudo obtener el ticket',
+      );
     },
   });
 }

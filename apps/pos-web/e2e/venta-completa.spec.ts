@@ -148,6 +148,55 @@ test.describe('Venta completa punta a punta', () => {
     const numeroTicket = textoExito.match(/Venta (\S+) cobrada/)?.[1];
     expect(numeroTicket, 'el toast debe traer el identificador').toBeTruthy();
 
+    // El comprobante del cliente. No existia forma de pedirlo desde la
+    // interfaz: el endpoint estaba y no habia un solo boton que lo llamara, asi
+    // que el cliente no se llevaba ticket.
+    const panelVenta = page.getByText(/Venta cobrada/i).first();
+    await expect(panelVenta, 'tras cobrar se ofrece el ticket').toBeVisible({
+      timeout: 20_000,
+    });
+
+    const botonImprimir = page.getByRole('button', {
+      name: /Imprimir ticket/i,
+    });
+    await expect(botonImprimir).toBeVisible();
+
+    // El contenido se comprueba contra la API con el mismo id que usa el boton:
+    // abrir la ventana de impresion en un navegador sin impresora no demuestra
+    // nada, y lo que importa es que el papel diga lo correcto.
+    const ticketsRes = await request.get(
+      `${API}/pos/tickets?locationId=${locationId}`,
+      auth(token),
+    );
+    expect(ticketsRes.ok()).toBeTruthy();
+    const tickets = await ticketsRes.json();
+    const ticket = (
+      Array.isArray(tickets) ? tickets : (tickets.data ?? [])
+    ).find((t: any) => t.ticketNumber === numeroTicket);
+    expect(ticket, 'el ticket cobrado debe existir').toBeTruthy();
+
+    const reciboRes = await request.get(
+      `${API}/pos/orders/${ticket.id}/receipt`,
+      auth(token),
+    );
+    expect(reciboRes.ok()).toBeTruthy();
+    const { receipt } = await reciboRes.json();
+
+    expect(receipt, 'el recibo trae el numero de ticket').toContain(
+      numeroTicket,
+    );
+    expect(receipt, 'el recibo trae el producto vendido').toContain(
+      producto.name,
+    );
+    expect(
+      receipt,
+      'el recibo desglosa el IVA que ya lleva el precio',
+    ).toContain('IVA incluido');
+    expect(receipt, 'sale con el ancho del rollo de 80 mm').toContain('80mm');
+    expect(receipt, 'no promete una factura que no puede emitir').toContain(
+      'No es un CFDI',
+    );
+
     // La venta se consumó: el carrito queda vacío.
     await expect(page.locator('[data-testid="cart-empty"]')).toBeVisible({
       timeout: 15_000,

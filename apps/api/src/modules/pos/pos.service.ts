@@ -11,6 +11,8 @@ import {
   ZONA_POR_DEFECTO,
 } from '../../common/time/day-range';
 import { zonaDelNegocio } from '../../common/time/zona-negocio';
+import { fechaHoraEnZona, zonaOPorDefecto } from '../../common/time/day-range';
+import { construirRecibo } from './recibo';
 import { PrismaService } from '../database/prisma.service';
 import { InventoryAutomationService } from '../inventory/inventory-automation.service';
 import { MovementType, PaymentMethod, PaymentStatus } from '@prisma/client';
@@ -949,21 +951,104 @@ export class PosService {
   // RECEIPT
   // ========================================
 
-  async getReceipt(id: string) {
-    const ticket = await this.findOneTicket(id);
-    const lines =
-      (ticket as any)?.lines
-        ?.map(
-          (l: any) =>
-            `${this.escapeHtml(l.quantity)}x ${this.escapeHtml(
-              l.product?.name ?? 'Item',
-            )} — $${this.escapeHtml(l.total)}`,
-        )
-        .join('\n') ?? '';
-    const ticketNumber = this.escapeHtml((ticket as any)?.ticketNumber);
-    const total = this.escapeHtml((ticket as any)?.total);
+  /**
+   * El comprobante del cliente.
+   *
+   * Acepta el id del TICKET o el de la ORDEN de cocina, porque los dos llegan
+   * aqui: el POS tiene el ticket recien cerrado y la pantalla de comandas tiene
+   * la orden. La ruta vive bajo `/pos/orders/:id/receipt` y esto buscaba un
+   * ticket con el id de una orden, no encontraba nada, y el encadenado opcional
+   * se tragaba el fallo: salia un recibo vacio con HTTP 200, que es la peor
+   * forma de fallar.
+   *
+   * Y no filtraba por organizacion. Hoy no se notaba precisamente porque nunca
+   * encontraba nada; al arreglar lo del id habria quedado una fuga.
+   */
+  async getReceipt(id: string, organizationId?: string) {
+    let ticket = await this.findOneTicket(id, organizationId);
+
+    if (!ticket) {
+      const orden = await this.prisma.order.findFirst({
+        where: {
+          id,
+          ...(organizationId ? { location: { organizationId } } : {}),
+        },
+        select: { ticketId: true },
+      });
+      if (orden?.ticketId) {
+        ticket = await this.findOneTicket(orden.ticketId, organizationId);
+      }
+    }
+
+    if (!ticket) {
+      throw new NotFoundException(
+        `No hay ningun ticket ni orden con el id ${id}`,
+      );
+    }
+
+    const t = ticket as any;
+
+    const sucursal = await this.prisma.location.findFirst({
+      where: { id: t.locationId },
+      select: {
+        name: true,
+        address: true,
+        city: true,
+        state: true,
+        phone: true,
+        organization: { select: { name: true, timezone: true } },
+      },
+    });
+
+    // `address` suele venir ya con colonia y ciudad dentro, asi que anexar
+    // `city` y `state` a ciegas imprimia "Av. Juarez 123, Centro, CDMX, Ciudad
+    // de Mexico, CDMX". Solo se agrega lo que no este ya dicho.
+    const partes: string[] = [];
+    for (const parte of [sucursal?.address, sucursal?.city, sucursal?.state]) {
+      const limpia = parte?.trim();
+      if (!limpia) continue;
+      const yaDicho = partes.some((p) =>
+        p.toLowerCase().includes(limpia.toLowerCase()),
+      );
+      if (!yaDicho) partes.push(limpia);
+    }
+    const direccion = partes.join(', ');
+
+    const atendio = [t.user?.firstName, t.user?.lastName]
+      .filter(Boolean)
+      .join(' ');
+
+    // La fecha va en la zona de la cafeteria, no en la del servidor: un ticket
+    // de las 19:25 no puede imprimirse con la fecha del dia siguiente.
+    const zona = zonaOPorDefecto(sucursal?.organization?.timezone);
+    const emitido = t.closedAt ?? t.openedAt ?? new Date();
+
     return {
-      receipt: `<pre>Ticket: ${ticketNumber}\n${lines}\nTotal: $${total}</pre>`,
+      receipt: construirRecibo({
+        negocio: sucursal?.organization?.name ?? 'Cafeteria',
+        sucursal: sucursal?.name,
+        direccion: direccion || null,
+        telefono: sucursal?.phone,
+        ticketNumber: t.ticketNumber,
+        fechaHora: fechaHoraEnZona(new Date(emitido), zona),
+        atendio: atendio || null,
+        lineas: (t.lines ?? []).map((l: any) => ({
+          cantidad: l.quantity,
+          nombre: l.product?.name ?? 'Producto',
+          importe: Number(l.total ?? 0),
+          modificadores: (l.modifiers ?? [])
+            .map((m: any) => m.modifier?.name)
+            .filter(Boolean),
+        })),
+        subtotal: Number(t.subtotal ?? 0),
+        tax: Number(t.tax ?? 0),
+        discount: Number(t.discount ?? 0),
+        total: Number(t.total ?? 0),
+        pagos: (t.payments ?? []).map((p: any) => ({
+          metodo: p.method,
+          importe: Number(p.amount ?? 0),
+        })),
+      }),
     };
   }
 

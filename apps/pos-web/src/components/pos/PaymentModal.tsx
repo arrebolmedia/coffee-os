@@ -24,7 +24,11 @@ import { logger } from '@/lib/logger';
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (orderId: string) => void;
+  onSuccess: (venta: {
+    ticketId: string;
+    ticketNumber: string;
+    total: number;
+  }) => void;
   customer?: Customer | null;
 }
 
@@ -136,7 +140,11 @@ export function PaymentModal({
       const result = await createOrderMutation.mutateAsync(payload);
 
       clearCart();
-      onSuccess(result.id);
+      onSuccess({
+        ticketId: result.id,
+        ticketNumber: result.order_number,
+        total: result.total,
+      });
       onClose();
     } catch (error) {
       logger.error('Error creating order:', error);

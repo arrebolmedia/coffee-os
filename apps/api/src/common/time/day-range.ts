@@ -126,6 +126,27 @@ export function fechaEnZona(instante: Date, zona: string): string {
 }
 
 /**
+ * Fecha y hora legibles en la zona indicada: `01/09/2026 14:32`.
+ *
+ * Para el comprobante del cliente. Formatear con la zona del servidor imprimia
+ * la fecha equivocada en las ventas de la noche, que es el mismo error que ya
+ * habia descuadrado el corte del dia.
+ */
+export function fechaHoraEnZona(instante: Date, zona: string): string {
+  return new Intl.DateTimeFormat('es-MX', {
+    timeZone: zonaOPorDefecto(zona),
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+    .format(instante)
+    .replace(',', '');
+}
+
+/**
  * El dia de calendario completo, de 00:00:00.000 a 23:59:59.999 en la zona
  * indicada, devuelto como instantes listos para `gte`/`lte`.
  *
