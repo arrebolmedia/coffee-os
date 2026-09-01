@@ -94,6 +94,13 @@ npm run db:seed:simple   # DESTRUCTIVO: deleteMany sin filtro. No usar por defec
 - **Declarar `@Get(':id')` después de las rutas literales.** Al revés, `:id` captura el
   segmento y deja inalcanzable la ruta literal.
 - Los ids son cuid, no uuid: en los DTOs va `@IsString()`, no `@IsUUID()`.
+- **Al cambiar un `@default()` del schema hay que correr `npx prisma generate`.**
+  Prisma inyecta el default del cliente GENERADO en cada INSERT, así que pisa el
+  de la base: con el cliente viejo, cada producto creado sin decir `taxIncluded`
+  seguía naciendo con el IVA por fuera aunque la columna dijera lo contrario.
+  `npm run db:migrate` regenera solo; aplicar el SQL a mano, no. Las 1349 pruebas
+  pasaban con el cliente desalineado; lo que lo detecta es el caso de
+  `sale-integration.e2e-spec.ts` que crea un producto por Prisma sin tocar el IVA.
 
 ### Frontend (Next.js)
 

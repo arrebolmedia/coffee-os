@@ -74,13 +74,21 @@ describe('POS Sale Integration (e2e)', () => {
       expect(ticket.lines).toHaveLength(1);
       expect(ticket.lines[0].productId).toBe(testContext.productId);
 
-      const expectedSubtotal = 2 * (testContext.productPrice ?? 0);
-      const expectedTax = expectedSubtotal * 0.16;
-      const expectedTotal = expectedSubtotal + expectedTax;
+      // El producto se crea aqui con Prisma SIN decir nada del IVA, asi que
+      // hereda el default. Y el default es que el precio de carta ya lo lleva
+      // dentro: dos cafes de $48 se cobran $96, no $111.36.
+      //
+      // Esta afirmacion es ademas el detector de un cliente de Prisma viejo.
+      // Cuando se cambio el default no se corrio `prisma generate`, asi que el
+      // cliente seguia inyectando `tax_included: false` en cada INSERT y pisaba
+      // el default de la base. Las 1349 pruebas pasaban y esta lo documentaba
+      // al reves, afirmando el modelo viejo. Si vuelve a desalinearse, cae aqui.
+      const precioDeCarta = 2 * (testContext.productPrice ?? 0);
+      const expectedTax = precioDeCarta - precioDeCarta / 1.16;
 
-      expect(ticket.subtotal).toBeCloseTo(expectedSubtotal, 2);
+      expect(ticket.total).toBeCloseTo(precioDeCarta, 2);
       expect(ticket.tax).toBeCloseTo(expectedTax, 2);
-      expect(ticket.total).toBeCloseTo(expectedTotal, 2);
+      expect(ticket.subtotal).toBeCloseTo(precioDeCarta - expectedTax, 2);
 
       testContext.ticketId = ticket.id;
 
