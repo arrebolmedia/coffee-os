@@ -1,15 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ServiceUnavailableException } from '@nestjs/common';
 import { TwilioService } from '../twilio/twilio.service';
 
-describe('TwilioService', () => {
+/**
+ * Twilio: modulo aplazado de forma indefinida (2 de septiembre de 2026).
+ *
+ * Estas pruebas afirmaban lo contrario. Decian "should send a WhatsApp
+ * message" y pasaban en verde — comprobando que un simulador devolvia un SID
+ * inventado y `status: 'sent'` sin que saliera nada. Un test que verifica una
+ * mentira la protege: mientras estuvieran ahi, nadie iba a mirar dos veces.
+ *
+ * Ahora comprueban lo unico cierto: que ningun camino puede afirmar que un
+ * mensaje se envio.
+ */
+describe('TwilioService — aplazado, no simulado', () => {
   let service: TwilioService;
-
-  beforeAll(() => {
-    process.env.TWILIO_ACCOUNT_SID = 'AC_test_account_sid';
-    process.env.TWILIO_AUTH_TOKEN = 'test_auth_token';
-    process.env.TWILIO_WHATSAPP_FROM = 'whatsapp:+14155238886';
-    process.env.TWILIO_SMS_FROM = '+14155551234';
-  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -19,186 +24,49 @@ describe('TwilioService', () => {
     service = module.get<TwilioService>(TwilioService);
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  it('se construye sin credenciales', () => {
+    // El constructor exigia TWILIO_ACCOUNT_SID y tres mas con `requireEnv`, asi
+    // que la aplicacion ENTERA se negaba a arrancar sin unas claves que despues
+    // no usaba para nada. Un punto de venta no puede depender de eso.
+    delete process.env.TWILIO_ACCOUNT_SID;
+    delete process.env.TWILIO_AUTH_TOKEN;
+    delete process.env.TWILIO_SMS_FROM;
+    delete process.env.TWILIO_WHATSAPP_FROM;
+
+    expect(() => new TwilioService()).not.toThrow();
   });
 
-  describe('sendWhatsApp', () => {
-    it('should send a WhatsApp message', async () => {
-      const result = await service.sendWhatsApp({
-        to: '+521234567890',
-        message: 'Hola desde CoffeeOS',
-      });
+  const envios: Array<[string, () => Promise<unknown>]> = [
+    ['WhatsApp', () => service.sendWhatsApp({ to: '+521', message: 'hola' })],
+    ['SMS', () => service.sendSMS({ to: '+521', message: 'hola' })],
+    [
+      'felicitacion de cumpleaños',
+      () => service.sendBirthdayGreeting('+521', 'Ana'),
+    ],
+    [
+      'premio de lealtad',
+      () => service.sendLoyaltyReward('+521', 'Ana', '9+1'),
+    ],
+    [
+      'aviso de orden lista',
+      () => service.sendOrderReady('+521', 'Ana', 'ORD-1'),
+    ],
+    ['campaña', () => service.sendCampaign('+521', 'Ana', 'promo')],
+    ['consulta de estado', () => service.getMessageStatus('SM123')],
+    [
+      'webhook entrante',
+      () => service.handleIncomingMessage({ From: '+521', Body: 'hola' }),
+    ],
+  ];
 
-      expect(result).toBeDefined();
-      expect(result.sid).toBeDefined();
-      expect(result.status).toBe('sent');
-      expect(result.to).toContain('521234567890');
-    });
-
-    it('should send a WhatsApp message with media', async () => {
-      const result = await service.sendWhatsApp({
-        to: '+521234567890',
-        message: 'Foto del producto',
-        mediaUrl: 'https://example.com/image.jpg',
-      });
-
-      expect(result).toBeDefined();
-      expect(result.sid).toBeDefined();
-    });
+  it.each(envios)('%s no finge haberse enviado', async (_nombre, accion) => {
+    await expect(accion()).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
 
-  describe('sendSMS', () => {
-    it('should send an SMS message', async () => {
-      const result = await service.sendSMS({
-        to: '+521234567890',
-        message: 'Hola desde CoffeeOS',
-      });
-
-      expect(result).toBeDefined();
-      expect(result.sid).toBeDefined();
-      expect(result.status).toBe('sent');
-      expect(result.to).toBe('+521234567890');
-    });
-  });
-
-  describe('sendBirthdayGreeting', () => {
-    it('should send a birthday greeting', async () => {
-      const result = await service.sendBirthdayGreeting(
-        '+521234567890',
-        'Juan Pérez',
-      );
-
-      expect(result).toBeDefined();
-      expect(result.body).toContain('Feliz Cumpleaños');
-      expect(result.body).toContain('Juan Pérez');
-    });
-  });
-
-  describe('sendLoyaltyReward', () => {
-    it('should send 9+1 loyalty reward notification', async () => {
-      const result = await service.sendLoyaltyReward(
-        '+521234567890',
-        'María García',
-        '9+1',
-      );
-
-      expect(result).toBeDefined();
-      expect(result.body).toContain('GRATIS');
-      expect(result.body).toContain('María García');
-    });
-
-    it('should send birthday month reward notification', async () => {
-      const result = await service.sendLoyaltyReward(
-        '+521234567890',
-        'Pedro López',
-        'birthday',
-      );
-
-      expect(result).toBeDefined();
-      expect(result.body).toContain('mes de cumpleaños');
-      expect(result.body).toContain('Pedro López');
-    });
-
-    it('should send special offer notification', async () => {
-      const result = await service.sendLoyaltyReward(
-        '+521234567890',
-        'Ana Martínez',
-        'special',
-      );
-
-      expect(result).toBeDefined();
-      expect(result.body).toContain('promoción especial');
-      expect(result.body).toContain('Ana Martínez');
-    });
-  });
-
-  describe('sendOrderReady', () => {
-    it('should send order ready notification', async () => {
-      const result = await service.sendOrderReady(
-        '+521234567890',
-        '12345',
-        'Mi Cafetería Centro',
-      );
-
-      expect(result).toBeDefined();
-      expect(result.body).toContain('orden');
-      expect(result.body).toContain('12345');
-      expect(result.body).toContain('Mi Cafetería Centro');
-    });
-  });
-
-  describe('sendCampaign', () => {
-    it('should send marketing campaign message', async () => {
-      const result = await service.sendCampaign(
-        '+521234567890',
-        '¡Nueva promoción!',
-        '2x1 en café americano todo el día.',
-        'https://example.com/promo.jpg',
-      );
-
-      expect(result).toBeDefined();
-      expect(result.body).toContain('Nueva promoción');
-      expect(result.body).toContain('2x1 en café americano');
-    });
-
-    it('should send campaign without image', async () => {
-      const result = await service.sendCampaign(
-        '+521234567890',
-        'Aviso',
-        'Mañana cerramos temprano.',
-      );
-
-      expect(result).toBeDefined();
-      expect(result.body).toBeDefined();
-    });
-  });
-
-  describe('getMessageStatus', () => {
-    it('should retrieve message status', async () => {
-      // First send a message
-      const sentMessage = await service.sendSMS({
-        to: '+521234567890',
-        message: 'Test message',
-      });
-
-      // Then check its status
-      const status = await service.getMessageStatus(sentMessage.sid);
-
-      expect(status).toBeDefined();
-      expect(status!.sid).toBe(sentMessage.sid);
-      expect(status!.status).toBe('sent');
-    });
-
-    it('should return null for non-existent message', async () => {
-      const status = await service.getMessageStatus('non-existent-sid');
-      expect(status).toBeNull();
-    });
-  });
-
-  describe('handleIncomingMessage', () => {
-    it('should handle incoming WhatsApp message', async () => {
-      const result = await service.handleIncomingMessage({
-        From: 'whatsapp:+521234567890',
-        Body: 'Hola',
-      });
-
-      expect(result).toBeDefined();
-      expect(result.received).toBe(true);
-      expect(result.body).toBe('Hola');
-      expect(result.processedAt).toBeDefined();
-    });
-
-    it('should handle incoming SMS message', async () => {
-      const result = await service.handleIncomingMessage({
-        From: '+521234567890',
-        Body: 'INFO',
-      });
-
-      expect(result).toBeDefined();
-      expect(result.received).toBe(true);
-      expect(result.body).toBe('INFO');
-      expect(result.processedAt).toBeDefined();
-    });
+  it('el error dice que no se envió nada, no un fallo generico', async () => {
+    // Quien lo lea tiene que entender que el cliente NO recibio el mensaje.
+    await expect(
+      service.sendWhatsApp({ to: '+521', message: 'hola' }),
+    ).rejects.toThrow(/No se envió ningún mensaje/);
   });
 });

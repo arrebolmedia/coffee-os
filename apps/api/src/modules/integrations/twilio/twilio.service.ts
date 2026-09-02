@@ -1,14 +1,28 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value || value.trim().length === 0) {
-    throw new Error(
-      `${name} environment variable is required and must not be empty`,
-    );
-  }
-  return value;
-}
+/**
+ * Módulo aplazado de forma indefinida por decisión del dueño (2 de septiembre
+ * de 2026). Ni WhatsApp ni SMS se mandan desde el sistema.
+ *
+ * Aquí NUNCA hubo un cliente de Twilio: `sendWhatsApp` inventaba un SID
+ * (`WA${Date.now()}...`), devolvía `status: 'sent'` y no salía nada. Y aun así
+ * el constructor exigía credenciales reales, así que la aplicación ENTERA se
+ * negaba a arrancar sin unas claves que después no usaba para nada. Las 97
+ * pruebas de integración caían por eso en el runner de CI.
+ *
+ * Se trata igual que el timbrado sin PAC, que es el precedente de esta misma
+ * casa: el servicio se construye siempre, y el intento de enviar falla con un
+ * mensaje que dice exactamente qué pasa. Fingir un envío es peor que no
+ * tenerlo — alguien confía en que al cliente le llegó su aviso.
+ */
+const TWILIO_APLAZADO =
+  'El envío de WhatsApp y SMS está aplazado de forma indefinida: no hay ' +
+  'cliente de Twilio integrado, sólo un simulador que devolvía "enviado" sin ' +
+  'mandar nada. No se envió ningún mensaje.';
 
 export interface TwilioConfig {
   accountSid: string;
@@ -42,84 +56,36 @@ export class TwilioService {
   private readonly logger = new Logger(TwilioService.name);
   private readonly config: TwilioConfig;
 
-  // Mock Twilio client - in production, use actual Twilio SDK
-  private mockMessages: Map<string, any> = new Map();
-
   constructor() {
+    // Sin `requireEnv`: el servicio se construye siempre. Las credenciales se
+    // leen por si algún día se integra de verdad, pero su ausencia no puede
+    // impedir que arranque un punto de venta.
     this.config = {
-      accountSid: requireEnv('TWILIO_ACCOUNT_SID'),
-      authToken: requireEnv('TWILIO_AUTH_TOKEN'),
-      whatsappFrom: requireEnv('TWILIO_WHATSAPP_FROM'),
-      smsFrom: requireEnv('TWILIO_SMS_FROM'),
+      accountSid: process.env.TWILIO_ACCOUNT_SID ?? '',
+      authToken: process.env.TWILIO_AUTH_TOKEN ?? '',
+      whatsappFrom: process.env.TWILIO_WHATSAPP_FROM ?? '',
+      smsFrom: process.env.TWILIO_SMS_FROM ?? '',
     };
+  }
+
+  /** Corta cualquier intento de envío, en vez de simularlo. */
+  private aplazado(destino: string): never {
+    this.logger.error(`Envío a ${destino} bloqueado: ${TWILIO_APLAZADO}`);
+    throw new ServiceUnavailableException(TWILIO_APLAZADO);
   }
 
   /**
    * Send WhatsApp message
    */
   async sendWhatsApp(data: WhatsAppMessage): Promise<TwilioResponse> {
-    this.logger.log(`Sending WhatsApp to ${data.to}: ${data.message}`);
-
-    try {
-      // In production, use Twilio SDK:
-      // const client = require('twilio')(this.config.accountSid, this.config.authToken);
-      // const message = await client.messages.create({
-      //   from: this.config.whatsappFrom,
-      //   to: data.to,
-      //   body: data.message,
-      //   mediaUrl: data.mediaUrl,
-      // });
-
-      // Mock implementation
-      const sid = `WA${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
-      const response: TwilioResponse = {
-        sid,
-        status: 'sent',
-        to: data.to,
-        from: this.config.whatsappFrom,
-        body: data.message,
-      };
-
-      this.mockMessages.set(sid, {
-        ...response,
-        mediaUrl: data.mediaUrl,
-        createdAt: new Date(),
-      });
-
-      return response;
-    } catch (error) {
-      this.logger.error(`Failed to send WhatsApp: ${error.message}`);
-      throw new Error(`WhatsApp send failed: ${error.message}`);
-    }
+    return this.aplazado(data.to);
   }
 
   /**
    * Send SMS message
    */
   async sendSMS(data: SMSMessage): Promise<TwilioResponse> {
-    this.logger.log(`Sending SMS to ${data.to}: ${data.message}`);
-
-    try {
-      // Mock implementation
-      const sid = `SM${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
-      const response: TwilioResponse = {
-        sid,
-        status: 'sent',
-        to: data.to,
-        from: this.config.smsFrom,
-        body: data.message,
-      };
-
-      this.mockMessages.set(sid, {
-        ...response,
-        createdAt: new Date(),
-      });
-
-      return response;
-    } catch (error) {
-      this.logger.error(`Failed to send SMS: ${error.message}`);
-      throw new Error(`SMS send failed: ${error.message}`);
-    }
+    return this.aplazado(data.to);
   }
 
   /**
@@ -205,29 +171,25 @@ export class TwilioService {
   }
 
   /**
-   * Get message status
+   * El estado de un mensaje.
+   *
+   * Leia de un `Map` en memoria que sólo contenía lo que el propio simulador
+   * habia inventado un momento antes. No hay ningún mensaje del que informar.
    */
   async getMessageStatus(sid: string): Promise<TwilioResponse | null> {
-    const message = this.mockMessages.get(sid);
-    return message || null;
+    return this.aplazado(`consulta del mensaje ${sid}`);
   }
 
   /**
-   * Webhook handler for incoming messages
+   * Webhook de mensajes entrantes.
+   *
+   * Devolvía `received: true` con la fecha, sin guardar nada ni hacer nada:
+   * quien lo llamara se quedaba creyendo que el mensaje del cliente estaba
+   * registrado.
    */
   async handleIncomingMessage(webhookData: any): Promise<any> {
-    this.logger.log('Received incoming message:', webhookData);
-
-    // In production, process incoming messages
-    // - Save to database
-    // - Trigger automated responses
-    // - Update customer interactions
-
-    return {
-      received: true,
-      from: webhookData.From,
-      body: webhookData.Body,
-      processedAt: new Date(),
-    };
+    return this.aplazado(
+      `mensaje entrante de ${webhookData?.From ?? 'origen desconocido'}`,
+    );
   }
 }

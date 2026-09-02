@@ -195,6 +195,12 @@ trabajo próximo: no empezarlas, no estimarlas y no listarlas como pendientes.
   está bloqueado a propósito. No desbloquearlo sin integrar un PAC real; hay dos
   tests saltados que lo documentan. Mientras tanto el negocio no factura desde
   el sistema.
+- **WhatsApp y SMS (Twilio).** Aplazado el 2 de septiembre de 2026. Nunca hubo
+  un cliente de Twilio: el servicio inventaba un SID y devolvía `status:
+'sent'` sin mandar nada, y aun así exigía credenciales reales al construirse,
+  de modo que **la aplicación entera no arrancaba sin ellas**. Se quitó el
+  simulador; ahora cualquier intento de envío falla diciendo que no se envió
+  nada, igual que el timbrado sin PAC.
 - **Terminal bancaria.** El POS registra el método y el importe que teclea el
   cajero, y nada más: sin código de autorización y **sin conciliación contra el
   corte de la terminal**, así que una venta con tarjeta apuntada que el banco
