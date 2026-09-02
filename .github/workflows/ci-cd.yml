@@ -72,7 +72,7 @@ jobs:
         run: npm run test:ci
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         if: success()
 
   # Build applications
@@ -82,7 +82,7 @@ jobs:
     needs: [lint-and-format, test-unit]
     strategy:
       matrix:
-        app: [api, pos-web, admin-web]
+        app: [api, pos-web]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -103,7 +103,7 @@ jobs:
         run: cd apps/${{ matrix.app }} && npm run build
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.app }}-build
           path: apps/${{ matrix.app }}/dist
@@ -199,7 +199,7 @@ jobs:
         run: npm run test:e2e
 
       - name: Upload test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report
@@ -265,7 +265,7 @@ jobs:
     if: false
     strategy:
       matrix:
-        app: [api, pos-web, admin-web]
+        app: [api, pos-web]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
