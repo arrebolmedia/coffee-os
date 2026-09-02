@@ -157,7 +157,12 @@ jobs:
         run: |
           cd packages/database
           npm run generate
-          npm run migrate
+          # `migrate dev` es interactivo: en el runner muere con "Prisma
+          # Migrate has detected that the environment is non-interactive".
+          # Ademas intenta CREAR migraciones si detecta deriva, que es lo
+          # ultimo que debe hacer un pipeline. `deploy` sólo aplica las que ya
+          # estan escritas.
+          npm run migrate:deploy
 
       - name: Run integration tests
         env:
