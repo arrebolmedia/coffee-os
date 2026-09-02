@@ -164,15 +164,19 @@ jobs:
           # estan escritas.
           npm run migrate:deploy
 
-      # Solo los secretos del JWT, que `getOrThrow` si exige. Twilio y
-      # Mailrelay ya no piden nada al arrancar: dejaron de exigir credenciales
-      # cuando se quitaron sus simuladores.
+      # Secretos del JWT y la clave con la que se cifran los ajustes.
+      #
+      # Estas SI deben exigirse al arrancar, al reves que Twilio y Mailrelay:
+      # `SETTINGS_ENCRYPTION_KEY` protege los ajustes con AES-256, y un sistema
+      # que arranca sin ella guardaria secretos en claro sin decirselo a nadie.
+      # Lo que se arregla es dársela al runner, no relajar el requisito.
       - name: Run integration tests
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/coffeeos_test
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: ci-solo-para-pruebas-no-usar-en-produccion
           JWT_REFRESH_SECRET: ci-solo-para-pruebas-refresh-no-usar
+          SETTINGS_ENCRYPTION_KEY: ci-clave-de-cifrado-solo-para-pruebas-32b
         run: npm run test:integration
 
   # E2E tests
@@ -232,6 +236,7 @@ jobs:
           DATABASE_URL: postgresql://coffeeos:coffeeos123@localhost:5434/coffeeos_dev
           JWT_SECRET: ci-solo-para-pruebas-no-usar-en-produccion
           JWT_REFRESH_SECRET: ci-solo-para-pruebas-refresh-no-usar
+          SETTINGS_ENCRYPTION_KEY: ci-clave-de-cifrado-solo-para-pruebas-32b
           NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
           NEXTAUTH_URL: http://localhost:3001
           NEXTAUTH_SECRET: ci-solo-para-pruebas-nextauth
@@ -245,7 +250,12 @@ jobs:
             fi
             sleep 2
           done
-          echo "No arrancaron. Log:"; tail -60 /tmp/coffeeos-dev.log; exit 1
+          echo "No arrancaron. Ultimo estado: api=$api web=$web"
+          echo "===== log completo ====="
+          # 60 lineas se quedaban en el banner de turbo, sin llegar al error de
+          # verdad: la causa siempre aparecia mas abajo.
+          cat /tmp/coffeeos-dev.log
+          exit 1
 
       - name: Run E2E tests
         run: npm run test:e2e --workspace=@coffeeos/pos-web
