@@ -12,15 +12,7 @@ import { DashboardController } from './dashboard.controller';
     ProductAnalyticsController,
     DashboardController,
   ],
-  providers: [
-    SalesAnalyticsService,
-    ProductAnalyticsService,
-    DashboardService,
-  ],
-  exports: [
-    SalesAnalyticsService,
-    ProductAnalyticsService,
-    DashboardService,
-  ],
+  providers: [SalesAnalyticsService, ProductAnalyticsService, DashboardService],
+  exports: [SalesAnalyticsService, ProductAnalyticsService, DashboardService],
 })
 export class AnalyticsModule {}

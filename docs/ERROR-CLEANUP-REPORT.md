@@ -8,6 +8,7 @@
 ## ✅ Errores Corregidos (Total: ~40)
 
 ### 1️⃣ **Snake_case → CamelCase en Tests de Productos** (10 errores)
+
 **Archivo**: `apps/api/src/modules/products/tests/products.service.spec.ts`
 
 Prisma genera propiedades en **camelCase**, pero los tests usaban **snake_case**:
@@ -27,6 +28,7 @@ expect(product.stockQuantity).toBe(100);
 ```
 
 **Propiedades corregidas**:
+
 - `base_price` → `basePrice`
 - `pricing_strategy` → `pricingStrategy`
 - `track_inventory` → `trackInventory`
@@ -43,17 +45,18 @@ expect(product.stockQuantity).toBe(100);
 ### 2️⃣ **Null Safety en Tests** (3 errores)
 
 **Archivos corregidos**:
+
 - `apps/api/src/modules/integrations/tests/twilio.service.spec.ts`
 - `apps/api/src/modules/hr/tests/onboarding.service.spec.ts`
 
 ```typescript
 // ❌ Antes
 const status = await service.getMessageStatus(sentMessage.sid);
-expect(status.sid).toBe(sentMessage.sid);  // 'status' is possibly 'null'
+expect(status.sid).toBe(sentMessage.sid); // 'status' is possibly 'null'
 
 // ✅ Después
 const status = await service.getMessageStatus(sentMessage.sid);
-expect(status!.sid).toBe(sentMessage.sid);  // Non-null assertion
+expect(status!.sid).toBe(sentMessage.sid); // Non-null assertion
 ```
 
 ---
@@ -69,7 +72,7 @@ import { render, screen } from '@testing-library/react';
 
 // ✅ Después
 import { render, screen } from '@testing-library/react';
-import '@testing-library/jest-dom';  // ← Agregado
+import '@testing-library/jest-dom'; // ← Agregado
 ```
 
 ---
@@ -85,7 +88,10 @@ const total = mix.reduce((sum, item) => sum + item.percent_of_total, 0);
 // 'item' implicitly has an 'any' type
 
 // ✅ Después
-const total = mix.reduce((sum: number, item: any) => sum + item.percent_of_total, 0);
+const total = mix.reduce(
+  (sum: number, item: any) => sum + item.percent_of_total,
+  0,
+);
 ```
 
 ---
@@ -93,6 +99,7 @@ const total = mix.reduce((sum: number, item: any) => sum + item.percent_of_total
 ### 5️⃣ **Código de Debug Limpiado** (~8 console.log)
 
 #### **api-client.ts**
+
 ```typescript
 // ❌ Removido
 console.log('[ApiClient] Using HARDCODED API URL:', API_URL);
@@ -101,6 +108,7 @@ console.log('[ApiClient Constructor] Client created. BaseURL:', ...);
 ```
 
 #### **auth.service.ts**
+
 ```typescript
 // ❌ Removido
 console.log('[AuthService] Attempting login with:', ...);
@@ -111,6 +119,7 @@ console.log('[AuthService] Session cleared including cookie');
 ```
 
 #### **login/page.tsx**
+
 ```typescript
 // ❌ Removido
 console.log('[Login] Iniciando login...');
@@ -133,7 +142,8 @@ console.error('[Login] Error:', error);
 const API_URL = 'http://localhost:4001/api/v1';
 
 // ✅ Después (usa env variable con fallback)
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
 ```
 
 **Nota**: Fallback mantiene compatibilidad con desarrollo local mientras se resuelve la inyección de variables en Next.js build-time.
@@ -147,6 +157,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1
 **Problema**: Los tests usan una interfaz obsoleta del servicio.
 
 **Ejemplos**:
+
 ```typescript
 // ❌ Error: Expected 2 arguments, but got 1
 const modifier = await service.createModifier({
@@ -161,12 +172,14 @@ async createModifier(productId: string, modifierId: string) { ... }
 ```
 
 **Otros errores**:
+
 - `findBySku()`: tests pasan 2 argumentos, servicio espera 1
 - `getStats()`: tests pasan organizationId, servicio no acepta parámetros
 - `updateModifier()`: método no existe en el servicio actual
 - Propiedades de stats (`by_type`, `by_status`, `low_stock_count`) no existen
 
-**Recomendación**: 
+**Recomendación**:
+
 - **Opción 1**: Actualizar tests para usar la interfaz actual del servicio
 - **Opción 2**: Actualizar servicio para soportar la interfaz esperada por los tests
 - **Prioridad**: ⏰ **BAJA** - No bloquea funcionalidad del sistema
@@ -176,6 +189,7 @@ async createModifier(productId: string, modifierId: string) { ... }
 ### 📁 **Otros Test Suites del API** (~30 errores)
 
 **Archivos afectados**:
+
 - `apps/api/src/modules/crm/tests/campaigns.service.spec.ts` (7 errores)
 - `apps/api/src/modules/dashboards/tests/dashboards.service.spec.ts` (5 errores)
 - `apps/api/src/modules/settings/tests/settings.service.spec.ts` (3 errores)
@@ -183,11 +197,12 @@ async createModifier(productId: string, modifierId: string) { ... }
 - `apps/api/src/modules/categories/tests/categories.service.spec.ts` (1 error)
 
 **Tipo de errores**: Null safety
+
 ```typescript
 // ❌ Ejemplos
-expect(campaign.sent_count).toBe(1);  // 'campaign' is possibly 'null'
-expect(result.columns.length).toBeGreaterThan(0);  // 'result.columns' is possibly 'undefined'
-expect(updatedWidget.title).toBe('Updated Title');  // 'updatedWidget' is possibly 'undefined'
+expect(campaign.sent_count).toBe(1); // 'campaign' is possibly 'null'
+expect(result.columns.length).toBeGreaterThan(0); // 'result.columns' is possibly 'undefined'
+expect(updatedWidget.title).toBe('Updated Title'); // 'updatedWidget' is possibly 'undefined'
 ```
 
 **Solución**: Agregar non-null assertions `!` o guards `if (x)`
@@ -203,6 +218,7 @@ expect(updatedWidget.title).toBe('Updated Title');  // 'updatedWidget' is possib
 **Problemas**:
 
 1. **String literals vs Enums**:
+
 ```typescript
 // ❌ Error
 status: 'active',  // Type '"active"' is not assignable to type 'ProductStatus'
@@ -212,6 +228,7 @@ status: ProductStatus.ACTIVE,
 ```
 
 2. **Snake_case vs camelCase**:
+
 ```typescript
 // ❌ Error
 sortOrder: 1,  // Did you mean to write 'sort_order'?
@@ -221,9 +238,10 @@ sort_order: 1,
 ```
 
 3. **Firmas de funciones**:
+
 ```typescript
 // ❌ Error
-const results = await searchProducts('', 'cat1');  // Expected 1 arguments, but got 2
+const results = await searchProducts('', 'cat1'); // Expected 1 arguments, but got 2
 
 // ✅ Verificar interfaz actual de searchProducts()
 ```
@@ -234,17 +252,18 @@ const results = await searchProducts('', 'cat1');  // Expected 1 arguments, but 
 
 ## 📈 Estadísticas
 
-| Categoría | Antes | Después | Reducción |
-|-----------|-------|---------|-----------|
-| **Total de errores** | 166 | 126 | -40 (-24%) |
-| **Errores en producción** | 8 | 0 | -100% ✅ |
-| **Errores en tests** | 158 | 126 | -32 (-20%) |
+| Categoría                 | Antes | Después | Reducción  |
+| ------------------------- | ----- | ------- | ---------- |
+| **Total de errores**      | 166   | 126     | -40 (-24%) |
+| **Errores en producción** | 8     | 0       | -100% ✅   |
+| **Errores en tests**      | 158   | 126     | -32 (-20%) |
 
 ---
 
 ## 🎯 Estado Actual del Proyecto
 
 ### ✅ **FUNCIONAL**
+
 - ✅ API corriendo en puerto 4001
 - ✅ Admin Web corriendo en puerto 3002
 - ✅ PostgreSQL en Docker (puerto 5434)
@@ -257,6 +276,7 @@ const results = await searchProducts('', 'cat1');  // Expected 1 arguments, but 
 - ✅ Código limpio (sin console.log de debug)
 
 ### ⏰ **PENDIENTE** (No bloquea desarrollo)
+
 - ⏰ 126 errores en test suites (no críticos)
 - ⏰ Refactorizar tests de productos para nueva interfaz
 - ⏰ Agregar null safety a tests de CRM/dashboards/settings
@@ -267,16 +287,19 @@ const results = await searchProducts('', 'cat1');  // Expected 1 arguments, but 
 ## 💡 Recomendaciones
 
 ### Para continuar desarrollo:
+
 1. ✅ **Código de producción está limpio** - puedes continuar desarrollando features
 2. ✅ **Sistema funcionando end-to-end** - login → dashboard funciona
 3. ⏰ **Tests pendientes**: corregir progresivamente cuando se trabaje en cada módulo
 
 ### Para corregir tests restantes:
+
 1. **Productos**: Decidir interfaz definitiva del servicio (¿actualizar servicio o tests?)
 2. **CRM/Dashboards/Settings**: Agregar `!` assertions masivamente (~30 ediciones)
 3. **POS**: Actualizar a enums y corregir snake_case (~20 ediciones)
 
 ### Priorización:
+
 - 🔴 **CRÍTICO**: ✅ Ya resuelto (código de producción funcional)
 - 🟡 **IMPORTANTE**: Tests antes de hacer CI/CD
 - 🟢 **OPCIONAL**: Tests de módulos no usados activamente
@@ -286,11 +309,13 @@ const results = await searchProducts('', 'cat1');  // Expected 1 arguments, but 
 ## 📝 Archivos Modificados
 
 ### Código de Producción:
+
 - ✅ `apps/admin-web/src/lib/api-client.ts`
 - ✅ `apps/admin-web/src/services/auth.service.ts`
 - ✅ `apps/admin-web/src/app/login/page.tsx`
 
 ### Tests Corregidos:
+
 - ✅ `apps/api/src/modules/products/tests/products.service.spec.ts`
 - ✅ `apps/api/src/modules/integrations/tests/twilio.service.spec.ts`
 - ✅ `apps/api/src/modules/hr/tests/onboarding.service.spec.ts`
@@ -302,11 +327,13 @@ const results = await searchProducts('', 'cat1');  // Expected 1 arguments, but 
 ## 🚀 Próximos Pasos
 
 ### Inmediatos:
+
 1. ✅ **COMPLETADO**: Sistema funcionando
 2. ✅ **COMPLETADO**: Código limpio de debug logs
 3. ✅ **COMPLETADO**: Variables de entorno configuradas
 
 ### Siguientes:
+
 4. Continuar desarrollo de features (POS, CRM, etc.)
 5. Corregir tests progresivamente según prioridad
 6. Configurar CI/CD cuando tests estén al 100%

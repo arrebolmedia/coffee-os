@@ -68,19 +68,19 @@ finance/
 
 ```typescript
 enum ExpenseCategory {
-  RENT = 'RENT',                          // Renta
-  UTILITIES = 'UTILITIES',                // Servicios (luz, agua, gas)
-  LABOR = 'LABOR',                        // Nómina y prestaciones
-  SUPPLIES = 'SUPPLIES',                  // Insumos operativos
-  MARKETING = 'MARKETING',                // Marketing y publicidad
-  EQUIPMENT = 'EQUIPMENT',                // Equipo y mantenimiento
-  INSURANCE = 'INSURANCE',                // Seguros
-  TAXES = 'TAXES',                        // Impuestos (IVA, ISR, predial)
+  RENT = 'RENT', // Renta
+  UTILITIES = 'UTILITIES', // Servicios (luz, agua, gas)
+  LABOR = 'LABOR', // Nómina y prestaciones
+  SUPPLIES = 'SUPPLIES', // Insumos operativos
+  MARKETING = 'MARKETING', // Marketing y publicidad
+  EQUIPMENT = 'EQUIPMENT', // Equipo y mantenimiento
+  INSURANCE = 'INSURANCE', // Seguros
+  TAXES = 'TAXES', // Impuestos (IVA, ISR, predial)
   PROFESSIONAL_SERVICES = 'PROFESSIONAL_SERVICES', // Contadores, abogados
-  PERMITS_LICENSES = 'PERMITS_LICENSES',  // Permisos y licencias
-  WASTE_MANAGEMENT = 'WASTE_MANAGEMENT',  // Manejo de residuos
-  SECURITY = 'SECURITY',                  // Seguridad
-  OTHER = 'OTHER',                        // Otros
+  PERMITS_LICENSES = 'PERMITS_LICENSES', // Permisos y licencias
+  WASTE_MANAGEMENT = 'WASTE_MANAGEMENT', // Manejo de residuos
+  SECURITY = 'SECURITY', // Seguridad
+  OTHER = 'OTHER', // Otros
 }
 ```
 
@@ -94,9 +94,11 @@ enum ExpenseCategory {
 ### Endpoints REST (7)
 
 #### 1. POST /finance/expenses
+
 Crear un gasto.
 
 **Body:**
+
 ```json
 {
   "organization_id": "org_123",
@@ -115,6 +117,7 @@ Crear un gasto.
 ```
 
 **Response:**
+
 ```json
 {
   "id": "expense_1705430400000_abc123",
@@ -127,9 +130,11 @@ Crear un gasto.
 ```
 
 #### 2. GET /finance/expenses
+
 Listar gastos con filtros.
 
 **Query params:**
+
 - `organization_id` (required)
 - `location_id` (optional)
 - `search` (optional) - Busca en description, vendor_name, invoice_number
@@ -137,6 +142,7 @@ Listar gastos con filtros.
 - `end_date` (optional)
 
 **Response:**
+
 ```json
 [
   {
@@ -155,15 +161,18 @@ Listar gastos con filtros.
 ```
 
 #### 3. GET /finance/expenses/stats
+
 Estadísticas de gastos.
 
 **Query params:**
+
 - `organization_id` (required)
 - `location_id` (optional)
 - `start_date` (optional)
 - `end_date` (optional)
 
 **Response:**
+
 ```json
 {
   "total_expenses": 58000,
@@ -179,12 +188,15 @@ Estadísticas de gastos.
 ```
 
 #### 4. GET /finance/expenses/:id
+
 Obtener un gasto específico.
 
 #### 5. PATCH /finance/expenses/:id
+
 Actualizar un gasto.
 
 **Body (partial):**
+
 ```json
 {
   "status": "PAID",
@@ -195,9 +207,11 @@ Actualizar un gasto.
 ```
 
 #### 6. POST /finance/expenses/:id/pay
+
 Marcar gasto como pagado.
 
 **Body:**
+
 ```json
 {
   "payment_method": "TRANSFER",
@@ -206,6 +220,7 @@ Marcar gasto como pagado.
 ```
 
 #### 7. DELETE /finance/expenses/:id
+
 Eliminar un gasto.
 
 ### Tests (14)
@@ -239,18 +254,18 @@ Eliminar un gasto.
 
 ```typescript
 enum PermitType {
-  USO_SUELO = 'USO_SUELO',                       // Uso de suelo
-  FUNCIONAMIENTO = 'FUNCIONAMIENTO',             // Licencia de funcionamiento
-  SALUBRIDAD = 'SALUBRIDAD',                     // Certificado de salubridad
-  PROTECCION_CIVIL = 'PROTECCION_CIVIL',         // Dictamen de protección civil
-  ANUNCIO = 'ANUNCIO',                           // Permiso de anuncio
-  ALCOHOLES = 'ALCOHOLES',                       // Licencia de alcoholes
-  IMSS = 'IMSS',                                 // Registro IMSS
-  INFONAVIT = 'INFONAVIT',                       // Registro INFONAVIT
-  SAT_RFC = 'SAT_RFC',                           // RFC ante SAT
-  ENVIRONMENTAL = 'ENVIRONMENTAL',               // Permisos ambientales
-  STPS = 'STPS',                                 // STPS (Secretaría del Trabajo)
-  OTHER = 'OTHER',                               // Otros
+  USO_SUELO = 'USO_SUELO', // Uso de suelo
+  FUNCIONAMIENTO = 'FUNCIONAMIENTO', // Licencia de funcionamiento
+  SALUBRIDAD = 'SALUBRIDAD', // Certificado de salubridad
+  PROTECCION_CIVIL = 'PROTECCION_CIVIL', // Dictamen de protección civil
+  ANUNCIO = 'ANUNCIO', // Permiso de anuncio
+  ALCOHOLES = 'ALCOHOLES', // Licencia de alcoholes
+  IMSS = 'IMSS', // Registro IMSS
+  INFONAVIT = 'INFONAVIT', // Registro INFONAVIT
+  SAT_RFC = 'SAT_RFC', // RFC ante SAT
+  ENVIRONMENTAL = 'ENVIRONMENTAL', // Permisos ambientales
+  STPS = 'STPS', // STPS (Secretaría del Trabajo)
+  OTHER = 'OTHER', // Otros
 }
 ```
 
@@ -269,10 +284,10 @@ Los siguientes campos se calculan automáticamente:
 ```typescript
 interface Permit {
   // ... campos normales
-  
+
   // Calculated fields:
-  days_until_expiry?: number;      // Días hasta vencer (auto-calculado)
-  is_expiring_soon?: boolean;      // true si ≤ 30 días
+  days_until_expiry?: number; // Días hasta vencer (auto-calculado)
+  is_expiring_soon?: boolean; // true si ≤ 30 días
 }
 ```
 
@@ -292,9 +307,11 @@ if (daysUntilExpiry < 0) {
 ### Endpoints REST (9)
 
 #### 1. POST /finance/permits
+
 Crear un permiso.
 
 **Body:**
+
 ```json
 {
   "organization_id": "org_123",
@@ -313,6 +330,7 @@ Crear un permiso.
 ```
 
 **Response:**
+
 ```json
 {
   "id": "permit_1705430400000_xyz789",
@@ -325,17 +343,21 @@ Crear un permiso.
 ```
 
 #### 2. GET /finance/permits
+
 Listar permisos con filtros.
 
 **Query params:**
+
 - `organization_id` (required)
 - `location_id` (optional)
 - `search` (optional) - Busca en permit_number, issuing_authority, type
 
 #### 3. GET /finance/permits/stats
+
 Estadísticas de permisos.
 
 **Response:**
+
 ```json
 {
   "total_permits": 12,
@@ -357,13 +379,16 @@ Estadísticas de permisos.
 ```
 
 #### 4. GET /finance/permits/expiring-soon
+
 Obtener permisos próximos a vencer.
 
 **Query params:**
+
 - `organization_id` (required)
 - `days_threshold` (optional, default: 30)
 
 **Response:**
+
 ```json
 [
   {
@@ -380,18 +405,23 @@ Obtener permisos próximos a vencer.
 ```
 
 #### 5. GET /finance/permits/expired
+
 Obtener permisos vencidos.
 
 #### 6. GET /finance/permits/:id
+
 Obtener un permiso específico.
 
 #### 7. PATCH /finance/permits/:id
+
 Actualizar un permiso.
 
 #### 8. POST /finance/permits/:id/renew
+
 Renovar un permiso.
 
 **Body:**
+
 ```json
 {
   "new_expiry_date": "2026-01-01",
@@ -400,6 +430,7 @@ Renovar un permiso.
 ```
 
 **Response:**
+
 ```json
 {
   "id": "permit_1",
@@ -414,6 +445,7 @@ Renovar un permiso.
 ```
 
 #### 9. DELETE /finance/permits/:id
+
 Eliminar un permiso.
 
 ### Tests (13)
@@ -451,18 +483,18 @@ interface ProfitAndLoss {
   location_id?: string;
   period_start: Date;
   period_end: Date;
-  
+
   // 1. REVENUE
   gross_revenue: number;
   discounts: number;
   returns: number;
   net_revenue: number;
-  
+
   // 2. COST OF GOODS SOLD
-  cogs: number;                       // From recipe costs
-  gross_profit: number;               // net_revenue - cogs
-  gross_margin_percent: number;       // (gross_profit / net_revenue) * 100
-  
+  cogs: number; // From recipe costs
+  gross_profit: number; // net_revenue - cogs
+  gross_margin_percent: number; // (gross_profit / net_revenue) * 100
+
   // 3. OPERATING EXPENSES
   labor_cost: number;
   rent: number;
@@ -477,29 +509,30 @@ interface ProfitAndLoss {
   security: number;
   other_expenses: number;
   total_operating_expenses: number;
-  
+
   // 4. PROFITABILITY CHAIN
-  ebitda: number;                     // gross_profit - operating_expenses
+  ebitda: number; // gross_profit - operating_expenses
   depreciation: number;
   amortization: number;
-  ebit: number;                       // ebitda - depreciation - amortization
+  ebit: number; // ebitda - depreciation - amortization
   interest_expense: number;
-  ebt: number;                        // ebit - interest
-  taxes: number;                      // ebt * 0.3 (ISR 30%)
-  net_profit: number;                 // ebt - taxes
-  net_margin_percent: number;         // (net_profit / net_revenue) * 100
-  
+  ebt: number; // ebit - interest
+  taxes: number; // ebt * 0.3 (ISR 30%)
+  net_profit: number; // ebt - taxes
+  net_margin_percent: number; // (net_profit / net_revenue) * 100
+
   // 5. KEY METRICS
-  labor_percent: number;              // labor_cost / net_revenue * 100
-  prime_cost: number;                 // cogs + labor_cost
-  prime_cost_percent: number;         // prime_cost / net_revenue * 100
-  break_even_point: number;           // Fixed costs / (1 - Variable cost %)
+  labor_percent: number; // labor_cost / net_revenue * 100
+  prime_cost: number; // cogs + labor_cost
+  prime_cost_percent: number; // prime_cost / net_revenue * 100
+  break_even_point: number; // Fixed costs / (1 - Variable cost %)
 }
 ```
 
 ### Fórmulas Clave
 
 #### 1. Gross Margin
+
 ```
 Gross Profit = Net Revenue - COGS
 Gross Margin % = (Gross Profit / Net Revenue) × 100
@@ -508,6 +541,7 @@ Benchmark: 60-70% en cafeterías
 ```
 
 #### 2. EBITDA
+
 ```
 EBITDA = Gross Profit - Total Operating Expenses
 
@@ -515,6 +549,7 @@ Benchmark: 15-25% en cafeterías
 ```
 
 #### 3. Labor Percentage
+
 ```
 Labor % = (Labor Cost / Net Revenue) × 100
 
@@ -523,6 +558,7 @@ Target: 20-23%
 ```
 
 #### 4. Prime Cost
+
 ```
 Prime Cost = COGS + Labor Cost
 Prime Cost % = (Prime Cost / Net Revenue) × 100
@@ -532,6 +568,7 @@ Ideal: 55-58%
 ```
 
 #### 5. Break-Even Point
+
 ```
 Fixed Costs = Total Operating Expenses
 Variable Cost % = COGS / Net Revenue
@@ -547,31 +584,34 @@ Break-Even = $58,000 / (1 - 0.30) = $82,857
 ### Endpoints REST (4)
 
 #### 1. GET /finance/pnl
+
 Calcular P&L para período personalizado.
 
 **Query params:**
+
 - `organization_id` (required)
 - `location_id` (optional)
 - `start_date` (required) - ISO 8601
 - `end_date` (required) - ISO 8601
 
 **Response:**
+
 ```json
 {
   "organization_id": "org_123",
   "location_id": "loc_456",
   "period_start": "2024-01-01T00:00:00Z",
   "period_end": "2024-01-31T23:59:59Z",
-  
+
   "gross_revenue": 150000,
   "discounts": 5000,
   "returns": 1000,
   "net_revenue": 144000,
-  
+
   "cogs": 40000,
   "gross_profit": 104000,
   "gross_margin_percent": 72.2,
-  
+
   "labor_cost": 30000,
   "rent": 20000,
   "utilities": 3000,
@@ -585,7 +625,7 @@ Calcular P&L para período personalizado.
   "security": 600,
   "other_expenses": 800,
   "total_operating_expenses": 61800,
-  
+
   "ebitda": 42200,
   "depreciation": 2000,
   "amortization": 0,
@@ -595,7 +635,7 @@ Calcular P&L para período personalizado.
   "taxes": 11760,
   "net_profit": 27440,
   "net_margin_percent": 19.1,
-  
+
   "labor_percent": 20.8,
   "prime_cost": 70000,
   "prime_cost_percent": 48.6,
@@ -604,9 +644,11 @@ Calcular P&L para período personalizado.
 ```
 
 #### 2. GET /finance/pnl/monthly
+
 Calcular P&L mensual.
 
 **Query params:**
+
 - `organization_id` (required)
 - `year` (required) - Ejemplo: 2024
 - `month` (required) - 1-12
@@ -615,9 +657,11 @@ Calcular P&L mensual.
 **Ejemplo:** `/finance/pnl/monthly?organization_id=org_123&year=2024&month=1`
 
 #### 3. GET /finance/pnl/yearly
+
 Calcular P&L anual.
 
 **Query params:**
+
 - `organization_id` (required)
 - `year` (required)
 - `location_id` (optional)
@@ -625,9 +669,11 @@ Calcular P&L anual.
 **Ejemplo:** `/finance/pnl/yearly?organization_id=org_123&year=2024`
 
 #### 4. GET /finance/pnl/compare
+
 Comparar dos períodos.
 
 **Query params:**
+
 - `organization_id` (required)
 - `period1_start` (required)
 - `period1_end` (required)
@@ -636,10 +682,15 @@ Comparar dos períodos.
 - `location_id` (optional)
 
 **Response:**
+
 ```json
 {
-  "period1": { /* P&L completo */ },
-  "period2": { /* P&L completo */ },
+  "period1": {
+    /* P&L completo */
+  },
+  "period2": {
+    /* P&L completo */
+  },
   "changes": {
     "revenue_change": 10000,
     "revenue_change_percent": 6.7,
@@ -688,7 +739,7 @@ El módulo implementa los 12 tipos de permisos más comunes en México:
 
 ```typescript
 // Tasa ISR para personas morales: 30%
-const taxes = ebt * 0.30;
+const taxes = ebt * 0.3;
 const net_profit = ebt - taxes;
 ```
 
@@ -698,7 +749,7 @@ El módulo permite tracking de RFC de proveedores:
 
 ```typescript
 interface Expense {
-  vendor_rfc?: string;  // RFC del proveedor
+  vendor_rfc?: string; // RFC del proveedor
   invoice_number?: string;
 }
 ```
@@ -706,6 +757,7 @@ interface Expense {
 ### Terminología en Español
 
 Todos los strings user-facing usan terminología mexicana:
+
 - "Renta" en lugar de "Alquiler"
 - "Nómina" en lugar de "Salarios"
 - "Permisos y licencias"
@@ -718,32 +770,36 @@ Todos los strings user-facing usan terminología mexicana:
 
 ### Cafeterías (Best Practices)
 
-| Métrica | Benchmark | Ideal | Crítico |
-|---------|-----------|-------|---------|
-| **Gross Margin** | 60-70% | 65-68% | < 55% |
-| **Labor %** | 20-25% | 20-23% | > 30% |
-| **Prime Cost %** | 55-60% | 55-58% | > 65% |
-| **EBITDA %** | 15-25% | 20-25% | < 10% |
-| **Net Margin %** | 10-20% | 15-20% | < 5% |
+| Métrica          | Benchmark | Ideal  | Crítico |
+| ---------------- | --------- | ------ | ------- |
+| **Gross Margin** | 60-70%    | 65-68% | < 55%   |
+| **Labor %**      | 20-25%    | 20-23% | > 30%   |
+| **Prime Cost %** | 55-60%    | 55-58% | > 65%   |
+| **EBITDA %**     | 15-25%    | 20-25% | < 10%   |
+| **Net Margin %** | 10-20%    | 15-20% | < 5%    |
 
 ### Interpretación
 
 **Gross Margin:**
+
 - 70%+ = Excelente pricing
 - 60-70% = Saludable
 - < 60% = Revisar costos de insumos o pricing
 
 **Labor %:**
+
 - < 20% = Muy eficiente
 - 20-25% = Normal
 - > 25% = Sobrestaffing
 
 **Prime Cost %:**
+
 - < 55% = Excelente control
 - 55-60% = Aceptable
 - > 60% = Problemas operativos
 
 **EBITDA %:**
+
 - > 20% = Muy rentable
 - 15-20% = Saludable
 - < 10% = Revisar gastos operativos
@@ -774,6 +830,7 @@ npm test -- pnl.service
 ### Casos de Prueba
 
 #### Expenses
+
 - ✅ Creación con/sin IVA
 - ✅ Filtrado por organización, location, fechas
 - ✅ Búsqueda por descripción/proveedor
@@ -783,6 +840,7 @@ npm test -- pnl.service
 - ✅ Eliminación
 
 #### Permits
+
 - ✅ Creación con auto-cálculo de días hasta vencer
 - ✅ Auto-actualización de estado (ACTIVE → RENEWAL_DUE → EXPIRED)
 - ✅ Filtrado y búsqueda
@@ -792,6 +850,7 @@ npm test -- pnl.service
 - ✅ Estadísticas por tipo y estado
 
 #### P&L
+
 - ✅ Cálculo completo de P&L statement
 - ✅ Secciones de revenue, COGS, operating expenses
 - ✅ Cadena de rentabilidad (EBITDA → EBIT → EBT → Net Profit)
@@ -841,6 +900,7 @@ npm test -- pnl.service
 ## 📁 Archivos Creados
 
 ### DTOs (6 archivos)
+
 ```
 dto/create-expense.dto.ts          (89 líneas)
 dto/update-expense.dto.ts          (26 líneas)
@@ -851,6 +911,7 @@ dto/index.ts                       (6 líneas)
 ```
 
 ### Interfaces (4 archivos)
+
 ```
 interfaces/expense.interface.ts    (32 líneas)
 interfaces/permit.interface.ts     (31 líneas)
@@ -859,6 +920,7 @@ interfaces/index.ts                (3 líneas)
 ```
 
 ### Services (3 archivos)
+
 ```
 expenses.service.ts                (180 líneas)
 permits.service.ts                 (207 líneas)
@@ -866,6 +928,7 @@ pnl.service.ts                     (164 líneas)
 ```
 
 ### Controllers (3 archivos)
+
 ```
 expenses.controller.ts             (62 líneas)
 permits.controller.ts              (87 líneas)
@@ -873,6 +936,7 @@ pnl.controller.ts                  (52 líneas)
 ```
 
 ### Tests (3 archivos)
+
 ```
 tests/expenses.service.spec.ts     (172 líneas)
 tests/permits.service.spec.ts      (279 líneas)
@@ -880,6 +944,7 @@ tests/pnl.service.spec.ts          (187 líneas)
 ```
 
 ### Module (1 archivo)
+
 ```
 finance.module.ts                  (27 líneas)
 ```
@@ -908,47 +973,61 @@ finance.module.ts                  (27 líneas)
 ## 🎓 Conceptos Implementados
 
 ### 1. Multi-Tenant Architecture
+
 Todos los modelos incluyen `organization_id` y `location_id` para aislamiento.
 
 ### 2. Soft Delete Pattern
+
 Los métodos `delete()` pueden ser modificados para soft delete agregando `deleted_at`.
 
 ### 3. Auto-Calculated Fields
+
 Los permits calculan automáticamente:
+
 - `days_until_expiry`
 - `is_expiring_soon`
 - `status` (basado en fechas)
 
 ### 4. Aggregation Queries
+
 Los métodos `getStats()` implementan agregaciones:
+
 ```typescript
-const byType = permits.reduce((acc, p) => {
-  acc[p.type] = (acc[p.type] || 0) + 1;
-  return acc;
-}, {} as Record<string, number>);
+const byType = permits.reduce(
+  (acc, p) => {
+    acc[p.type] = (acc[p.type] || 0) + 1;
+    return acc;
+  },
+  {} as Record<string, number>,
+);
 ```
 
 ### 5. Financial Formulas
+
 Implementación de fórmulas contables:
+
 - Gross Margin = (Revenue - COGS) / Revenue
 - Prime Cost = COGS + Labor
 - Break-Even = Fixed Costs / (1 - Variable Cost %)
 - EBITDA = Gross Profit - Operating Expenses
 
 ### 6. Enums with Spanish Labels
+
 ```typescript
 enum ExpenseCategory {
-  RENT = 'RENT',  // Renta (no "Alquiler")
-  UTILITIES = 'UTILITIES',  // Servicios
-  LABOR = 'LABOR',  // Nómina
+  RENT = 'RENT', // Renta (no "Alquiler")
+  UTILITIES = 'UTILITIES', // Servicios
+  LABOR = 'LABOR', // Nómina
 }
 ```
 
 ### 7. Date Handling
+
 Manejo robusto de fechas:
+
 ```typescript
 const daysUntilExpiry = Math.floor(
-  (permit.expiry_date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+  (permit.expiry_date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
 );
 ```
 

@@ -6,8 +6,9 @@ on:
   pull_request:
     branches: [main, develop]
 
-env:
-  NODE_VERSION: '18'
+# La version de Node sale de .nvmrc, que es lo que ya usa agent-verify.yml.
+# Estaba fijada a '18' aqui: EOL desde abril de 2025, y ademas contradecia el
+# `engines: node >=20.0.0` que declara el propio package.json del repo.
 
 jobs:
   # Quality checks
@@ -21,17 +22,24 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate Prisma client
+        run: npm run db:generate
+
       - name: Lint
         run: npm run lint
 
+      # `npm run format -- --check` NO comprobaba: el script es
+      # `prettier --write`, y el `--check` de mas no lo desactiva. O sea que
+      # este paso reformateaba el repositorio dentro del runner y pasaba
+      # siempre. Aqui reformateo 170 archivos al ejecutarlo una vez.
       - name: Format check
-        run: npm run format -- --check
+        run: npm run format:check
 
       - name: Type check
         run: npm run type-check
@@ -47,11 +55,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run db:generate
 
       - name: Run unit tests
         run: npm run test -- --coverage --watchAll=false
@@ -75,7 +86,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
@@ -130,7 +141,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
@@ -162,11 +173,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run db:generate
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
@@ -191,6 +205,12 @@ jobs:
   security:
     name: 🔒 Security Scan
     runs-on: ubuntu-latest
+    # Sin este permiso, subir el SARIF falla con "Resource not accessible by
+    # integration" y el job entero queda en rojo: el escaneo corria y su
+    # resultado no llegaba a ninguna parte.
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -204,7 +224,7 @@ jobs:
           output: 'trivy-results.sarif'
 
       - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
@@ -213,11 +233,16 @@ jobs:
         run: npm audit --audit-level moderate
 
   # Docker build and push
+  #
+  # APAGADO A PROPOSITO. No hay un solo Dockerfile en el repo, y la matriz
+  # incluye `admin-web`, que se elimino en agosto de 2026. Se enciende cuando
+  # existan las imagenes; mientras tanto, un job que no puede funcionar solo
+  # sirve para tener el pipeline en rojo permanente, que es como no tenerlo.
   docker:
     name: 🐳 Docker Build
     runs-on: ubuntu-latest
     needs: [test-integration, test-e2e]
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    if: false
     strategy:
       matrix:
         app: [api, pos-web, admin-web]
@@ -255,11 +280,15 @@ jobs:
           cache-to: type=gha,mode=max
 
   # Deploy to staging
+  #
+  # APAGADO A PROPOSITO. El unico paso es `echo "Deploying..."` con un
+  # comentario que dice "add actual deployment commands here". No hay a donde
+  # desplegar todavia.
   deploy-staging:
     name: 🚀 Deploy to Staging
     runs-on: ubuntu-latest
     needs: [docker]
-    if: github.ref == 'refs/heads/develop'
+    if: false
     environment:
       name: staging
       url: https://staging.coffeeos.mx
@@ -270,11 +299,18 @@ jobs:
           # Add actual deployment commands here
 
   # Deploy to production
+  #
+  # APAGADO A PROPOSITO, y este es el importante: no desplegaba nada —el paso
+  # era un `echo`— y a continuacion mandaba a Slack "🎉 CoffeeOS deployed to
+  # production successfully!". Hoy no se ejecuta solo porque los jobs previos
+  # fallan; en cuanto el pipeline se pusiera verde, empezaria a anunciar
+  # despliegues a produccion que no ocurren. Un aviso falso es peor que
+  # ninguno: se cree.
   deploy-production:
     name: 🚀 Deploy to Production
     runs-on: ubuntu-latest
     needs: [docker, security]
-    if: github.ref == 'refs/heads/main'
+    if: false
     environment:
       name: production
       url: https://coffeeos.mx
@@ -289,6 +325,6 @@ jobs:
         uses: 8398a7/action-slack@v3
         with:
           status: success
-          text: "🎉 CoffeeOS deployed to production successfully!"
+          text: '🎉 CoffeeOS deployed to production successfully!'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

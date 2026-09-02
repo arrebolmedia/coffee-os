@@ -27,31 +27,31 @@ export interface PurchaseOrder {
   supplier_name?: string;
   order_number: string;
   status: PurchaseOrderStatus;
-  
+
   // Items
   items: PurchaseOrderItem[];
-  
+
   // Financial
   subtotal: number;
   tax_amount: number;
   discount_amount: number;
   shipping_cost: number;
   total_amount: number;
-  
+
   // Dates
   order_date: Date;
   expected_delivery_date?: Date;
   delivery_date?: Date;
-  
+
   // Approval
   requested_by?: string;
   approved_by?: string;
   approved_at?: Date;
-  
+
   // Receiving
   received_by?: string;
   received_at?: Date;
-  
+
   notes?: string;
   created_at: Date;
   updated_at: Date;

@@ -43,6 +43,7 @@ Crea una nueva orden y la asocia a una transacción.
 **Endpoint:** `POST /orders`
 
 **Request Body:**
+
 ```typescript
 {
   transactionId: string;          // ID de transacción asociada
@@ -58,6 +59,7 @@ Crea una nueva orden y la asocia a una transacción.
 ```
 
 **Response:** `201 Created`
+
 ```typescript
 {
   id: string;
@@ -84,6 +86,7 @@ Crea una nueva orden y la asocia a una transacción.
 ```
 
 **Errores:**
+
 - `400 Bad Request` - transactionId no existe
 
 ---
@@ -95,6 +98,7 @@ Obtiene lista de órdenes con filtros y paginación.
 **Endpoint:** `GET /orders`
 
 **Query Parameters:**
+
 ```typescript
 {
   skip?: number;                  // Default: 0
@@ -110,6 +114,7 @@ Obtiene lista de órdenes con filtros y paginación.
 ```
 
 **Response:** `200 OK`
+
 ```typescript
 {
   items: Order[];
@@ -120,6 +125,7 @@ Obtiene lista de órdenes con filtros y paginación.
 ```
 
 **Ejemplo:**
+
 ```
 GET /orders?status=IN_PROGRESS&type=DINE_IN&take=20
 ```
@@ -133,6 +139,7 @@ Retorna métricas agregadas de órdenes.
 **Endpoint:** `GET /orders/stats`
 
 **Query Parameters:**
+
 ```typescript
 {
   organizationId?: string;
@@ -143,6 +150,7 @@ Retorna métricas agregadas de órdenes.
 ```
 
 **Response:** `200 OK`
+
 ```typescript
 {
   totalOrders: number;            // Total de órdenes en periodo
@@ -181,6 +189,7 @@ Retorna métricas agregadas de órdenes.
 ```
 
 **Ejemplo:**
+
 ```
 GET /orders/stats?organizationId=org123&startDate=2025-10-01&endDate=2025-10-31
 ```
@@ -194,14 +203,17 @@ Filtra órdenes por estado específico.
 **Endpoint:** `GET /orders/status/:status`
 
 **Parámetros:**
+
 - `status`: PENDING | IN_PROGRESS | READY | SERVED | CANCELLED
 
 **Response:** `200 OK`
+
 ```typescript
 Order[]
 ```
 
 **Ejemplo:**
+
 ```
 GET /orders/status/IN_PROGRESS
 ```
@@ -215,14 +227,17 @@ Filtra órdenes por tipo de servicio.
 **Endpoint:** `GET /orders/type/:type`
 
 **Parámetros:**
+
 - `type`: DINE_IN | TAKE_OUT | DELIVERY
 
 **Response:** `200 OK`
+
 ```typescript
 Order[]
 ```
 
 **Ejemplo:**
+
 ```
 GET /orders/type/DINE_IN
 ```
@@ -236,11 +251,13 @@ Filtra órdenes de una mesa específica.
 **Endpoint:** `GET /orders/table/:tableNumber`
 
 **Response:** `200 OK`
+
 ```typescript
 Order[]  // Órdenes activas de la mesa
 ```
 
 **Ejemplo:**
+
 ```
 GET /orders/table/5
 ```
@@ -254,6 +271,7 @@ Obtiene detalles completos de una orden.
 **Endpoint:** `GET /orders/:id`
 
 **Response:** `200 OK`
+
 ```typescript
 {
   id: string;
@@ -287,6 +305,7 @@ Obtiene detalles completos de una orden.
 ```
 
 **Errores:**
+
 - `404 Not Found` - Orden no existe
 
 ---
@@ -298,6 +317,7 @@ Actualiza campos generales de una orden.
 **Endpoint:** `PATCH /orders/:id`
 
 **Request Body:** (todos opcionales)
+
 ```typescript
 {
   priority?: number;
@@ -308,11 +328,13 @@ Actualiza campos generales de una orden.
 ```
 
 **Response:** `200 OK`
+
 ```typescript
-Order  // Orden actualizada
+Order; // Orden actualizada
 ```
 
 **Errores:**
+
 - `404 Not Found` - Orden no existe
 
 ---
@@ -324,20 +346,23 @@ Cambia estado a IN_PROGRESS y registra timestamp.
 **Endpoint:** `PATCH /orders/:id/start`
 
 **Response:** `200 OK`
+
 ```typescript
 {
   id: string;
   status: 'IN_PROGRESS';
-  startedAt: Date;           // Timestamp de inicio
+  startedAt: Date; // Timestamp de inicio
   // ... resto de campos
 }
 ```
 
 **Validaciones:**
+
 - Solo se puede iniciar si status = PENDING
 - Registra tiempo de inicio automáticamente
 
 **Errores:**
+
 - `400 Bad Request` - Orden no está en estado PENDING
 - `404 Not Found` - Orden no existe
 
@@ -350,19 +375,22 @@ Cambia estado a READY.
 **Endpoint:** `PATCH /orders/:id/ready`
 
 **Response:** `200 OK`
+
 ```typescript
 {
   id: string;
   status: 'READY';
-  readyAt: Date;             // Timestamp
+  readyAt: Date; // Timestamp
   // ...
 }
 ```
 
 **Validaciones:**
+
 - Solo si status = IN_PROGRESS
 
 **Errores:**
+
 - `400 Bad Request` - Orden no está en preparación
 
 ---
@@ -374,19 +402,22 @@ Cambia estado a SERVED (estado final).
 **Endpoint:** `PATCH /orders/:id/serve`
 
 **Response:** `200 OK`
+
 ```typescript
 {
   id: string;
   status: 'SERVED';
-  servedAt: Date;            // Timestamp de entrega
+  servedAt: Date; // Timestamp de entrega
   // ...
 }
 ```
 
 **Validaciones:**
+
 - Solo si status = READY
 
 **Errores:**
+
 - `400 Bad Request` - Orden no está lista
 
 ---
@@ -398,6 +429,7 @@ Cancela una orden en cualquier estado.
 **Endpoint:** `PATCH /orders/:id/cancel`
 
 **Response:** `200 OK`
+
 ```typescript
 {
   id: string;
@@ -408,10 +440,12 @@ Cancela una orden en cualquier estado.
 ```
 
 **Comportamiento:**
+
 - Se puede cancelar en cualquier estado excepto SERVED
 - Libera recursos (mesa, inventario si aplica)
 
 **Errores:**
+
 - `400 Bad Request` - Orden ya servida
 - `404 Not Found` - Orden no existe
 
@@ -424,16 +458,19 @@ Elimina físicamente una orden.
 **Endpoint:** `DELETE /orders/:id`
 
 **Response:** `200 OK`
+
 ```typescript
 {
-  message: "Order deleted successfully"
+  message: 'Order deleted successfully';
 }
 ```
 
 **Validaciones:**
+
 - No se puede eliminar orden SERVED (usar cancelar)
 
 **Errores:**
+
 - `400 Bad Request` - Orden ya servida
 - `404 Not Found` - Orden no existe
 
@@ -442,22 +479,24 @@ Elimina físicamente una orden.
 ## Tipos y Enums
 
 ### OrderStatus
+
 ```typescript
 enum OrderStatus {
-  PENDING = 'PENDING',           // Creada, esperando
-  IN_PROGRESS = 'IN_PROGRESS',   // En preparación
-  READY = 'READY',               // Lista
-  SERVED = 'SERVED',             // Entregada
-  CANCELLED = 'CANCELLED',       // Cancelada
+  PENDING = 'PENDING', // Creada, esperando
+  IN_PROGRESS = 'IN_PROGRESS', // En preparación
+  READY = 'READY', // Lista
+  SERVED = 'SERVED', // Entregada
+  CANCELLED = 'CANCELLED', // Cancelada
 }
 ```
 
 ### OrderType
+
 ```typescript
 enum OrderType {
-  DINE_IN = 'DINE_IN',           // Para comer en local
-  TAKE_OUT = 'TAKE_OUT',         // Para llevar
-  DELIVERY = 'DELIVERY',         // Entrega a domicilio
+  DINE_IN = 'DINE_IN', // Para comer en local
+  TAKE_OUT = 'TAKE_OUT', // Para llevar
+  DELIVERY = 'DELIVERY', // Entrega a domicilio
 }
 ```
 
@@ -466,23 +505,27 @@ enum OrderType {
 ## Validaciones Comunes
 
 ### Order Number
+
 - Formato: `ORD-YYYYMMDD-XXXX`
 - Ejemplo: `ORD-20251022-0001`
 - Generado automáticamente
 - Reinicia contador diariamente
 
 ### Priority
+
 - Rango: 1-5
 - 1 = Baja prioridad
 - 3 = Normal (default)
 - 5 = Alta prioridad
 
 ### Prep Time Estimate
+
 - En minutos
 - Calculado automáticamente según productos
 - Puede ser sobrescrito manualmente
 
 ### Table Number
+
 - Solo requerido para type = DINE_IN
 - Formato libre (string)
 
@@ -672,20 +715,24 @@ Calculados automáticamente:
 ## Notas Técnicas
 
 ### Integración con Prisma
+
 - Todas las operaciones usan Prisma ORM
 - Transacciones automáticas para consistencia
 - Includes optimizados para reducir queries
 
 ### Multi-Tenancy
+
 - Filtrado automático por organizationId y locationId
 - Aislamiento de datos entre organizaciones
 
 ### Generación de Order Number
+
 - Formato: ORD-YYYYMMDD-XXXX
 - Contador se reinicia diariamente
 - Padding de 4 dígitos (0001-9999)
 
 ### Relaciones
+
 ```typescript
 Order
 ├── Transaction (1:1)

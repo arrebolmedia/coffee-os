@@ -27,6 +27,7 @@ Crea un nuevo producto en el catálogo.
 **Endpoint:** `POST /products`
 
 **Request Body:**
+
 ```typescript
 {
   organization_id: string;
@@ -62,6 +63,7 @@ Crea un nuevo producto en el catálogo.
 ```
 
 **Response:** `201 Created`
+
 ```typescript
 {
   id: string;
@@ -76,6 +78,7 @@ Crea un nuevo producto en el catálogo.
 ```
 
 **Errores:**
+
 - `409 Conflict` - SKU ya existe en la organización
 - `400 Bad Request` - Datos de entrada inválidos
 
@@ -88,6 +91,7 @@ Obtiene una lista de productos con filtros opcionales.
 **Endpoint:** `GET /products`
 
 **Query Parameters:**
+
 ```typescript
 {
   organization_id?: string;     // Filtrar por organización
@@ -107,11 +111,13 @@ Obtiene una lista de productos con filtros opcionales.
 ```
 
 **Response:** `200 OK`
+
 ```typescript
 Product[]  // Array de productos
 ```
 
 **Ejemplo:**
+
 ```
 GET /products?organization_id=abc123&category_id=cat456&search=café&sort_by=price&order=asc
 ```
@@ -125,6 +131,7 @@ Obtiene un producto específico por su ID.
 **Endpoint:** `GET /products/:id`
 
 **Response:** `200 OK`
+
 ```typescript
 {
   id: string;
@@ -135,6 +142,7 @@ Obtiene un producto específico por su ID.
 ```
 
 **Errores:**
+
 - `404 Not Found` - Producto no encontrado
 
 ---
@@ -146,11 +154,13 @@ Obtiene un producto por su SKU y organización.
 **Endpoint:** `GET /products/sku/:sku/:organization_id`
 
 **Response:** `200 OK`
+
 ```typescript
-Product
+Product;
 ```
 
 **Errores:**
+
 - `404 Not Found` - Producto con ese SKU no encontrado
 
 ---
@@ -162,6 +172,7 @@ Actualiza un producto existente (actualización parcial).
 **Endpoint:** `PATCH /products/:id`
 
 **Request Body:** (todos los campos son opcionales)
+
 ```typescript
 {
   name?: string;
@@ -176,6 +187,7 @@ Actualiza un producto existente (actualización parcial).
 ```
 
 **Response:** `200 OK`
+
 ```typescript
 {
   id: string;
@@ -185,6 +197,7 @@ Actualiza un producto existente (actualización parcial).
 ```
 
 **Errores:**
+
 - `404 Not Found` - Producto no encontrado
 - `409 Conflict` - SKU duplicado (si se intenta actualizar el SKU)
 
@@ -199,6 +212,7 @@ Elimina un producto individual.
 **Response:** `204 No Content`
 
 **Errores:**
+
 - `404 Not Found` - Producto no encontrado
 
 ---
@@ -210,6 +224,7 @@ Elimina múltiples productos en una sola operación.
 **Endpoint:** `POST /products/bulk-delete`
 
 **Request Body:**
+
 ```typescript
 {
   productIds: string[];  // Array de IDs de productos a eliminar
@@ -217,17 +232,19 @@ Elimina múltiples productos en una sola operación.
 ```
 
 **Response:** `200 OK`
+
 ```typescript
 {
   success: true;
   data: {
-    count: number;  // Número de productos eliminados exitosamente
-  };
-  message: "X productos eliminados exitosamente";
+    count: number; // Número de productos eliminados exitosamente
+  }
+  message: 'X productos eliminados exitosamente';
 }
 ```
 
 **Ejemplo:**
+
 ```json
 {
   "productIds": ["clm1abc...", "clm2def...", "clm3ghi..."]
@@ -235,6 +252,7 @@ Elimina múltiples productos en una sola operación.
 ```
 
 **Notas:**
+
 - Los productos que no existan serán omitidos sin generar error
 - El contador refleja solo los productos eliminados exitosamente
 
@@ -247,6 +265,7 @@ Activa o desactiva múltiples productos.
 **Endpoint:** `POST /products/bulk-update-status`
 
 **Request Body:**
+
 ```typescript
 {
   productIds: string[];
@@ -255,21 +274,24 @@ Activa o desactiva múltiples productos.
 ```
 
 **Response:** `200 OK`
+
 ```typescript
 {
   success: true;
   data: {
     count: number;
-  };
-  message: "X productos activados/desactivados exitosamente";
+  }
+  message: 'X productos activados/desactivados exitosamente';
 }
 ```
 
 **Comportamiento:**
+
 - `isActive: true` → status = `ACTIVE`, is_available = `true`
 - `isActive: false` → status = `INACTIVE`, is_available = `false`
 
 **Ejemplo:**
+
 ```json
 {
   "productIds": ["clm1abc...", "clm2def..."],
@@ -286,6 +308,7 @@ Cambia la categoría de múltiples productos.
 **Endpoint:** `POST /products/bulk-update-category`
 
 **Request Body:**
+
 ```typescript
 {
   productIds: string[];
@@ -294,17 +317,19 @@ Cambia la categoría de múltiples productos.
 ```
 
 **Response:** `200 OK`
+
 ```typescript
 {
   success: true;
   data: {
     count: number;
-  };
-  message: "X productos actualizados exitosamente";
+  }
+  message: 'X productos actualizados exitosamente';
 }
 ```
 
 **Ejemplo:**
+
 ```json
 {
   "productIds": ["clm1abc...", "clm2def..."],
@@ -321,18 +346,20 @@ Lista todos los modificadores disponibles para un producto.
 **Endpoint:** `GET /products/:id/modifiers`
 
 **Response:** `200 OK`
+
 ```typescript
 ProductModifier[]
 ```
 
 Cada modificador tiene la estructura:
+
 ```typescript
 {
   id: string;
   product_id: string;
   name: string;
   type: 'SIZE' | 'MILK' | 'EXTRA' | 'SYRUP' | 'DECAF';
-  price_delta: number;       // Incremento/descuento en el precio
+  price_delta: number; // Incremento/descuento en el precio
   is_required: boolean;
   is_default: boolean;
   is_available: boolean;
@@ -350,6 +377,7 @@ Agrega un nuevo modificador a un producto.
 **Endpoint:** `POST /products/:id/modifiers`
 
 **Request Body:**
+
 ```typescript
 {
   product_id: string;
@@ -363,8 +391,9 @@ Agrega un nuevo modificador a un producto.
 ```
 
 **Response:** `201 Created`
+
 ```typescript
-ProductModifier
+ProductModifier;
 ```
 
 ---
@@ -376,6 +405,7 @@ Actualiza un modificador existente.
 **Endpoint:** `PATCH /modifiers/:id`
 
 **Request Body:** (campos opcionales)
+
 ```typescript
 {
   name?: string;
@@ -387,8 +417,9 @@ Actualiza un modificador existente.
 ```
 
 **Response:** `200 OK`
+
 ```typescript
-ProductModifier  // Modificador actualizado
+ProductModifier; // Modificador actualizado
 ```
 
 ---
@@ -402,6 +433,7 @@ Elimina un modificador.
 **Response:** `204 No Content`
 
 **Errores:**
+
 - `404 Not Found` - Modificador no encontrado
 
 ---
@@ -413,6 +445,7 @@ Actualiza la cantidad en inventario de un producto.
 **Endpoint:** `PATCH /products/:id/stock`
 
 **Request Body:**
+
 ```typescript
 {
   quantity: number;
@@ -421,20 +454,24 @@ Actualiza la cantidad en inventario de un producto.
 ```
 
 **Operaciones:**
+
 - `add`: Suma la cantidad al stock actual
 - `subtract`: Resta la cantidad del stock actual (no permite negativos)
 - `set`: Establece el stock a la cantidad exacta
 
 **Response:** `200 OK`
+
 ```typescript
-Product  // Producto con stock actualizado
+Product; // Producto con stock actualizado
 ```
 
 **Errores:**
+
 - `400 Bad Request` - Producto no tiene tracking de inventario habilitado
 - `400 Bad Request` - Stock insuficiente para operación subtract
 
 **Ejemplo:**
+
 ```json
 {
   "quantity": 50,
@@ -451,6 +488,7 @@ Obtiene estadísticas agregadas de productos por organización.
 **Endpoint:** `GET /products/organization/:organization_id/stats`
 
 **Response:** `200 OK`
+
 ```typescript
 {
   total_products: number;
@@ -459,17 +497,17 @@ Obtiene estadísticas agregadas de productos por organización.
     COMBO: number;
     VARIANT: number;
     INGREDIENT: number;
-  };
+  }
   by_status: {
     ACTIVE: number;
     INACTIVE: number;
     ARCHIVED: number;
     OUT_OF_STOCK: number;
-  };
-  total_value: number;           // Valor total del inventario (costo × cantidad)
-  average_price: number;         // Precio promedio de productos
-  average_margin: number;        // Margen promedio (%)
-  low_stock_count: number;       // Productos bajo reorder_point
+  }
+  total_value: number; // Valor total del inventario (costo × cantidad)
+  average_price: number; // Precio promedio de productos
+  average_margin: number; // Margen promedio (%)
+  low_stock_count: number; // Productos bajo reorder_point
 }
 ```
 
@@ -482,11 +520,13 @@ Analiza la rentabilidad de todos los productos con información de costos.
 **Endpoint:** `GET /products/organization/:organization_id/profitability`
 
 **Response:** `200 OK`
+
 ```typescript
 ProductProfitability[]  // Ordenado por profitability_score descendente
 ```
 
 Cada elemento tiene:
+
 ```typescript
 {
   product_id: string;
@@ -494,13 +534,14 @@ Cada elemento tiene:
   sku: string;
   base_price: number;
   cost: number;
-  margin_amount: number;         // Ganancia por unidad
-  margin_percentage: number;     // Porcentaje de margen
-  profitability_score: number;   // Score combinado (margen × precio)
+  margin_amount: number; // Ganancia por unidad
+  margin_percentage: number; // Porcentaje de margen
+  profitability_score: number; // Score combinado (margen × precio)
 }
 ```
 
 **Notas:**
+
 - Solo incluye productos con costo definido (cost > 0)
 - `profitability_score = margin_percentage × 0.6 + (base_price / 100) × 0.4`
 - Productos con alto margen y buen precio obtienen scores más altos
@@ -522,21 +563,25 @@ Cada elemento tiene:
 ## Validaciones Comunes
 
 ### SKU
+
 - Debe ser único por organización
 - Requerido al crear producto
 - Puede contener letras, números, guiones
 
 ### Precio
+
 - `base_price` debe ser mayor a 0
 - `cost` debe ser mayor o igual a 0
 - `margin_percentage` entre 0-100
 
 ### Stock
+
 - `stock_quantity` debe ser >= 0
 - Operación `subtract` no permite resultados negativos
 - Solo productos con `track_inventory: true` pueden actualizar stock
 
 ### Modificadores
+
 - `price_delta` puede ser positivo (incremento) o negativo (descuento)
 - Un producto puede tener múltiples modificadores del mismo tipo
 - Solo productos con `allow_modifiers: true` aceptan modificadores
@@ -625,15 +670,18 @@ PATCH /products/{productId}/stock
 ## Notas Técnicas
 
 ### Multi-Tenancy
+
 - Todos los productos están aislados por `organization_id`
 - Los filtros por organización son obligatorios en endpoints de listado
 
 ### Performance
+
 - El servicio usa un Map en memoria (desarrollo)
 - En producción se integrará con Prisma + PostgreSQL
 - Los endpoints de bulk retornan el contador de éxitos
 
 ### Swagger UI
+
 - Documentación interactiva disponible en `/api/docs`
 - Todos los endpoints tienen decoradores Swagger
 - Esquemas de DTOs documentados con ejemplos

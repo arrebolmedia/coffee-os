@@ -4,9 +4,7 @@ import { QueryAnalyticsDto, TimeGranularity } from './dto';
 
 @Controller('analytics/sales')
 export class SalesAnalyticsController {
-  constructor(
-    private readonly salesAnalyticsService: SalesAnalyticsService,
-  ) {}
+  constructor(private readonly salesAnalyticsService: SalesAnalyticsService) {}
 
   @Get()
   async getSalesMetrics(@Query() query: QueryAnalyticsDto) {

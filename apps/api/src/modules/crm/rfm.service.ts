@@ -6,7 +6,9 @@ import { PrismaService } from '../database/prisma.service';
 export class RFMService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async calculateCustomerRFM(customerId: string): Promise<CustomerRFMScore | null> {
+  async calculateCustomerRFM(
+    customerId: string,
+  ): Promise<CustomerRFMScore | null> {
     // Recency: date of last EARN transaction
     const lastTx = await this.prisma.loyaltyTransaction.findFirst({
       where: { customerId, type: 'EARN' },
@@ -38,7 +40,11 @@ export class RFMService {
     const monetaryScore = this.scoreMonetary(monetaryTotal);
 
     const rfmScore = `${recencyScore}${frequencyScore}${monetaryScore}`;
-    const segmentName = this.determineSegment(recencyDays, frequencyCount, monetaryTotal);
+    const segmentName = this.determineSegment(
+      recencyDays,
+      frequencyCount,
+      monetaryTotal,
+    );
 
     return {
       customer_id: customerId,
@@ -94,7 +100,11 @@ export class RFMService {
     return 1;
   }
 
-  private determineSegment(recency: number, frequency: number, monetary: number): string {
+  private determineSegment(
+    recency: number,
+    frequency: number,
+    monetary: number,
+  ): string {
     for (const segment of RFM_SEGMENTS) {
       if (
         recency >= segment.recency_min &&

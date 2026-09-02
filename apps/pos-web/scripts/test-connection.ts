@@ -5,7 +5,8 @@
 
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
 interface HealthCheck {
   status: string;
@@ -22,7 +23,9 @@ async function testConnection() {
   try {
     // Test 1: Health Check
     console.log('\n1️⃣  Testing Health Endpoint...');
-    const healthResponse = await axios.get<HealthCheck>(`${API_URL.replace('/api/v1', '')}/health`);
+    const healthResponse = await axios.get<HealthCheck>(
+      `${API_URL.replace('/api/v1', '')}/health`,
+    );
     console.log('✅ Health check passed:', healthResponse.data.status);
 
     // Test 2: Products endpoint
@@ -44,10 +47,14 @@ async function testConnection() {
     try {
       const categoriesResponse = await axios.get(`${API_URL}/categories`);
       console.log(`✅ Categories endpoint accessible`);
-      console.log(`   Found ${categoriesResponse.data?.length || 0} categories`);
+      console.log(
+        `   Found ${categoriesResponse.data?.length || 0} categories`,
+      );
     } catch (error: any) {
       if (error.response?.status === 401) {
-        console.log('⚠️  Categories endpoint requires authentication (expected)');
+        console.log(
+          '⚠️  Categories endpoint requires authentication (expected)',
+        );
       } else {
         console.log('❌ Categories endpoint error:', error.message);
       }
@@ -56,14 +63,21 @@ async function testConnection() {
     // Test 4: Auth endpoint
     console.log('\n4️⃣  Testing Auth Endpoint...');
     try {
-      const authResponse = await axios.post(`${API_URL}/auth/login`, {
+      // Se manda a proposito una contrasena incorrecta: lo que se comprueba es
+      // que el endpoint RESPONDA, no que deje entrar. Que conteste 200 seria
+      // justamente el problema, asi que se dice.
+      const res = await axios.post(`${API_URL}/auth/login`, {
         email: 'test@example.com',
         password: 'wrongpassword',
       });
-      console.log('✅ Auth endpoint accessible');
+      console.log(
+        `⚠️  Auth endpoint aceptó credenciales incorrectas (HTTP ${res.status})`,
+      );
     } catch (error: any) {
       if (error.response?.status === 401 || error.response?.status === 404) {
-        console.log('✅ Auth endpoint accessible (credentials incorrect as expected)');
+        console.log(
+          '✅ Auth endpoint accessible (credentials incorrect as expected)',
+        );
       } else {
         console.log('❌ Auth endpoint error:', error.message);
       }
@@ -76,7 +90,6 @@ async function testConnection() {
     console.log('   2. Add test products and categories');
     console.log('   3. Run frontend with: npm run dev');
     console.log('   4. Test full integration in browser\n');
-
   } catch (error: any) {
     console.log('\n' + '─'.repeat(50));
     console.log('❌ Backend connection failed');

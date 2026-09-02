@@ -23,6 +23,7 @@ cp .env.example .env.local
 ```
 
 **Variables importantes:**
+
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
 NEXT_PUBLIC_WS_URL=ws://localhost:4000
@@ -85,6 +86,7 @@ curl http://localhost:4000/health
 ### **Test 2: API Documentation**
 
 Abrir en el navegador:
+
 ```
 http://localhost:4000/docs
 ```
@@ -135,6 +137,7 @@ npx prisma db seed
 Usar Swagger UI (`http://localhost:4000/docs`) para:
 
 1. **Crear Organization**
+
    ```
    POST /api/v1/organizations
    {
@@ -144,6 +147,7 @@ Usar Swagger UI (`http://localhost:4000/docs`) para:
    ```
 
 2. **Crear Location**
+
    ```
    POST /api/v1/locations
    {
@@ -153,6 +157,7 @@ Usar Swagger UI (`http://localhost:4000/docs`) para:
    ```
 
 3. **Crear User**
+
    ```
    POST /api/v1/auth/register
    {
@@ -164,6 +169,7 @@ Usar Swagger UI (`http://localhost:4000/docs`) para:
    ```
 
 4. **Login**
+
    ```
    POST /api/v1/auth/login
    {
@@ -171,10 +177,11 @@ Usar Swagger UI (`http://localhost:4000/docs`) para:
      "password": "password123"
    }
    ```
-   
+
    Guardar el `access_token` para siguientes requests.
 
 5. **Crear Categories**
+
    ```
    POST /api/v1/categories
    Authorization: Bearer YOUR_TOKEN
@@ -297,7 +304,7 @@ export default function LoginPage() {
 # Terminal 1: Backend (port 4000)
 cd apps/api && npm run dev
 
-# Terminal 2: Frontend (port 3000)  
+# Terminal 2: Frontend (port 3000)
 cd apps/pos-web && npm run dev
 
 # Terminal 3: E2E tests
@@ -317,6 +324,7 @@ npm run test:e2e:ui
 **Causa**: Backend no está corriendo o CORS mal configurado.
 
 **Solución**:
+
 ```bash
 # 1. Verificar que backend esté corriendo
 curl http://localhost:4000/health
@@ -334,6 +342,7 @@ npm run dev
 **Causa**: Token expirado o no enviado.
 
 **Solución**:
+
 ```typescript
 // Verificar en DevTools → Application → Local Storage
 // Buscar: auth-storage
@@ -348,6 +357,7 @@ npm run dev
 **Causa**: Frontend corre en puerto diferente y no está en whitelist.
 
 **Solución**:
+
 ```typescript
 // apps/api/src/main.ts
 app.enableCors({
@@ -364,6 +374,7 @@ app.enableCors({
 **Causa**: Response del backend no tiene la estructura esperada.
 
 **Solución**:
+
 ```typescript
 // Verificar en DevTools → Network la respuesta del endpoint
 // Ajustar types en src/types/index.ts para coincidir
@@ -374,6 +385,7 @@ app.enableCors({
 **Causa**: No se han creado datos de prueba.
 
 **Solución**:
+
 ```bash
 # Opción 1: Prisma Studio
 cd packages/database
@@ -398,7 +410,7 @@ npm run seed
 // Chrome → F12 → Network → Filter: XHR
 
 // Habilitar debug en .env.local
-NEXT_PUBLIC_DEBUG=true
+NEXT_PUBLIC_DEBUG = true;
 
 // Logs en consola
 // src/lib/api-client.ts ya tiene interceptors
@@ -458,6 +470,7 @@ npx prisma migrate deploy
 ## ✅ Integration Checklist
 
 ### **Backend Setup**
+
 - [ ] PostgreSQL corriendo
 - [ ] Redis corriendo (opcional)
 - [ ] `apps/api/.env` configurado
@@ -467,6 +480,7 @@ npx prisma migrate deploy
 - [ ] Swagger accessible en `/docs`
 
 ### **Frontend Setup**
+
 - [ ] `apps/pos-web/.env.local` creado
 - [ ] NEXT_PUBLIC_API_URL apunta a backend
 - [ ] Frontend corriendo en port 3000
@@ -474,6 +488,7 @@ npx prisma migrate deploy
 - [ ] IndexedDB creado (DevTools → Application → IndexedDB)
 
 ### **Integration Tests**
+
 - [ ] Health check pasa (`npm run test:connection`)
 - [ ] Login funciona
 - [ ] Productos se cargan

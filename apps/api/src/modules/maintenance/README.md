@@ -7,6 +7,7 @@ Complete asset management and preventive maintenance system for CoffeeOS. Tracks
 ## Features
 
 ### Asset Management
+
 - **Equipment Tracking**: Comprehensive asset registry with 12 asset types
 - **Purchase Tracking**: Purchase date, price, supplier, and warranty information
 - **QR Code Support**: Quick asset identification and lookup
@@ -15,6 +16,7 @@ Complete asset management and preventive maintenance system for CoffeeOS. Tracks
 - **Status Tracking**: Active, maintenance, repair, retired, disposed
 
 ### Maintenance Scheduling
+
 - **6 Maintenance Types**: Preventive, corrective, inspection, calibration, cleaning, upgrade
 - **Priority Levels**: Low, medium, high, urgent
 - **Recurring Maintenance**: Auto-schedule based on interval days
@@ -23,12 +25,14 @@ Complete asset management and preventive maintenance system for CoffeeOS. Tracks
 - **External Services**: Support for external maintenance providers
 
 ### Cost Tracking
+
 - **Labor Costs**: Track technician hours and rates
 - **Parts Costs**: Record parts replaced and costs
 - **Total Cost**: Automatic calculation (labor + parts)
 - **External Invoicing**: Track external service invoices
 
 ### Reporting & Analytics
+
 - **Upcoming Maintenance**: Alerts for maintenance due within N days
 - **Overdue Tracking**: Identify missed maintenance schedules
 - **Comprehensive Stats**: By asset type, status, maintenance type
@@ -38,6 +42,7 @@ Complete asset management and preventive maintenance system for CoffeeOS. Tracks
 ## Data Models
 
 ### Asset
+
 ```typescript
 interface Asset {
   // Core
@@ -49,33 +54,33 @@ interface Asset {
   brand?: string;
   model?: string;
   serial_number?: string;
-  
+
   // Purchase Info
   purchase_date?: Date;
   purchase_price?: number;
   supplier_id?: string;
-  
+
   // Warranty
   warranty_months?: number;
   warranty_expires_at?: Date; // Auto-calculated
-  
+
   // Depreciation
   useful_life_years?: number;
   depreciation_method?: 'straight_line' | 'declining_balance';
   residual_value?: number;
   current_value?: number; // Auto-calculated
-  
+
   // Status
   status: AssetStatus; // active, maintenance, repair, retired, disposed
   installation_date?: Date;
   last_maintenance_date?: Date;
   next_maintenance_date?: Date;
-  
+
   // Meta
   notes?: string;
   image_url?: string;
   qr_code?: string;
-  
+
   // Audit
   created_at: Date;
   updated_at: Date;
@@ -83,6 +88,7 @@ interface Asset {
 ```
 
 ### MaintenanceRecord
+
 ```typescript
 interface MaintenanceRecord {
   // Core
@@ -92,39 +98,39 @@ interface MaintenanceRecord {
   type: MaintenanceType; // preventive, corrective, inspection, calibration, cleaning, upgrade
   status: MaintenanceStatus; // scheduled, in_progress, completed, cancelled, overdue
   priority: MaintenancePriority; // low, medium, high, urgent
-  
+
   // Scheduling
   scheduled_date: Date;
   started_at?: Date;
   completed_at?: Date;
-  
+
   // Work Details
   description: string;
   work_performed?: string;
   parts_replaced?: string[];
-  
+
   // Personnel
   assigned_to?: string; // user_id
   performed_by?: string; // name or external tech
-  
+
   // Cost
   labor_cost?: number;
   parts_cost?: number;
   total_cost?: number; // Auto-calculated
-  
+
   // External Service
   is_external: boolean;
   external_provider?: string;
   external_invoice?: string;
-  
+
   // Follow-up
   next_maintenance_date?: Date;
   recurring_interval_days?: number; // For auto-scheduling
-  
+
   // Meta
   notes?: string;
   attachments?: string[]; // file URLs
-  
+
   // Audit
   created_at: Date;
   updated_at: Date;
@@ -134,6 +140,7 @@ interface MaintenanceRecord {
 ## API Endpoints
 
 ### Assets (5 endpoints)
+
 ```
 POST   /maintenance/assets                      Create asset
 GET    /maintenance/assets                      List assets (filter by org, location, type, status)
@@ -143,6 +150,7 @@ DELETE /maintenance/assets/:id                  Delete asset (validates no maint
 ```
 
 ### Maintenance Records (6 endpoints)
+
 ```
 POST   /maintenance/records                     Create maintenance record
 GET    /maintenance/records                     List records (filter by org, asset, status)
@@ -153,6 +161,7 @@ PATCH  /maintenance/records/:id/cancel          Cancel maintenance
 ```
 
 ### Reports (4 endpoints)
+
 ```
 GET    /maintenance/upcoming/:organization_id   Upcoming maintenance (within N days)
 GET    /maintenance/overdue/:organization_id    Overdue maintenance
@@ -163,15 +172,17 @@ GET    /maintenance/depreciation/:organization_id  Depreciation report
 ## Depreciation Algorithms
 
 ### Straight-Line Method
+
 ```typescript
-annual_depreciation = (purchase_price - residual_value) / useful_life_years
-total_depreciation = annual_depreciation * years_elapsed
-current_value = max(purchase_price - total_depreciation, residual_value)
+annual_depreciation = (purchase_price - residual_value) / useful_life_years;
+total_depreciation = annual_depreciation * years_elapsed;
+current_value = max(purchase_price - total_depreciation, residual_value);
 ```
 
 Equal depreciation each year. Simple and predictable.
 
 ### Declining Balance Method (Double Declining)
+
 ```typescript
 rate = 2 / useful_life_years
 For each year:
@@ -208,6 +219,7 @@ Maintenance Status Flow:
 ## Example Usage
 
 ### Create Asset with Warranty
+
 ```typescript
 POST /maintenance/assets
 {
@@ -239,6 +251,7 @@ POST /maintenance/assets
 ```
 
 ### Schedule Recurring Preventive Maintenance
+
 ```typescript
 POST /maintenance/records
 {
@@ -255,6 +268,7 @@ POST /maintenance/records
 ```
 
 ### Complete Maintenance with Cost Tracking
+
 ```typescript
 PATCH /maintenance/records/:id/complete
 {
@@ -277,6 +291,7 @@ PATCH /maintenance/records/:id/complete
 ```
 
 ### Get Upcoming Maintenance Alerts
+
 ```typescript
 GET /maintenance/upcoming/org-123?days=7
 
@@ -294,6 +309,7 @@ GET /maintenance/upcoming/org-123?days=7
 ```
 
 ### Generate Depreciation Report
+
 ```typescript
 GET /maintenance/depreciation/org-123
 
@@ -322,12 +338,14 @@ GET /maintenance/depreciation/org-123
 **37 tests (100% passing, 2.8s)**
 
 Coverage includes:
+
 - Asset CRUD (15 tests)
 - Maintenance workflow (17 tests)
 - Statistics & reports (2 tests)
 - Edge cases & validations (3 tests)
 
 Run tests:
+
 ```bash
 npm test -- maintenance.service.spec.ts
 ```

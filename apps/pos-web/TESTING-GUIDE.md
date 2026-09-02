@@ -29,7 +29,7 @@ cd apps/pos-web
 
 ✅ `jest.config.js` - Configuración de Jest con Next.js  
 ✅ `jest.setup.js` - Setup global, mocks de browser APIs  
-✅ `playwright.config.ts` - Configuración de Playwright para E2E  
+✅ `playwright.config.ts` - Configuración de Playwright para E2E
 
 ---
 
@@ -97,7 +97,7 @@ describe('Cart Store', () => {
 ### **Áreas Cubiertas**
 
 - ✅ Stores de Zustand (cart, auth, offline)
-- ✅ Utility functions (db, sync)  
+- ✅ Utility functions (db, sync)
 - ✅ Componentes React (ProductCard, Cart, PaymentModal)
 - ✅ Custom Hooks (use-products, use-orders, use-offline)
 
@@ -130,6 +130,7 @@ npx playwright show-report
 ### **Tests E2E Creados**
 
 #### **1. pos-checkout.spec.ts**
+
 - ✅ Display product catalog
 - ✅ Add product to cart
 - ✅ Increment quantity
@@ -144,6 +145,7 @@ npx playwright show-report
 - ✅ Clear cart
 
 #### **2. offline-mode.spec.ts**
+
 - ✅ Show online/offline indicator
 - ✅ Load cached products offline
 - ✅ Create order offline (sync queue)
@@ -164,17 +166,17 @@ import { test, expect } from '@playwright/test';
 
 test('should complete checkout flow', async ({ page }) => {
   await page.goto('/pos');
-  
+
   // Add product
   await page.locator('[data-testid="product-card"]').first().click();
-  
+
   // Open payment
   await page.locator('[data-testid="pay-button"]').click();
-  
+
   // Complete payment
   await page.locator('[data-testid="payment-cash"]').click();
   await page.locator('[data-testid="complete-payment"]').click();
-  
+
   // Verify success
   await expect(page.locator('text=/venta completada/i')).toBeVisible();
 });
@@ -183,6 +185,7 @@ test('should complete checkout flow', async ({ page }) => {
 ### **Configuración de Browsers**
 
 Tests corren en:
+
 - ✅ Chromium (Desktop)
 - ✅ Firefox (Desktop)
 - ✅ WebKit (Desktop)
@@ -195,27 +198,30 @@ Tests corren en:
 
 ### **Coverage Targets** (70% mínimo)
 
-| Categoría | Target | Actual |
-|-----------|--------|--------|
-| Statements | 70% | TBD |
-| Branches | 70% | TBD |
-| Functions | 70% | TBD |
-| Lines | 70% | TBD |
+| Categoría  | Target | Actual |
+| ---------- | ------ | ------ |
+| Statements | 70%    | TBD    |
+| Branches   | 70%    | TBD    |
+| Functions  | 70%    | TBD    |
+| Lines      | 70%    | TBD    |
 
 ### **Prioridad de Testing**
 
 **Alta Prioridad:**
+
 - Cart Store (lógica de negocio crítica)
 - Payment flow (dinero involucrado)
 - Offline sync (integridad de datos)
 - Product catalog (UX core)
 
 **Media Prioridad:**
+
 - UI Components (visuals)
 - Search/Filter logic
 - Navigation
 
 **Baja Prioridad:**
+
 - Styling
 - Animations
 - Non-critical UI
@@ -238,7 +244,7 @@ jobs:
       - uses: actions/setup-node@v3
       - run: npm ci
       - run: npm test -- --coverage
-      
+
   e2e-tests:
     runs-on: ubuntu-latest
     steps:
@@ -261,6 +267,7 @@ jobs:
 Para facilitar el testing E2E, agregar estos `data-testid` attributes:
 
 ### **POS Page**
+
 - `product-card` - Tarjeta de producto
 - `cart-count` - Contador de items en carrito
 - `cart-item` - Item en el carrito
@@ -274,10 +281,12 @@ Para facilitar el testing E2E, agregar estos `data-testid` attributes:
 - `clear-cart` - Botón limpiar carrito
 
 ### **Search & Filters**
+
 - `search-input` - Input de búsqueda
 - `category-filter` - Filtro de categoría
 
 ### **Payment Modal**
+
 - `payment-modal` - Modal de pago
 - `payment-cash` - Botón pago efectivo
 - `payment-card` - Botón pago tarjeta
@@ -286,6 +295,7 @@ Para facilitar el testing E2E, agregar estos `data-testid` attributes:
 - `complete-payment` - Botón completar pago
 
 ### **Offline Indicator**
+
 - `offline-indicator` - Indicador offline/online
 - `sync-queue-count` - Cantidad en cola de sync
 - `sync-status` - Estado de sincronización
@@ -294,6 +304,7 @@ Para facilitar el testing E2E, agregar estos `data-testid` attributes:
 - `syncing-indicator` - Indicador sincronizando
 
 ### **Discount**
+
 - `discount-button` - Botón descuento
 - `discount-input` - Input descuento
 - `apply-discount` - Aplicar descuento
@@ -372,7 +383,7 @@ it('test1', () => {
 // ✅ Good
 await expect(page.locator('[data-testid="success"]')).toBeVisible();
 
-// ❌ Bad  
+// ❌ Bad
 await page.waitForTimeout(3000);
 ```
 
@@ -409,12 +420,14 @@ global.navigator.serviceWorker = {
 ## ✅ Checklist de Testing
 
 ### **Setup** ✅
+
 - [x] Jest configurado
 - [x] Playwright configurado
 - [x] Test utilities creados
 - [x] Mocks de browser APIs
 
 ### **Unit Tests** (Pendiente)
+
 - [ ] Cart Store tests
 - [ ] Auth Store tests
 - [ ] Offline Store tests
@@ -424,12 +437,14 @@ global.navigator.serviceWorker = {
 - [ ] Hook tests (use-products, use-orders)
 
 ### **E2E Tests** ✅
+
 - [x] Checkout flow spec
 - [x] Offline mode spec
 - [ ] Multi-device tests
 - [ ] Performance tests
 
 ### **CI/CD** (Futuro)
+
 - [ ] GitHub Actions workflow
 - [ ] Coverage reports automáticos
 - [ ] Visual regression tests
@@ -440,6 +455,7 @@ global.navigator.serviceWorker = {
 **Nota**: Los tests unitarios base han sido creados pero requieren ajustes para alinear con los tipos reales de la aplicación. Los archivos de configuración y los specs de E2E están completos y listos para usar.
 
 Para ejecutar tests:
+
 ```bash
 # Unit tests (cuando se corrijan los tipos)
 npm test

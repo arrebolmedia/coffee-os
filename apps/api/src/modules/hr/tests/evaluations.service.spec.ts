@@ -1,6 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EvaluationsService } from '../evaluations.service';
-import { CreateEvaluationDto, EvaluationPeriod, PerformanceRating } from '../dto';
+import {
+  CreateEvaluationDto,
+  EvaluationPeriod,
+  PerformanceRating,
+} from '../dto';
 
 describe('EvaluationsService', () => {
   let service: EvaluationsService;
@@ -92,44 +96,53 @@ describe('EvaluationsService', () => {
 
   describe('findAll', () => {
     beforeEach(async () => {
-      await service.create({
-        employee_id: 'emp_1',
-        evaluator_user_id: 'mgr_1',
-        period: EvaluationPeriod.MONTHLY,
-        evaluation_date: '2025-01-31',
-        overall_rating: PerformanceRating.GOOD,
-        punctuality_score: 4,
-        quality_of_work_score: 5,
-        customer_service_score: 4,
-        teamwork_score: 5,
-        initiative_score: 4,
-      }, 'org_1');
+      await service.create(
+        {
+          employee_id: 'emp_1',
+          evaluator_user_id: 'mgr_1',
+          period: EvaluationPeriod.MONTHLY,
+          evaluation_date: '2025-01-31',
+          overall_rating: PerformanceRating.GOOD,
+          punctuality_score: 4,
+          quality_of_work_score: 5,
+          customer_service_score: 4,
+          teamwork_score: 5,
+          initiative_score: 4,
+        },
+        'org_1',
+      );
 
-      await service.create({
-        employee_id: 'emp_2',
-        evaluator_user_id: 'mgr_1',
-        period: EvaluationPeriod.QUARTERLY,
-        evaluation_date: '2025-03-31',
-        overall_rating: PerformanceRating.EXCELLENT,
-        punctuality_score: 5,
-        quality_of_work_score: 5,
-        customer_service_score: 5,
-        teamwork_score: 5,
-        initiative_score: 5,
-      }, 'org_1');
+      await service.create(
+        {
+          employee_id: 'emp_2',
+          evaluator_user_id: 'mgr_1',
+          period: EvaluationPeriod.QUARTERLY,
+          evaluation_date: '2025-03-31',
+          overall_rating: PerformanceRating.EXCELLENT,
+          punctuality_score: 5,
+          quality_of_work_score: 5,
+          customer_service_score: 5,
+          teamwork_score: 5,
+          initiative_score: 5,
+        },
+        'org_1',
+      );
 
-      await service.create({
-        employee_id: 'emp_3',
-        evaluator_user_id: 'mgr_2',
-        period: EvaluationPeriod.ANNUAL,
-        evaluation_date: '2024-12-31',
-        overall_rating: PerformanceRating.SATISFACTORY,
-        punctuality_score: 3,
-        quality_of_work_score: 3,
-        customer_service_score: 3,
-        teamwork_score: 3,
-        initiative_score: 3,
-      }, 'org_2');
+      await service.create(
+        {
+          employee_id: 'emp_3',
+          evaluator_user_id: 'mgr_2',
+          period: EvaluationPeriod.ANNUAL,
+          evaluation_date: '2024-12-31',
+          overall_rating: PerformanceRating.SATISFACTORY,
+          punctuality_score: 3,
+          quality_of_work_score: 3,
+          customer_service_score: 3,
+          teamwork_score: 3,
+          initiative_score: 3,
+        },
+        'org_2',
+      );
     });
 
     it('should return all evaluations when no filters', async () => {
@@ -148,43 +161,53 @@ describe('EvaluationsService', () => {
     });
 
     it('should filter by period', async () => {
-      const result = await service.findAll({ period: EvaluationPeriod.MONTHLY });
+      const result = await service.findAll({
+        period: EvaluationPeriod.MONTHLY,
+      });
       expect(result).toHaveLength(1);
     });
 
     it('should filter by rating', async () => {
-      const result = await service.findAll({ rating: PerformanceRating.EXCELLENT });
+      const result = await service.findAll({
+        rating: PerformanceRating.EXCELLENT,
+      });
       expect(result).toHaveLength(1);
     });
   });
 
   describe('getEmployeeHistory', () => {
     beforeEach(async () => {
-      await service.create({
-        employee_id: 'emp_1',
-        evaluator_user_id: 'mgr_1',
-        period: EvaluationPeriod.MONTHLY,
-        evaluation_date: '2025-01-31',
-        overall_rating: PerformanceRating.GOOD,
-        punctuality_score: 4,
-        quality_of_work_score: 5,
-        customer_service_score: 4,
-        teamwork_score: 5,
-        initiative_score: 4,
-      }, 'org_1');
+      await service.create(
+        {
+          employee_id: 'emp_1',
+          evaluator_user_id: 'mgr_1',
+          period: EvaluationPeriod.MONTHLY,
+          evaluation_date: '2025-01-31',
+          overall_rating: PerformanceRating.GOOD,
+          punctuality_score: 4,
+          quality_of_work_score: 5,
+          customer_service_score: 4,
+          teamwork_score: 5,
+          initiative_score: 4,
+        },
+        'org_1',
+      );
 
-      await service.create({
-        employee_id: 'emp_1',
-        evaluator_user_id: 'mgr_1',
-        period: EvaluationPeriod.MONTHLY,
-        evaluation_date: '2025-02-28',
-        overall_rating: PerformanceRating.EXCELLENT,
-        punctuality_score: 5,
-        quality_of_work_score: 5,
-        customer_service_score: 5,
-        teamwork_score: 5,
-        initiative_score: 5,
-      }, 'org_1');
+      await service.create(
+        {
+          employee_id: 'emp_1',
+          evaluator_user_id: 'mgr_1',
+          period: EvaluationPeriod.MONTHLY,
+          evaluation_date: '2025-02-28',
+          overall_rating: PerformanceRating.EXCELLENT,
+          punctuality_score: 5,
+          quality_of_work_score: 5,
+          customer_service_score: 5,
+          teamwork_score: 5,
+          initiative_score: 5,
+        },
+        'org_1',
+      );
     });
 
     it('should return employee evaluation history', async () => {
@@ -201,31 +224,37 @@ describe('EvaluationsService', () => {
 
   describe('getStats', () => {
     beforeEach(async () => {
-      await service.create({
-        employee_id: 'emp_1',
-        evaluator_user_id: 'mgr_1',
-        period: EvaluationPeriod.MONTHLY,
-        evaluation_date: '2025-01-31',
-        overall_rating: PerformanceRating.GOOD,
-        punctuality_score: 4,
-        quality_of_work_score: 4,
-        customer_service_score: 4,
-        teamwork_score: 4,
-        initiative_score: 4,
-      }, 'org_1');
+      await service.create(
+        {
+          employee_id: 'emp_1',
+          evaluator_user_id: 'mgr_1',
+          period: EvaluationPeriod.MONTHLY,
+          evaluation_date: '2025-01-31',
+          overall_rating: PerformanceRating.GOOD,
+          punctuality_score: 4,
+          quality_of_work_score: 4,
+          customer_service_score: 4,
+          teamwork_score: 4,
+          initiative_score: 4,
+        },
+        'org_1',
+      );
 
-      await service.create({
-        employee_id: 'emp_2',
-        evaluator_user_id: 'mgr_1',
-        period: EvaluationPeriod.QUARTERLY,
-        evaluation_date: '2025-03-31',
-        overall_rating: PerformanceRating.EXCELLENT,
-        punctuality_score: 5,
-        quality_of_work_score: 5,
-        customer_service_score: 5,
-        teamwork_score: 5,
-        initiative_score: 5,
-      }, 'org_1');
+      await service.create(
+        {
+          employee_id: 'emp_2',
+          evaluator_user_id: 'mgr_1',
+          period: EvaluationPeriod.QUARTERLY,
+          evaluation_date: '2025-03-31',
+          overall_rating: PerformanceRating.EXCELLENT,
+          punctuality_score: 5,
+          quality_of_work_score: 5,
+          customer_service_score: 5,
+          teamwork_score: 5,
+          initiative_score: 5,
+        },
+        'org_1',
+      );
     });
 
     it('should return evaluation statistics', async () => {
@@ -255,18 +284,21 @@ describe('EvaluationsService', () => {
 
   describe('delete', () => {
     it('should delete evaluation', async () => {
-      const evaluation = await service.create({
-        employee_id: 'emp_1',
-        evaluator_user_id: 'mgr_1',
-        period: EvaluationPeriod.MONTHLY,
-        evaluation_date: '2025-01-31',
-        overall_rating: PerformanceRating.GOOD,
-        punctuality_score: 4,
-        quality_of_work_score: 5,
-        customer_service_score: 4,
-        teamwork_score: 5,
-        initiative_score: 4,
-      }, 'org_1');
+      const evaluation = await service.create(
+        {
+          employee_id: 'emp_1',
+          evaluator_user_id: 'mgr_1',
+          period: EvaluationPeriod.MONTHLY,
+          evaluation_date: '2025-01-31',
+          overall_rating: PerformanceRating.GOOD,
+          punctuality_score: 4,
+          quality_of_work_score: 5,
+          customer_service_score: 4,
+          teamwork_score: 5,
+          initiative_score: 4,
+        },
+        'org_1',
+      );
 
       await service.delete(evaluation.id);
       const result = await service.findOne(evaluation.id);

@@ -2,15 +2,15 @@
 
 ## 📊 Performance Targets
 
-| Metric | Target | Tool |
-|--------|--------|------|
-| **Lighthouse Performance** | > 90 | Lighthouse CI |
-| **First Contentful Paint (FCP)** | < 1.5s | Web Vitals |
-| **Largest Contentful Paint (LCP)** | < 2.5s | Web Vitals |
-| **Cumulative Layout Shift (CLS)** | < 0.1 | Web Vitals |
-| **First Input Delay (FID)** | < 100ms | Web Vitals |
-| **Time to Interactive (TTI)** | < 3.5s | Lighthouse |
-| **Bundle Size (JS)** | < 200KB (gzipped) | Webpack Bundle Analyzer |
+| Metric                             | Target            | Tool                    |
+| ---------------------------------- | ----------------- | ----------------------- |
+| **Lighthouse Performance**         | > 90              | Lighthouse CI           |
+| **First Contentful Paint (FCP)**   | < 1.5s            | Web Vitals              |
+| **Largest Contentful Paint (LCP)** | < 2.5s            | Web Vitals              |
+| **Cumulative Layout Shift (CLS)**  | < 0.1             | Web Vitals              |
+| **First Input Delay (FID)**        | < 100ms           | Web Vitals              |
+| **Time to Interactive (TTI)**      | < 3.5s            | Lighthouse              |
+| **Bundle Size (JS)**               | < 200KB (gzipped) | Webpack Bundle Analyzer |
 
 ---
 
@@ -32,6 +32,7 @@ import Image from 'next/image';
 ```
 
 **Benefits:**
+
 - Automatic WebP/AVIF conversion
 - Responsive images
 - Lazy loading by default
@@ -78,8 +79,8 @@ persist(
   {
     name: 'coffeeos-cart',
     partialize: (state) => ({ cart: state.cart }), // Only persist cart
-  }
-)
+  },
+);
 ```
 
 ### **5. IndexedDB for Offline**
@@ -143,6 +144,7 @@ export function ProductCatalogVirtual({ products }: Props) {
 ```
 
 **When to use:**
+
 - Catalogs with > 200 products
 - Mobile devices
 - Slow networks
@@ -227,6 +229,7 @@ ANALYZE=true npm run build
 ```
 
 **Identify:**
+
 - Large dependencies
 - Duplicate code
 - Unnecessary imports
@@ -245,6 +248,7 @@ ANALYZE=true npm run build
 ```
 
 **Optimizations:**
+
 - Precache app shell and critical routes
 - Runtime caching for dynamic content
 - Background sync for failed requests
@@ -437,6 +441,7 @@ bundlewatch --config bundlewatch.config.json
 ## 🎯 Performance Checklist
 
 ### **Images**
+
 - [x] Using Next.js Image component
 - [x] Responsive sizes attribute
 - [ ] WebP/AVIF format
@@ -444,6 +449,7 @@ bundlewatch --config bundlewatch.config.json
 - [ ] Blur placeholder
 
 ### **JavaScript**
+
 - [x] Code splitting with dynamic()
 - [x] Tree shaking (automatic with Next.js)
 - [ ] Minification (production build)
@@ -451,6 +457,7 @@ bundlewatch --config bundlewatch.config.json
 - [ ] Remove console.logs in prod
 
 ### **Caching**
+
 - [x] Service Worker (Workbox)
 - [x] IndexedDB for offline
 - [x] React Query caching
@@ -458,18 +465,21 @@ bundlewatch --config bundlewatch.config.json
 - [ ] CDN (Vercel Edge Network)
 
 ### **CSS**
+
 - [x] Tailwind CSS (JIT mode)
 - [x] CSS purging (automatic)
 - [ ] Critical CSS inline
 - [ ] Remove unused styles
 
 ### **Network**
+
 - [x] API response compression (gzip)
 - [ ] HTTP/2 server push
 - [ ] Resource hints (preload, prefetch)
 - [ ] Reduce API calls with batching
 
 ### **Rendering**
+
 - [x] Server Components where possible
 - [ ] Streaming SSR
 - [ ] Partial hydration
@@ -489,6 +499,7 @@ bundlewatch --config bundlewatch.config.json
 6. Analyze flamegraph
 
 Look for:
+
 - Long render times (> 16ms)
 - Frequent re-renders
 - Large component trees
@@ -502,6 +513,7 @@ Look for:
 5. Analyze timeline
 
 Focus on:
+
 - Long tasks (> 50ms)
 - Layout thrashing
 - Forced reflows

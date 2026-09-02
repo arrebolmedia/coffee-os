@@ -112,7 +112,7 @@ export const RFM_SEGMENTS: RFMSegment[] = [
   },
   {
     name: 'At Risk',
-    description: 'Spent big money but haven\'t returned for a while',
+    description: "Spent big money but haven't returned for a while",
     recency_min: 91,
     recency_max: 180,
     frequency_min: 3,

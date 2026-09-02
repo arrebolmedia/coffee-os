@@ -23,6 +23,7 @@ Esta migración agrega las tablas y relaciones necesarias para los **5 módulos 
 ### Orders & Kitchen Management (2 tablas)
 
 #### `orders`
+
 - **Propósito**: Gestión de comandas para cocina
 - **Campos principales**:
   - `order_number` (UNIQUE): Número de orden
@@ -35,6 +36,7 @@ Esta migración agrega las tablas y relaciones necesarias para los **5 módulos 
 - **Índices**: location_id, status, ordered_at
 
 #### `order_items`
+
 - **Propósito**: Items individuales de cada orden
 - **Campos principales**:
   - `order_id` (FK → orders)
@@ -48,6 +50,7 @@ Esta migración agrega las tablas y relaciones necesarias para los **5 módulos 
 ### Discounts & Promotions (1 tabla)
 
 #### `discounts`
+
 - **Propósito**: Descuentos, cupones y promociones
 - **Campos principales**:
   - `code` (UNIQUE): Código del cupón
@@ -70,6 +73,7 @@ Esta migración agrega las tablas y relaciones necesarias para los **5 módulos 
 ### Tax Configuration (1 tabla)
 
 #### `taxes`
+
 - **Propósito**: Configuración de impuestos (principalmente mexicanos)
 - **Campos principales**:
   - `category`: IVA, IEPS, ISR, OTHER
@@ -86,6 +90,7 @@ Esta migración agrega las tablas y relaciones necesarias para los **5 módulos 
 ### Shift Management (1 tabla)
 
 #### `shifts`
+
 - **Propósito**: Gestión de turnos de trabajo y caja
 - **Campos principales**:
   - `shift_number` (UNIQUE): Número de turno
@@ -103,6 +108,7 @@ Esta migración agrega las tablas y relaciones necesarias para los **5 módulos 
 ### Cash Register & Reconciliation (3 tablas)
 
 #### `cash_registers`
+
 - **Propósito**: Arqueo de caja detallado
 - **Campos principales**:
   - `shift_id` (FK → shifts): Turno asociado
@@ -113,6 +119,7 @@ Esta migración agrega las tablas y relaciones necesarias para los **5 módulos 
 - **Índices**: shift_id, location_id
 
 #### `cash_denominations`
+
 - **Propósito**: Conteo de billetes y monedas MXN
 - **Campos principales**:
   - `cash_register_id` (FK → cash_registers)
@@ -123,6 +130,7 @@ Esta migración agrega las tablas y relaciones necesarias para los **5 módulos 
 - **Uso**: Conteo físico de billetes y monedas
 
 #### `cash_expenses`
+
 - **Propósito**: Gastos de caja durante el turno
 - **Campos principales**:
   - `cash_register_id` (FK → cash_registers)
@@ -214,27 +222,27 @@ npx prisma generate
 
 ```sql
 -- Verificar que las tablas existan
-SELECT table_name 
-FROM information_schema.tables 
-WHERE table_schema = 'public' 
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'public'
 AND table_name IN ('orders', 'order_items', 'discounts', 'taxes', 'shifts', 'cash_registers', 'cash_denominations', 'cash_expenses');
 
 -- Verificar enums creados
-SELECT typname 
-FROM pg_type 
+SELECT typname
+FROM pg_type
 WHERE typname IN ('OrderType', 'OrderStatus', 'OrderPriority', 'DiscountType', 'TaxCategory', 'ShiftStatus');
 
 -- Verificar índices
-SELECT indexname 
-FROM pg_indexes 
+SELECT indexname
+FROM pg_indexes
 WHERE tablename IN ('orders', 'discounts', 'taxes', 'shifts', 'cash_registers');
 
 -- Verificar foreign keys
-SELECT conname 
-FROM pg_constraint 
-WHERE contype = 'f' 
+SELECT conname
+FROM pg_constraint
+WHERE contype = 'f'
 AND conrelid IN (
-    SELECT oid FROM pg_class 
+    SELECT oid FROM pg_class
     WHERE relname IN ('order_items', 'cash_registers', 'cash_denominations', 'cash_expenses')
 );
 ```
@@ -274,12 +282,12 @@ VALUES ('tax_ieps_bebidas', 'org_default', 'IEPS Bebidas', 'IEPS', 0.01, 'catego
 ```sql
 -- Descuento 10% bienvenida
 INSERT INTO discounts (
-    id, organization_id, code, name, type, percentage, 
+    id, organization_id, code, name, type, percentage,
     applicable_to, min_purchase, max_uses, valid_from, valid_until, active
 )
 VALUES (
-    'disc_bienvenida', 'org_default', 'BIENVENIDO10', 'Bienvenida 10%', 
-    'PERCENTAGE', 0.10, 'total', 100.00, 1000, 
+    'disc_bienvenida', 'org_default', 'BIENVENIDO10', 'Bienvenida 10%',
+    'PERCENTAGE', 0.10, 'total', 100.00, 1000,
     NOW(), NOW() + INTERVAL '30 days', true
 );
 
@@ -289,7 +297,7 @@ INSERT INTO discounts (
     applicable_to, max_uses_per_user, active
 )
 VALUES (
-    'disc_2x1_cafe', 'org_default', '2X1CAFE', 'Café 2x1', 
+    'disc_2x1_cafe', 'org_default', '2X1CAFE', 'Café 2x1',
     'BUY_X_GET_Y', 2, 1, 'category', 1, true
 );
 ```
@@ -383,7 +391,7 @@ INSERT INTO cash_registers (id, shift_id, location_id, organization_id, expected
 VALUES ('test_reg', 'test_shift', 'loc_1', 'org_1', 5000.00);
 
 INSERT INTO cash_denominations (id, cash_register_id, denomination, count, total)
-VALUES 
+VALUES
     ('denom_1', 'test_reg', 1000, 3, 3000),
     ('denom_2', 'test_reg', 500, 4, 2000);
 
@@ -398,7 +406,7 @@ ROLLBACK;
 - **Schema Prisma**: `packages/database/prisma/schema.prisma`
 - **Módulos Backend**: `apps/api/src/modules/{orders,discounts,taxes,shifts,cash-registers}/`
 - **Tests**: 157 tests implementados (100% passing)
-- **Documentación**: Ver archivos PR-*.md en raíz del proyecto
+- **Documentación**: Ver archivos PR-\*.md en raíz del proyecto
 
 ---
 

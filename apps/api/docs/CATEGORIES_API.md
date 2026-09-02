@@ -27,6 +27,7 @@ Crea una nueva categoría en el catálogo.
 **Endpoint:** `POST /categories`
 
 **Request Body:**
+
 ```typescript
 {
   organization_id: string;
@@ -45,6 +46,7 @@ Crea una nueva categoría en el catálogo.
 ```
 
 **Response:** `201 Created`
+
 ```typescript
 {
   id: string;
@@ -66,6 +68,7 @@ Crea una nueva categoría en el catálogo.
 ```
 
 **Errores:**
+
 - `409 Conflict` - Nombre de categoría ya existe
 - `404 Not Found` - parent_id no existe
 
@@ -78,6 +81,7 @@ Obtiene lista de categorías con filtros opcionales.
 **Endpoint:** `GET /categories`
 
 **Query Parameters:**
+
 ```typescript
 {
   organization_id?: string;
@@ -94,11 +98,13 @@ Obtiene lista de categorías con filtros opcionales.
 ```
 
 **Response:** `200 OK`
+
 ```typescript
 Category[]
 ```
 
 **Ejemplo:**
+
 ```
 GET /categories?organization_id=org123&type=product&status=active&sort_by=display_order
 ```
@@ -110,11 +116,13 @@ GET /categories?organization_id=org123&type=product&status=active&sort_by=displa
 **Endpoint:** `GET /categories/:id`
 
 **Response:** `200 OK`
+
 ```typescript
-Category
+Category;
 ```
 
 **Errores:**
+
 - `404 Not Found` - Categoría no encontrada
 
 ---
@@ -126,13 +134,15 @@ Busca categoría por su slug URL-friendly.
 **Endpoint:** `GET /categories/slug/:slug/:organization_id`
 
 **Ejemplo:**
+
 ```
 GET /categories/slug/bebidas-calientes/org_abc123
 ```
 
 **Response:** `200 OK`
+
 ```typescript
-Category
+Category;
 ```
 
 ---
@@ -144,11 +154,13 @@ Retorna estructura jerárquica completa de categorías.
 **Endpoint:** `GET /categories/organization/:organization_id/tree`
 
 **Response:** `200 OK`
+
 ```typescript
 CategoryTree[]
 ```
 
 **Estructura CategoryTree:**
+
 ```typescript
 {
   id: string;
@@ -164,6 +176,7 @@ CategoryTree[]
 ```
 
 **Ejemplo de respuesta:**
+
 ```json
 [
   {
@@ -210,11 +223,13 @@ Retorna ruta de navegación desde raíz hasta la categoría.
 **Endpoint:** `GET /categories/:id/breadcrumbs`
 
 **Response:** `200 OK`
+
 ```typescript
 CategoryBreadcrumb[]
 ```
 
 **Estructura:**
+
 ```typescript
 {
   id: string;
@@ -225,6 +240,7 @@ CategoryBreadcrumb[]
 ```
 
 **Ejemplo:**
+
 ```json
 [
   { "id": "cat1", "name": "Bebidas", "slug": "bebidas", "level": 0 },
@@ -242,6 +258,7 @@ Retorna solo las categorías hijas inmediatas.
 **Endpoint:** `GET /categories/:id/children`
 
 **Response:** `200 OK`
+
 ```typescript
 Category[]  // Solo nivel inmediato inferior
 ```
@@ -255,6 +272,7 @@ Retorna todos los descendientes (hijos, nietos, bisnietos...).
 **Endpoint:** `GET /categories/:id/descendants`
 
 **Response:** `200 OK`
+
 ```typescript
 Category[]  // Todos los descendientes en cualquier nivel
 ```
@@ -268,6 +286,7 @@ Actualiza campos de una categoría existente.
 **Endpoint:** `PATCH /categories/:id`
 
 **Request Body:** (todos opcionales)
+
 ```typescript
 {
   name?: string;
@@ -283,11 +302,13 @@ Actualiza campos de una categoría existente.
 ```
 
 **Response:** `200 OK`
+
 ```typescript
-Category  // Categoría actualizada
+Category; // Categoría actualizada
 ```
 
 **Errores:**
+
 - `404 Not Found` - Categoría no existe
 - `409 Conflict` - Nombre duplicado
 
@@ -300,6 +321,7 @@ Mueve una categoría a nuevo padre y/o reordena.
 **Endpoint:** `PATCH /categories/:id/move`
 
 **Request Body:**
+
 ```typescript
 {
   new_parent_id?: string | null;  // null = mover a raíz
@@ -308,17 +330,20 @@ Mueve una categoría a nuevo padre y/o reordena.
 ```
 
 **Response:** `200 OK`
+
 ```typescript
-Category  // Categoría con level y path actualizados
+Category; // Categoría con level y path actualizados
 ```
 
 **Comportamiento:**
+
 - Actualiza `level` según profundidad del nuevo padre
 - Recalcula `path` (ej: `/bebidas/calientes`)
 - Actualiza `display_order` si se proporciona
 - Valida que no se cree ciclo (padre no puede ser descendiente)
 
 **Errores:**
+
 - `400 Bad Request` - Intentar mover a un descendiente propio (ciclo)
 - `404 Not Found` - new_parent_id no existe
 
@@ -333,6 +358,7 @@ Elimina una categoría si no tiene productos ni hijos.
 **Response:** `204 No Content`
 
 **Errores:**
+
 - `404 Not Found` - Categoría no existe
 - `400 Bad Request` - Categoría tiene productos o subcategorías
 
@@ -347,6 +373,7 @@ Retorna métricas agregadas de categorías.
 **Endpoint:** `GET /categories/organization/:organization_id/stats`
 
 **Response:** `200 OK`
+
 ```typescript
 {
   total_categories: number;
@@ -382,28 +409,31 @@ Actualiza el orden de visualización de múltiples categorías.
 **Endpoint:** `POST /categories/reorder`
 
 **Request Body:**
+
 ```typescript
 {
   items: [
     { id: string, sortOrder: number },
     { id: string, sortOrder: number },
     // ...
-  ]
+  ];
 }
 ```
 
 **Response:** `200 OK`
+
 ```typescript
 {
   success: true;
   data: {
-    count: number;  // Categorías reordenadas exitosamente
-  };
-  message: "X categorías reordenadas exitosamente";
+    count: number; // Categorías reordenadas exitosamente
+  }
+  message: 'X categorías reordenadas exitosamente';
 }
 ```
 
 **Ejemplo:**
+
 ```json
 {
   "items": [
@@ -425,6 +455,7 @@ Elimina múltiples categorías en una operación.
 **Endpoint:** `POST /categories/bulk-delete`
 
 **Request Body:**
+
 ```typescript
 {
   categoryIds: string[];
@@ -432,23 +463,26 @@ Elimina múltiples categorías en una operación.
 ```
 
 **Response:** `200 OK`
+
 ```typescript
 {
   success: true;
   data: {
     count: number;
-  };
-  message: "X categorías eliminadas exitosamente";
+  }
+  message: 'X categorías eliminadas exitosamente';
 }
 ```
 
 **Comportamiento:**
+
 - Valida que cada categoría no tenga productos
 - Valida que cada categoría no tenga hijos
 - Continúa con siguiente si una falla
 - Retorna contador de éxitos
 
 **Ejemplo:**
+
 ```json
 {
   "categoryIds": ["cat1", "cat2", "cat3"]
@@ -464,6 +498,7 @@ Cambia el estado de múltiples categorías.
 **Endpoint:** `POST /categories/bulk-update-status`
 
 **Request Body:**
+
 ```typescript
 {
   categoryIds: string[];
@@ -472,17 +507,19 @@ Cambia el estado de múltiples categorías.
 ```
 
 **Response:** `200 OK`
+
 ```typescript
 {
   success: true;
   data: {
     count: number;
-  };
-  message: "X categorías actualizadas a {status}";
+  }
+  message: 'X categorías actualizadas a {status}';
 }
 ```
 
 **Ejemplo:**
+
 ```json
 {
   "categoryIds": ["cat1", "cat2"],
@@ -495,21 +532,23 @@ Cambia el estado de múltiples categorías.
 ## Tipos y Enums
 
 ### CategoryType
+
 ```typescript
 enum CategoryType {
-  PRODUCT = 'product',      // Categorías de productos del menú
-  INVENTORY = 'inventory',  // Categorías de inventario/insumos
-  RECIPE = 'recipe',        // Categorías de recetas
-  EXPENSE = 'expense',      // Categorías de gastos
+  PRODUCT = 'product', // Categorías de productos del menú
+  INVENTORY = 'inventory', // Categorías de inventario/insumos
+  RECIPE = 'recipe', // Categorías de recetas
+  EXPENSE = 'expense', // Categorías de gastos
 }
 ```
 
 ### CategoryStatus
+
 ```typescript
 enum CategoryStatus {
-  ACTIVE = 'active',        // Categoría activa y visible
-  INACTIVE = 'inactive',    // Oculta pero no eliminada
-  ARCHIVED = 'archived',    // Archivada (histórico)
+  ACTIVE = 'active', // Categoría activa y visible
+  INACTIVE = 'inactive', // Oculta pero no eliminada
+  ARCHIVED = 'archived', // Archivada (histórico)
 }
 ```
 
@@ -518,21 +557,25 @@ enum CategoryStatus {
 ## Validaciones Comunes
 
 ### Nombre de Categoría
+
 - Debe ser único por organización
 - Mínimo 2 caracteres
 - Máximo 100 caracteres
 - Se genera slug automáticamente (URL-friendly)
 
 ### Color
+
 - Formato hex válido: `#RRGGBB`
 - Ejemplo: `#FF5733`, `#3B82F6`
 
 ### Jerarquía
+
 - Máximo 5 niveles de profundidad (configurable)
 - No se permiten ciclos (padre no puede ser descendiente)
 - Al mover categoría, todos los hijos se mueven también
 
 ### Display Order
+
 - Número entero >= 0
 - Menor número = aparece primero
 - Se puede duplicar (empate se resuelve por nombre)
@@ -645,6 +688,7 @@ POST /categories/bulk-update-status
 ## Casos de Uso Específicos
 
 ### 1. Menú de Cafetería
+
 ```
 Bebidas (level 0)
 ├── Calientes (level 1)
@@ -662,6 +706,7 @@ Alimentos (level 0)
 ```
 
 ### 2. Breadcrumbs de Navegación
+
 ```bash
 GET /categories/cat_cappuccino/breadcrumbs
 
@@ -674,6 +719,7 @@ GET /categories/cat_cappuccino/breadcrumbs
 ```
 
 ### 3. Filtrar Productos por Categoría + Descendientes
+
 ```bash
 # 1. Obtener todos los descendientes de "Bebidas"
 GET /categories/cat_bebidas/descendants
@@ -699,21 +745,25 @@ GET /products?category_id=cat_bebidas,cat_calientes,cat_frias,cat_espresso,...
 ## Notas Técnicas
 
 ### Multi-Tenancy
+
 - Todas las categorías están aisladas por `organization_id`
 - Slugs deben ser únicos solo dentro de la organización
 - Filtrado automático por organización en consultas
 
 ### Performance
+
 - Árbol de categorías usa Map en memoria (desarrollo)
 - En producción: Prisma + PostgreSQL con Nested Sets o Closure Table
 - Cache recomendado para árbol completo (cambios poco frecuentes)
 
 ### Slug Generation
+
 - Generado automáticamente desde `name`
 - Formato: lowercase, sin espacios, sin acentos
 - Ejemplo: "Bebidas Calientes" → "bebidas-calientes"
 
 ### Path Calculation
+
 - Construido recursivamente desde raíz
 - Formato: `/parent/child/grandchild`
 - Se actualiza en cascada al mover categorías
@@ -723,11 +773,13 @@ GET /products?category_id=cat_bebidas,cat_calientes,cat_frias,cat_espresso,...
 ## Swagger UI
 
 Documentación interactiva disponible en:
+
 ```
 /api/docs
 ```
 
 Todos los endpoints tienen:
+
 - Decoradores `@ApiOperation`
 - Esquemas de request/response
 - Ejemplos de uso

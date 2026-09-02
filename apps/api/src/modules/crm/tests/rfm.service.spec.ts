@@ -45,7 +45,9 @@ describe('RFMService', () => {
 
     it('should calculate Champion scores (R5 F5 M5)', async () => {
       // Last purchase: today → recency 0 days → score 5
-      mockPrismaService.loyaltyTransaction.findFirst.mockResolvedValue({ createdAt: daysAgo(0) });
+      mockPrismaService.loyaltyTransaction.findFirst.mockResolvedValue({
+        createdAt: daysAgo(0),
+      });
       // 25 purchases → frequency score 5
       mockPrismaService.loyaltyTransaction.count.mockResolvedValue(25);
       // 25 * 600 = 15,000 → monetary score 5
@@ -64,7 +66,9 @@ describe('RFMService', () => {
     });
 
     it('should calculate scores for recent new customer (R5 F1 M1)', async () => {
-      mockPrismaService.loyaltyTransaction.findFirst.mockResolvedValue({ createdAt: daysAgo(2) });
+      mockPrismaService.loyaltyTransaction.findFirst.mockResolvedValue({
+        createdAt: daysAgo(2),
+      });
       mockPrismaService.loyaltyTransaction.count.mockResolvedValue(1);
       mockPrismaService.loyaltyTransaction.aggregate.mockResolvedValue({
         _sum: { orderTotal: 100 },
@@ -80,7 +84,9 @@ describe('RFMService', () => {
 
     it('should calculate scores for at-risk customer (R2 F4 M4)', async () => {
       // 90 days ago → recency score 2 (61-120)
-      mockPrismaService.loyaltyTransaction.findFirst.mockResolvedValue({ createdAt: daysAgo(90) });
+      mockPrismaService.loyaltyTransaction.findFirst.mockResolvedValue({
+        createdAt: daysAgo(90),
+      });
       // 15 purchases → frequency score 4 (10-19)
       mockPrismaService.loyaltyTransaction.count.mockResolvedValue(15);
       // 15 * 533 = 7,995 → monetary score 4 (5000-9999)
@@ -97,7 +103,9 @@ describe('RFMService', () => {
 
     it('should calculate scores for lost customer (R1 F2 M1)', async () => {
       // 150 days ago → recency score 1 (>120)
-      mockPrismaService.loyaltyTransaction.findFirst.mockResolvedValue({ createdAt: daysAgo(150) });
+      mockPrismaService.loyaltyTransaction.findFirst.mockResolvedValue({
+        createdAt: daysAgo(150),
+      });
       // 2 purchases → frequency score 2
       mockPrismaService.loyaltyTransaction.count.mockResolvedValue(2);
       // $400 → monetary score 1 (<500)
@@ -114,7 +122,9 @@ describe('RFMService', () => {
 
     it('should produce correct RFM score string "533"', async () => {
       // R=5 (today), F=3 (5 purchases), M=3 (5*400=2000)
-      mockPrismaService.loyaltyTransaction.findFirst.mockResolvedValue({ createdAt: daysAgo(1) });
+      mockPrismaService.loyaltyTransaction.findFirst.mockResolvedValue({
+        createdAt: daysAgo(1),
+      });
       mockPrismaService.loyaltyTransaction.count.mockResolvedValue(5);
       mockPrismaService.loyaltyTransaction.aggregate.mockResolvedValue({
         _sum: { orderTotal: 2000 },
@@ -126,7 +136,9 @@ describe('RFMService', () => {
     });
 
     it('should include calculated_at timestamp', async () => {
-      mockPrismaService.loyaltyTransaction.findFirst.mockResolvedValue({ createdAt: daysAgo(5) });
+      mockPrismaService.loyaltyTransaction.findFirst.mockResolvedValue({
+        createdAt: daysAgo(5),
+      });
       mockPrismaService.loyaltyTransaction.count.mockResolvedValue(3);
       mockPrismaService.loyaltyTransaction.aggregate.mockResolvedValue({
         _sum: { orderTotal: 300 },

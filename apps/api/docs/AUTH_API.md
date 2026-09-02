@@ -19,6 +19,7 @@ Sistema de autenticación basado en JWT (JSON Web Tokens) para CoffeeOS.
 Crea una nueva cuenta de usuario.
 
 **Body:**
+
 ```json
 {
   "email": "admin@coffeeos.mx",
@@ -29,6 +30,7 @@ Crea una nueva cuenta de usuario.
 ```
 
 **Response 201:**
+
 ```json
 {
   "user": {
@@ -45,6 +47,7 @@ Crea una nueva cuenta de usuario.
 ```
 
 **Validaciones:**
+
 - Email debe ser válido
 - Password mínimo 8 caracteres
 - Nombre requerido
@@ -58,6 +61,7 @@ Crea una nueva cuenta de usuario.
 Autenticar usuario y obtener tokens.
 
 **Body:**
+
 ```json
 {
   "email": "admin@coffeeos.mx",
@@ -66,6 +70,7 @@ Autenticar usuario y obtener tokens.
 ```
 
 **Response 200:**
+
 ```json
 {
   "user": {
@@ -81,6 +86,7 @@ Autenticar usuario y obtener tokens.
 ```
 
 **Error 401:**
+
 ```json
 {
   "statusCode": 401,
@@ -98,6 +104,7 @@ Autenticar usuario y obtener tokens.
 Obtener un nuevo access token usando el refresh token.
 
 **Body:**
+
 ```json
 {
   "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -105,6 +112,7 @@ Obtener un nuevo access token usando el refresh token.
 ```
 
 **Response 200:**
+
 ```json
 {
   "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -124,11 +132,13 @@ Obtener un nuevo access token usando el refresh token.
 Cambiar la contraseña del usuario autenticado.
 
 **Headers:**
+
 ```
 Authorization: Bearer {access_token}
 ```
 
 **Body:**
+
 ```json
 {
   "currentPassword": "OldPassword123!",
@@ -137,6 +147,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response 200:**
+
 ```json
 {
   "success": true,
@@ -145,6 +156,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Error 400:**
+
 ```json
 {
   "statusCode": 400,
@@ -164,11 +176,13 @@ Authorization: Bearer {access_token}
 Cerrar sesión (principalmente client-side).
 
 **Headers:**
+
 ```
 Authorization: Bearer {access_token}
 ```
 
 **Response 200:**
+
 ```json
 {
   "success": true,
@@ -187,11 +201,13 @@ Authorization: Bearer {access_token}
 Obtener información del usuario autenticado.
 
 **Headers:**
+
 ```
 Authorization: Bearer {access_token}
 ```
 
 **Response 200:**
+
 ```json
 {
   "success": true,
@@ -227,11 +243,11 @@ interface User {
 
 ```typescript
 interface JwtPayload {
-  sub: string;          // User ID
-  email: string;        // User email
+  sub: string; // User ID
+  email: string; // User email
   organizationId?: string;
-  iat?: number;         // Issued at
-  exp?: number;         // Expires at
+  iat?: number; // Issued at
+  exp?: number; // Expires at
 }
 ```
 
@@ -250,6 +266,7 @@ interface JwtPayload {
 ### JWT Secret
 
 Configurado en `.env`:
+
 ```
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 JWT_EXPIRES_IN=7d
@@ -321,8 +338,8 @@ const loginResponse = await fetch('http://localhost:4000/auth/login', {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     email: 'admin@coffeeos.mx',
-    password: 'SecurePassword123!'
-  })
+    password: 'SecurePassword123!',
+  }),
 });
 
 const { accessToken, refreshToken } = await loginResponse.json();
@@ -334,16 +351,16 @@ localStorage.setItem('refreshToken', refreshToken);
 // 3. Request autenticado
 const productsResponse = await fetch('http://localhost:4000/products', {
   headers: {
-    'Authorization': `Bearer ${accessToken}`,
-    'Content-Type': 'application/json'
-  }
+    Authorization: `Bearer ${accessToken}`,
+    'Content-Type': 'application/json',
+  },
 });
 
 // 4. Renovar token
 const refreshResponse = await fetch('http://localhost:4000/auth/refresh', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ refreshToken })
+  body: JSON.stringify({ refreshToken }),
 });
 
 const { accessToken: newAccessToken } = await refreshResponse.json();

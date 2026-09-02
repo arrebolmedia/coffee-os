@@ -21,6 +21,7 @@ Implementar endpoints de operaciones masivas en el Products API para soportar la
 Se crearon 4 DTOs con validaciones completas:
 
 #### `BulkDeleteDto`
+
 ```typescript
 {
   productIds: string[];  // Array de IDs a eliminar
@@ -28,6 +29,7 @@ Se crearon 4 DTOs con validaciones completas:
 ```
 
 #### `BulkUpdateStatusDto`
+
 ```typescript
 {
   productIds: string[];
@@ -36,6 +38,7 @@ Se crearon 4 DTOs con validaciones completas:
 ```
 
 #### `BulkUpdateCategoryDto`
+
 ```typescript
 {
   productIds: string[];
@@ -44,6 +47,7 @@ Se crearon 4 DTOs con validaciones completas:
 ```
 
 #### `ProductQueryDto`
+
 ```typescript
 {
   page?: number;
@@ -57,6 +61,7 @@ Se crearon 4 DTOs con validaciones completas:
 ```
 
 **Características:**
+
 - ✅ Decoradores de validación (`@IsArray`, `@IsString`, `@IsBoolean`)
 - ✅ Documentación Swagger (`@ApiProperty`)
 - ✅ Transformación de tipos con `class-transformer`
@@ -71,31 +76,38 @@ Se crearon 4 DTOs con validaciones completas:
 Se agregaron 3 métodos para operaciones masivas:
 
 #### `bulkDelete(productIds: string[])`
+
 ```typescript
 async bulkDelete(productIds: string[]): Promise<{ count: number }>
 ```
+
 - Elimina múltiples productos
 - Maneja errores individuales sin detener el proceso
 - Retorna contador de éxitos
 - Logging detallado
 
 #### `bulkUpdateStatus(productIds: string[], isActive: boolean)`
+
 ```typescript
 async bulkUpdateStatus(productIds: string[], isActive: boolean): Promise<{ count: number }>
 ```
+
 - Actualiza `status` (ACTIVE/INACTIVE)
 - Actualiza `is_available` sincronizado
 - Contador de productos actualizados
 
 #### `bulkUpdateCategory(productIds: string[], categoryId: string)`
+
 ```typescript
 async bulkUpdateCategory(productIds: string[], categoryId: string): Promise<{ count: number }>
 ```
+
 - Reasigna categoría de múltiples productos
 - Validación de existencia de productos
 - Actualiza `updated_at`
 
 **Patrón de Implementación:**
+
 ```typescript
 let count = 0;
 const errors: string[] = [];
@@ -125,6 +137,7 @@ return { count };
 Se agregaron 3 endpoints REST:
 
 #### `POST /products/bulk-delete`
+
 ```typescript
 @Post('bulk-delete')
 @HttpCode(HttpStatus.OK)
@@ -133,6 +146,7 @@ async bulkDelete(@Body() bulkDeleteDto: BulkDeleteDto)
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -142,6 +156,7 @@ async bulkDelete(@Body() bulkDeleteDto: BulkDeleteDto)
 ```
 
 #### `POST /products/bulk-update-status`
+
 ```typescript
 @Post('bulk-update-status')
 @HttpCode(HttpStatus.OK)
@@ -150,6 +165,7 @@ async bulkUpdateStatus(@Body() bulkUpdateStatusDto: BulkUpdateStatusDto)
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -159,6 +175,7 @@ async bulkUpdateStatus(@Body() bulkUpdateStatusDto: BulkUpdateStatusDto)
 ```
 
 #### `POST /products/bulk-update-category`
+
 ```typescript
 @Post('bulk-update-category')
 @HttpCode(HttpStatus.OK)
@@ -167,6 +184,7 @@ async bulkUpdateCategory(@Body() bulkUpdateCategoryDto: BulkUpdateCategoryDto)
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -176,6 +194,7 @@ async bulkUpdateCategory(@Body() bulkUpdateCategoryDto: BulkUpdateCategoryDto)
 ```
 
 **Características:**
+
 - ✅ Decoradores Swagger (`@ApiOperation`, `@ApiResponse`)
 - ✅ Códigos HTTP apropiados (200 OK)
 - ✅ Response wrapping consistente
@@ -190,6 +209,7 @@ async bulkUpdateCategory(@Body() bulkUpdateCategoryDto: BulkUpdateCategoryDto)
 Se creó documentación exhaustiva con:
 
 #### Contenido
+
 1. **Descripción General** - Overview de la API
 2. **Autenticación** - JWT Bearer token
 3. **16 Endpoints Documentados:**
@@ -207,6 +227,7 @@ Se creó documentación exhaustiva con:
 #### Ejemplos Destacados
 
 **Crear Café con Modificadores:**
+
 ```bash
 # 1. Crear producto
 POST /products { "name": "Café Latte", ... }
@@ -216,6 +237,7 @@ POST /products/{id}/modifiers { "name": "Grande", "price_delta": 10 }
 ```
 
 **Operación Masiva:**
+
 ```bash
 POST /products/bulk-update-status
 {
@@ -230,13 +252,13 @@ POST /products/bulk-update-status
 
 ### Archivos Creados/Modificados
 
-| Archivo | Líneas | Tipo | Status |
-|---------|--------|------|--------|
-| `bulk-operations.dto.ts` | 91 | Nuevo | ✅ |
-| `products.service.ts` | +94 | Modificado | ✅ |
-| `products.controller.ts` | +64 | Modificado | ✅ |
-| `dto/index.ts` | +1 | Modificado | ✅ |
-| `PRODUCTS_API.md` | 680 | Nuevo | ✅ |
+| Archivo                  | Líneas | Tipo       | Status |
+| ------------------------ | ------ | ---------- | ------ |
+| `bulk-operations.dto.ts` | 91     | Nuevo      | ✅     |
+| `products.service.ts`    | +94    | Modificado | ✅     |
+| `products.controller.ts` | +64    | Modificado | ✅     |
+| `dto/index.ts`           | +1     | Modificado | ✅     |
+| `PRODUCTS_API.md`        | 680    | Nuevo      | ✅     |
 
 **Total:** 930 líneas de código y documentación
 
@@ -302,15 +324,16 @@ Todos los endpoints de bulk operations retornan:
 
 ```typescript
 {
-  success: boolean;    // Siempre true en respuestas exitosas
+  success: boolean; // Siempre true en respuestas exitosas
   data: {
-    count: number;     // Número de operaciones exitosas
-  };
-  message: string;     // Mensaje descriptivo en español
+    count: number; // Número de operaciones exitosas
+  }
+  message: string; // Mensaje descriptivo en español
 }
 ```
 
 **Ventajas:**
+
 - Formato consistente en toda la API
 - Fácil manejo en el frontend
 - Mensajes claros para el usuario
@@ -326,13 +349,14 @@ export class BulkDeleteDto {
     description: 'Array of product IDs to delete',
     example: ['clm1...', 'clm2...'],
   })
-  @IsArray()                    // Debe ser array
-  @IsString({ each: true })     // Cada elemento debe ser string
+  @IsArray() // Debe ser array
+  @IsString({ each: true }) // Cada elemento debe ser string
   productIds: string[];
 }
 ```
 
 **Beneficios:**
+
 - Validación automática en el pipeline de NestJS
 - Errores claros en respuestas 400
 - Documentación autogenerada en Swagger
@@ -355,6 +379,7 @@ for (const id of productIds) {
 ```
 
 **Comportamiento:**
+
 - ❌ Producto no existe → Se omite, se continúa
 - ✅ Productos válidos → Se procesan
 - 📝 Errores → Se logean pero no detienen operación
@@ -367,6 +392,7 @@ for (const id of productIds) {
 ### Casos de Prueba Sugeridos
 
 #### Bulk Delete
+
 ```typescript
 describe('POST /products/bulk-delete', () => {
   it('should delete multiple products', async () => {
@@ -374,7 +400,7 @@ describe('POST /products/bulk-delete', () => {
       .post('/products/bulk-delete')
       .send({ productIds: ['id1', 'id2', 'id3'] })
       .expect(200);
-    
+
     expect(response.body.data.count).toBe(3);
   });
 
@@ -383,13 +409,14 @@ describe('POST /products/bulk-delete', () => {
       .post('/products/bulk-delete')
       .send({ productIds: ['invalid1', 'valid1', 'invalid2'] })
       .expect(200);
-    
+
     expect(response.body.data.count).toBe(1);
   });
 });
 ```
 
 #### Bulk Update Status
+
 ```typescript
 describe('POST /products/bulk-update-status', () => {
   it('should activate multiple products', async () => {
@@ -397,9 +424,9 @@ describe('POST /products/bulk-update-status', () => {
       .post('/products/bulk-update-status')
       .send({ productIds: ['id1', 'id2'], isActive: true })
       .expect(200);
-    
+
     const products = await getProducts(['id1', 'id2']);
-    products.forEach(p => {
+    products.forEach((p) => {
       expect(p.status).toBe('ACTIVE');
       expect(p.is_available).toBe(true);
     });
@@ -423,11 +450,11 @@ const handleBulkDelete = async () => {
     const response = await fetch('/api/products/bulk-delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productIds: selectedRows })
+      body: JSON.stringify({ productIds: selectedRows }),
     });
-    
+
     const result = await response.json();
-    
+
     if (result.success) {
       toast.success(result.message); // "5 productos eliminados exitosamente"
       refetch(); // Recargar tabla
@@ -451,14 +478,14 @@ const handleBulkDelete = async () => {
 
 ## 📋 Validaciones Implementadas
 
-| Campo | Validaciones | Ejemplo |
-|-------|-------------|---------|
+| Campo        | Validaciones                            | Ejemplo          |
+| ------------ | --------------------------------------- | ---------------- |
 | `productIds` | `@IsArray`, `@IsString({ each: true })` | `["id1", "id2"]` |
-| `isActive` | `@IsBoolean` | `true` |
-| `categoryId` | `@IsString` | `"cat_bebidas"` |
-| `page` | `@IsNumber`, `@Min(1)` | `1` |
-| `limit` | `@IsNumber`, `@Min(1)`, `@Max(100)` | `20` |
-| `sortOrder` | `@IsEnum(['asc', 'desc'])` | `"asc"` |
+| `isActive`   | `@IsBoolean`                            | `true`           |
+| `categoryId` | `@IsString`                             | `"cat_bebidas"`  |
+| `page`       | `@IsNumber`, `@Min(1)`                  | `1`              |
+| `limit`      | `@IsNumber`, `@Min(1)`, `@Max(100)`     | `20`             |
+| `sortOrder`  | `@IsEnum(['asc', 'desc'])`              | `"asc"`          |
 
 ---
 

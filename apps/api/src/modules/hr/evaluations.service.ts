@@ -6,7 +6,10 @@ import { Evaluation } from './interfaces';
 export class EvaluationsService {
   private evaluations: Map<string, Evaluation> = new Map();
 
-  async create(createDto: CreateEvaluationDto, organizationId: string): Promise<Evaluation> {
+  async create(
+    createDto: CreateEvaluationDto,
+    organizationId: string,
+  ): Promise<Evaluation> {
     const id = this.generateId();
     const now = new Date();
 
@@ -50,11 +53,15 @@ export class EvaluationsService {
     let evaluations = Array.from(this.evaluations.values());
 
     if (query.employee_id) {
-      evaluations = evaluations.filter((e) => e.employee_id === query.employee_id);
+      evaluations = evaluations.filter(
+        (e) => e.employee_id === query.employee_id,
+      );
     }
 
     if (query.organization_id) {
-      evaluations = evaluations.filter((e) => e.organization_id === query.organization_id);
+      evaluations = evaluations.filter(
+        (e) => e.organization_id === query.organization_id,
+      );
     }
 
     if (query.period) {
@@ -62,10 +69,14 @@ export class EvaluationsService {
     }
 
     if (query.rating) {
-      evaluations = evaluations.filter((e) => e.overall_rating === query.rating);
+      evaluations = evaluations.filter(
+        (e) => e.overall_rating === query.rating,
+      );
     }
 
-    return evaluations.sort((a, b) => b.evaluation_date.getTime() - a.evaluation_date.getTime());
+    return evaluations.sort(
+      (a, b) => b.evaluation_date.getTime() - a.evaluation_date.getTime(),
+    );
   }
 
   async findOne(id: string): Promise<Evaluation | null> {
@@ -75,7 +86,9 @@ export class EvaluationsService {
   async getEmployeeHistory(employeeId: string): Promise<Evaluation[]> {
     const evaluations = Array.from(this.evaluations.values())
       .filter((e) => e.employee_id === employeeId)
-      .sort((a, b) => b.evaluation_date.getTime() - a.evaluation_date.getTime());
+      .sort(
+        (a, b) => b.evaluation_date.getTime() - a.evaluation_date.getTime(),
+      );
 
     return evaluations;
   }
@@ -91,50 +104,64 @@ export class EvaluationsService {
 
     const total = evaluations.length;
 
-    const byRating = evaluations.reduce((acc, e) => {
-      acc[e.overall_rating] = (acc[e.overall_rating] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const byRating = evaluations.reduce(
+      (acc, e) => {
+        acc[e.overall_rating] = (acc[e.overall_rating] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     const avgOverallScore =
       total > 0
         ? Math.round(
-            (evaluations.reduce((sum, e) => sum + e.average_score, 0) / total) * 100,
+            (evaluations.reduce((sum, e) => sum + e.average_score, 0) / total) *
+              100,
           ) / 100
         : 0;
 
     const avgPunctuality =
       total > 0
         ? Math.round(
-            (evaluations.reduce((sum, e) => sum + e.punctuality_score, 0) / total) * 100,
+            (evaluations.reduce((sum, e) => sum + e.punctuality_score, 0) /
+              total) *
+              100,
           ) / 100
         : 0;
 
     const avgQualityOfWork =
       total > 0
         ? Math.round(
-            (evaluations.reduce((sum, e) => sum + e.quality_of_work_score, 0) / total) * 100,
+            (evaluations.reduce((sum, e) => sum + e.quality_of_work_score, 0) /
+              total) *
+              100,
           ) / 100
         : 0;
 
     const avgCustomerService =
       total > 0
         ? Math.round(
-            (evaluations.reduce((sum, e) => sum + e.customer_service_score, 0) / total) * 100,
+            (evaluations.reduce((sum, e) => sum + e.customer_service_score, 0) /
+              total) *
+              100,
           ) / 100
         : 0;
 
     const avgTeamwork =
       total > 0
         ? Math.round(
-            (evaluations.reduce((sum, e) => sum + e.teamwork_score, 0) / total) * 100,
+            (evaluations.reduce((sum, e) => sum + e.teamwork_score, 0) /
+              total) *
+              100,
           ) / 100
         : 0;
 
     const avgInitiative =
       total > 0
         ? Math.round(
-            (evaluations.reduce((sum, e) => sum + e.initiative_score, 0) / total) * 100,
+            (evaluations.reduce((sum, e) => sum + e.initiative_score, 0) /
+              total) *
+              100,
           ) / 100
         : 0;
 

@@ -55,31 +55,31 @@ export interface WasteLog {
   id: string;
   organization_id: string;
   location_id?: string;
-  
+
   // Item info
   inventory_item_id?: string;
   product_id?: string;
   item_name: string;
-  
+
   // Waste details
   category: WasteCategory;
   reason: WasteReason;
   quantity: number;
   unit: string;
-  
+
   // Financial impact
   cost_per_unit?: number;
   total_cost?: number;
-  
+
   // Disposal
   disposal_method: DisposalMethod;
   disposal_date?: Date;
-  
+
   // Metadata
   recorded_by: string; // user_id
   notes?: string;
   image_url?: string;
-  
+
   // Audit
   created_at: Date;
   updated_at: Date;
@@ -92,20 +92,20 @@ export interface SustainabilityMetric {
   id: string;
   organization_id: string;
   location_id?: string;
-  
+
   // Metric details
   metric_type: SustainabilityMetricType;
   value: number;
   unit: string;
-  
+
   // Period
   period_start: Date;
   period_end: Date;
-  
+
   // Context
   notes?: string;
   source?: string; // 'manual' | 'calculated' | 'sensor'
-  
+
   // Audit
   created_at: Date;
   updated_at: Date;
@@ -118,25 +118,25 @@ export interface SustainabilityTarget {
   id: string;
   organization_id: string;
   location_id?: string;
-  
+
   // Target details
   metric_type: SustainabilityMetricType;
   target_value: number;
   current_value?: number;
   unit: string;
-  
+
   // Timeline
   start_date: Date;
   end_date: Date;
-  
+
   // Status
   is_active: boolean;
   achieved: boolean;
   achieved_at?: Date;
-  
+
   // Metadata
   description?: string;
-  
+
   // Audit
   created_at: Date;
   updated_at: Date;
@@ -149,17 +149,17 @@ export interface WasteStats {
   total_logs: number;
   total_cost: number;
   total_weight_kg: number;
-  
+
   by_category: Record<WasteCategory, number>;
   by_reason: Record<WasteReason, number>;
   by_disposal: Record<DisposalMethod, number>;
-  
+
   top_items: Array<{
     item_name: string;
     quantity: number;
     cost: number;
   }>;
-  
+
   trends: {
     daily_average: number;
     weekly_average: number;
@@ -175,7 +175,7 @@ export interface SustainabilityReport {
   location_id?: string;
   period_start: Date;
   period_end: Date;
-  
+
   metrics: {
     carbon_footprint_kg_co2e: number;
     water_usage_liters: number;
@@ -184,7 +184,7 @@ export interface SustainabilityReport {
     recycling_rate_percentage: number;
     compost_rate_percentage: number;
   };
-  
+
   targets_progress: Array<{
     metric_type: SustainabilityMetricType;
     target_value: number;
@@ -192,7 +192,7 @@ export interface SustainabilityReport {
     progress_percentage: number;
     on_track: boolean;
   }>;
-  
+
   improvements: Array<{
     metric_type: SustainabilityMetricType;
     change_percentage: number;
