@@ -14,7 +14,38 @@
 import { PrismaClient } from '@prisma/client';
 import { CUENTAS, PASSWORD, SLUG } from './constantes';
 
-const API = process.env.API_URL ?? 'http://localhost:4000/api/v1';
+/**
+ * La base de la API.
+ *
+ * `API_URL` es ambigua en este repo: en unos sitios significa el origen
+ * (`http://localhost:4000`) y en otros la raiz versionada
+ * (`http://localhost:4000/api/v1`). `packages/database/.env` trae la primera y
+ * Prisma la carga sola, asi que el script pedia `POST /auth/login` y recibia un
+ * 404 con "Cannot POST /auth/login" — un mensaje que no dice nada de lo que
+ * realmente pasa. Se normaliza en vez de adivinar.
+ */
+const RAIZ = (process.env.API_URL ?? 'http://localhost:4000').replace(
+  /[/]+$/,
+  '',
+);
+const API = RAIZ.includes('/api/') ? RAIZ : RAIZ + '/api/v1';
+
+/** Que la API este viva antes de medir nada, y decirlo claro si no lo esta. */
+async function exigirApiViva(): Promise<boolean> {
+  try {
+    const res = await fetch(API + '/health');
+    if (res.ok) return true;
+    console.log('');
+    console.log('  La API contesta ' + res.status + ' en ' + API + '/health.');
+  } catch {
+    console.log('');
+    console.log('  No hay nadie escuchando en ' + API + '.');
+  }
+  console.log('  Levantala antes de medir:  cd apps/api && npm run dev');
+  console.log('');
+  return false;
+}
+
 const prisma = new PrismaClient();
 
 type Estado = 'ok' | 'falla';
@@ -55,6 +86,11 @@ const porQue = (r: { status: number; body: any }) =>
 const c2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 async function main() {
+  if (!(await exigirApiViva())) {
+    process.exitCode = 1;
+    return;
+  }
+
   console.log('\nLa trastienda de la Cafetería Sandbox TC');
   console.log('='.repeat(64));
 

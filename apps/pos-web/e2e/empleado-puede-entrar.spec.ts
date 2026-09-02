@@ -29,8 +29,16 @@ test.describe('Un empleado nuevo puede entrar y trabajar', () => {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     const roles = await rolesRes.json();
-    const lista = Array.isArray(roles) ? roles : (roles.data ?? []);
-    expect(lista.length, 'debe haber roles').toBeGreaterThan(0);
+    const lista: any[] = Array.isArray(roles) ? roles : (roles.data ?? []);
+    // Un rol del catalogo real, no el primero que salga: el sandbox dejaba uno
+    // GLOBAL con permisos `*` que aparecia el primero en cualquier cafeteria, y
+    // dar de alta contra el ataba los empleados de prueba a un fixture — luego
+    // el sandbox ya no se podia volver a sembrar por la foranea.
+    const rol =
+      lista.find((r: any) => /barista|cajer|cashier/i.test(r.name ?? '')) ??
+      lista.find((r: any) => !/^sbx_/.test(r.code ?? '')) ??
+      lista[0];
+    expect(rol, 'debe haber roles').toBeTruthy();
 
     const email = `e2e.cajera.${Date.now()}@coffeeos.test`;
 
@@ -43,7 +51,7 @@ test.describe('Un empleado nuevo puede entrar y trabajar', () => {
         email,
         phone: '5550001111',
         location_id: user.locationId,
-        role_id: lista[0].id,
+        role_id: rol.id,
         role: 'CASHIER',
         employment_type: 'FULL_TIME',
         hire_date: '2026-09-01',

@@ -142,6 +142,8 @@ async function limpiar() {
   });
   await prisma.user.deleteMany({ where: { organizationId: org.id } });
   await prisma.location.deleteMany({ where: { organizationId: org.id } });
+  // Por codigo, no por organizacion: los sandboxes sembrados antes de acotar
+  // el rol lo dejaron GLOBAL, y esos hay que barrerlos igual.
   await prisma.role.deleteMany({ where: { code: `sbx_${SLUG}` } });
   await prisma.organization.delete({ where: { id: org.id } });
 }
@@ -198,8 +200,18 @@ async function main() {
     },
   });
 
+  // ACOTADO A LA ORGANIZACION. Sin `organizationId` el rol es global —asi es
+  // como el catalogo del sistema comparte owner/manager/barista con todos los
+  // inquilinos—, de modo que este rol de prueba, con permisos `*`, aparecia en
+  // la lista de CUALQUIER cafeteria y encima el primero. Un dueno podia
+  // asignarle a su cajero un rol de un fixture con permisos totales.
   const role = await prisma.role.create({
-    data: { name: 'Sandbox', code: `sbx_${SLUG}`, scopes: ['*'] },
+    data: {
+      name: 'Sandbox',
+      code: `sbx_${SLUG}`,
+      scopes: ['*'],
+      organizationId: org.id,
+    },
   });
 
   const hash = await bcrypt.hash(PASSWORD, 10);
