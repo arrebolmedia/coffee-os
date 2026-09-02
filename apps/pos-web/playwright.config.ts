@@ -103,7 +103,19 @@ export default defineConfig({
     // ../../node_modules/next arrancaba la copia hoisted, que era otra version.
     command: 'npm run dev',
     url: 'http://localhost:3001',
-    reuseExistingServer: !process.env.CI,
+    // Reutiliza siempre, tambien en CI.
+    //
+    // El valor habitual es `!process.env.CI`, para que en un runner nadie
+    // corra contra un servidor viejo. Aqui no aplica: el workflow levanta la
+    // API **y** pos-web a proposito, espera a que las dos contesten 200 y
+    // siembra la base antes — nada de eso cabe en `webServer`, que solo sabe
+    // arrancar un comando y esperar una URL. Con `false`, Playwright veia el
+    // puerto ocupado por ese arranque deliberado y abortaba con
+    // "localhost:3001 is already used".
+    //
+    // El riesgo que cubre el valor por defecto —un servidor obsoleto— no
+    // existe en un runner, que nace limpio en cada corrida.
+    reuseExistingServer: true,
     // Sin bypass de autenticacion: los specs ya arrancan con una sesion real
     // guardada por auth.setup.ts, asi que activarlo solo servia para que el
     // middleware dejara pasar todo — y con ello, para que la suite no probara
