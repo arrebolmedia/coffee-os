@@ -45,6 +45,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           active: true,
           organizationId: true,
           isSuperAdmin: true,
+          mustChangePassword: true,
         },
       }),
     );
@@ -72,6 +73,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       lastName: user.lastName,
       organizationId: user.organizationId,
       isSuperAdmin: user.isSuperAdmin,
+      // Se lee de la base en cada petición, no del JWT: así el bloqueo se
+      // levanta en cuanto el empleado cambia la contraseña, sin tener que
+      // reemitirle el token.
+      mustChangePassword: user.mustChangePassword ?? false,
     };
   }
 }

@@ -149,9 +149,12 @@ export async function apiFetch<T = any>(
 async function handleErrorResponse(response: Response): Promise<never> {
   let errorMessage = 'Error en la solicitud';
 
+  let errorCode: string | undefined;
+
   try {
     const errorData = await response.json();
     errorMessage = errorData.message || errorData.error || errorMessage;
+    errorCode = errorData.error;
   } catch {
     // Si no se puede parsear el JSON, usar el status text
     errorMessage = response.statusText || errorMessage;
@@ -173,6 +176,19 @@ async function handleErrorResponse(response: Response): Promise<never> {
       break;
 
     case 403:
+      // La contraseña se la dictó el dueño, así que la conocen dos personas: la
+      // sesión sólo sirve para cambiarla. No es «no tienes permisos» —
+      // decírselo así dejaría al empleado sin saber qué hacer— sino una
+      // instrucción y el sitio donde cumplirla.
+      if (errorCode === 'MUST_CHANGE_PASSWORD') {
+        if (
+          typeof window !== 'undefined' &&
+          !window.location.pathname.startsWith('/cambiar-contrasena')
+        ) {
+          window.location.href = '/cambiar-contrasena';
+        }
+        break;
+      }
       toast.error('No tienes permisos para realizar esta acción.');
       break;
 

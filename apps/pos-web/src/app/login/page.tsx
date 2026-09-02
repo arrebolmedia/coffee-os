@@ -5,7 +5,7 @@
 
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { Coffee, Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -37,6 +37,16 @@ function LoginForm() {
   const [password, setPassword] = useState(DEV_PASSWORD_DEFAULT);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Hasta que React hidrate, el botón no manda nada.
+  //
+  // Sin esto, pulsarlo antes de que el manejador esté enganchado dispara el
+  // envío NATIVO del formulario: el navegador recarga /login y el cajero ve la
+  // pantalla parpadear con los campos otra vez vacíos, sin ningún mensaje. La
+  // ventana es corta pero real —se veía en los e2e de WebKit, que es más
+  // lento— y quien teclea rápido cae dentro.
+  const [montado, setMontado] = useState(false);
+  useEffect(() => setMontado(true), []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,7 +116,7 @@ function LoginForm() {
             Iniciar Sesión
           </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             {/* Email */}
             <div>
               <label
@@ -163,7 +173,7 @@ function LoginForm() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !montado}
               className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg font-bold text-lg shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95"
             >
               {isLoading ? (

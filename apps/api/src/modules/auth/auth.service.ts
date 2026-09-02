@@ -382,16 +382,26 @@ export class AuthService {
       throw new BadRequestException('Current password is incorrect');
     }
 
+    // Cambiarla por la misma no la cambia: dejaría al empleado con la
+    // credencial que el dueño ya conoce, pero con el bloqueo levantado.
+    if (changePasswordDto.newPassword === changePasswordDto.currentPassword) {
+      throw new BadRequestException(
+        'La contraseña nueva tiene que ser distinta de la actual',
+      );
+    }
+
     // Hash de la nueva contraseña
     const hashedPassword = await bcrypt.hash(
       changePasswordDto.newPassword,
       this.saltRounds,
     );
 
-    // Actualizar contraseña
+    // Actualizar contraseña. Y levantar el bloqueo: si la sesión estaba
+    // limitada a esto —porque la contraseña se la habían dictado— cambiarla es
+    // exactamente lo que la desbloquea.
     await this.prisma.user.update({
       where: { id: userId },
-      data: { password: hashedPassword },
+      data: { password: hashedPassword, mustChangePassword: false },
     });
 
     this.logger.log(`Password changed for user: ${user.email}`);

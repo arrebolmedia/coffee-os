@@ -97,6 +97,9 @@ export class EmployeesService {
         lastName: createDto.last_name,
         phone: createDto.phone ?? null,
         active: true,
+        // La contraseña la conoce el dueño, que se la dicta. Hasta que el
+        // empleado la cambie, su sesión sólo sirve para eso.
+        mustChangePassword: true,
         // Sin esto el empleado entraba a una sesion sin sucursal, y el POS no
         // tiene donde vender: poder iniciar sesion no es poder trabajar.
         locations: { create: { locationId: location.id } },
@@ -155,7 +158,10 @@ export class EmployeesService {
     const temporal = contrasenaTemporal();
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { password: await bcrypt.hash(temporal, 10) },
+      data: {
+        password: await bcrypt.hash(temporal, 10),
+        mustChangePassword: true,
+      },
     });
 
     return { temporary_password: temporal };

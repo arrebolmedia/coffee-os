@@ -184,6 +184,10 @@ model User {
 
   email     String  @unique
   password  String
+  /// La contraseña la conoce alguien más que el propio empleado: el alta la
+  /// genera y el dueño se la dicta, o la repone desde la lista. Mientras esté
+  /// en `true`, la sesión sólo sirve para cambiarla.
+  mustChangePassword Boolean @default(false) @map("must_change_password")
   firstName String  @map("first_name")
   lastName  String  @map("last_name")
   phone     String?

@@ -577,6 +577,125 @@ describe('Tenancy & write paths (e2e)', () => {
         .expect(200);
     });
 
+    /**
+     * La contrasena que le dictaron al empleado la conocen dos personas.
+     *
+     * Con ella se puede cobrar, hacer un corte de caja o borrar productos. El
+     * hueco dura desde que el dueno se la dice hasta que el empleado la cambia,
+     * y sin nada que lo fuerce ese hueco no se cierra nunca: nadie cambia una
+     * contrasena que ya le funciona.
+     */
+    it('con la contrasena recien dictada la sesion solo sirve para cambiarla', async () => {
+      const email = `bloqueada.${Date.now()}@coffeeos.test`;
+
+      const alta = await request(app.getHttpServer())
+        .post('/api/v1/hr/employees')
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .send({
+          organization_id: tenants.a.organizationId,
+          first_name: 'Sofia',
+          last_name: 'Nava',
+          email,
+          phone: '5558889999',
+          location_id: tenants.a.locationId,
+          role_id: tenants.a.roleId,
+          role: 'CASHIER',
+          employment_type: 'FULL_TIME',
+          hire_date: '2026-09-01',
+        })
+        .expect(201);
+
+      const empId = alta.body.id ?? alta.body.data?.id;
+      if (empId) createdEmployeeUserIds.push(empId);
+      const temporal = alta.body.temporary_password;
+
+      const login = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password: temporal })
+        .expect(200);
+      const token = login.body.accessToken;
+
+      // Entrar, si. Trabajar, todavia no.
+      const bloqueado = await request(app.getHttpServer())
+        .get('/api/v1/products')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
+      expect(bloqueado.body.error).toBe('MUST_CHANGE_PASSWORD');
+
+      // Y no se sale del paso poniendo la misma.
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ currentPassword: temporal, newPassword: temporal })
+        .expect(400);
+
+      // Saber quien es y cerrar sesion si se puede: si no, es un callejon.
+      await request(app.getHttpServer())
+        .get('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      // Al cambiarla, el bloqueo se levanta con el MISMO token: la marca se lee
+      // de la base en cada peticion, no del JWT.
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ currentPassword: temporal, newPassword: 'SuyaPropia2026!' })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .get('/api/v1/products')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      // Y entra con la suya.
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password: 'SuyaPropia2026!' })
+        .expect(200);
+    });
+
+    it('reponer la contrasena vuelve a bloquear la sesion', async () => {
+      const email = `repuesta.${Date.now()}@coffeeos.test`;
+
+      const alta = await request(app.getHttpServer())
+        .post('/api/v1/hr/employees')
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .send({
+          organization_id: tenants.a.organizationId,
+          first_name: 'Hugo',
+          last_name: 'Marin',
+          email,
+          phone: '5551239876',
+          location_id: tenants.a.locationId,
+          role_id: tenants.a.roleId,
+          role: 'BARISTA',
+          employment_type: 'FULL_TIME',
+          hire_date: '2026-09-01',
+          password: 'ElijeElDueno1!',
+        })
+        .expect(201);
+
+      const empId = alta.body.id ?? alta.body.data?.id;
+      if (empId) createdEmployeeUserIds.push(empId);
+
+      const reset = await request(app.getHttpServer())
+        .post(`/api/v1/hr/employees/${empId}/reset-password`)
+        .set('Authorization', `Bearer ${tenants.a.token}`)
+        .expect(201);
+
+      const login = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password: reset.body.temporary_password })
+        .expect(200);
+
+      // Misma situacion: la repuesta tambien la conoce el dueno.
+      await request(app.getHttpServer())
+        .get('/api/v1/products')
+        .set('Authorization', `Bearer ${login.body.accessToken}`)
+        .expect(403);
+    });
+
     it('no se puede reponer la contrasena de un empleado de otra organizacion', async () => {
       // El id existe, pero es del otro inquilino: tiene que salir 404, no un
       // 403 que confirme que existe, y desde luego no una contrasena nueva.

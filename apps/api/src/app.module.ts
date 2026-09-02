@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { MustChangePasswordGuard } from './common/guards/must-change-password.guard';
 
 // Health check
 import { HealthModule } from './health/health.module';
@@ -140,6 +141,13 @@ import { TenantContextMiddleware } from './common/tenancy/tenant-context.middlew
     {
       provide: APP_GUARD,
       useClass: TenantGuard,
+    },
+    // Una contraseña que el empleado no eligió la conocen dos personas. Hasta
+    // que la cambie, su sesión sólo sirve para eso. También necesita
+    // `request.user`, así que va después de JwtAuthGuard.
+    {
+      provide: APP_GUARD,
+      useClass: MustChangePasswordGuard,
     },
   ],
 })
