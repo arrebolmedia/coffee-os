@@ -584,8 +584,89 @@ export default function InventoryPage() {
               </div>
             </div>
 
+            {/*
+              Revisar existencias es una tarea de almacen, con el telefono en la
+              mano: siete columnas no caben y la tabla se arrastra de lado.
+              Debajo de `md`, una tarjeta por insumo con lo que se mira de pie —
+              cuanto queda, si esta bajo, y las mismas acciones.
+            */}
+            <div className="space-y-3 md:hidden">
+              {filteredItems.map((item) => (
+                <article
+                  key={item.id}
+                  className="rounded-lg border border-gray-200 bg-white p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="truncate font-medium text-gray-900">
+                        {item.name}
+                      </h3>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        {item.sku} · {item.category}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-right">
+                      <span className="block font-semibold text-gray-900">
+                        {item.stock} {item.unit}
+                      </span>
+                      <span className="block text-xs text-gray-500">
+                        mín. {item.minStock}
+                      </span>
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${getStatusColor(item.status)}`}
+                    >
+                      {getStatusIcon(item.status)}
+                      {item.status === 'critical'
+                        ? 'Crítico'
+                        : item.status === 'low'
+                          ? 'Bajo'
+                          : item.status === 'overstock'
+                            ? 'Exceso'
+                            : 'Normal'}
+                    </span>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          setSelectedItem(item);
+                          setIsModalOpen(true);
+                        }}
+                        className="rounded-lg p-2 text-blue-600 hover:bg-blue-50"
+                        aria-label={`Editar ${item.name}`}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setItemToDelete(item);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                        className="rounded-lg p-2 text-red-600 hover:bg-red-50"
+                        aria-label={`Eliminar ${item.name}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+
+              {filteredItems.length === 0 && (
+                <p className="rounded-lg border border-gray-200 bg-white py-12 text-center text-sm text-gray-500">
+                  No hay insumos que coincidan con el filtro.
+                </p>
+              )}
+            </div>
+
             {/* Inventory Table */}
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div
+              data-testid="tabla-insumos"
+              className="hidden overflow-hidden rounded-lg bg-white shadow md:block"
+            >
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>

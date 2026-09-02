@@ -204,20 +204,21 @@ trabajo próximo: no empezarlas, no estimarlas y no listarlas como pendientes.
 
 Pendientes de verdad, hoy:
 
-0. **El primer acceso de un empleado no obliga a cambiar la contraseña.** El
-   alta entrega una temporal que el dueño le dicta, y ahí se queda hasta que el
-   empleado la cambie por su cuenta desde `change-password`. Forzarlo necesita
-   una columna en `users` y comprobarla en cada ruta.
 1. **La tabla `taxes` no la consulta nadie.** Tiene CRUD y reglas de
    aplicabilidad por producto y categoría, y el POS cobra con `product.taxRate`.
    Se puede configurar un impuesto ahí y no pasa nada. Cablearla exige decidir
    qué regla gana cuando varias aplican al mismo producto.
-2. **Las tablas no son cómodas en un teléfono.** Ninguna pantalla desborda ya el
-   viewport —medido a 375px en productos, inventario, recetas, empleados,
-   gastos, compras, P&L y órdenes—, pero las tablas resuelven el ancho
-   desplazándose dentro de su contenedor: la de productos mide 1427px en una
-   columna de 325, o sea cuatro pantallas de arrastre para leer una fila. Lo que
-   falta es una vista de tarjetas por debajo de `md`, no más `overflow-x`.
+2. **Faltan vistas de tarjetas en once pantallas con tabla.** Se hicieron las
+   tres que una cafetería usa de pie —productos, inventario y órdenes—, con una
+   tarjeta por registro debajo de `md`. Quedan analytics (hr, inventory, sales),
+   asistencia, costeo, clientes, empleados, nómina, compras, calidad y usuarios,
+   más la tabla de comparación de stock teórico dentro de inventario, que no se
+   convirtió. Ninguna desborda el viewport, pero eso sólo evita que la página se
+   rompa: la de productos medía 1427px en una columna de 325.
+
+   Las dos vistas llevan el mismo `data-testid` (`producto`, `comanda`) para que
+   una prueba sirva en las dos; hay que seleccionar la visible con `:visible`,
+   porque ambas viven en el DOM y CSS oculta una.
 
 ## Convenciones de código
 

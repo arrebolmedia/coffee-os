@@ -322,125 +322,61 @@ export default function OrdersPage() {
                 </p>
               </div>
             ) : (
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Orden
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Fecha/Hora
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Cliente
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Items
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Total
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Pago
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Estado
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+              <>
+                {/*
+                En la barra, las comandas se miran en el telefono. Siete
+                columnas no caben: la tabla se arrastra de lado y hay que
+                perseguir el boton de avanzar estado, que es justo lo unico que
+                el barista necesita tocar. Debajo de `md`, una tarjeta por
+                comanda con el numero, la hora, el total y ese boton.
+              */}
+                <div className="space-y-3 p-4 md:hidden">
                   {orders.map((order) => {
                     const statusInfo = getStatusBadge(order.status);
                     const StatusIcon = statusInfo.icon;
                     const createdAt = new Date(order.createdAt);
                     const siguiente =
                       SIGUIENTE_ESTADO[order.status as OrderStatus];
-                    // Solo se deshabilita la fila que se esta enviando, no
-                    // todas: en hora punta se avanzan varias seguidas.
                     const enCurso =
                       avanzarEstado.isPending &&
                       avanzarEstado.variables?.id === order.id;
 
                     return (
-                      <tr key={order.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {order.orderNumber}
+                      <article
+                        key={order.id}
+                        data-testid="comanda"
+                        className="rounded-lg border border-gray-200 bg-white p-4"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-gray-900">
+                              {order.orderNumber}
+                            </p>
+                            <p className="mt-0.5 text-xs text-gray-500">
+                              {createdAt.toLocaleTimeString('es-MX', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                              {' · '}
+                              {order.items.length}{' '}
+                              {order.items.length === 1
+                                ? 'producto'
+                                : 'productos'}
+                            </p>
                           </div>
-                          <div className="text-xs text-gray-500 flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            {order.locationId}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900">
-                            {createdAt.toLocaleDateString('es-MX')}
-                          </div>
-                          <div className="text-xs text-gray-500 flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {createdAt.toLocaleTimeString('es-MX', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-1 text-sm">
-                            <User className="w-4 h-4 text-gray-400" />
-                            {/* GET /orders no incluye ticket.customer; usamos
-                                customerName del propio Order si existe */}
-                            {order.customerName ||
-                            order.ticket?.customer?.firstName ? (
-                              order.customerName ||
-                              [
-                                order.ticket?.customer?.firstName,
-                                order.ticket?.customer?.lastName,
-                              ]
-                                .filter(Boolean)
-                                .join(' ')
-                            ) : (
-                              <span className="text-gray-400 italic">
-                                Cliente público
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm text-gray-900">
-                            {order.items.length}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm font-semibold text-green-600">
+                          <span className="shrink-0 font-semibold text-gray-900">
                             ${(order.ticket?.total ?? 0).toFixed(2)}
                           </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm text-gray-900">
-                            {/* Los pagos viven en el Ticket; el include actual
-                                no los trae, así que normalmente será "—" */}
-                            {order.ticket?.payments?.[0]?.method ?? '—'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-between gap-3">
                           <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusInfo.color}`}
+                            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusInfo.color}`}
                           >
-                            <StatusIcon className="w-3 h-3" />
+                            <StatusIcon className="h-3 w-3" />
                             {statusInfo.label}
                           </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          {/*
-                            La accion que faltaba: hasta ahora esta pantalla era
-                            solo lectura, asi que una orden no se podia mover de
-                            estado desde ninguna parte de la interfaz — el
-                            barista no tenia como marcar un cafe listo ni
-                            entregado. El endpoint y el hook ya existian.
-                          */}
+
                           {siguiente && (
                             <button
                               type="button"
@@ -451,20 +387,170 @@ export default function OrdersPage() {
                                 })
                               }
                               disabled={enCurso}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="inline-flex items-center gap-1 rounded-md bg-purple-600 px-3 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               {enCurso && (
-                                <Loader2 className="w-3 h-3 animate-spin" />
+                                <Loader2 className="h-3 w-3 animate-spin" />
                               )}
                               {siguiente.etiqueta}
                             </button>
                           )}
-                        </td>
-                      </tr>
+                        </div>
+                      </article>
                     );
                   })}
-                </tbody>
-              </table>
+                </div>
+
+                <div className="hidden md:block">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Orden
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Fecha/Hora
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Cliente
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Items
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Total
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Pago
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Estado
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                          Acciones
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {orders.map((order) => {
+                        const statusInfo = getStatusBadge(order.status);
+                        const StatusIcon = statusInfo.icon;
+                        const createdAt = new Date(order.createdAt);
+                        const siguiente =
+                          SIGUIENTE_ESTADO[order.status as OrderStatus];
+                        // Solo se deshabilita la fila que se esta enviando, no
+                        // todas: en hora punta se avanzan varias seguidas.
+                        const enCurso =
+                          avanzarEstado.isPending &&
+                          avanzarEstado.variables?.id === order.id;
+
+                        return (
+                          <tr
+                            key={order.id}
+                            data-testid="comanda"
+                            className="hover:bg-gray-50"
+                          >
+                            <td className="px-6 py-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {order.orderNumber}
+                              </div>
+                              <div className="text-xs text-gray-500 flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                {order.locationId}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm text-gray-900">
+                                {createdAt.toLocaleDateString('es-MX')}
+                              </div>
+                              <div className="text-xs text-gray-500 flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {createdAt.toLocaleTimeString('es-MX', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-1 text-sm">
+                                <User className="w-4 h-4 text-gray-400" />
+                                {/* GET /orders no incluye ticket.customer; usamos
+                                customerName del propio Order si existe */}
+                                {order.customerName ||
+                                order.ticket?.customer?.firstName ? (
+                                  order.customerName ||
+                                  [
+                                    order.ticket?.customer?.firstName,
+                                    order.ticket?.customer?.lastName,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' ')
+                                ) : (
+                                  <span className="text-gray-400 italic">
+                                    Cliente público
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-sm text-gray-900">
+                                {order.items.length}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-sm font-semibold text-green-600">
+                                ${(order.ticket?.total ?? 0).toFixed(2)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-sm text-gray-900">
+                                {/* Los pagos viven en el Ticket; el include actual
+                                no los trae, así que normalmente será "—" */}
+                                {order.ticket?.payments?.[0]?.method ?? '—'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span
+                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusInfo.color}`}
+                              >
+                                <StatusIcon className="w-3 h-3" />
+                                {statusInfo.label}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              {/*
+                            La accion que faltaba: hasta ahora esta pantalla era
+                            solo lectura, asi que una orden no se podia mover de
+                            estado desde ninguna parte de la interfaz — el
+                            barista no tenia como marcar un cafe listo ni
+                            entregado. El endpoint y el hook ya existian.
+                          */}
+                              {siguiente && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    avanzarEstado.mutate({
+                                      id: order.id,
+                                      status: siguiente.estado,
+                                    })
+                                  }
+                                  disabled={enCurso}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {enCurso && (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  )}
+                                  {siguiente.etiqueta}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         </div>

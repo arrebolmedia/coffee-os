@@ -130,7 +130,12 @@ test.describe('Acciones de la tabla de productos', () => {
   }) => {
     await page.goto('/products');
     await filtrarPor(page, sku);
-    const fila = page.locator('tr', { hasText: nombre }).first();
+    // `producto` esta tanto en la fila de la tabla (escritorio) como en la
+    // tarjeta (movil): la prueba vale para las dos vistas.
+    const fila = page
+      .locator('[data-testid="producto"]:visible')
+      .filter({ hasText: nombre })
+      .first();
     await expect(fila).toBeVisible({ timeout: 20_000 });
     await fila.getByRole('button', { name: /^Editar/ }).click();
 
@@ -155,7 +160,12 @@ test.describe('Acciones de la tabla de productos', () => {
     await page.goto('/products');
     await filtrarPor(page, sku);
 
-    const fila = page.locator('tr', { hasText: nombre }).first();
+    // `producto` esta tanto en la fila de la tabla (escritorio) como en la
+    // tarjeta (movil): la prueba vale para las dos vistas.
+    const fila = page
+      .locator('[data-testid="producto"]:visible')
+      .filter({ hasText: nombre })
+      .first();
     await expect(fila).toBeVisible({ timeout: 20_000 });
 
     await fila.getByRole('button', { name: /Ver la ficha/i }).click();
@@ -175,7 +185,12 @@ test.describe('Acciones de la tabla de productos', () => {
     await page.goto('/products');
     await filtrarPor(page, sku);
 
-    const fila = page.locator('tr', { hasText: nombre }).first();
+    // `producto` esta tanto en la fila de la tabla (escritorio) como en la
+    // tarjeta (movil): la prueba vale para las dos vistas.
+    const fila = page
+      .locator('[data-testid="producto"]:visible')
+      .filter({ hasText: nombre })
+      .first();
     await expect(fila).toBeVisible({ timeout: 20_000 });
     await fila.getByRole('button', { name: /Eliminar/i }).click();
 
@@ -197,7 +212,12 @@ test.describe('Acciones de la tabla de productos', () => {
     await page.goto('/products');
     await filtrarPor(page, sku);
 
-    const fila = page.locator('tr', { hasText: nombre }).first();
+    // `producto` esta tanto en la fila de la tabla (escritorio) como en la
+    // tarjeta (movil): la prueba vale para las dos vistas.
+    const fila = page
+      .locator('[data-testid="producto"]:visible')
+      .filter({ hasText: nombre })
+      .first();
     await expect(fila).toBeVisible({ timeout: 20_000 });
     await fila.getByRole('button', { name: /Eliminar/i }).click();
 

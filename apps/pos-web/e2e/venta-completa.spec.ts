@@ -243,7 +243,12 @@ test.describe('Venta completa punta a punta', () => {
     // saltos es el que el API acepta.
     await page.goto('/orders');
 
-    const fila = page.getByRole('row').filter({ hasText: orden.orderNumber });
+    // Vale para la tabla de escritorio y para la tarjeta de movil.
+    // `:visible` porque las dos vistas viven en el DOM y CSS oculta una: sin
+    // esto el selector encuentra dos y Playwright para en modo estricto.
+    const fila = page
+      .locator('[data-testid="comanda"]:visible')
+      .filter({ hasText: orden.orderNumber });
     await expect(fila).toBeVisible({ timeout: 20_000 });
 
     for (const etiqueta of ['Preparar', 'Listo', 'Entregar']) {

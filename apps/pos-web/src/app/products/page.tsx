@@ -569,8 +569,87 @@ export default function ProductsPage() {
           </div>
         </div>
 
+        {/*
+          En un teléfono la tabla no cabe: son nueve columnas, 1427 px dentro de
+          una de 325, o sea cuatro pantallas de arrastre para leer una fila.
+          `overflow-x` evita que la página se rompa, pero no la hace usable.
+          Debajo de `md` va una tarjeta por producto con lo que se consulta de
+          pie en el mostrador —nombre, precio, existencia, estado— y las mismas
+          acciones.
+        */}
+        <div className="space-y-3 md:hidden">
+          {filteredProducts.map((product) => (
+            <article
+              key={product.id}
+              data-testid="producto"
+              className="rounded-lg border border-gray-200 bg-white p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="truncate font-medium text-gray-900">
+                    {product.name}
+                  </h3>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {product.sku} · {product.category}
+                  </p>
+                </div>
+                <span className="shrink-0 text-lg font-semibold text-gray-900">
+                  ${product.price.toFixed(2)}
+                </span>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span
+                  className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${getStatusBadge(product.status)}`}
+                >
+                  {product.status === 'ACTIVE' && 'Activo'}
+                  {product.status === 'INACTIVE' && 'Inactivo'}
+                  {product.status === 'DRAFT' && 'Borrador'}
+                  {product.status === 'ARCHIVED' && 'Archivado'}
+                </span>
+                {getStockBadge(product)}
+                {product.trackInventory && (
+                  <span className="text-xs text-gray-500">
+                    {product.stockQuantity} unidades
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-3 flex items-center justify-end gap-1 border-t border-gray-100 pt-3">
+                <button
+                  onClick={() => setProductoDetalle(product)}
+                  className="rounded-lg p-2 text-gray-600 hover:bg-gray-100"
+                  aria-label={`Ver la ficha de ${product.name}`}
+                >
+                  <Eye className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setEditando(aEditable(product))}
+                  className="rounded-lg p-2 text-blue-600 hover:bg-blue-50"
+                  aria-label={`Editar ${product.name}`}
+                >
+                  <Edit className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setProductoABorrar(product)}
+                  className="rounded-lg p-2 text-red-600 hover:bg-red-50"
+                  aria-label={`Eliminar ${product.name}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </article>
+          ))}
+
+          {filteredProducts.length === 0 && (
+            <p className="rounded-lg border border-gray-200 bg-white py-12 text-center text-sm text-gray-500">
+              No hay productos que coincidan con el filtro.
+            </p>
+          )}
+        </div>
+
         {/* Products Table */}
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="hidden overflow-hidden rounded-lg border border-gray-200 bg-white md:block">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -608,6 +687,7 @@ export default function ProductsPage() {
                 {filteredProducts.map((product) => (
                   <tr
                     key={product.id}
+                    data-testid="producto"
                     className="hover:bg-gray-50 transition-colors"
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
