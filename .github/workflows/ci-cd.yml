@@ -164,10 +164,28 @@ jobs:
           # estan escritas.
           npm run migrate:deploy
 
+      # La app no arranca sin estas: `requireEnv` las exige al CONSTRUIR los
+      # servicios de Twilio y Mailrelay, y `getOrThrow` los secretos del JWT.
+      # Sin ellas fallaban las 97 pruebas con "TWILIO_ACCOUNT_SID environment
+      # variable is required" — nada que ver con lo que se estaba probando.
+      #
+      # Son valores de relleno a proposito: en integracion no se manda un solo
+      # SMS ni un correo. Si algun dia se mandara, con estos fallaria en vez de
+      # salir de verdad, que es lo que se quiere en un runner.
       - name: Run integration tests
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/coffeeos_test
           REDIS_URL: redis://localhost:6379
+          JWT_SECRET: ci-solo-para-pruebas-no-usar-en-produccion
+          JWT_REFRESH_SECRET: ci-solo-para-pruebas-refresh-no-usar
+          TWILIO_ACCOUNT_SID: ACcicicicicicicicicicicicicicicici
+          TWILIO_AUTH_TOKEN: ci-token-de-relleno
+          TWILIO_SMS_FROM: '+15005550006'
+          TWILIO_WHATSAPP_FROM: 'whatsapp:+15005550006'
+          MAILRELAY_API_KEY: ci-key-de-relleno
+          MAILRELAY_API_URL: https://ci.invalido/api/v1
+          MAILRELAY_FROM_EMAIL: ci@invalido.test
+          MAILRELAY_FROM_NAME: CoffeeOS CI
         run: npm run test:integration
 
   # E2E tests
@@ -221,9 +239,26 @@ jobs:
           npm run migrate:deploy --workspace=@coffeeos/database
           npm run db:seed
 
+      # Mismas variables de relleno que en integracion: sin ellas la API no
+      # llega a arrancar —`requireEnv` las exige al construir Twilio y
+      # Mailrelay— y el paso moria volcando el log sin mas pista que el banner
+      # de turbo.
       - name: Levantar la aplicacion
         env:
           DATABASE_URL: postgresql://coffeeos:coffeeos123@localhost:5434/coffeeos_dev
+          JWT_SECRET: ci-solo-para-pruebas-no-usar-en-produccion
+          JWT_REFRESH_SECRET: ci-solo-para-pruebas-refresh-no-usar
+          TWILIO_ACCOUNT_SID: ACcicicicicicicicicicicicicicicici
+          TWILIO_AUTH_TOKEN: ci-token-de-relleno
+          TWILIO_SMS_FROM: '+15005550006'
+          TWILIO_WHATSAPP_FROM: 'whatsapp:+15005550006'
+          MAILRELAY_API_KEY: ci-key-de-relleno
+          MAILRELAY_API_URL: https://ci.invalido/api/v1
+          MAILRELAY_FROM_EMAIL: ci@invalido.test
+          MAILRELAY_FROM_NAME: CoffeeOS CI
+          NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+          NEXTAUTH_URL: http://localhost:3001
+          NEXTAUTH_SECRET: ci-solo-para-pruebas-nextauth
         run: |
           npm run dev > /tmp/coffeeos-dev.log 2>&1 &
           for i in $(seq 1 90); do
