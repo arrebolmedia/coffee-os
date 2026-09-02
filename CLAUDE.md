@@ -150,7 +150,9 @@ no tiene todavía una pantalla de configuración fiscal donde vivirían.
   configurable desde Productos → botón de régimen fiscal, por si la decisión
   cambia.
 - **El cobro con tarjeta se queda simulado.** Decisión del dueño el 27 de agosto
-  de 2026, confirmada el 28 como algo para «mucho más adelante». El POS registra
+  de 2026, confirmada el 28 como algo para «mucho más adelante» y ratificada el
+  2 de septiembre como **la única excepción declarada** a la regla de no tener
+  simuladores en el sistema. El POS registra
   el método y el importe que teclea el cajero, y eso es todo lo que hay. Lo que
   eso implica está en «Aplazado por decisión del dueño», más abajo.
 - **Todo lo demás sí tiene que funcionar de punta a punta**, desde crear una
@@ -201,6 +203,12 @@ trabajo próximo: no empezarlas, no estimarlas y no listarlas como pendientes.
   de modo que **la aplicación entera no arrancaba sin ellas**. Se quitó el
   simulador; ahora cualquier intento de envío falla diciendo que no se envió
   nada, igual que el timbrado sin PAC.
+- **Correo (Mailrelay).** Aplazado el 2 de septiembre de 2026. Mismo caso que
+  Twilio: inventaba un `messageId` y devolvía éxito sin mandar nada, y
+  `addSubscriber`/`removeSubscriber` decían que sí sin dar de alta ni de baja a
+  nadie — una baja que no ocurre es peor que un error, porque el cliente sigue
+  recibiendo correo que pidió no recibir. Las plantillas en español sí se
+  conservan: son contenido real para cuando haya cliente de verdad.
 - **Terminal bancaria.** El POS registra el método y el importe que teclea el
   cajero, y nada más: sin código de autorización y **sin conciliación contra el
   corte de la terminal**, así que una venta con tarjeta apuntada que el banco

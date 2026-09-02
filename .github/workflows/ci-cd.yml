@@ -164,23 +164,15 @@ jobs:
           # estan escritas.
           npm run migrate:deploy
 
-      # Mailrelay exige sus claves al CONSTRUIR el servicio (`requireEnv`), y
-      # `getOrThrow` los secretos del JWT. Son valores de relleno: en las
-      # pruebas no se manda un correo, y si algun dia se mandara, con estos
-      # fallaria en vez de salir de verdad desde un runner.
-      #
-      # Twilio ya no aparece: dejo de exigir credenciales cuando se quito su
-      # simulador.
+      # Solo los secretos del JWT, que `getOrThrow` si exige. Twilio y
+      # Mailrelay ya no piden nada al arrancar: dejaron de exigir credenciales
+      # cuando se quitaron sus simuladores.
       - name: Run integration tests
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/coffeeos_test
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: ci-solo-para-pruebas-no-usar-en-produccion
           JWT_REFRESH_SECRET: ci-solo-para-pruebas-refresh-no-usar
-          MAILRELAY_API_KEY: ci-key-de-relleno
-          MAILRELAY_API_URL: https://ci.invalido/api/v1
-          MAILRELAY_FROM_EMAIL: ci@invalido.test
-          MAILRELAY_FROM_NAME: CoffeeOS CI
         run: npm run test:integration
 
   # E2E tests
@@ -234,17 +226,12 @@ jobs:
           npm run migrate:deploy --workspace=@coffeeos/database
           npm run db:seed
 
-      # Mismas variables de relleno que en integracion: sin ellas la API no
-      # llega a arrancar, porque Mailrelay las exige al construirse.
+      # Mismas variables que en integracion.
       - name: Levantar la aplicacion
         env:
           DATABASE_URL: postgresql://coffeeos:coffeeos123@localhost:5434/coffeeos_dev
           JWT_SECRET: ci-solo-para-pruebas-no-usar-en-produccion
           JWT_REFRESH_SECRET: ci-solo-para-pruebas-refresh-no-usar
-          MAILRELAY_API_KEY: ci-key-de-relleno
-          MAILRELAY_API_URL: https://ci.invalido/api/v1
-          MAILRELAY_FROM_EMAIL: ci@invalido.test
-          MAILRELAY_FROM_NAME: CoffeeOS CI
           NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
           NEXTAUTH_URL: http://localhost:3001
           NEXTAUTH_SECRET: ci-solo-para-pruebas-nextauth

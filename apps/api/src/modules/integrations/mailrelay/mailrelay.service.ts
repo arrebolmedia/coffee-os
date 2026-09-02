@@ -1,14 +1,27 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value || value.trim().length === 0) {
-    throw new Error(
-      `${name} environment variable is required and must not be empty`,
-    );
-  }
-  return value;
-}
+/**
+ * Módulo aplazado de forma indefinida por decisión del dueño (2 de septiembre
+ * de 2026), igual que WhatsApp y SMS.
+ *
+ * Aquí nunca hubo un cliente de Mailrelay: `sendEmail` inventaba un
+ * `messageId`, lo guardaba en un `Map` y devolvía éxito sin que saliera un
+ * correo. `addSubscriber` y `removeSubscriber` devolvían `success: true` sin
+ * dar de alta ni de baja a nadie. Y el constructor exigía las cuatro claves
+ * reales, así que la aplicación entera se negaba a arrancar sin credenciales
+ * que después no se usaban.
+ *
+ * Mismo trato que Twilio y que el timbrado sin PAC: el servicio se construye
+ * siempre y cualquier intento de envío falla diciendo que no salió nada.
+ */
+const MAILRELAY_APLAZADO =
+  'El envío de correo está aplazado de forma indefinida: no hay cliente de ' +
+  'Mailrelay integrado, sólo un simulador que devolvía éxito sin mandar nada. ' +
+  'No se envió ningún correo.';
 
 export interface MailrelayConfig {
   apiKey: string;
@@ -54,19 +67,27 @@ export class MailrelayService {
   private readonly logger = new Logger(MailrelayService.name);
   private readonly config: MailrelayConfig;
 
-  // Mock storage
-  private mockSentEmails: Map<string, any> = new Map();
+  // Las plantillas SÍ son contenido real —el texto en español de bienvenida,
+  // cumpleaños y lealtad— y se conservan para cuando haya un cliente de verdad.
   private templates: Map<string, EmailTemplate> = new Map();
 
   constructor() {
+    // Sin `requireEnv`: la ausencia de credenciales no puede impedir que
+    // arranque un punto de venta.
     this.config = {
-      apiKey: requireEnv('MAILRELAY_API_KEY'),
-      apiUrl: requireEnv('MAILRELAY_API_URL'),
-      defaultFromEmail: requireEnv('MAILRELAY_FROM_EMAIL'),
-      defaultFromName: requireEnv('MAILRELAY_FROM_NAME'),
+      apiKey: process.env.MAILRELAY_API_KEY ?? '',
+      apiUrl: process.env.MAILRELAY_API_URL ?? '',
+      defaultFromEmail: process.env.MAILRELAY_FROM_EMAIL ?? '',
+      defaultFromName: process.env.MAILRELAY_FROM_NAME ?? '',
     };
 
     this.initializeTemplates();
+  }
+
+  /** Corta cualquier intento de envío o de alta, en vez de simularlo. */
+  private aplazado(destino: string): never {
+    this.logger.error(`Correo a ${destino} bloqueado: ${MAILRELAY_APLAZADO}`);
+    throw new ServiceUnavailableException(MAILRELAY_APLAZADO);
   }
 
   private initializeTemplates() {
@@ -144,45 +165,7 @@ export class MailrelayService {
    * Send email
    */
   async sendEmail(data: EmailData): Promise<EmailResponse> {
-    this.logger.log(`Sending email to ${data.to}: ${data.subject}`);
-
-    try {
-      // In production, use Mailrelay API:
-      // const response = await fetch(`${this.config.apiUrl}/emails`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Authorization': `Bearer ${this.config.apiKey}`,
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({
-      //     from: { email: data.fromEmail || this.config.defaultFromEmail },
-      //     to: Array.isArray(data.to) ? data.to.map(email => ({ email })) : [{ email: data.to }],
-      //     subject: data.subject,
-      //     html: data.htmlContent,
-      //   }),
-      // });
-
-      // Mock implementation
-      const messageId = `EM${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
-      const toArray = Array.isArray(data.to) ? data.to : [data.to];
-
-      const response: EmailResponse = {
-        messageId,
-        status: 'sent',
-        to: toArray,
-      };
-
-      this.mockSentEmails.set(messageId, {
-        ...response,
-        ...data,
-        sentAt: new Date(),
-      });
-
-      return response;
-    } catch (error) {
-      this.logger.error(`Failed to send email: ${error.message}`);
-      throw new Error(`Email send failed: ${error.message}`);
-    }
+    return this.aplazado(Array.isArray(data.to) ? data.to.join(', ') : data.to);
   }
 
   /**
@@ -307,8 +290,14 @@ export class MailrelayService {
   /**
    * Get email status
    */
+  /**
+   * El estado de un correo.
+   *
+   * Leia de un `Map` que solo contenia lo que el propio simulador acababa de
+   * inventar. No hay ningun correo del que informar.
+   */
   async getEmailStatus(messageId: string): Promise<any> {
-    return this.mockSentEmails.get(messageId) || null;
+    return this.aplazado(`consulta del correo ${messageId}`);
   }
 
   /**
@@ -326,15 +315,9 @@ export class MailrelayService {
     name: string,
     listId: string = 'default',
   ): Promise<{ success: boolean; subscriberId: string }> {
-    this.logger.log(`Adding subscriber ${email} to list ${listId}`);
-
-    // In production, use Mailrelay API
-    const subscriberId = `SUB${Date.now()}`;
-
-    return {
-      success: true,
-      subscriberId,
-    };
+    // Devolvia `success: true` con un id inventado sin dar de alta a nadie:
+    // quien lo llamara se quedaba creyendo que el cliente estaba suscrito.
+    return this.aplazado(`alta de ${email} en la lista ${listId}`);
   }
 
   /**
@@ -344,10 +327,9 @@ export class MailrelayService {
     email: string,
     listId: string = 'default',
   ): Promise<{ success: boolean }> {
-    this.logger.log(`Removing subscriber ${email} from list ${listId}`);
-
-    return {
-      success: true,
-    };
+    // Igual que el alta: decia que si sin hacer nada. Una baja que no ocurre
+    // es peor que un error — el cliente sigue recibiendo correo que pidio no
+    // recibir.
+    return this.aplazado(`baja de ${email} de la lista ${listId}`);
   }
 }
