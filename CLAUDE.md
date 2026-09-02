@@ -204,6 +204,15 @@ trabajo próximo: no empezarlas, no estimarlas y no listarlas como pendientes.
 
 Pendientes de verdad, hoy:
 
+0. **Una vulnerabilidad alta en producción, y su arreglo es subir Next a la 16.** Es `postcss` (XSS al serializar CSS) dentro de `next@15.5.24`, y npm
+   sólo ofrece `next@16.3.4` como remedio: un salto de major. La exposición real
+   es baja —postcss corre en la compilación, sobre CSS escrito en el repo, no
+   sobre entrada del cliente—, pero la decisión es del dueño: Next 16 arrastra
+   el historial de la RCE de enero de 2026 (vetadas `16.0.0` a `16.1.4`), así
+   que el salto tiene que ser deliberado y con la suite entera detrás. En total
+   quedan 4 en producción (1 alta, 2 moderadas, 1 baja) y 11 contando las de
+   desarrollo. El CI bloquea sólo lo crítico de producción e imprime el resto
+   en cada corrida.
 1. **La tabla `taxes` no la consulta nadie.** Tiene CRUD y reglas de
    aplicabilidad por producto y categoría, y el POS cobra con `product.taxRate`.
    Se puede configurar un impuesto ahí y no pasa nada. Cablearla exige decidir

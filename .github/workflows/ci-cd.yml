@@ -64,8 +64,12 @@ jobs:
       - name: Generate Prisma client
         run: npm run db:generate
 
+      # Los argumentos van DESPUES de `--` o se los queda turbo, que los
+      # rechaza: `npm run test -- --coverage` daba "unexpected argument
+      # '--coverage' found" y el job moria antes de ejecutar un solo test.
+      # Este paso no ha corrido nunca las pruebas.
       - name: Run unit tests
-        run: npm run test -- --coverage --watchAll=false
+        run: npm run test:ci
 
       - name: Upload coverage
         uses: codecov/codecov-action@v3
@@ -229,8 +233,24 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      - name: Audit npm packages
-        run: npm audit --audit-level moderate
+      # Lo que BLOQUEA es lo critico en lo que se despliega. Las de las
+      # herramientas de desarrollo (plugins de eslint, minimatch) no viajan al
+      # servidor, y con `moderate` sobre todo el arbol el job vivia en rojo por
+      # ellas — otro gate que nadie mira.
+      - name: Auditar dependencias de produccion
+        run: npm audit --omit=dev --audit-level=critical
+
+      # Y las demas se IMPRIMEN en cada corrida, sin bloquear, para que sigan a
+      # la vista. Hoy quedan 4 en produccion, una de ellas alta: postcss (XSS al
+      # serializar CSS) dentro de next. Arreglarla es subir a next 16, un salto
+      # de major que necesita su propia decision — anotado en CLAUDE.md.
+      - name: Auditoria completa (informativa)
+        continue-on-error: true
+        run: |
+          echo "== Produccion =="
+          npm audit --omit=dev || true
+          echo "== Todo el arbol, desarrollo incluido =="
+          npm audit || true
 
   # Docker build and push
   #

@@ -15,6 +15,7 @@
     "dev": "turbo run dev --parallel",
     "lint": "turbo run lint",
     "test": "turbo run test",
+    "test:ci": "turbo run test -- --coverage --watchAll=false",
     "test:e2e": "turbo run test:e2e",
     "test:coverage": "turbo run test:coverage",
     "test:load": "echo 'Load testing with k6 - install separately: npm install -g k6'",
