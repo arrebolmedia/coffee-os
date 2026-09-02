@@ -17,6 +17,7 @@
     "test": "turbo run test",
     "test:ci": "turbo run test -- --coverage --watchAll=false",
     "test:e2e": "turbo run test:e2e",
+    "test:integration": "npm run test:e2e --workspace=@coffeeos/api",
     "test:coverage": "turbo run test:coverage",
     "test:load": "echo 'Load testing with k6 - install separately: npm install -g k6'",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",

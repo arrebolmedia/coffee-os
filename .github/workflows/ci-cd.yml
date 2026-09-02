@@ -194,14 +194,50 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
-      - name: Start services
+      # `docker-compose` con guion no existe en los runners: ahi es el plugin
+      # v2, `docker compose`. El paso moria con "command not found".
+      - name: Levantar Postgres y Redis
+        run: docker compose up -d postgres redis
+
+      # Y esperar a que Postgres ACEPTE conexiones, en vez de dormir 30
+      # segundos y cruzar los dedos: en un runner cargado tarda mas, y en uno
+      # rapido se desperdician.
+      - name: Esperar a Postgres
         run: |
-          docker-compose up -d postgres redis
-          npm run dev &
-          sleep 30
+          for i in $(seq 1 60); do
+            if docker compose exec -T postgres pg_isready -U coffeeos >/dev/null 2>&1; then
+              echo "Postgres listo en el intento $i"; exit 0
+            fi
+            sleep 2
+          done
+          echo "Postgres no respondio"; docker compose logs postgres; exit 1
+
+      # La suite de navegador necesita catalogo y un usuario con el que entrar:
+      # sin sembrar, el login falla y fallan las 200 pruebas por la misma razon.
+      - name: Migrar y sembrar
+        env:
+          DATABASE_URL: postgresql://coffeeos:coffeeos123@localhost:5434/coffeeos_dev
+        run: |
+          npm run migrate:deploy --workspace=@coffeeos/database
+          npm run db:seed
+
+      - name: Levantar la aplicacion
+        env:
+          DATABASE_URL: postgresql://coffeeos:coffeeos123@localhost:5434/coffeeos_dev
+        run: |
+          npm run dev > /tmp/coffeeos-dev.log 2>&1 &
+          for i in $(seq 1 90); do
+            api=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4000/api/v1/health || true)
+            web=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/login || true)
+            if [ "$api" = "200" ] && [ "$web" = "200" ]; then
+              echo "API y pos-web listos en el intento $i"; exit 0
+            fi
+            sleep 2
+          done
+          echo "No arrancaron. Log:"; tail -60 /tmp/coffeeos-dev.log; exit 1
 
       - name: Run E2E tests
-        run: npm run test:e2e
+        run: npm run test:e2e --workspace=@coffeeos/pos-web
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
